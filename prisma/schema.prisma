@@ -1,0 +1,1017 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("OPERATOR")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id // SHA256 of a random bearer cookie, never the cookie itself
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  csrf      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model LoginThrottle {
+  key      String   @id
+  attempts Int      @default(0)
+  resetAt  DateTime
+}
+
+model Supplier {
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String
+  contact            String              @default("")
+  notes              String              @default("")
+  createdAt          DateTime            @default(now())
+  sources            Source[]
+  offers             Offer[]
+  procurementSources ProcurementSource[]
+}
+
+model Source {
+  id               String            @id @default(uuid()) @db.Uuid
+  supplierId       String?           @db.Uuid
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
+  sourceKey        String            @unique
+  title            String
+  payload          Json
+  version          Int               @default(1)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  revisions        SourceRevision[]
+  items            Item[]
+  purchaseLineId   String?           @unique @db.Uuid
+  purchaseLine     PurchaseLine?     @relation(fields: [purchaseLineId], references: [id])
+  itemLinks        ItemSourceLink[]
+  ingestCandidates IngestCandidate[]
+}
+
+model SourceRevision {
+  id        String   @id @default(uuid()) @db.Uuid
+  sourceId  String   @db.Uuid
+  source    Source   @relation(fields: [sourceId], references: [id])
+  version   Int
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@unique([sourceId, version])
+}
+
+model ProcurementSource {
+  id                   String            @id @default(uuid()) @db.Uuid
+  code                 String            @unique
+  name                 String
+  kind                 String            @default("MARKETPLACE")
+  defaultCurrency      String            @default("CNY")
+  supplierId           String?           @db.Uuid
+  supplier             Supplier?         @relation(fields: [supplierId], references: [id])
+  notes                String            @default("")
+  active               Boolean           @default(true)
+  version              Int               @default(1)
+  orderOverheadCny     Int               @default(0)
+  costAllocationMethod String            @default("PROPORTIONAL_LINE_AMOUNT")
+  storeCreditAsPayment Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  orders               PurchaseOrder[]
+  ingestSessions       IngestSession[]
+  ingestBatches        IngestBatch[]
+  ingestCandidates     IngestCandidate[]
+
+  @@index([kind, active])
+}
+
+model PurchaseOrder {
+  id                  String                    @id @default(uuid()) @db.Uuid
+  procurementSourceId String                    @db.Uuid
+  procurementSource   ProcurementSource         @relation(fields: [procurementSourceId], references: [id])
+  externalOrderNo     String
+  orderedAt           DateTime?
+  sourceStatusRaw     String                    @default("")
+  returnabilityRaw    String                    @default("")
+  currency            String                    @default("CNY")
+  subtotalAmount      Int?
+  totalAmount         Int?
+  paymentAmount       Int?
+  rawPayload          Json
+  version             Int                       @default(1)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  lines               PurchaseLine[]
+  adjustments         PurchaseOrderAdjustment[]
+  shipments           PurchaseShipment[]
+  returns             PurchaseReturn[]
+  revisions           PurchaseOrderRevision[]
+  costBasis           PurchaseOrderCostBasis?
+
+  @@unique([procurementSourceId, externalOrderNo])
+  @@index([orderedAt])
+  @@index([sourceStatusRaw])
+}
+
+model PurchaseOrderRevision {
+  id        String        @id @default(uuid()) @db.Uuid
+  orderId   String        @db.Uuid
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  createdAt DateTime      @default(now())
+
+  @@unique([orderId, version])
+}
+
+model PurchaseOrderAdjustment {
+  id            String        @id @default(uuid()) @db.Uuid
+  orderId       String        @db.Uuid
+  order         PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  adjustmentKey String
+  kind          String
+  label         String
+  amount        Int
+  currency      String
+  createdAt     DateTime      @default(now())
+
+  @@unique([orderId, adjustmentKey])
+  @@index([orderId])
+}
+
+model PurchaseLine {
+  id                    String                     @id @default(uuid()) @db.Uuid
+  orderId               String                     @db.Uuid
+  order                 PurchaseOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineKey               String
+  sourceSku             String                     @default("")
+  title                 String
+  brandRaw              String                     @default("")
+  categoryRaw           String                     @default("")
+  productUrl            String                     @default("")
+  currency              String
+  lineAmount            Int?
+  sourceCurrentPrice    Int?
+  sourceEstimatedRetail Int?
+  sourceConditionRaw    String                     @default("")
+  sourceStatusRaw       String                     @default("")
+  sizeLabelRaw          String                     @default("")
+  colorRaw              String                     @default("")
+  materialRaw           String                     @default("")
+  measurements          Json
+  measurementsEstimated Boolean                    @default(false)
+  descriptionRaw        String                     @default("")
+  imageUrls             String[]                   @default([])
+  rawPayload            Json
+  businessDecision      String                     @default("UNDECIDED")
+  possession            String                     @default("UNKNOWN")
+  reviewNote            String                     @default("")
+  version               Int                        @default(1)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  shipmentLinks         PurchaseShipmentLine[]
+  returnLinks           PurchaseReturnLine[]
+  itemLink              ItemPurchaseLink?
+  sourceCandidate       Source?
+  costConfirmations     PurchaseCostConfirmation[]
+  purchaseLineRevisions PurchaseLineRevision[]
+  ingestCandidates      IngestCandidate[]
+
+  @@unique([orderId, lineKey])
+  @@index([sourceSku])
+  @@index([businessDecision, possession])
+}
+
+model PurchaseLineRevision {
+  id        String       @id @default(uuid()) @db.Uuid
+  lineId    String       @db.Uuid
+  line      PurchaseLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  createdAt DateTime     @default(now())
+
+  @@unique([lineId, version])
+}
+
+model PurchaseShipment {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  orderId             String                 @db.Uuid
+  order               PurchaseOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shipmentKey         String
+  externalShipmentRef String                 @default("")
+  carrier             String                 @default("")
+  statusRaw           String                 @default("")
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  rawPayload          Json
+  createdAt           DateTime               @default(now())
+  lines               PurchaseShipmentLine[]
+
+  @@unique([orderId, shipmentKey])
+}
+
+model PurchaseShipmentLine {
+  shipmentId String           @db.Uuid
+  shipment   PurchaseShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  lineId     String           @db.Uuid
+  line       PurchaseLine     @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@id([shipmentId, lineId])
+  @@index([lineId])
+}
+
+model PurchaseReturn {
+  id                String               @id @default(uuid()) @db.Uuid
+  orderId           String               @db.Uuid
+  order             PurchaseOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnKey         String
+  externalReturnRef String               @default("")
+  statusRaw         String               @default("")
+  openedAt          DateTime?
+  rawPayload        Json
+  createdAt         DateTime             @default(now())
+  lines             PurchaseReturnLine[]
+
+  @@unique([orderId, returnKey])
+}
+
+model PurchaseReturnLine {
+  returnId String         @db.Uuid
+  return   PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  lineId   String         @db.Uuid
+  line     PurchaseLine   @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@id([returnId, lineId])
+  @@index([lineId])
+}
+
+model ItemPurchaseLink {
+  purchaseLineId String       @id @db.Uuid
+  purchaseLine   PurchaseLine @relation(fields: [purchaseLineId], references: [id], onDelete: Restrict)
+  itemId         String       @db.Uuid
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  linkedBy       String       @db.Uuid
+  linkedAt       DateTime     @default(now())
+  note           String       @default("")
+
+  @@index([itemId])
+}
+
+model PurchaseCostConfirmation {
+  id             String       @id @default(uuid()) @db.Uuid
+  purchaseLineId String       @db.Uuid
+  purchaseLine   PurchaseLine @relation(fields: [purchaseLineId], references: [id], onDelete: Restrict)
+  amountCny      Int
+  basis          String
+  note           String
+  confirmedBy    String       @db.Uuid
+  confirmedAt    DateTime     @default(now())
+  voidedAt       DateTime?
+  voidReason     String       @default("")
+
+  @@index([purchaseLineId, voidedAt])
+}
+
+model PurchaseOrderCostBasis {
+  orderId                      String                           @id @db.Uuid
+  order                        PurchaseOrder                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  version                      Int                              @default(1)
+  mode                         String
+  cashPaidCny                  Int?
+  fxMicros                     Int?
+  foreignEconomicTotalOverride Int?
+  overheadCny                  Int
+  note                         String                           @default("")
+  updatedBy                    String                           @db.Uuid
+  updatedAt                    DateTime                         @updatedAt
+  revisions                    PurchaseOrderCostBasisRevision[]
+}
+
+model PurchaseOrderCostBasisRevision {
+  id        String                 @id @default(uuid()) @db.Uuid
+  orderId   String                 @db.Uuid
+  basis     PurchaseOrderCostBasis @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  createdAt DateTime               @default(now())
+
+  @@unique([orderId, version])
+}
+
+model Item {
+  dataMode             String                    @default("BUSINESS")
+  testMarkedAt         DateTime?
+  testMarkedBy         String?                   @db.Uuid
+  testReason           String                    @default("")
+  dictionarySelections ItemDictionarySelection[]
+  deletedAt            DateTime?
+  deletedBy            String?                   @db.Uuid
+  deletionReason       String                    @default("")
+  id                   String                    @id @default(uuid()) @db.Uuid
+  serial               Int                       @unique @default(autoincrement())
+  sourceId             String?                   @unique @db.Uuid
+  source               Source?                   @relation(fields: [sourceId], references: [id])
+  title                String
+  brand                String                    @default("")
+  category             String                    @default("CLOTHING")
+  ownership            String                    @default("OWN")
+  status               String                    @default("AVAILABLE")
+  location             String                    @default("")
+  version              Int                       @default(1)
+  cycle                Int                       @default(1)
+  facts                Json
+  approvedId           String?                   @db.Uuid
+  approvedValid        Boolean                   @default(false)
+  currentPrice         Int?
+  currency             String                    @default("CNY")
+  cooperation          String                    @default("INCLUDED")
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  costEntries          CostEntry[]
+  revisions            ItemRevision[]
+  cycles               Cycle[]
+  assets               Asset[]
+  publishingDrafts     PublishingDraft[]
+  offers               Offer[]
+  packages             UsePackage[]
+  tasks                Task[]
+  listings             Listing[]
+  reservations         Reservation[]
+  sales                Sale[]
+  intents              ExceptionIntent[]
+  observations         Observation[]
+  inquiries            Inquiry[]
+  suggestions          Suggestion[]
+  aliases              ItemAlias[]
+  waivers              RequirementWaiver[]
+  movements            Movement[]
+  purchaseLinks        ItemPurchaseLink[]
+  sourceLinks          ItemSourceLink[]
+  ingestCandidates     IngestCandidate[]
+
+  @@index([deletedAt, serial])
+}
+
+model Cycle {
+  itemId      String   @db.Uuid
+  number      Int
+  item        Item     @relation(fields: [itemId], references: [id])
+  cooperation String   @default("INCLUDED")
+  createdAt   DateTime @default(now())
+  sales       Sale[]
+
+  @@id([itemId, number])
+}
+
+model ItemRevision {
+  id               String            @id @default(uuid()) @db.Uuid
+  itemId           String            @db.Uuid
+  item             Item              @relation(fields: [itemId], references: [id])
+  version          Int
+  snapshot         Json
+  approvedBy       String?           @db.Uuid
+  approvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  packages         UsePackage[]
+  publishingDrafts PublishingDraft[]
+
+  @@unique([itemId, version])
+  @@unique([id, itemId])
+}
+
+model Offer {
+  id           String   @id @default(uuid()) @db.Uuid
+  itemId       String   @db.Uuid
+  item         Item     @relation(fields: [itemId], references: [id])
+  supplierId   String   @db.Uuid
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  supplierCode String   @default("")
+  amount       Int?
+  currency     String   @default("CNY")
+  status       String   @default("CONFIRMED")
+  confirmedAt  DateTime @default(now())
+  validUntil   DateTime
+  canReserve   Boolean  @default(false)
+  notes        String   @default("")
+
+  @@index([validUntil])
+}
+
+model Asset {
+  id           String    @id @default(uuid()) @db.Uuid
+  itemId       String    @db.Uuid
+  item         Item      @relation(fields: [itemId], references: [id])
+  objectKey    String    @unique
+  originalName String
+  sha256       String
+  mime         String
+  size         Int
+  role         String    @default("PRODUCT")
+  origin       String    @default("OWN")
+  rights       String    @default("INTERNAL")
+  verified     Boolean   @default(false)
+  validUntil   DateTime?
+  sourceNote   String    @default("")
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  intakeFile           IntakeFile?
+  ingestCandidateAsset IngestCandidateAsset?
+  archived             Boolean               @default(false)
+
+  @@index([itemId])
+  @@index([itemId, archived, position])
+}
+
+model Channel {
+  version Int @default(1)
+  id               String            @id @default(uuid()) @db.Uuid
+  name             String
+  platform         String
+  locale           String            @default("zh-CN")
+  titleLimit       Int               @default(80)
+  active           Boolean           @default(true)
+  packages         UsePackage[]
+  listings         Listing[]
+  createdAt        DateTime          @default(now())
+  publishingDrafts PublishingDraft[]
+}
+
+model UsePackage {
+  id                String            @id @default(uuid()) @db.Uuid
+  itemId            String            @db.Uuid
+  item              Item              @relation(fields: [itemId], references: [id])
+  revisionId        String            @db.Uuid
+  revision          ItemRevision      @relation(fields: [revisionId, itemId], references: [id, itemId])
+  channelId         String            @db.Uuid
+  channel           Channel           @relation(fields: [channelId], references: [id])
+  cycle             Int
+  purpose           String
+  snapshot          Json
+  createdBy         String            @db.Uuid
+  validUntil        DateTime
+  createdAt         DateTime          @default(now())
+  listings          Listing[]
+  collectionEntries CollectionEntry[]
+
+  @@unique([id, itemId, channelId])
+}
+
+model Listing {
+  id         String     @id @default(uuid()) @db.Uuid
+  itemId     String     @db.Uuid
+  item       Item       @relation(fields: [itemId], references: [id])
+  channelId  String     @db.Uuid
+  channel    Channel    @relation(fields: [channelId], references: [id])
+  packageId  String     @db.Uuid
+  package    UsePackage @relation(fields: [packageId, itemId, channelId], references: [id, itemId, channelId])
+  remoteId   String
+  url        String     @default("")
+  desired    String     @default("LIVE")
+  observed   String     @default("MANUAL_REPORTED_LIVE")
+  observedAt DateTime   @default(now())
+  createdAt  DateTime   @default(now())
+  tasks      Task[]
+
+  @@unique([channelId, remoteId])
+}
+
+model Task {
+  id        String   @id @default(uuid()) @db.Uuid
+  itemId    String   @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id])
+  listingId String?  @db.Uuid
+  listing   Listing? @relation(fields: [listingId], references: [id])
+  dedupeKey String   @unique
+  kind      String
+  title     String
+  status    String   @default("OPEN")
+  assignee  String   @default("")
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Reservation {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @db.Uuid
+  item        Item     @relation(fields: [itemId], references: [id])
+  ownerId     String   @db.Uuid
+  customerRef String
+  status      String   @default("ACTIVE")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([itemId, status])
+}
+
+model ExceptionIntent {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @db.Uuid
+  item        Item     @relation(fields: [itemId], references: [id])
+  cycle       Int
+  customerRef String
+  reason      String
+  status      String   @default("ACTIVE")
+  createdBy   String   @db.Uuid
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+}
+
+model Sale {
+  id             String           @id @default(uuid()) @db.Uuid
+  itemId         String           @db.Uuid
+  item           Item             @relation(fields: [itemId], references: [id])
+  cycleNumber    Int
+  cycle          Cycle            @relation(fields: [itemId, cycleNumber], references: [itemId, number])
+  externalKey    String?          @unique
+  channel        String
+  customerRef    String           @default("")
+  state          String           @default("RECORDED")
+  amount         Int?
+  currency       String           @default("CNY")
+  cost           Int?
+  fees           Int?
+  refunded       Int              @default(0)
+  returned       Boolean          @default(false)
+  paid           Boolean          @default(false)
+  cooperation    String           @default("INCLUDED")
+  intentId       String?          @db.Uuid
+  note           String           @default("")
+  version        Int              @default(1)
+  createdBy      String           @db.Uuid
+  soldAt         DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  adjustments    Adjustment[]
+  statementLines SettlementLine[]
+
+  @@index([soldAt])
+}
+
+model Adjustment {
+  id        String   @id @default(uuid()) @db.Uuid
+  saleId    String   @db.Uuid
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  amount    Int
+  reason    String
+  createdBy String   @db.Uuid
+  createdAt DateTime @default(now())
+}
+
+model Observation {
+  id        String   @id @default(uuid()) @db.Uuid
+  itemId    String   @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id])
+  kind      String
+  payload   Json
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Inquiry {
+  version Int @default(1)
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @db.Uuid
+  item        Item     @relation(fields: [itemId], references: [id])
+  channel     String
+  customerRef String
+  notes       String   @default("")
+  quote       Int?
+  currency    String   @default("CNY")
+  state       String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Suggestion {
+  id           String   @id @default(uuid()) @db.Uuid
+  itemId       String   @db.Uuid
+  item         Item     @relation(fields: [itemId], references: [id])
+  inputVersion Int
+  locale       String
+  text         String
+  source       String
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+}
+
+model Movement {
+  id         String   @id @default(uuid()) @db.Uuid
+  itemId     String   @db.Uuid
+  item       Item     @relation(fields: [itemId], references: [id])
+  from       String
+  to         String
+  evidence   String
+  createdBy  String   @db.Uuid
+  occurredAt DateTime @default(now())
+}
+
+model Audit {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String
+  action     String
+  resourceId String
+  detail     Json
+  createdAt  DateTime @default(now())
+
+  @@index([resourceId, createdAt])
+}
+
+model Receipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String
+  operation   String
+  key         String
+  requestHash String
+  response    Json
+  createdAt   DateTime @default(now())
+
+  @@unique([actorId, operation, key])
+}
+
+model Outbox {
+  id         String    @id @default(uuid()) @db.Uuid
+  kind       String
+  itemId     String    @db.Uuid
+  payload    Json
+  status     String    @default("PENDING")
+  attempts   Int       @default(0)
+  nextAt     DateTime  @default(now())
+  leaseUntil DateTime?
+  leaseToken String?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([status, nextAt])
+}
+
+model CostEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @db.Uuid
+  item        Item     @relation(fields: [itemId], references: [id])
+  cycleNumber Int
+  kind        String
+  amount      Int
+  currency    String
+  confirmed   Boolean  @default(false)
+  status      String   @default("ACTIVE")
+  sourceType  String   @default("MANUAL")
+  sourceRef   String   @default("")
+  note        String
+  createdBy   String   @db.Uuid
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([itemId, cycleNumber])
+}
+
+model RuntimeHeartbeat {
+  id        String   @id @db.Uuid
+  kind      String
+  pid       Int
+  state     String   @default("RUNNING")
+  lastSeen  DateTime @default(now())
+  startedAt DateTime @default(now())
+
+  @@index([kind, lastSeen])
+}
+
+model SweepLease {
+  id         String    @id
+  cursor     String?
+  token      String?
+  leaseUntil DateTime?
+}
+
+model ItemAlias {
+  code      String   @id
+  itemId    String   @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id])
+  source    String
+  createdBy String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+}
+
+model RequirementWaiver {
+  id        String    @id @default(uuid()) @db.Uuid
+  itemId    String    @db.Uuid
+  item      Item      @relation(fields: [itemId], references: [id])
+  code      String
+  category  String
+  reason    String
+  status    String    @default("ACTIVE")
+  createdBy String    @db.Uuid
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([itemId, status])
+}
+
+model IntakeBatch {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  state     String       @default("OPEN")
+  createdBy String       @db.Uuid
+  createdAt DateTime     @default(now())
+  files     IntakeFile[]
+}
+
+model IntakeFile {
+  id           String      @id @default(uuid()) @db.Uuid
+  batchId      String      @db.Uuid
+  batch        IntakeBatch @relation(fields: [batchId], references: [id])
+  objectKey    String      @unique
+  originalName String
+  sha256       String
+  mime         String
+  size         Int
+  hint         String      @default("")
+  state        String      @default("UNASSIGNED")
+  note         String      @default("")
+  assetId      String?     @unique @db.Uuid
+  asset        Asset?      @relation(fields: [assetId], references: [id])
+  createdBy    String      @db.Uuid
+  createdAt    DateTime    @default(now())
+
+  @@index([batchId, state])
+}
+
+model Collection {
+  id        String            @id @default(uuid()) @db.Uuid
+  title     String
+  createdBy String            @db.Uuid
+  createdAt DateTime          @default(now())
+  entries   CollectionEntry[]
+}
+
+model CollectionEntry {
+  id           String     @id @default(uuid()) @db.Uuid
+  collectionId String     @db.Uuid
+  collection   Collection @relation(fields: [collectionId], references: [id])
+  packageId    String     @db.Uuid
+  itemId       String     @db.Uuid
+  channelId    String     @db.Uuid
+  package      UsePackage @relation(fields: [packageId, itemId, channelId], references: [id, itemId, channelId])
+  position     Int
+
+  @@unique([collectionId, itemId])
+}
+
+model SettlementRule {
+  id            String                @id @default(uuid()) @db.Uuid
+  name          String
+  agreementRef  String
+  basisPoints   Int
+  effectiveFrom DateTime
+  effectiveTo   DateTime
+  status        String                @default("DRAFT")
+  createdBy     String                @db.Uuid
+  activatedBy   String?               @db.Uuid
+  activatedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  statements    SettlementStatement[]
+}
+
+model SettlementStatement {
+  id          String                @id @default(uuid()) @db.Uuid
+  ruleId      String                @db.Uuid
+  rule        SettlementRule        @relation(fields: [ruleId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  currency    String
+  baseId      String?               @db.Uuid
+  base        SettlementStatement?  @relation("Corrections", fields: [baseId], references: [id])
+  corrections SettlementStatement[] @relation("Corrections")
+  status      String                @default("DRAFT")
+  digest      String
+  snapshot    Json
+  createdBy   String                @db.Uuid
+  createdAt   DateTime              @default(now())
+  confirmedBy String?               @db.Uuid
+  confirmedAt DateTime?
+  lines       SettlementLine[]
+
+  @@index([currency, periodStart, periodEnd, status])
+}
+
+model SettlementLine {
+  id          String              @id @default(uuid()) @db.Uuid
+  statementId String              @db.Uuid
+  statement   SettlementStatement @relation(fields: [statementId], references: [id])
+  saleId      String              @db.Uuid
+  sale        Sale                @relation(fields: [saleId], references: [id])
+  snapshot    Json
+
+  @@unique([statementId, saleId])
+}
+
+// Editable channel-specific working copy, independent from immutable UsePackage.
+model PublishingDraft {
+  id              String        @id @default(uuid()) @db.Uuid
+  itemId          String        @db.Uuid
+  item            Item          @relation(fields: [itemId], references: [id])
+  channelId       String        @db.Uuid
+  channel         Channel       @relation(fields: [channelId], references: [id])
+  purpose         String
+  title           String        @default("")
+  body            String        @default("")
+  assetIds        Json          @default("[]")
+  basisRevisionId String?       @db.Uuid
+  basisRevision   ItemRevision? @relation(fields: [basisRevisionId, itemId], references: [id, itemId])
+  basisPrice      Int?
+  basisCurrency   String
+  version         Int           @default(1)
+  updatedBy       String        @db.Uuid
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([itemId, channelId, purpose])
+}
+
+model DictionaryEntry {
+  id          String                    @id @default(uuid()) @db.Uuid
+  kind        String
+  code        String
+  label       String
+  labelEn     String                    @default("")
+  aliases     String[]                  @default([])
+  description String                    @default("")
+  categories  String[]                  @default([])
+  sortOrder   Int                       @default(0)
+  active      Boolean                   @default(true)
+  version     Int                       @default(1)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  terms       DictionaryTerm[]
+  selections  ItemDictionarySelection[]
+
+  @@unique([kind, code])
+  @@unique([id, kind])
+  @@index([kind, active, sortOrder])
+}
+
+model DictionaryTerm {
+  kind       String
+  normalized String
+  entryId    String          @db.Uuid
+  entry      DictionaryEntry @relation(fields: [entryId, kind], references: [id, kind], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([kind, normalized])
+  @@index([entryId, kind])
+}
+
+model ItemDictionarySelection {
+  itemId       String          @db.Uuid
+  kind         String
+  item         Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  entryId      String          @db.Uuid
+  entry        DictionaryEntry @relation(fields: [entryId, kind], references: [id, kind], onDelete: Restrict, onUpdate: Restrict)
+  entryVersion Int
+  code         String
+  label        String
+  labelEn      String
+  description  String
+  selectedAt   DateTime        @default(now())
+
+  @@id([itemId, kind])
+  @@index([entryId, kind])
+}
+
+model IngestSession {
+  id                  String            @id @default(uuid()) @db.Uuid
+  procurementSourceId String            @db.Uuid
+  procurementSource   ProcurementSource @relation(fields: [procurementSourceId], references: [id], onDelete: Restrict)
+  label               String
+  tokenHash           String            @unique
+  createdBy           String            @db.Uuid
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  lastUsedAt          DateTime?
+  createdAt           DateTime          @default(now())
+  batches             IngestBatch[]
+
+  @@index([procurementSourceId, expiresAt])
+}
+
+model IngestBatch {
+  id                  String            @id @default(uuid()) @db.Uuid
+  sessionId           String            @db.Uuid
+  session             IngestSession     @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  procurementSourceId String            @db.Uuid
+  procurementSource   ProcurementSource @relation(fields: [procurementSourceId], references: [id], onDelete: Restrict)
+  externalBatchKey    String
+  agentName           String
+  agentVersion        String            @default("")
+  kind                String            @default("ITEM_BATCH")
+  status              String            @default("OPEN")
+  rawManifest         Json
+  createdAt           DateTime          @default(now())
+  sealedAt            DateTime?
+  candidates          IngestCandidate[]
+
+  @@unique([procurementSourceId, externalBatchKey])
+  @@index([status, createdAt])
+}
+
+model IngestCandidate {
+  id                    String                    @id @default(uuid()) @db.Uuid
+  batchId               String                    @db.Uuid
+  batch                 IngestBatch               @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  procurementSourceId   String                    @db.Uuid
+  procurementSource     ProcurementSource         @relation(fields: [procurementSourceId], references: [id], onDelete: Restrict)
+  externalKey           String
+  sourceItemKey         String                    @default("")
+  purchaseLineId        String?                   @db.Uuid
+  purchaseLine          PurchaseLine?             @relation(fields: [purchaseLineId], references: [id], onDelete: SetNull)
+  sourceId              String?                   @db.Uuid
+  source                Source?                   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  itemId                String?                   @db.Uuid
+  item                  Item?                     @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  titleRaw              String
+  brandRaw              String                    @default("")
+  categoryRaw           String                    @default("")
+  conditionRaw          String                    @default("")
+  statusRaw             String                    @default("")
+  currency              String                    @default("CNY")
+  sourceLineAmount      Int?
+  sourceCurrentPrice    Int?
+  sourceEstimatedRetail Int?
+  sourceFacts           Json
+  proposal              Json
+  rawPayload            Json
+  warnings              String[]                  @default([])
+  decision              String                    @default("PENDING")
+  possession            String                    @default("UNKNOWN")
+  version               Int                       @default(1)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  confirmedAt           DateTime?
+  revisions             IngestCandidateRevision[]
+  assets                IngestCandidateAsset[]
+
+  @@unique([procurementSourceId, externalKey])
+  @@index([decision, createdAt])
+  @@index([batchId, decision])
+}
+
+model IngestCandidateRevision {
+  id          String          @id @default(uuid()) @db.Uuid
+  candidateId String          @db.Uuid
+  candidate   IngestCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  version     Int
+  snapshot    Json
+  createdAt   DateTime        @default(now())
+
+  @@unique([candidateId, version])
+}
+
+model IngestCandidateAsset {
+  id           String          @id @default(uuid()) @db.Uuid
+  candidateId  String          @db.Uuid
+  candidate    IngestCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  objectKey    String          @unique
+  originalName String
+  sha256       String
+  mime         String
+  size         Int
+  sourceUrl    String          @default("")
+  roleHint     String          @default("PRODUCT")
+  assetId      String?         @unique @db.Uuid
+  asset        Asset?          @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  createdAt    DateTime        @default(now())
+
+  @@unique([candidateId, sha256])
+  @@index([candidateId, createdAt])
+}
+
+model ItemSourceLink {
+  itemId   String   @db.Uuid
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  sourceId String   @db.Uuid
+  source   Source   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  kind     String   @default("ACQUISITION")
+  linkedBy String   @db.Uuid
+  linkedAt DateTime @default(now())
+  note     String   @default("")
+
+  @@id([itemId, sourceId])
+  @@index([sourceId])
+}

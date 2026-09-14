@@ -1,0 +1,25 @@
+{
+  "verifiedAt": "2026-09-10T15:20:28.801839+00:00",
+  "release": "0.1.0-rc.1",
+  "environment": {
+    "platform": "macOS (authorized local computer)",
+    "node": "22.22.3",
+    "postgresql": "16.13",
+    "databaseImage": "postgres:16-alpine@sha256:4e6e670bb069649261c9c18031f0aded7bb249a5b6664ddec29c013a89310d50"
+  },
+  "tests": {
+    "unit": 16,
+    "realPostgresAndHttp": 32,
+    "browser": 8,
+    "harnessSelfTests": 9,
+    "total": 65,
+    "failed": 0
+  },
+  "staticHarnessGates": 29,
+  "freshInstallAndEmptyDatabase": true,
+  "backupRestore": true,
+  "knownNpmVulnerabilities": 0,
+  "realMarketplaceIntegrationsTested": false,
+  "productionApproved": false,
+  "all74BlueprintScenariosImplemented": false
+}

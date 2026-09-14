@@ -1,0 +1,127 @@
+export const actionLabels: Record<string, string> = {
+  ASSET_ARCHIVED: "存档图片",
+  ASSET_RESTORED: "恢复图片",
+  ASSET_CLASSIFIED: "调整图片用途",
+  ASSET_REVIEWED: "核验图片",
+  ASSET_UPLOADED: "上传图片",
+  CHANNEL_CREATED: "新增销售渠道",
+  CHANNEL_DRAFT_SAVED: "保存渠道文案",
+  COLLECTION_CREATED: "创建客户选品",
+  COST_RECORDED: "登记成本",
+  COST_VOIDED: "作废成本记录",
+  CUSTODY_MOVED: "登记实物交接",
+  DICTIONARY_CREATED: "新增字典选项",
+  DICTIONARY_UPDATED: "修改字典选项",
+  EXCEPTION_INTENT: "登记交易例外",
+  IMAGE_ORDER_CHANGED: "调整图片顺序",
+  INQUIRY_CREATED: "登记客户询盘",
+  INQUIRY_UPDATED: "更新询盘",
+  INTAKE_CLOSED: "关闭图片归档批次",
+  INTAKE_CREATED: "新建图片归档批次",
+  INTAKE_FILE_ADDED: "上传待归档图片",
+  INTAKE_FILE_ASSIGNED: "确认图片所属商品",
+  INTAKE_FILE_IGNORED: "跳过归档图片",
+  INVENTORY_REOPENED: "恢复商品可售",
+  INVENTORY_PAUSED: "暂停商品推广",
+  INVENTORY_SOLD: "保护已售商品库存",
+  INVENTORY_RESERVED: "预留商品",
+  INVENTORY_GIFTED: "登记赠出",
+  INVENTORY_SELF_USE: "登记自留",
+  INVENTORY_SUPPLIER_SOLD: "登记供应商售罄",
+  ITEM_ALIAS_ADDED: "关联原有货号",
+  ITEM_APPROVED: "确认商品资料",
+  STUDIO_REVIEW_CONFIRMED: "确认商品图文与实拍使用权",
+  ITEM_CREATED: "新建商品",
+  ITEM_RESTORED: "从回收站恢复商品",
+  TEST_DATA_ISOLATED: "清理并隔离测试商品",
+  ITEM_TRASHED: "商品移入回收站",
+  ITEM_UPDATED: "修改商品资料",
+  JOB_RETRIED: "重试后台任务",
+  LISTING_OBSERVED: "登记渠道下架结果",
+  LISTING_RECEIPT: "登记平台发布",
+  LISTING_REPUBLISHED: "更新平台发布记录",
+  LOGIN: "登录工作台",
+  OBSERVATION_RESOLVED: "处理库存冲突",
+  OFFER_CONFIRMED: "确认供货条件",
+  OFFER_WITHDRAWN: "撤回供货条件",
+  PACKAGE_DOWNLOADED: "下载发布资料",
+  PACKAGE_FROZEN: "生成发布资料",
+  PASSWORD_CHANGED: "修改登录密码",
+  INGEST_SESSION_CREATED: "创建Agent导入会话",
+  INGEST_SESSION_REVOKED: "撤销Agent导入会话",
+  INGEST_BATCH_CREATED: "创建Agent导入批次",
+  INGEST_BATCH_SEALED: "封闭Agent导入批次",
+  INGEST_CANDIDATES_UPSERTED: "更新待确认商品",
+  INGEST_CANDIDATE_ASSET_ADDED: "导入候选商品图片",
+  INGEST_CANDIDATE_REVIEWED: "调整待确认商品",
+  INGEST_CANDIDATE_CONFIRMED: "待确认商品生成TM",
+  INGEST_CANDIDATE_SOURCE_CREATED: "生成候选来源记录",
+  SOURCE_COST_POLICY_UPDATED: "修改来源成本规则",
+  ORDER_COST_BASIS_CONFIRMED: "确认订单成本依据",
+  PROCUREMENT_COST_APPLIED: "写入TM采购成本",
+  ORDER_COST_ALLOCATION_COMMITTED: "确认订单成本分摊",
+  PROCUREMENT_SOURCE_CREATED: "新增采购来源",
+  PURCHASE_ORDER_IMPORTED: "导入采购订单",
+  PURCHASE_LINE_REVIEWED: "核对采购实物与经营去向",
+  PURCHASE_LINE_SOURCE_CREATED: "采购订单行生成货源候选",
+  PURCHASE_LINE_ITEM_LINKED: "关联采购记录与TM商品",
+  PURCHASE_COST_CONFIRMED: "确认人民币采购成本",
+  PURCHASE_COST_VOIDED: "作废人民币采购成本确认",
+  PREPARATION_EVALUATED: "检查商品缺项",
+  REFUND_RECORDED: "登记退款",
+  REQUIREMENT_NOT_APPLICABLE: "登记要求不适用",
+  REQUIREMENT_WAIVER_REVOKED: "撤销不适用说明",
+  RESERVATION_RELEASED: "解除商品预留",
+  RETURN_RECEIVED: "登记退回实物",
+  SALE_COOPERATION_REVIEWED: "核对合作范围",
+  SALE_FINANCE_UPDATED: "补充成交收支",
+  SALE_RECORDED: "登记我方售出",
+  SETTLEMENT_CONFIRMED: "确认合作对账",
+  SETTLEMENT_PREVIEW_CREATED: "生成对账预览",
+  SETTLEMENT_RULE_ACTIVATED: "启用对账规则",
+  SETTLEMENT_RULE_DRAFTED: "保存对账规则草稿",
+  SOURCE_IMPORTED: "导入货源资料",
+  SUGGESTION_APPLIED_TO_DRAFT: "采纳文案建议",
+  SUGGESTION_CREATED: "登记文案候选",
+  SUPPLIER_CREATED: "新增供应商",
+  TASK_UPDATED: "更新待办事项",
+  USER_ACCESS_CHANGED: "修改账号权限",
+  USER_CREATED: "新增内部账号",
+};
+export const jobLabels: Record<string, string> = {
+  ITEM_CHANGED: "同步商品当前状态",
+  CONTENT_REVIEW: "检查资料变更影响",
+  STOP_SELLING: "停止销售并安排下架",
+  TEST_DATA_ISOLATED: "清理并隔离测试商品",
+  ITEM_TRASHED: "清理已删除商品待办",
+  ITEM_RESTORED: "核对恢复后的商品",
+  SUPPLY_CHANGED: "核对供货变更",
+  EXPIRY_CHECK: "检查过期资料",
+};
+export const jobStates: Record<string, string> = {
+  FAILED: "执行失败",
+  PENDING: "等待执行",
+  WORKING: "正在执行",
+  DONE: "已完成",
+};
+export function jobHelp(error: string | null, state: string) {
+  if (!error)
+    return state === "FAILED"
+      ? "执行未完成。请查看技术详情或联系管理员。"
+      : state === "PENDING"
+        ? "系统会自动处理，无须重复提交。"
+        : state === "WORKING"
+          ? "正在核对商品状态。"
+          : "处理已完成。";
+  return (
+    (
+      {
+        BUSINESS_ERROR: "业务条件未满足。先打开商品核对状态与资料，再重试。",
+        RETRYABLE_ERROR:
+          "发生暂时性错误。系统会按策略重试，持续失败请联系管理员。",
+        LEASE_EXHAUSTED:
+          "任务多次中断且已停止自动重试。检查运行状态后再手动重试。",
+      } as Record<string, string>
+    )[error] || "任务未能完成，展开技术详情可查看诊断信息。"
+  );
+}

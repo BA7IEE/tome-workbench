@@ -1,0 +1,3065 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/costing/sources/{id}/policy": {
+      "post": {
+        "operationId": "CostingController_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品取得成本"
+        ]
+      }
+    },
+    "/api/costing/orders/{id}/preview": {
+      "get": {
+        "operationId": "CostingController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品取得成本"
+        ]
+      }
+    },
+    "/api/costing/orders/{id}/basis": {
+      "post": {
+        "operationId": "CostingController_basis",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品取得成本"
+        ]
+      }
+    },
+    "/api/costing/orders/{id}/commit": {
+      "post": {
+        "operationId": "CostingController_commit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品取得成本"
+        ]
+      }
+    },
+    "/api/ingest/sessions": {
+      "post": {
+        "operationId": "IngestAdminController_createSession",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      },
+      "get": {
+        "operationId": "IngestAdminController_sessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/sessions/{id}/revoke": {
+      "post": {
+        "operationId": "IngestAdminController_revokeSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/batches": {
+      "get": {
+        "operationId": "IngestAdminController_batches",
+        "parameters": [
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/batches/{id}/integrity": {
+      "get": {
+        "operationId": "IngestAdminController_batchIntegrity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/items/{id}/evidence": {
+      "get": {
+        "operationId": "IngestAdminController_itemEvidence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates": {
+      "get": {
+        "operationId": "IngestAdminController_candidates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}": {
+      "get": {
+        "operationId": "IngestAdminController_candidate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidate-assets/{id}/preview": {
+      "get": {
+        "operationId": "IngestAdminController_candidatePreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidate-assets/{id}/original": {
+      "get": {
+        "operationId": "IngestAdminController_candidateOriginal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/matches": {
+      "get": {
+        "operationId": "IngestAdminController_matches",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/link-item": {
+      "post": {
+        "operationId": "IngestAdminController_linkItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/review": {
+      "post": {
+        "operationId": "IngestAdminController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/confirm": {
+      "post": {
+        "operationId": "IngestAdminController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/bulk-confirm": {
+      "post": {
+        "operationId": "IngestAdminController_bulkConfirm",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/bulk-exclude": {
+      "post": {
+        "operationId": "IngestAdminController_bulkExclude",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/agent-ingest/protocol": {
+      "get": {
+        "operationId": "IngestMachineController_protocol",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/orders": {
+      "post": {
+        "operationId": "IngestMachineController_order",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/batches": {
+      "post": {
+        "operationId": "IngestMachineController_createBatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/batches/{id}/candidates": {
+      "post": {
+        "operationId": "IngestMachineController_candidates",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/batches/{id}/seal": {
+      "post": {
+        "operationId": "IngestMachineController_seal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/batches/{id}": {
+      "get": {
+        "operationId": "IngestMachineController_status",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/candidates/{id}/assets": {
+      "post": {
+        "operationId": "IngestMachineController_asset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/procurement/sources": {
+      "get": {
+        "operationId": "ProcurementController_sources",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      },
+      "post": {
+        "operationId": "ProcurementController_createSource",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/orders": {
+      "get": {
+        "operationId": "ProcurementController_orders",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/orders/{id}": {
+      "get": {
+        "operationId": "ProcurementController_order",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/lines/{id}/revisions": {
+      "get": {
+        "operationId": "ProcurementController_lineRevisions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/orders/import": {
+      "post": {
+        "operationId": "ProcurementController_importOrder",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/lines/{id}/review": {
+      "post": {
+        "operationId": "ProcurementController_reviewLine",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/lines/{id}/source-candidate": {
+      "post": {
+        "operationId": "ProcurementController_sourceCandidate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/lines/{id}/link-item": {
+      "post": {
+        "operationId": "ProcurementController_linkItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/lines/{id}/cost-confirmations": {
+      "post": {
+        "operationId": "ProcurementController_confirmCost",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/procurement/cost-confirmations/{id}/void": {
+      "post": {
+        "operationId": "ProcurementController_voidCost",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "采购来源与订单"
+        ]
+      }
+    },
+    "/api/items/{id}/studio": {
+      "get": {
+        "operationId": "StudioController_studio",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品工作区"
+        ]
+      }
+    },
+    "/api/items/{id}/review-for-use": {
+      "post": {
+        "operationId": "StudioController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品工作区"
+        ]
+      }
+    },
+    "/api/items/{id}/test-cleanup-preview": {
+      "get": {
+        "operationId": "TestDataController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "测试数据清理"
+        ]
+      }
+    },
+    "/api/items/{id}/test-cleanup": {
+      "post": {
+        "operationId": "TestDataController_cleanup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "测试数据清理"
+        ]
+      }
+    },
+    "/api/operations/audit-logs": {
+      "get": {
+        "operationId": "LogsController_audit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Logs"
+        ]
+      }
+    },
+    "/api/operations/background-jobs": {
+      "get": {
+        "operationId": "LogsController_jobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Logs"
+        ]
+      }
+    },
+    "/api/dictionaries": {
+      "get": {
+        "operationId": "DictionaryController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "字典管理"
+        ]
+      },
+      "post": {
+        "operationId": "DictionaryController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "字典管理"
+        ]
+      }
+    },
+    "/api/dictionaries/{id}": {
+      "get": {
+        "operationId": "DictionaryController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "字典管理"
+        ]
+      },
+      "post": {
+        "operationId": "DictionaryController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "字典管理"
+        ]
+      }
+    },
+    "/api/recycle-bin/items": {
+      "get": {
+        "operationId": "TrashController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品删除与恢复"
+        ]
+      }
+    },
+    "/api/items/{id}/trash": {
+      "post": {
+        "operationId": "TrashController_trash",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品删除与恢复"
+        ]
+      }
+    },
+    "/api/items/{id}/restore": {
+      "post": {
+        "operationId": "TrashController_restore",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品删除与恢复"
+        ]
+      }
+    },
+    "/api/items/{id}/image-order": {
+      "post": {
+        "operationId": "MediaActionsController_order",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MediaActions"
+        ]
+      }
+    },
+    "/api/assets/{id}/archive": {
+      "post": {
+        "operationId": "MediaActionsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MediaActions"
+        ]
+      }
+    },
+    "/api/assets/{id}/classify": {
+      "post": {
+        "operationId": "MediaActionsController_classify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MediaActions"
+        ]
+      }
+    },
+    "/api/items/{id}/publishing-space": {
+      "get": {
+        "operationId": "PublishingDraftsController_space",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublishingDrafts"
+        ]
+      }
+    },
+    "/api/items/{id}/publishing-draft": {
+      "post": {
+        "operationId": "PublishingDraftsController_save",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublishingDrafts"
+        ]
+      }
+    },
+    "/api/packages/{id}/usable": {
+      "get": {
+        "operationId": "PublishingDraftsController_usable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublishingDrafts"
+        ]
+      }
+    },
+    "/api/operations/status": {
+      "get": {
+        "operationId": "OperationsController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/api/intake/batches": {
+      "get": {
+        "operationId": "IntakeController_batches",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      },
+      "post": {
+        "operationId": "IntakeController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/batches/{id}": {
+      "get": {
+        "operationId": "IntakeController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/batches/{id}/upload": {
+      "post": {
+        "operationId": "IntakeController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/files/{id}/preview": {
+      "get": {
+        "operationId": "IntakeController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/files/{id}/original": {
+      "get": {
+        "operationId": "IntakeController_original",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/batches/{id}/assign": {
+      "post": {
+        "operationId": "IntakeController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/files/{id}/ignore": {
+      "post": {
+        "operationId": "IntakeController_ignore",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/intake/batches/{id}/close": {
+      "post": {
+        "operationId": "IntakeController_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Intake"
+        ]
+      }
+    },
+    "/api/items/{id}/aliases": {
+      "post": {
+        "operationId": "CatalogExtensionsController_alias",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "CatalogExtensions"
+        ]
+      }
+    },
+    "/api/items/{id}/waivers": {
+      "post": {
+        "operationId": "CatalogExtensionsController_waiver",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "CatalogExtensions"
+        ]
+      }
+    },
+    "/api/items/{id}/waivers/{waiverId}/revoke": {
+      "post": {
+        "operationId": "CatalogExtensionsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "waiverId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "CatalogExtensions"
+        ]
+      }
+    },
+    "/api/collections": {
+      "get": {
+        "operationId": "CollectionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Collections"
+        ]
+      },
+      "post": {
+        "operationId": "CollectionsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Collections"
+        ]
+      }
+    },
+    "/api/collections/preflight": {
+      "post": {
+        "operationId": "CollectionsController_preflight",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Collections"
+        ]
+      }
+    },
+    "/api/collections/{id}": {
+      "get": {
+        "operationId": "CollectionsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Collections"
+        ]
+      }
+    },
+    "/api/collections/{id}/download": {
+      "get": {
+        "operationId": "CollectionsController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Collections"
+        ]
+      }
+    },
+    "/api/settlements/rules": {
+      "get": {
+        "operationId": "SettlementController_rules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      },
+      "post": {
+        "operationId": "SettlementController_createRule",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/settlements/rules/{id}/activate": {
+      "post": {
+        "operationId": "SettlementController_activate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/settlements": {
+      "get": {
+        "operationId": "SettlementController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/settlements/{id}": {
+      "get": {
+        "operationId": "SettlementController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/settlements/preview": {
+      "post": {
+        "operationId": "SettlementController_preview",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/settlements/{id}/confirm": {
+      "post": {
+        "operationId": "SettlementController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Settlement"
+        ]
+      }
+    },
+    "/api/items/{id}/costs": {
+      "get": {
+        "operationId": "CostsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "成本明细与人工归属核对"
+        ]
+      },
+      "post": {
+        "operationId": "CostsController_add",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "成本明细与人工归属核对"
+        ]
+      }
+    },
+    "/api/costs/{id}/void": {
+      "post": {
+        "operationId": "CostsController_voidCost",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "成本明细与人工归属核对"
+        ]
+      }
+    },
+    "/api/sales/{id}/classify": {
+      "post": {
+        "operationId": "CostsController_classify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "成本明细与人工归属核对"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/auth/users": {
+      "get": {
+        "operationId": "AuthController_users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      },
+      "post": {
+        "operationId": "AuthController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/auth/user-access": {
+      "post": {
+        "operationId": "AuthController_change",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/auth/password": {
+      "post": {
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "账户"
+        ]
+      }
+    },
+    "/api/items": {
+      "get": {
+        "operationId": "CatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      },
+      "post": {
+        "operationId": "CatalogController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      }
+    },
+    "/api/items/{id}": {
+      "get": {
+        "operationId": "CatalogController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      },
+      "patch": {
+        "operationId": "CatalogController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      }
+    },
+    "/api/items/{id}/approve": {
+      "post": {
+        "operationId": "CatalogController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      }
+    },
+    "/api/items/{id}/move": {
+      "post": {
+        "operationId": "CatalogController_move",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      }
+    },
+    "/api/supply/suppliers": {
+      "get": {
+        "operationId": "SupplyController_suppliers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      },
+      "post": {
+        "operationId": "SupplyController_supplier",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/sources": {
+      "get": {
+        "operationId": "SupplyController_sources",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/sources/{id}": {
+      "get": {
+        "operationId": "SupplyController_source",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/sources/{id}/revisions": {
+      "get": {
+        "operationId": "SupplyController_revisions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/sources/preview": {
+      "post": {
+        "operationId": "SupplyController_preview",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/sources/import": {
+      "post": {
+        "operationId": "SupplyController_importSources",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/offers": {
+      "post": {
+        "operationId": "SupplyController_offer",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/supply/offers/{id}/withdraw": {
+      "post": {
+        "operationId": "SupplyController_withdraw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "货源与供应商"
+        ]
+      }
+    },
+    "/api/assets/upload": {
+      "post": {
+        "operationId": "MediaController_upload",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "素材"
+        ]
+      }
+    },
+    "/api/assets/{id}/preview": {
+      "get": {
+        "operationId": "MediaController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "素材"
+        ]
+      }
+    },
+    "/api/assets/{id}/original": {
+      "get": {
+        "operationId": "MediaController_original",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "素材"
+        ]
+      }
+    },
+    "/api/assets/{id}/review": {
+      "post": {
+        "operationId": "MediaController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "素材"
+        ]
+      }
+    },
+    "/api/channels": {
+      "get": {
+        "operationId": "PublishingController_channels",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      },
+      "post": {
+        "operationId": "PublishingController_channel",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/channels/{id}": {
+      "post": {
+        "operationId": "PublishingController_updateChannel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/readiness": {
+      "get": {
+        "operationId": "PublishingController_readiness",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/prepare": {
+      "post": {
+        "operationId": "PublishingController_prepare",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/package-preview": {
+      "get": {
+        "operationId": "PublishingController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/packages": {
+      "post": {
+        "operationId": "PublishingController_pack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/packages/{id}": {
+      "get": {
+        "operationId": "PublishingController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/packages/{id}/download": {
+      "get": {
+        "operationId": "PublishingController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/listings": {
+      "get": {
+        "operationId": "PublishingController_listings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      },
+      "post": {
+        "operationId": "PublishingController_receipt",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/listings/{id}/observe": {
+      "post": {
+        "operationId": "PublishingController_observe",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/showroom": {
+      "get": {
+        "operationId": "PublishingController_showroom",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/showroom/{id}/image/{asset}": {
+      "get": {
+        "operationId": "PublishingController_publicImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asset",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/reserve": {
+      "post": {
+        "operationId": "TradingController_reserve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/items/{id}/release": {
+      "post": {
+        "operationId": "TradingController_release",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/items/{id}/state": {
+      "post": {
+        "operationId": "TradingController_state",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/items/{id}/intents": {
+      "post": {
+        "operationId": "TradingController_intent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/items/{id}/sold": {
+      "post": {
+        "operationId": "TradingController_sold",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/sales": {
+      "get": {
+        "operationId": "TradingController_sales",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/sales/{id}/finance": {
+      "post": {
+        "operationId": "TradingController_finance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/sales/{id}/refund": {
+      "post": {
+        "operationId": "TradingController_refund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/sales/{id}/return": {
+      "post": {
+        "operationId": "TradingController_returned",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/inquiries": {
+      "get": {
+        "operationId": "TradingController_inquiries",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": false,
+            "in": "query",
+            "description": "按商品编号查看询盘",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "按询盘编号定位",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      },
+      "post": {
+        "operationId": "TradingController_inquiry",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/inquiries/{id}/history": {
+      "get": {
+        "operationId": "TradingController_inquiryHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/inquiries/{id}/status": {
+      "post": {
+        "operationId": "TradingController_inquiryStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/observations/{id}/resolve": {
+      "post": {
+        "operationId": "TradingController_resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "operationId": "JobsController_tasks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/tasks/{id}": {
+      "post": {
+        "operationId": "JobsController_task",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/work-queue": {
+      "get": {
+        "operationId": "JobsController_workQueue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "operationId": "JobsController_jobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/jobs/{id}/retry": {
+      "post": {
+        "operationId": "JobsController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "operationId": "JobsController_audit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "operationId": "JobsController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "工作与可靠执行"
+        ]
+      }
+    },
+    "/api/ai/status": {
+      "get": {
+        "operationId": "AiController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "内容建议（人工可独立运行）"
+        ]
+      }
+    },
+    "/api/items/{id}/suggestions": {
+      "post": {
+        "operationId": "AiController_suggest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "内容建议（人工可独立运行）"
+        ]
+      }
+    },
+    "/api/items/{id}/ai-draft": {
+      "post": {
+        "operationId": "AiController_ai",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "内容建议（人工可独立运行）"
+        ]
+      }
+    },
+    "/api/suggestions/{id}/apply": {
+      "post": {
+        "operationId": "AiController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "内容建议（人工可独立运行）"
+        ]
+      }
+    },
+    "/api/system/health": {
+      "get": {
+        "operationId": "SystemController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/system/ready": {
+      "get": {
+        "operationId": "SystemController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/system/openapi": {
+      "get": {
+        "operationId": "SystemController_docs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "System"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "ToMeBoutique Workbench API",
+    "description": "",
+    "version": "1.0.0-rc.14",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "cookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "tome_session"
+      }
+    },
+    "schemas": {}
+  }
+}

@@ -1,0 +1,200 @@
+# 蓝图 v1.1.1 · 1.0.0-rc.2覆盖矩阵
+
+**状态不是测试通过数。**“内部覆盖”表示本版有对应核心路径；“部分”明确限制；“后续”不作为交付完成。具体测试日志以docs/VALIDATION.md和reports为准。正式业务UAT尚未由经营者完成。
+
+| AC | 本版边界 | 蓝图场景 | 说明 |
+|---|---|---|---|
+| AC01 | 内部覆盖 | 只有照片和来源先保存 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC02 | 内部覆盖 | 并发创建与重试 | 事务幂等与PG序列；追加并发创建测试。 |
+| AC03 | 内部覆盖 | 从TM999999继续发号 | TM扩位规则单测；PG发号由序列保证。 |
+| AC04 | 部分 | 同件商品多平台发布 | 同一Item在多个Channel记录；不另建库存。 |
+| AC05 | 部分 | 标题长度不足或平台限制 | Unicode标题限长+完整TM；未实现按平台特殊规则审核的外部例外映射。 |
+| AC06 | 部分 | 同款不同件、同图疑似重复 | 精确图片SHA、同来源货号/采购关联可提示已有TM；人工可把候选归入已有TM，或明确确认“同图但另一件实物”后新建。仍无感知哈希/视觉相似检索及成熟合并拆分工作台。 |
+| AC07 | 内部覆盖 | 再次导入供应商旧资料 | 原始来源修订；正式Item人工内容不会被重导入覆盖。 |
+| AC08 | 内部覆盖 | 多次补尺寸和研究资料 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC09 | 内部覆盖 | 两人同时改同一字段 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC10 | 内部覆盖 | 供应商资料已齐、实物不过手 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC11 | 内部覆盖 | 自有衣服缺图缺尺寸 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC12 | 内部覆盖 | 一个用途缺英文，另一个已满足 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC13 | 内部覆盖 | 某研究要求不适用 | 有依据的尺寸不适用决定、撤销及历史；不能豁免真实性/图片/库存。 |
+| AC14 | 内部覆盖 | 将拍摄任务标为完成但图不合格 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC15 | 内部覆盖 | 尝试跳过非豁免真实性要求 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC16 | 内部覆盖 | 不同渠道共同需要一份尺寸 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC17 | 内部覆盖 | 批量拍摄与混杂上传 | 批次上传、编号建议、人工确认归属、并发绑定保护；未归属图不产生库存。 |
+| AC18 | 内部覆盖 | 改价或纠正材质 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC19 | 部分 | 原图生成多用途版本 | 原件保留；手工发布包可导出JPG，选择及顺序保存在冻结包中。AI营销、多种裁剪配方仍未开发。 |
+| AC20 | 内部覆盖 | 使用包和对外文件导出 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC21 | 部分 | 人工修改文案后重生成 | 已增加按商品/渠道/用途保存的可编辑草稿、版本冲突和人工核对更新；自动三方合并仍未实现。 |
+| AC22 | 内部覆盖 | 只复制/下载，没有回执 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC23 | 内部覆盖 | 多件商品合集，一件售出 | 使用TM号生成多件选品合集，逐件动态过滤，售出一件不停止其他有效商品。 |
+| AC24 | 内部覆盖 | 货源池一次导入300件，仅选择50件 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC25 | 内部覆盖 | 正式商品在经营方微信或线下成交 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC26 | 内部覆盖 | 提前记录符合规则的朋友交易 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC27 | 内部覆盖 | 朋友最终没买、普通客户购买 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC28 | 内部覆盖 | 赠与或自留 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC29 | 内部覆盖 | 供应商自行卖出同一实物 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC30 | 部分 | 单个SupplyOffer撤回、另一供货仍有效 | 多个Offer可评价；暂无完整单供货撤回控制台。 |
+| AC31 | 内部覆盖 | 已知卖掉但财务数据暂缺 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC32 | 内部覆盖 | 原因不明的缺货消息 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC33 | 内部覆盖 | 已有我方订单但供应商另卖他人 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC34 | 内部覆盖 | 重复点击我方售出 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC35 | 内部覆盖 | 出售后部分渠道只能手工处理 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC36 | 部分 | 原有客户成交后才补标 | 管理员有依据补判单笔；未激活7日窗口或自动协议规则。 |
+| AC37 | 内部覆盖 | 被有效排除的朋友成交 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC38 | 后续 | 一张订单部分商品排除 | 一物一笔Sale；没有多行订单或公共费用自动分摊。 |
+| AC39 | 部分 | 平台净打款已扣佣金 | 手动核对总收入/实际费用；不自动导入净打款或渠道费单。 |
+| AC40 | 内部覆盖 | 已售未到账、退款争议未结束 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC41 | 部分 | 季度确认后改价、汇率或规则 | 单币种不可变对账快照与后续差额更正已实现；汇率账和法定财务结算未实现。 |
+| AC42 | 内部覆盖 | 退货后再售 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC43 | 后续 | 补录既有项目客户复购交易 | 不自动推定既有客户复购适用规则；需后续真实协议建模。 |
+| AC44 | 部分 | 货物在供应商、拍摄人和客户间交接 | 有实际保管移动及依据；暂无计划调拨/签收链/借还全流程。 |
+| AC45 | 部分 | 两个操作者或渠道同时预留，或与售出/赠与竞争 | 内部库存/预留/售出锁与唯一约束已测；不代表第三方不会同时售出。 |
+| AC46 | 部分 | 售出后旧内容/发布任务迟到 | 内部包失效、旧事件不重新上架；没有第三方状态写入。 |
+| AC47 | 后续 | 远端创建成功但响应超时 | 无真实外部创建接口，不能称已验收。 |
+| AC48 | 部分 | Worker崩溃、重复/乱序Webhook | 真实SIGKILL抢占恢复、双Worker、过期令牌拒绝与有界失败已验证；第三方Webhook尚未接入。 |
+| AC49 | 后续 | 独立站缓存旧库存、未收到Webhook | 展厅只读且动态过滤；没有checkout、支付和异站缓存对账。 |
+| AC50 | 内部覆盖 | 图片授权撤回 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC51 | 内部覆盖 | 关闭AI或模型任务过期 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC52 | 部分 | 越权查询、导出、扫码、后台任务 | 角色、private图片、候选、导出接口均授权；暂无二维码/多工作区分发。 |
+| AC53 | 部分 | 备份恢复与发号恢复 | 本地离线备份实际恢复并核对38个数据模型和素材哈希；未实现正式Compose异地自动备份/多可用区灾备。 |
+| AC54 | 部分 | 季度对账完整性核验 | 内部对账检查待补收支、相关冲突、已售无Sale记录；不能自动证明外部平台交易未漏报。 |
+| AC55 | 内部覆盖 | 正常建档、历史迁移和关联已有商品 | 正式Item和Cycle原子建立；没有成熟历史经营周期迁移工具。 |
+| AC56 | 内部覆盖 | 主编号与旧别名交叉冲突 | 旧编号归属唯一、不能占用TM数字空间、支持检索；永久编号不回收。 |
+| AC57 | 内部覆盖 | 修改草稿但尚未批准 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC58 | 内部覆盖 | 确认版本期间他人更改输入 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC59 | 内部覆盖 | 无人编辑但授权/供货/报价自然过期 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC60 | 内部覆盖 | 三用途同需尺寸、商品价格改变 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC61 | 内部覆盖 | 售出时例外无效或财务/规则资料缺失 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC62 | 内部覆盖 | 售出补录与现有预留/订单冲突 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC63 | 部分 | 人工先记售出，再导入同笔平台订单 | 外部唯一键可关联同笔，模糊第二笔进入Observation；没有平台订单批量导入连接器。 |
+| AC64 | 内部覆盖 | 相同幂等键不同内容、已撤销权限重放 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC65 | 内部覆盖 | 全额退款完好退回后再售 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC66 | 内部覆盖 | 部分退款但不退货、或退款未收回实物 | 部分退款保留成本与库存保护；毁损/缺件复杂退回不自动入账。 |
+| AC67 | 内部覆盖 | 确认季度预览时费用/例外被修改或重复确认 | 确认时复算摘要并序列化相关财务命令，拒绝过期预览、重复期间和错误更正基础。 |
+| AC68 | 部分 | 未激活真实协议规则或例外窗口仍开放 | 规则须明确激活；未激活不能确认。真实协议例外窗口和尾单仍须业务单独确认。 |
+| AC69 | 后续 | 同Listing退货再售后收到旧订单回调 | 无外部订单回调。 |
+| AC70 | 后续 | 源事件100晚于101提交 | 无外部增量游标变更流。 |
+| AC71 | 内部覆盖 | 开发启动或恢复含待发送Outbox的备份 | 对应实现见模块说明；对应自动化场景见test/unit.test.cjs及test/integration.test.cjs。 |
+| AC72 | 部分 | 来自不同工作区或不同Item的关联组合 | Item-Cycle、Item-ApprovedRevision有复合锚点；不是全模型多租户隔离。 |
+| AC73 | 部分 | 独立站展示＋人工外部渠道＋基础AI草稿路径 | 内部展厅＋人工外部渠道＋手工AI候选＋选品合集；没有外部电商结账和付费模型调用。 |
+| AC74 | 后续 | 合作结束后新交易、原订单退款与尾单 | 合作终止/尾单/历史退款的正式协议规则未落地。 |
+
+## 尚待业务人员验收
+真实库存批次、真实鉴定/授权、朋友例外规则、采购成本口径及实际平台发布流程需要经营者用样本确认。当前自动化使用合成数据，不能替代该确认。
+
+## 持续交付要求
+新增功能应补测试再将对应行从“后续/部分”改为覆盖；不得只改这张表。任何依赖真实账号、交易、费用、协议签署件的步骤没有证据就保留待确认。
+
+## 生产验收不等于蓝图全覆盖
+
+本版实现38个数据库模型；没有声明所有74项已通过。真实外部平台、联网AI、订单多行/公共费分摊、物流签收、多工作空间、汇率与最终合作终止规则保留后续范围。Linux生产模式容器运行、HTTPS、最小权限、故障恢复证据见本版VALIDATION。
+
+## 0.4 补充验收映射（不是74项全部实现声明）
+AC01/08/10/11：整页录货允许不完整资料，同页保存图片；供应商包袋复用来源资料，无强制重拍或量测。AC02/09/64：建档及图片回执丢失后的重试、并发资料差异合并保留输入和待上传图片。AC17/24：批量入口保留，跨页选择100件以内可连续使用同一个编辑表单；筛选变化清空选择，避免误选。
+`test/browser/operations.spec.cjs` 包含完整手工录货→图片复核→渠道资料→下载→登记发布→我方售出旅程，并核对实际库存与停售目标；不会向真实第三方发布。全部测试及实际运行证据以本版本 summary.json 为准。
+数据库结构沿用0.3（39个模型），本轮没有新迁移。原有生产部署与外部集成限制不因界面更新而消失。
+
+## 误录清理增补
+新增可恢复的单件删除、批量删除与回收站；不自动清空用户数据，不绕过成交、成本、预留或渠道下架要求。对应 test/integration.test.cjs 和 test/browser/workbench.spec.cjs 的回收站测试。
+
+## 本次增补：删除与恢复
+新增回收站不作为新的蓝图验收编号，也不代表其他未完成项完成。单件/批量清理和恢复见docs/DELETE-AND-RESTORE.md；8条集成场景保护交易、库存与编号，浏览器覆盖取消、删除、批量选择和恢复。结果以本版运行摘要为准。
+
+## 0.5新增验收：标准字典与可读日志
+本轮不改变上表未覆盖业务的状态。字典选项的类型、别名唯一性、权限、停用、历史快照和筛选见integration新增测试；录货中选择、新增、搜索和中文日志见browser/dictionaries.spec.cjs。成色采用VC口径，不宣称所有平台共用。
+该模块新增3个数据库模型。恢复模型数以本版实际recovery报告为准，旧版本38/39模型数字为历史描述。没有进行真实库存旧值归一迁移。
+
+## 0.6 operator-workspace acceptance (separate from long-term AC completion)
+The existing 74-row implementation boundary is unchanged by moving controls. `test/browser/studio.spec.cjs` adds one-page own/supplier workflows, incomplete-save, explicit review, in-place missing-field correction, cross-channel preservation, concurrent draft handling, image/metadata response-loss recovery, actual file chooser and local listing/sold receipts. `test/integration.test.cjs` verifies the shorter review path still preserves authority, image-rights, foreign-image and version invariants. Actual pass/fail evidence is generated by verify:release, not inferred from this document.
+
+## 0.7 interaction acceptance
+0.7 does not claim new blueprint capability. It changes how existing capabilities are reached: catalog-first navigation, direct product editing, two primary product actions, contextual inventory/menu actions, compact default filters, and preserved advanced screens. `test/browser/ux2.spec.cjs` is a required dual-browser gate; all previous business assertions remain active.
+
+
+## 0.8 visual-system acceptance
+0.8 does not change the 74 long-term blueprint acceptance rows. It makes the existing operator capabilities visually coherent and adds a dual-browser UI structure gate: one final visual owner, business-order mobile product layout, non-overlapping desktop publishing, restrained catalog status/action density, and mobile reachability of all top-level business sections. All previous functional and recovery tests remain active.
+
+## 0.9 interaction acceptance
+0.9 does not add a new long-term blueprint capability. It tightens operator interaction: one control per business value, searchable brand with stable ID, fixed-select condition/color/material, explicit unselected-text errors, persistent filter display, business-language field names and conditional supplier-image authorization.
+
+`test/browser/ux09.spec.cjs` and `test/browser/ux09-audit.spec.cjs` are required dual-browser gates. Existing dictionary, product, publishing, inventory, finance, permissions, recovery and failure-journey assertions remain active; UI simplification may not bypass them.
+
+## 0.10 高频经营操作验收
+快速录货与快速修改是操作层加速器，不改变蓝图中的商品、素材、库存、发布和财务边界。`test/browser/ux10.spec.cjs`验证首次字段范围、连续录货、图片幂等上传/移除、键盘操作、手机几何、保存后完善、快速修改以及并发冲突阻断，并须同时进入 Chromium 与 WebKit。
+完整商品工作区的原有回归仍独立执行，确保快速路径没有通过删除底层校验换取更少点击。
+
+
+## 0.11 多来源采购归集验收
+0.11新增采购来源事实层，不改变商品库存和成交真相源。TRR结构合成样本验证7个订单行、2个包裹、折扣/运费/抵用额、平台状态/RMA、订单行金额/平台现价/估计零售价分离、人工经营判断和人民币成本确认。
+`test/integration.test.cjs`保护“来源状态不改库存、来源价格不自动变成本、来源成色不自动映射、再次导入保留人工判断”；`test/browser/procurement.spec.cjs`同时进入Chromium与WebKit，覆盖两步导入预览、逐件核对、货源候选、人民币成本和手机布局。
+
+## v1.0 商品中心补充验收
+- 外部 Agent 使用短期 ingest token，不能直接写 Item/Sale/Inventory/Cost。
+- 候选商品在人工确认前不得创建正式 TM；来源状态和成色不得静默映射为本地库存/标准成色。
+- 待确认页面必须真实支持100件一页，并在第101件时分页；Chromium和WebKit同时执行。
+- 同一TM支持多个来源；旧 sourceId 仅兼容并迁移回填到 ItemSourceLink。
+- TRR成本按确认规则和订单依据生成TM人民币成本；RMA/排除时要求人工确认最终经济支付金额。
+- 售出时冻结成本快照，后续采购成本重算不改变历史Sale.cost。
+## 1.0.0-rc.2经营行动投影验收
+本轮不把任何“部分/后续”长期蓝图场景冒充为已完成。新增`/api/work-queue`只统一现有业务动作入口：候选、Task、Observation、Inquiry、Sale仍使用原模型和原写入规则。集成测试验证五类事项汇总、优先级顺序、BUSINESS隔离和角色可见性；Chromium/WebKit验证经营待办可回到精确候选处理页。
+
+## 1.0.0-rc.5 Credit退款与成本依据
+新增验收映射：`test/unit.test.cjs`的“现金与Credit支付退款同值，净额只扣一次且允许全额退回”；`test/integration.test.cjs`的“Credit退款无RMA仍须核对，净支付只扣一次且不反改售出快照”和“成本的现金与确认汇率模式遵守同一Credit规则，混币种拒绝合计”；`test/browser/v1-item-center.spec.cjs`的“Credit退款明细校验后一次算净额，重开保留明细与固定汇率”。后者在Chromium/WebKit同时执行。
+范围包含四项明细、逐件退款归属、零净额、固定原汇率、来源变化后的重确认、幂等写入、原成交成本快照。未包含月度汇率采集、跨页成本批量确认、自留件分摊及真实TRR全量导入；这些仍不得标记通过。当前运行结果以对应版本验证报告为准。
+
+## 1.0.0-rc.6 外部资料接收与集中核对
+本轮覆盖外部提交清单核对、原文件读取与权限、完整来源资料展示、跨页批量确认和失败恢复；不包含内置采集器、自动月汇率、公开素材授权或真实平台全量验证。
+- `test/unit.test.cjs`：“采集检查区分来源缺项、漏传文件和未核验，不能用空字段冒充完整”。
+- `test/integration.test.cjs`：“导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且原文件与权限保留”；“再次稀疏导入保留已采集来源和人工建议，批量确认拒绝过期版本”。后者也验证已确认商品继续补来源图不修改Item素材/人工事实。
+- `test/browser/v1-item-center.spec.cjs`在Chromium/WebKit执行：“跨页选择101件分段确认，真实写入回执丢失后重试不重复建档”；“来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿”；“批量部分失败显示逐件原因，成功移除而失败保留供重新核对”。保留原100件分页及同图身份防重用例。
+“清单已核对”只说明与外部工具声明一致；未提交清单不能称资料已收齐，原网页是否漏报需外部采集者及经营者核验。最终结果以rc.6当前指纹验证报告为准。
+
+## 1.0.0-rc.7 真实导入暴露的内部识图缺口
+扩展test/browser/v1-item-center.spec.cjs的“来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿”，核对普通商品库图片数量、实际图片加载与REFERENCE/INTERNAL/未核验保持不变；新增“单件建档清除该件批量勾选并保留其他候选”。两浏览器都执行。真实订单、个人凭据、原图与人工确认记录只在本机data私有目录，不加入自动化或发布包。人民币成本尚缺实际汇率依据，不能以图文建档验收替代全部经营验收。
+
+## 1.0.0-rc.8 source fields in daily work
+Browser gate `来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典` in test/browser/v1-item-center.spec.cjs runs in Chromium and WebKit. It confirms unknown source brand remains visible without creating a dictionary entry; catalog table/cards and editor show source condition/details; local grade stays blank until explicitly selected, then takes display precedence while source evidence remains. Escaping, mobile note width and preservation of manually maintained inspection notes are checked. Real business data repair is private operational evidence, not an automated fixture.
+
+Multi-source PostgreSQL gate: `多平台异构字段与无订单门店来源共用协议，来源身份隔离且关联不覆盖TM` (test/integration.test.cjs) covers EUR marketplace vs CNY offline feed, unrelated raw schemas/arrays, source defaults, identical external keys isolated by source, cross-token denial, source-link preservation of Item, and sparse enrichment of unknown fields. It is a synthetic protocol test, not proof that a second real platform collector exists.
+
+上述异构案例还验证无采购订单的来源以REFERENCE关系关联既有TM、显式非默认币种优先以及后续漏传保持既有币种。
+
+## 1.0.0-rc.9 日常UI操作细节
+在test/browser/ui08.spec.cjs的Chromium/WebKit门禁新增：
+- “列表末行菜单不被裁切，外部点击与Escape收起并可实际修改”：实际命中测试、键盘回焦、普通PATCH保存。
+- “商品重置保留测试范围和图片视图，空状态可恢复且选择可见”：TEST范围不切回BUSINESS、选择清空、空列表禁选、视图状态可访问。
+- “快速修改完整页入口保护未保存输入，来源等级仍待人工选择”：取消离开保留输入，明确放弃后无服务端写入。
+- “手机批量操作随滚动可达，菜单和快速修改不溢出”：390px双列、真实滚动后取消批量选择、实际打开/关闭窗口。
+- “候选全部筛选包含已排除，空结果有恢复入口，手机筛选不溢出”：真实导入/排除、全部状态查询、表格切换保留全部、空状态恢复。
+- “空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用”：进入全部事项、弹窗按钮几何和实际点击。
+继续保留现有所有业务用例；本轮没有弱化失败/权限/响应丢失断言。新增用例定位到完整编辑表单，排除已关闭弹窗中保留的隐藏输入；候选状态缺失通过新增可见标记修复。最终是否通过以本版本当前指纹summary.json为准。真实商品只用于只读视觉检查，不作为合成回归数据。
+
+## 1.0.0-rc.10 操作路径衔接
+新增test/browser/ui08.spec.cjs双浏览器门禁：
+- “商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿”：真实POST成功后丢回执，同键重试只留一条询盘，商品草稿/版本/库存不变，未知报价仍NULL。
+- “从经营待办直接跟进指定询盘，完成后返回待办且不改变库存”：两个客户询盘精确定位一条、更新实际记录、返回后完成项移除。
+- “已确认候选不再提供无效勾选，维护商品后返回原候选筛选”：真实封存候选、历史提示可展开、TM维护与返回来源/关键词/状态/视图。
+- “最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖”：实际几何与弹窗点击；继续保留旧触摸、发布与字段验证用例。
+新增PostgreSQL用例“询盘精确定位绕过列表上限但保留TEST隔离和角色权限”：500条合成记录外的旧询盘仍可精确读取，联合筛选、TEST与只读角色隔离、待办href一致。合成填充记录仅在tome_test内创建和清理。
+测试从GET商品读取比较基线，因为创建接口仅返回身份回执；未改变旧断言以接受错误行为。最终运行结果以rc.10的summary.json为准，合成路径验证不等于所有真实经营场景已验收。
+
+## 1.0.0-rc.11 全系统审查闭环
+此前rc.5“跨页成本批量确认未包含”的边界在本版扩展为人工明确确认、逐订单独立事务的批量操作；自动汇率、真实平台全量采集仍未实现。未把蓝图未来能力统一改成通过。
+新增PostgreSQL映射：完整经营检索105条、经营账1001笔完整合计导出、询盘并发及追加历史、渠道版本/冻结快照/TEST隔离、只读选品预检、询盘变更使清理预览失效。全部使用tome_test合成资料。
+新增`test/browser/system-review.spec.cjs`同时进入Chromium与WebKit：批量定价真实回执丢失重试；询盘冲突保留输入并核对历史；商品经营记录草稿和具体成交；20件选品两件缺项与往返；合集实际写入后响应丢失；渠道修改停用与移动布局；同月两单成本与退款异常及响应丢失；31单采购第二页往返TM。
+这轮新增迁移只为Inquiry和Channel加正整数version，已复核旧迁移未变并追加seal。原有库存、媒体、发布、账务、同图候选及恢复门禁全部保留。最终通过数及失败结果由本版verify:release生成，不以文档替代运行证据。
+追加“归档原图保留原文件哈希，归入内部凭证后原图和预览同时限制财务权限”的PostgreSQL验证；两浏览器追加“图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用”。批量定价验证桌面弹窗宽度，选品验证手机整页无横向溢出。首次全量运行发现WebKit选品页溢出20px，定位为长渠道选项的WebKit原生下拉装饰溢出，限制控件外观与宽度，并整理手机标题布局，原阈值保持不变，重新执行完整验证。
+
+来源检索补充PostgreSQL用例“货源池用来源名称和原货号找到已关联TM，不把多来源关系误判为待建档”，验证来源名/原货号筛选及已接手状态。
+
+## rc.12 选品边界回归
+
+`test/browser/system-review.spec.cjs`在Chromium与WebKit继续执行「看图选品真实创建后丢失回执，重试只生成一个合集和资料包」：扩展为改名后连续误重试、渠道停用、恢复原提交仍只生成一次。新增「分次加入选品按合并后的数量限制，超限不改变已有选择」：41件合成商品分次加入，超过40拒绝且原选择不丢失。结果以本版完整验证报告为准，不替代真实对客发布验收。
+
+## rc.13 登录恢复与幂等组合回归
+
+`test/browser/interaction.spec.cjs`新增「回执丢失后登录失效」四项真实点击用例，两种浏览器均执行：建档原请求登录失效后改名不重复建档；询盘重复提交阻断；完整录货及图片弹窗上传保留原图哈希、来源与请求号。先实际写入，再对JSON截断响应、对上传丢弃首次成功通知，然后真实注销会话、重新登录，不伪造成功回执。既有首次明确拒绝后纠正来源用例不变。修复前建档和询盘用例均复现失败，记录位于本机data/system-review-rc13；最终结果见本版本validation报告。
+
+## rc.14 记录范围与返回回归
+
+`test/browser/system-review.spec.cjs`在两种浏览器新增成交、询盘、发布三类重置与查看全部路径，断言商品范围、TEST范围、返回地址及回到原编辑器；新增待办进入单条询盘重置后只显示该客户，并返回原待办关键词与范围。使用tome_test合成资料。原权限、分页、记录历史和库存回归保留。最终结果见本版validation报告。

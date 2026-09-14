@@ -1,0 +1,22 @@
+{
+ admin off
+}
+{$APP_DOMAIN} {
+ {$CADDY_TLS_DIRECTIVE}
+ request_body {
+  max_size 24MB
+ }
+ reverse_proxy api-a:4318 api-b:4318 {
+  lb_policy round_robin
+  lb_retries 0
+  health_uri /api/system/ready
+  health_interval 5s
+  health_timeout 2s
+  fail_duration 5s
+  max_fails 1
+  transport http {
+   dial_timeout 3s
+   response_header_timeout 35s
+  }
+ }
+}

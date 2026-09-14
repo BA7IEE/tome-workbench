@@ -1,0 +1,865 @@
+{
+  "version": "1.0.0-rc.5",
+  "startedAt": "2026-09-13T17:27:40.915Z",
+  "finishedAt": "2026-09-13T17:34:46.674Z",
+  "sourceSha256": "a5d4a63f89c5c606b51b3e6280cd53cc1a0fe4de2c521e787fced80602c97464",
+  "fullHarnessExitCode": 0,
+  "sourceUnchanged": true,
+  "passed": true,
+  "error": "",
+  "evidence": {
+    "nodeSuites": [
+      {
+        "tests": 18,
+        "passed": 18,
+        "failed": 0
+      },
+      {
+        "tests": 9,
+        "passed": 9,
+        "failed": 0
+      },
+      {
+        "tests": 103,
+        "passed": 103,
+        "failed": 0
+      },
+      {
+        "tests": 8,
+        "passed": 8,
+        "failed": 0
+      }
+    ],
+    "browserStats": {
+      "startTime": "2026-09-13T17:29:40.532Z",
+      "duration": 154548.904,
+      "expected": 107,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "webkitStats": {
+      "startTime": "2026-09-13T17:32:15.994Z",
+      "duration": 135718.067,
+      "expected": 107,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "highAvailability": {
+      "kind": "isolated-real-process-fault-tests",
+      "externalActionsExecuted": 0,
+      "checks": {
+        "replicas": {
+          "passed": true,
+          "apiProcesses": 2,
+          "repeatedWrites": 16,
+          "physicalItemsCreated": 1
+        },
+        "apiCrash": {
+          "passed": true,
+          "observedFailoverMs": 905,
+          "successfulReadsAfterFailover": 12
+        },
+        "maintenance": {
+          "passed": true,
+          "crossDirectoryLock": true,
+          "newRuntimeDenied": true
+        },
+        "workerCrash": {
+          "passed": true,
+          "testLeaseSeconds": 2,
+          "observedRecoveryMs": 1962,
+          "attempts": 2,
+          "replacementWorkers": 2
+        },
+        "dependencyLoss": {
+          "passed": true,
+          "observedExitMs": 123,
+          "postgresServerNotStopped": true
+        },
+        "startupFailure": {
+          "passed": true,
+          "cleanExit": true
+        },
+        "noWriteRetry": {
+          "passed": true,
+          "backendExecutions": 1,
+          "responseLost": true
+        },
+        "autoRestart": {
+          "passed": true,
+          "observedReplacementMs": {
+            "api-1": 2089,
+            "worker-1": 1475
+          },
+          "allOwnedChildrenStopped": true
+        }
+      },
+      "cleanupPassed": true,
+      "passed": true,
+      "at": "2026-09-13T17:34:43.527Z"
+    },
+    "recovery": {
+      "kind": "actual-local-offline-recovery-drill",
+      "at": "2026-09-13T17:34:46.410Z",
+      "passed": true,
+      "source": "tome_test",
+      "target": "tome_restore_mu03gf28",
+      "checks": {
+        "liveProcessBlocksBackup": true,
+        "allSelectedTableHashesEqual": true,
+        "tmSequenceBeyondMaximum": true,
+        "restoredMediaChecksumsEqual": true
+      },
+      "tables": {
+        "user": {
+          "count": 3,
+          "sha256": "e1c6d2aa631759434b3fef18c7447ab0fe4de62c190af4451b0b6a2094cb8fc8"
+        },
+        "session": {
+          "count": 226,
+          "sha256": "caa8c6327e50d7e1c6dd5fc365beba2d6dd442f0f7be4f43c4a432d7c3fa4fb6"
+        },
+        "loginThrottle": {
+          "count": 2,
+          "sha256": "8ef074b2de62b8976aeee42161b32285951de28e8d9ada689073f3343602923d"
+        },
+        "supplier": {
+          "count": 3,
+          "sha256": "4f6fc0210311a604989bebedc848d46a11b73985f5526be42dff04e755288bf8"
+        },
+        "source": {
+          "count": 354,
+          "sha256": "e6a8ff46003a5bf4cf1050311d541a9fe10f522650a22674aee884202b714266"
+        },
+        "sourceRevision": {
+          "count": 355,
+          "sha256": "fc90302185a37a9aeb15938fd5c68a2e1ab6ac3e9ec70eeca82367e8c3a4a41a"
+        },
+        "procurementSource": {
+          "count": 46,
+          "sha256": "c6959d1852b7d3a9dbf7f5297eac4eb4db24b393a7360dd63d08746bd05677bc"
+        },
+        "purchaseOrder": {
+          "count": 42,
+          "sha256": "26b462622de76354d3af771ad006bab9df2ee9117412d8ca5a74519d418e300c"
+        },
+        "purchaseOrderRevision": {
+          "count": 48,
+          "sha256": "fb3474ca673f7bb4f26222edb4444d56c4f4588b0e18ad61d05817de40c2217e"
+        },
+        "purchaseOrderAdjustment": {
+          "count": 253,
+          "sha256": "c4f7aaee8e8f465d18db2cc8869830a1e11d2e55b8d140b1e16cea4bd85596a8"
+        },
+        "purchaseLine": {
+          "count": 294,
+          "sha256": "52d42a079290d223bea8161a2c52c820ca33057f0fae7345b8a45e908216bc4d"
+        },
+        "purchaseLineRevision": {
+          "count": 295,
+          "sha256": "6e9805794f6ad3ec9618f326a55baad7404330bc2d9c88e1021e24d722cbafe8"
+        },
+        "purchaseShipment": {
+          "count": 84,
+          "sha256": "cf9e55503b3066ccea8b5af701a4f2959b687cf19610ee411992b7da4f4cdf06"
+        },
+        "purchaseShipmentLine": {
+          "count": 294,
+          "sha256": "0d910f06ee6d9c6323c2f9353065dbf2afa9b5ec6a380b4b2d98f1bb349460d4"
+        },
+        "purchaseReturn": {
+          "count": 2,
+          "sha256": "a3bb00f9aa7fc89dd4d362b9880818fb47ed645fe4c83020efec3e8129f1c670"
+        },
+        "purchaseReturnLine": {
+          "count": 2,
+          "sha256": "9986bc60f08f4e6c9324d93271d31456a2e0a9bc4f61ea0e17f1ef698af248ef"
+        },
+        "itemPurchaseLink": {
+          "count": 93,
+          "sha256": "c5a556a59ef5a6bda77c4ad5a38c6d618caf7a56d8dbc2b2226c3589eb61c5c8"
+        },
+        "purchaseCostConfirmation": {
+          "count": 2,
+          "sha256": "5744f07a85838bbbfac5904a1e633566741260faa4ccce4f4ace6a3e7bb2c0b7"
+        },
+        "purchaseOrderCostBasis": {
+          "count": 9,
+          "sha256": "3ea00fa6c59e8de932dd25d41a5eb9064d89ad69155ebe04b5167e32d20754e9"
+        },
+        "purchaseOrderCostBasisRevision": {
+          "count": 19,
+          "sha256": "fe71a8066eab6ea2985b43db6c5232a120c62eae864e0d2886092ae7f1676df7"
+        },
+        "item": {
+          "count": 600,
+          "sha256": "125adaea75c7585cf950757a67079c5c832afc06ed37bba39089060121bb805c"
+        },
+        "cycle": {
+          "count": 600,
+          "sha256": "ed82ca8431167dc3621d9f876103d15de8bc10a1b00792d3de6592763230b1b3"
+        },
+        "itemRevision": {
+          "count": 669,
+          "sha256": "31473ceb0a92d4bed75c60609b0ae14b8537a4f8461bcd13f4881a6fb4a07c26"
+        },
+        "offer": {
+          "count": 3,
+          "sha256": "a3ac51d8da5241bb42efb79cf2d747bc460569ddf0e25d902cf5cff5a5be5b96"
+        },
+        "asset": {
+          "count": 140,
+          "sha256": "d482fb7287537fbc0561a11b000eb6bb8aef72d42c2e0352e6351a05bae8d29b"
+        },
+        "channel": {
+          "count": 5,
+          "sha256": "4c79bd15ec925e755575c584839da3456a9d4aefbca26a6ed423acb5b555b943"
+        },
+        "usePackage": {
+          "count": 55,
+          "sha256": "56cf090fa7623a568e2f64e20d3bf17f466dbd15767a7e2b9208f90d4e95e7c0"
+        },
+        "listing": {
+          "count": 13,
+          "sha256": "d5f41cf69d3304e76a4879fdc50f13bcd22e19f2cef84f3707a550309af66411"
+        },
+        "task": {
+          "count": 33,
+          "sha256": "50492b131e0a6cb9168b08b77a7a270f362c64a42e43a92ab6e0c489cbd2a629"
+        },
+        "reservation": {
+          "count": 3,
+          "sha256": "6053ddc8d548878a200197364d50b9be07cafaa5a8dfdf7b2679ca693cd2a2b7"
+        },
+        "exceptionIntent": {
+          "count": 1,
+          "sha256": "96293b88a3e7cf99035b1896937f9b2707f222cc1b2bd9b7f3a62512714f5c8d"
+        },
+        "sale": {
+          "count": 33,
+          "sha256": "42f6fd20b377819ae17f517159bbd3bce8003327273e0dbbef3f1f2a786a8eb9"
+        },
+        "adjustment": {
+          "count": 4,
+          "sha256": "df91847973f85134605b7378ad469b82765450ad112715391fdb852d0f111266"
+        },
+        "observation": {
+          "count": 3,
+          "sha256": "b40ae41dbc4b417a08995ec9150c73d5bf6611f4fbe9f2b530da643620f6d2ee"
+        },
+        "inquiry": {
+          "count": 1,
+          "sha256": "6b12f2280745c77a85359a0b27562e4ed2893283e655d5cfe6e307e68cfab382"
+        },
+        "suggestion": {
+          "count": 2,
+          "sha256": "777e2ba9f42b9c2ebe34b6972b0844218e32241b3fff95fad74bd9a895b14bc2"
+        },
+        "movement": {
+          "count": 2,
+          "sha256": "c6cdba299a1b9569c39fd4f16d5010433dd6bd19e8927ef125c61ead3ad5c6b2"
+        },
+        "audit": {
+          "count": 2547,
+          "sha256": "553250700b1f0b222a90d9586f3fff07df1e6adccf6fd97089e977d8c727deeb"
+        },
+        "receipt": {
+          "count": 1590,
+          "sha256": "018bd281e1dba38b054bccb2b21c55987554febe60763fa38b078ea475d6b31d"
+        },
+        "outbox": {
+          "count": 493,
+          "sha256": "002b99e5db18545012fd1331f52762b1f778a8d3ba25032e91270562a4d4ce76"
+        },
+        "costEntry": {
+          "count": 61,
+          "sha256": "cc64cc38acc22f1a95d38b765fbff4ebb7106acb0c4b9207445c7df10315e08d"
+        },
+        "runtimeHeartbeat": {
+          "count": 17,
+          "sha256": "f6bf2a917d0d4bdc60fd77f4275c422b0cfc99fff40d309ecbf309fc8a988982"
+        },
+        "sweepLease": {
+          "count": 1,
+          "sha256": "e14924f637baca98100f1420284a6a54b4553221b5eb5bcedd11739eb75e6d4a"
+        },
+        "itemAlias": {
+          "count": 3,
+          "sha256": "bb514a7ab599c0cdda0ba9dad3dfb3eb5f9486ac7ec9a8659ee9e14b44003bf3"
+        },
+        "requirementWaiver": {
+          "count": 3,
+          "sha256": "6e1841c7ca43cf5dec420eec8d42c5ccbabfd4b55c0eda487d5efc5058dfe04e"
+        },
+        "intakeBatch": {
+          "count": 5,
+          "sha256": "9111a11552e0d7746d8840e8cd42aa468d700651926cf16f209b1761533e39eb"
+        },
+        "intakeFile": {
+          "count": 7,
+          "sha256": "a381a40fb32888a4cd5801ba0c863bf9e61d19828feefb7845c7d884fde6c596"
+        },
+        "collection": {
+          "count": 3,
+          "sha256": "71c120de233b1b110b1dc56f0e22cebebba8f31a464dd6def9dbd69e5e55be6e"
+        },
+        "collectionEntry": {
+          "count": 6,
+          "sha256": "e58d25281b962d81e6852dbc9207450cb1428aed69eba43e596f9d55bff11e9f"
+        },
+        "settlementRule": {
+          "count": 4,
+          "sha256": "59f2da745d0bea9b933de0cf35c957430d096c0f9568fd3686ad81fe32696afd"
+        },
+        "settlementStatement": {
+          "count": 10,
+          "sha256": "5fa54916fa52973e534279083a9baf15c3c6d27c77257f72938d001d50136efe"
+        },
+        "settlementLine": {
+          "count": 9,
+          "sha256": "0a8dcae75a0e12c1bf1d57239dbe14f806259470b48a3773b4176ede2ece8726"
+        },
+        "publishingDraft": {
+          "count": 37,
+          "sha256": "01da0f160ad3aa721d67b51f4b6dd766a682902788477fdcde6fb8f2ed7b6909"
+        },
+        "dictionaryEntry": {
+          "count": 161,
+          "sha256": "475add5246732aa8d71a60c5f493082d5e106b206d579302f426201516f9ba39"
+        },
+        "dictionaryTerm": {
+          "count": 233,
+          "sha256": "afd869fecd9b93c8c3fed321f125c4db725331c81e49789252dc53dcd611fdd6"
+        },
+        "itemDictionarySelection": {
+          "count": 282,
+          "sha256": "8eb8132702527ee928e83f018e958a8a63d056d9e5a81c430bec08bdb4d42854"
+        },
+        "ingestSession": {
+          "count": 33,
+          "sha256": "d1e0960819cbadb5c99962cb8e8831116f684d7110d4f010f352467f41842312"
+        },
+        "ingestBatch": {
+          "count": 31,
+          "sha256": "f2c688d8ddff097be6b38caa7cd7d4f0151397a742ed130fbeee641e354cf8e9"
+        },
+        "ingestCandidate": {
+          "count": 405,
+          "sha256": "ebde99e6408f4e4ea6be70365a5263a95ab69fe11faf9717ce5b70f9b84be014"
+        },
+        "ingestCandidateRevision": {
+          "count": 407,
+          "sha256": "8918e1e3b8cfc991d0396f618660ccfef7195c6333c7884ae980924ffff5f3ed"
+        },
+        "ingestCandidateAsset": {
+          "count": 11,
+          "sha256": "166aa331eb697927b205faa5dd37c9486b1d02c1f9b4eb9908c85f69608aa82e"
+        },
+        "itemSourceLink": {
+          "count": 298,
+          "sha256": "5c705018b0b11683f6812b7f7daeb9b5d0c8ca96cf0593b0fdd08569e7fbeb6b"
+        }
+      },
+      "comparedModelCount": 62,
+      "mediaFiles": 934,
+      "externalActionsExecuted": 0
+    },
+    "staticGuards": [
+      {
+        "id": "file:src/catalog/test-data.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/test-data.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/bulk-dictionaries.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609120007_test_data_scope/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/trash.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/recycle-bin.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609110005_item_recycle_bin/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-entry.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-fields.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-upload-queue.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/catalog-context.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/admin-navigation.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/catalog-query.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/operations.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-editor.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/catalog-screen.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/publishing-workspace.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/media-uploader.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/sources-screen.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/publishing/drafts.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/media/actions.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/verify-release.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:Dockerfile",
+        "pass": true
+      },
+      {
+        "id": "file:compose.production.yaml",
+        "pass": true
+      },
+      {
+        "id": "file:deploy/Caddyfile",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/migrate-safe.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/probe.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/supervise-container.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/validate-syntax.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/high-availability.test.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:AGENTS.md",
+        "pass": true
+      },
+      {
+        "id": "file:README.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/ARCHITECTURE.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/OPERATIONS.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/AC_MATRIX.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/PROVENANCE.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/V1-ITEM-CENTER.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/AGENT-INGEST-PROTOCOL.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/RELEASE-NOTES-1.0.md",
+        "pass": true
+      },
+      {
+        "id": "file:package-lock.json",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/schema.prisma",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609100001_initial/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:harness/sealed.json",
+        "pass": true
+      },
+      {
+        "id": "file:test/unit.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/integration.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/workbench.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/interaction.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/harness.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/backup.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/restore.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/package.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:.github/workflows/ci.yml",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/dictionary.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/dictionary-initializer.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/item-dictionaries.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/dictionary-picker.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/dictionaries-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/operations/logs.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/logs-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/dictionaries.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609110006_dictionary_catalog/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/approve-revision.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/publishing/studio.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-fields.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-publisher.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-media.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-stock.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio.css",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/studio.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ui08.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/ui08.css",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/reveal-section.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/ux2.css",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux2.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/dictionary-control.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux09.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux09-audit.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/quick-intake.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/quick-edit.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux10.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/procurement-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609120008_procurement_records/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/procurement.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/candidates-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/v1-item-center.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609130009_item_centric_v1/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "no-real-external-default",
+        "pass": true
+      },
+      {
+        "id": "database-isolation",
+        "pass": true
+      },
+      {
+        "id": "test-reset-guard",
+        "pass": true
+      },
+      {
+        "id": "browser-no-reused-server",
+        "pass": true
+      },
+      {
+        "id": "no-skipped-tests",
+        "pass": true
+      },
+      {
+        "id": "inventory-database-constraints",
+        "pass": true
+      },
+      {
+        "id": "domain-has-no-network",
+        "pass": true
+      },
+      {
+        "id": "domain-has-no-prisma",
+        "pass": true
+      },
+      {
+        "id": "keep-secrets-out",
+        "pass": true
+      },
+      {
+        "id": "fixed-dependencies",
+        "pass": true
+      },
+      {
+        "id": "sealed-migrations",
+        "pass": true
+      },
+      {
+        "id": "all-migrations-sealed",
+        "pass": true
+      },
+      {
+        "id": "runtime-heartbeat-api",
+        "pass": true
+      },
+      {
+        "id": "worker-probe-uuid",
+        "pass": true
+      },
+      {
+        "id": "complete-local-installer",
+        "pass": true
+      },
+      {
+        "id": "non-root-production-image",
+        "pass": true
+      },
+      {
+        "id": "production-db-privilege-guard",
+        "pass": true
+      },
+      {
+        "id": "interaction-tests-use-real-clicks",
+        "pass": true
+      },
+      {
+        "id": "v1-agent-boundary",
+        "pass": true
+      },
+      {
+        "id": "v1-item-center-webkit",
+        "pass": true
+      },
+      {
+        "id": "v1-candidate-batch-100",
+        "pass": true
+      },
+      {
+        "id": "v1-source-facts-do-not-become-local-condition",
+        "pass": true
+      },
+      {
+        "id": "v1-cost-snapshot",
+        "pass": true
+      },
+      {
+        "id": "v1-candidate-identity-dedupe",
+        "pass": true
+      },
+      {
+        "id": "webkit-in-full-harness",
+        "pass": true
+      }
+    ]
+  },
+  "productionDeployment": false
+}

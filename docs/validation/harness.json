@@ -1,0 +1,122 @@
+{
+  "at": "2026-09-10T15:02:40.939Z",
+  "kind": "static-guard-not-runtime-or-business-approval",
+  "results": [
+    {
+      "id": "file:AGENTS.md",
+      "pass": true
+    },
+    {
+      "id": "file:README.md",
+      "pass": true
+    },
+    {
+      "id": "file:docs/ARCHITECTURE.md",
+      "pass": true
+    },
+    {
+      "id": "file:docs/OPERATIONS.md",
+      "pass": true
+    },
+    {
+      "id": "file:docs/AC_MATRIX.md",
+      "pass": true
+    },
+    {
+      "id": "file:docs/PROVENANCE.md",
+      "pass": true
+    },
+    {
+      "id": "file:package-lock.json",
+      "pass": true
+    },
+    {
+      "id": "file:prisma/schema.prisma",
+      "pass": true
+    },
+    {
+      "id": "file:prisma/migrations/202609100001_initial/migration.sql",
+      "pass": true
+    },
+    {
+      "id": "file:harness/sealed.json",
+      "pass": true
+    },
+    {
+      "id": "file:test/unit.test.cjs",
+      "pass": true
+    },
+    {
+      "id": "file:test/integration.test.cjs",
+      "pass": true
+    },
+    {
+      "id": "file:test/browser/workbench.spec.cjs",
+      "pass": true
+    },
+    {
+      "id": "file:test/harness.test.cjs",
+      "pass": true
+    },
+    {
+      "id": "file:scripts/backup.mjs",
+      "pass": true
+    },
+    {
+      "id": "file:scripts/restore.mjs",
+      "pass": true
+    },
+    {
+      "id": "file:scripts/package.mjs",
+      "pass": true
+    },
+    {
+      "id": "file:.github/workflows/ci.yml",
+      "pass": true
+    },
+    {
+      "id": "no-real-external-default",
+      "pass": true
+    },
+    {
+      "id": "database-isolation",
+      "pass": true
+    },
+    {
+      "id": "test-reset-guard",
+      "pass": true
+    },
+    {
+      "id": "browser-no-reused-server",
+      "pass": true
+    },
+    {
+      "id": "no-skipped-tests",
+      "pass": true
+    },
+    {
+      "id": "inventory-database-constraints",
+      "pass": true
+    },
+    {
+      "id": "domain-has-no-network",
+      "pass": true
+    },
+    {
+      "id": "domain-has-no-prisma",
+      "pass": true
+    },
+    {
+      "id": "keep-secrets-out",
+      "pass": true
+    },
+    {
+      "id": "fixed-dependencies",
+      "pass": true
+    },
+    {
+      "id": "sealed-migrations",
+      "pass": true
+    }
+  ]
+}

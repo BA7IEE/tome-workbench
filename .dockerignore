@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.*.local
+data
+backups
+.git
+reports/runtime
+
+release
+reports
+.transfer-*
+*.log
+.DS_Store

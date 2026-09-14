@@ -1,0 +1,15 @@
+{
+  "policy": "Applied migrations are immutable. Add new migrations; never reseal silently.",
+  "files": {
+    "prisma/migrations/202609100001_initial/migration.sql": "913009dc856faaa844b00a04c52d5a69fbfb3ddd440a9ef83f6a1836354a6f42",
+    "prisma/migrations/202609100002_workflow_reliability/migration.sql": "09e19149959fc09fb75849082c0ac99a068a122ca277813cfe9ad0179c96a3b0",
+    "prisma/migrations/202609100003_statement_guards/migration.sql": "edb9ef844984d99bf8090d7dbc9832588db9a538b8c560f08742a05712be3e79",
+    "prisma/migrations/202609110004_channel_workspaces/migration.sql": "9a4403273874917ed7da6d952d33a458336f18fe2c905da55c19595a70c96448",
+    "prisma/migrations/202609110005_item_recycle_bin/migration.sql": "ac16474db02c5c12256ecf8f17d15055e4d5225f46c4085b3e8d4df6704575cc",
+    "prisma/migrations/202609110006_dictionary_catalog/migration.sql": "ce48e35b0681617dc4bbe51a2f5566d4865884ddefc4997876ca7e918a44a7d4",
+    "prisma/migrations/202609120007_test_data_scope/migration.sql": "c0813e6c0d0447efcd14b2348948953c7c0f2b51e2244d5367d2acee4eff2007",
+    "prisma/migrations/202609120008_procurement_records/migration.sql": "3dcf40b7c6f77f3e6295222f53b50cb364e2944e2f6d874e2239c68864707e6e",
+    "prisma/migrations/202609130009_item_centric_v1/migration.sql": "cf985880a9f438ee5796ae162a650ba67c60a46b75af1b4af2f0a61ac0bc4722",
+    "prisma/migrations/202609140001_operating_record_versions/migration.sql": "ea1bbd83bc4678ecb04d7488749cef599aa53dcaae72af002d31ac3a7e709e84"
+  }
+}

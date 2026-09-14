@@ -1,0 +1,8 @@
+# Code origin and rights
+
+Source design reference: user-authorized BA7IEE/srvf-nest-api at commit d8bf3ee618e3470699e1220fa0e52e1eb0fd0acd.
+Direct lifecycle extraction: src/database/prisma.service.ts and src/database/database.module.ts, adapted to this independent schema. The transaction receipt/advisory-lock idiom was adapted from integration-idempotency.service.ts, with project-specific errors, authentication and inventory semantics.
+The product, supplier, media business ownership, publishing, trading, auth UI and tests were newly implemented for ToMeBoutique. We did NOT copy all SRVF modules, Harness or migrations. This project's Harness is a new, smaller guard system suited to this release. No rescue member data, logo, buckets, credentials or organization roles imported.
+SRVF package metadata is UNLICENSED and COPYRIGHT.md does not grant a public open-source license. User-controlled derivation is not a claim that the source is MIT. This output retains UNLICENSED; third-party dependencies retain their own licenses. See installed packages' LICENSE files and package-lock.json. Do not redistribute third-party assets or user data without authorization.
+Versions in package.json were patched and verified separately from the source baseline. npm audit describes the advisory database at execution time, not a proof that all security flaws are absent.
+Technical references: Prisma v6 CLI https://www.prisma.io/docs/orm/v6/reference/prisma-cli-reference ; Playwright webServer https://playwright.dev/docs/test-webserver . Architecture decisions and business calculations are project design, not vendor guarantees.

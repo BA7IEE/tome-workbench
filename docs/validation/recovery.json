@@ -1,0 +1,49 @@
+{
+  "kind": "actual-local-offline-recovery-drill",
+  "at": "2026-09-10T15:02:41.976Z",
+  "passed": true,
+  "source": "tome_test",
+  "target": "tome_restore_mtvnpb98",
+  "checks": {
+    "liveProcessBlocksBackup": true,
+    "allSelectedTableHashesEqual": true,
+    "tmSequenceBeyondMaximum": true,
+    "restoredMediaChecksumsEqual": true
+  },
+  "tables": {
+    "item": {
+      "count": 47,
+      "sha256": "28c26315e906ba84a694fef595231e8b204172491064a9a02fcc4f604eb7cab1"
+    },
+    "asset": {
+      "count": 16,
+      "sha256": "6675f8bc5ab69d91a0f2949fe48a673d69a3248d6fc330dbe3a4dc6abe6339af"
+    },
+    "sale": {
+      "count": 12,
+      "sha256": "42de69c37fdc0c40d01d2cdb6ae52404d9615ab13a1a6f360c81da68a397c51d"
+    },
+    "adjustment": {
+      "count": 2,
+      "sha256": "e4f8a57c0439af9d9b2146ae3b849c22bc9cd0640d5c96051070ac837b1ca26a"
+    },
+    "costEntry": {
+      "count": 1,
+      "sha256": "54de2d32be6e9b0eba0e992b7211ae7479cd749b0d010d00b67208304062d3b0"
+    },
+    "audit": {
+      "count": 189,
+      "sha256": "f8b3da7443208300903b2ef14b60334a7be9ea6d09f6874e88b52fe33638f6a3"
+    },
+    "outbox": {
+      "count": 75,
+      "sha256": "5f3c9650a83a5adfe267beba8c52353845e1357e5e0b8acd9c9888981249fbf5"
+    },
+    "usePackage": {
+      "count": 12,
+      "sha256": "340931797e3b3deb2a56f01db5a5e1e6a5f86edca50c18fd34d805672ca7ecca"
+    }
+  },
+  "mediaFiles": 98,
+  "externalActionsExecuted": 0
+}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*.local
+data/
+backups/
+reports/runtime/
+playwright-report/
+test-results/
+.DS_Store
+
+backups/
+.transfer-*
+*.log
+
+release/
+reports/
