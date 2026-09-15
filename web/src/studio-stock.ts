@@ -158,7 +158,9 @@ export function studioStock(
       host.classList.add("button-row");
       const direct: string[] = [];
       if (can("sell")) {
-        direct.push(button("记录询盘", () => recordInquiry(i)));
+        direct.push(
+          button("记录询盘", () => recordInquiry(i, async () => {})),
+        );
         if (i.status === "AVAILABLE") direct.push(button("预留", reserve));
         if (canRecordSale(i) && ["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status))
           direct.push(button("登记售出", sold, "primary"));
