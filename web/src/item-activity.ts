@@ -9,13 +9,14 @@ import {
 export async function itemActivity(item: Item) {
   const back = encodeURIComponent(location.hash),
     filter = `itemId=${item.id}&page=1&size=5`,
-    mode = item.dataMode === "TEST" ? "&dataMode=TEST" : "";
+    mode = item.dataMode === "TEST" ? "&dataMode=TEST" : "",
+    saleEndpoint = can("finance") ? "/sales?" : "/sale-facts?";
   const [inquiries, sales, listings, costs] = await Promise.all([
     can("sell")
       ? request<{ rows: Inquiry[]; total: number }>("/inquiries?" + filter)
       : null,
     can("sell")
-      ? request<{ rows: Sale[]; total: number }>("/sales?" + filter + mode)
+      ? request<{ rows: Sale[]; total: number }>(saleEndpoint + filter + mode)
       : null,
     request<{ rows: Listing[]; total: number }>("/listings?" + filter + mode),
     can("finance")
