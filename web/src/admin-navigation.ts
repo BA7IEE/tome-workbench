@@ -4,6 +4,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
   {
     name: "日常工作",
     items: [
+      ["dashboard", "工作台", "read"],
       ["items", "商品库", "read"],
       ["candidates", "待确认", "read"],
       ["tasks", "经营待办", "read"],
@@ -13,9 +14,9 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     name: "销售",
     compact: true,
     items: [
-      ["listings", "发布记录", "read"],
       ["inquiries", "客户询盘", "sell"],
-      ["sales", "成交记录", "finance"],
+      ["sales", "成交记录", "sell"],
+      ["listings", "发布记录", "read"],
       ["collections", "客户选品", "read"],
     ],
   },
@@ -32,7 +33,6 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     name: "系统",
     compact: true,
     items: [
-      ["dashboard", "工作总览", "read"],
       ["dictionaries", "字典管理", "dictionary"],
       ["settlements", "合作对账", "finance"],
       ["settings", "设置与账户", "read"],
