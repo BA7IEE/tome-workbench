@@ -236,6 +236,18 @@ export class CatalogService {
       ...(status ? { status } : {}),
       ...(filters.category ? { category: filters.category } : {}),
       ...(filters.ownership ? { ownership: filters.ownership } : {}),
+      ...(filters.location
+        ? { location: { contains: filters.location, mode: "insensitive" } }
+        : {}),
+      ...(filters.sizeLabel
+        ? {
+            facts: {
+              path: ["sizeLabel"],
+              string_contains: filters.sizeLabel,
+              mode: "insensitive",
+            },
+          }
+        : {}),
       ...(filters.review
         ? { approvedValid: filters.review === "approved" }
         : {}),
@@ -271,6 +283,70 @@ export class CatalogService {
           }
         : {}),
     };
+    const extra: Prisma.ItemWhereInput[] = [];
+    if (filters.missing === "images")
+      extra.push({
+        assets: {
+          none: {
+            archived: false,
+            role: { in: ["PRODUCT", "DETAIL", "DEFECT", "REFERENCE"] },
+          },
+        },
+      });
+    if (filters.missing === "price") extra.push({ currentPrice: null });
+    if (filters.missing === "size" || filters.missing === "description") {
+      const path = [filters.missing === "size" ? "sizeLabel" : "descriptionZh"];
+      extra.push({
+        OR: [
+          { facts: { path, equals: "" } },
+          { facts: { path, equals: Prisma.AnyNull } },
+        ],
+      });
+    }
+    // Source and keyword predicates are independent; neither may replace the other.
+    if (filters.source)
+      extra.push({
+        OR: [
+          {
+            ingestCandidates: {
+              some: {
+                procurementSource: {
+                  name: { contains: filters.source, mode: "insensitive" },
+                },
+              },
+            },
+          },
+          {
+            sourceLinks: {
+              some: {
+                source: {
+                  OR: [
+                    {
+                      sourceKey: {
+                        contains: filters.source,
+                        mode: "insensitive",
+                      },
+                    },
+                    {
+                      supplier: {
+                        name: { contains: filters.source, mode: "insensitive" },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          {
+            facts: {
+              path: ["attributes", "sourcePlatform"],
+              string_contains: filters.source,
+              mode: "insensitive",
+            },
+          },
+        ],
+      });
+    where.AND = [...(where.AND as Prisma.ItemWhereInput[]), ...extra];
     const size = filters.size || 30;
     return this.db.$transaction(
       async (tx) => {
@@ -335,8 +411,9 @@ export class CatalogService {
               code: tm(r.serial),
               ...(actor && permission(actor.role, "finance")
                 ? {
-                    currentCostCny:
-                      costEntries.reduce((n, c) => n + c.amount, 0) || null,
+                    currentCostCny: costEntries.length
+                      ? costEntries.reduce((n, c) => n + c.amount, 0)
+                      : null,
                   }
                 : {}),
             };

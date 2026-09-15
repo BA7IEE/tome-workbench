@@ -24,6 +24,7 @@ import { AuthGuard } from "./auth/auth";
 import { AuthController } from "./auth/auth.controller";
 import { CatalogService } from "./catalog/catalog.service";
 import { CatalogController } from "./catalog/catalog.controller";
+import { MaterialsController } from "./catalog/materials.controller";
 import { CatalogExtensionsController } from "./catalog/extensions.controller";
 import { SupplyController } from "./supply/supply.controller";
 import { MediaController } from "./media/media.controller";
@@ -78,6 +79,7 @@ import { OperationsController } from "./operations/operations.controller";
     CostsController,
     AuthController,
     CatalogController,
+    MaterialsController,
     SupplyController,
     MediaController,
     PublishingController,

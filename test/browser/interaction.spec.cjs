@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { revealSection } = require("./reveal-section.cjs");
 // Synthetic test records only. Real pointer/keyboard actions; never force clicks.
 const { test, expect } = require("@playwright/test");
@@ -11,7 +12,7 @@ async function login(page) {
   await page.goto("/");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toContainText(
     "合成ADMIN",
   );
@@ -345,11 +346,12 @@ test.describe("selection and in-flight writes", () => {
     await expect(
       page.getByLabel("材质成分 / 细节", { exact: true }),
     ).toBeDisabled();
-    await expect(page.locator(".entry-save-state")).toContainText("已保存");
+    await expect(page.locator(".product-overview")).toContainText(
+      "双击保护的合成材质",
+    );
     expect(writes).toBe(1);
-    await expect(
-      page.getByLabel("材质成分 / 细节", { exact: true }),
-    ).toHaveValue("双击保护的合成材质");
+    const saved = await (await page.request.get(`/api/items/${i.id}`)).json();
+    expect(saved.facts.material).toBe("双击保护的合成材质");
   });
   test("未核验图片明确说明不可选原因并提供处理入口", async ({ page }) => {
     const i = await product(page, false);
@@ -467,7 +469,10 @@ test.describe("回执丢失后登录失效", () => {
     await page.getByRole("button", { name: "记录询盘", exact: true }).click();
     const d = page.locator("#dialog"),
       customer = "恢复询盘 " + randomUUID();
-    await d.getByLabel("渠道", { exact: true }).fill("合成渠道");
+    await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
+    await d
+      .getByLabel("其他渠道名称（仅选择“其他渠道”时填写）", { exact: true })
+      .fill("合成渠道");
     await d.getByLabel("客户内部标记", { exact: true }).fill(customer);
     const keys = await loseFirst(page, "/inquiries");
     await d.getByRole("button", { name: "保存询盘", exact: true }).click();

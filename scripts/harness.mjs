@@ -4,6 +4,16 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const required = [
+  "src/catalog/materials.controller.ts",
+  "web/src/materials.ts",
+  "web/src/imports-page.ts",
+  "web/src/work-storage.ts",
+  "test/browser/arco-workspace.spec.cjs",
+  "test/browser/product-library.spec.cjs",
+  "test/browser/ux101.spec.cjs",
+  "test/browser/login.cjs",
+  "docs/contracts/product-materials.md",
+  "prisma/migrations/202609150011_product_materials/migration.sql",
   "src/catalog/test-data.controller.ts",
   "web/src/test-data.ts",
   "web/src/bulk-dictionaries.ts",
@@ -71,13 +81,11 @@ export const required = [
   "web/src/studio-publisher.ts",
   "web/src/studio-media.ts",
   "web/src/studio-stock.ts",
-  "web/src/studio.css",
   "test/browser/studio.spec.cjs",
   "test/browser/ui08.spec.cjs",
   "test/browser/system-review.spec.cjs",
   "web/src/ui08.css",
   "test/browser/reveal-section.cjs",
-  "web/src/ux2.css",
   "test/browser/ux2.spec.cjs",
   "test/browser/dictionary-control.cjs",
   "test/browser/ux09.spec.cjs",
@@ -116,6 +124,22 @@ export function checks(
     }
   };
   for (const p of required) check("file:" + p, () => read(p).length > 20);
+  // Retired stylesheet presence is no longer a UX gate; the shared owner and
+  // the existing studio/ux2 browser behavior are the current contract.
+  check("single-visual-owner", () => {
+    const imports = [
+      ...read("web/src/main.ts").matchAll(
+        /import\s+["'](\.\/[^"']+\.css)["']/g,
+      ),
+    ].map((match) => match[1]);
+    return (
+      imports.length === 1 &&
+      imports[0] === "./ui08.css" &&
+      read("web/src/ui08.css").startsWith(
+        "@layer arco-base, workbench, arco, product;",
+      )
+    );
+  });
   check(
     "no-real-external-default",
     () =>
@@ -138,6 +162,9 @@ export function checks(
   );
   check("no-skipped-tests", () =>
     [
+      "test/browser/arco-workspace.spec.cjs",
+      "test/browser/product-library.spec.cjs",
+      "test/browser/ux101.spec.cjs",
       "test/unit.test.cjs",
       "test/integration.test.cjs",
       "test/browser/workbench.spec.cjs",
@@ -286,6 +313,41 @@ export function checks(
     JSON.parse(read("package.json")).scripts["harness:full"].includes(
       "test:browser:webkit",
     ),
+  );
+  check("browser-suite-parity", () => {
+    const chromium = read("playwright.config.cjs"),
+      webkit = read("playwright.webkit.config.cjs"),
+      files = fs
+        .readdirSync(path.join(root, "test/browser"))
+        .filter((name) => name.endsWith(".spec.cjs"))
+        .sort(),
+      listed = [...webkit.matchAll(/["']([^"']+\.spec\.cjs)["']/g)]
+        .map((match) => match[1])
+        .sort();
+    return (
+      chromium.includes("testDir:'./test/browser'") &&
+      !/testMatch|testIgnore/.test(chromium) &&
+      !/testIgnore/.test(webkit) &&
+      JSON.stringify(files) === JSON.stringify(listed)
+    );
+  });
+  check(
+    "product-library-both-browsers",
+    () =>
+      read("playwright.webkit.config.cjs").includes(
+        "product-library.spec.cjs",
+      ) &&
+      read("playwright.config.cjs").includes("testDir:'./test/browser'") &&
+      !/force\s*:\s*true/.test(read("test/browser/product-library.spec.cjs")),
+  );
+  check(
+    "arco-workspace-both-browsers",
+    () =>
+      read("playwright.webkit.config.cjs").includes(
+        "arco-workspace.spec.cjs",
+      ) &&
+      read("playwright.config.cjs").includes("testDir:'./test/browser'") &&
+      !/force\s*:\s*true/.test(read("test/browser/arco-workspace.spec.cjs")),
   );
   return results;
 }

@@ -84,11 +84,11 @@ The existing detailed-record pages remain for advanced history and financial ins
 
 ## 0.7 operator-facing interaction layer
 The 0.7 pass changes navigation and presentation, not domain ownership. The catalog list is the default operator entry, product rows open the product editor, and low-frequency actions move behind contextual menus. Product edit retains one primary save path and one publishing path; advanced record screens remain available for audit/history but are no longer prerequisites for routine operations.
-`ux2.css` is intentionally presentation-only. Business state transitions remain in the existing controllers/services and idempotent commands. No 0.7 database migration exists. Browser tests exercise visible contextual menus rather than hidden legacy controls. The UX gate is required in Chromium and WebKit.
+At 0.7, `ux2.css` was presentation-only; rc.18 retires that file after moving active rules into the shared visual owner. Business state transitions remain in the existing controllers/services and idempotent commands. No 0.7 database migration exists. Browser tests exercise visible contextual menus rather than hidden legacy controls. The UX gate is required in Chromium and WebKit.
 
 
 ## 0.8 unified visual system
-0.8 changes presentation ownership, not domain state or persistence. `style.css` owns primitive defaults, `interaction.css` owns accessibility/recovery affordances, and `ui08.css` is the only final visual owner. Historical usability/admin-flow/studio/ux2 style sheets remain as source history but are not imported by the runtime.
+0.8 changed presentation ownership, not domain state or persistence. It originally split primitive defaults and accessibility/recovery affordances across style.css and interaction.css, with ui08.css as final visual owner. Since rc.18, all active rules live in ui08.css and all six retired sheets have been deleted; historical versions remain in Git.
 The catalog, product workspace, publishing context, dialogs and low-frequency administrative pages share one spacing, typography, border, status and control system. Desktop publishing remains non-blocking: the product editor shrinks to preserve context while the publishing sidebar is open. Mobile publishing is in-flow rather than an overlay so inventory/save actions cannot be covered.
 `test/browser/ui08.spec.cjs` is a required Chromium/WebKit gate for geometry, mobile business ordering, navigation reachability, action hierarchy and CSS ownership. Existing business tests remain authoritative for permissions, concurrency, image rights, inventory, financial isolation and recovery. No 0.8 database migration exists.
 
@@ -154,7 +154,7 @@ The source-independent boundary and current extension limits are documented in d
 ## rc.10 商品维护与询盘跟进路径
 记录询盘的表单由inquiry-form.ts共享，商品工作区使用独立对话框和原POST /inquiries命令；成功后不重载商品编辑器，不提交或丢弃商品草稿。旧详情页沿用同一实现。待办投影的询盘href带id，GET /inquiries支持可选UUID id/itemId并在数据库过滤后应用列表上限，始终保留sell权限与BUSINESS/未删除约束。更新跟进仍调用原状态命令，不产生销售或改库存。
 候选仅在可编辑账户的PENDING范围内允许批量勾选；CONFIRMED卡片的历史警告折叠显示，商品维护入口携带原候选查询。编辑器只接受本应用#/candidates返回地址，保存并返回及返回按钮回到原来源/状态/视图/关键词。TEST商品从测试列表进入时保留原筛选，避免跨数据范围返回。
-style.css置于legacy层作为结构默认值，ui08.css继续是唯一最终视觉所有者，避免旧高优先级选择器覆盖现有侧栏与组件。无数据库迁移。
+本阶段曾将 style.css 置于 legacy 层；rc.18 已移除该层及文件，将有效结构规则收归 ui08.css。ui08.css 继续是唯一最终视觉所有者，避免旧高优先级选择器覆盖现有侧栏与组件。无数据库迁移。
 
 ## rc.11 complete record queries and operating commands
 The work queue uses one parameterized SQL CTE over the existing owners. Scope/search precede priority ordering and pagination; global visible summary and filtered count share the same query snapshot. Sales use repeatable-read queries and currency-separated full filtered aggregates, while ordinary pages and explicit whole-filter exports are separate reads. Legacy unpaged array endpoints remain bounded for compatibility.
@@ -174,3 +174,53 @@ WriteAttempt、通用form及两种上传队列的未知结果标记持续保留�
 ## rc.14 记录导航上下文
 
 记录页的筛选与上下文独立处理。重置保留id、itemId、合法returnTo、from=tasks及TEST范围，清除搜索和分页。查看全部仅解除身份范围，仍保留数据类型与返回路径。返回地址沿用应用内白名单并进行HTML转义；不增加查询或写入权限，不改变API的数据隔离。
+
+
+## 1.0.0-rc.15 product-library MVP
+
+The operator entry is Items (available grid by default) → batch import records → Settings. Existing business modules remain reachable from Settings. All item, stock and finance writes still belong to their current modules; the prototype's in-memory mutation layer is not used.
+
+- Catalog queries apply size, location, source and missing-field predicates before count/pagination. A confirmed CNY cost sum of zero is zero; absence of confirmed CNY entries is null.
+- IngestBatchMember records stable batch/candidate membership and first observed version. Upserts append membership; the candidate's current batch pointer remains for compatibility. A sealed batch's integrity report comes from its immutable seal audit. Membership links display current candidate decisions; they are not snapshots of every historical source field. Migration backfills only currently provable memberships.
+- Capture evidence accepts webpage evidence or explicit filename/hash/row evidence for offline files. Agent ingestion still cannot directly mutate Item, inventory, sales or cost. Batch confirmation accepts per-candidate incomplete acknowledgements bound to versions; missing originals, identity conflicts and possession requirements remain enforced by the shared service.
+- MaterialExport/MaterialExportEntry hold immutable, role-scoped reference snapshots. Snapshot creation locks items in stable order, checks versions and data scope, and writes audit/receipt transactionally. OPERATIONS is a safe merchandising projection; INTERNAL additionally requires finance and includes raw source material, internal facts and CNY costs. Neither grants public image rights.
+- Downloads compare current facts, original-image metadata/order/rights, aliases, stock and scope with the snapshot. Deleted, reclassified or changed items block old bundle download. Original file length and SHA256 are verified before ZIP streaming; fresh permissions and comparisons are rechecked after hashing. CSV uses decimal currency units; JSON uses explicit integer hundredths and per-item currency. No cross-currency totals.
+- IndexedDB stores account-scoped original command inputs and keys for pending candidate batches, material exports and saved-item uploads. Files are serialized to byte buffers and reconstructed without altering content, including WebKit. Completed chunks/files are not recreated. Recovery requires the same browser profile and retained storage; server records remain authoritative after local storage is cleared. Unsaved text is not synchronized between devices.
+
+Migration 202609150011_product_materials adds only these three history tables, indexes, restricted references and append-only triggers. Existing deployed migrations, stock/ledger constraints and frozen publishing data are unchanged. Export entries also participate in the test-cleanup dependency digest.
+
+## rc.16 React / Arco product workspace
+
+Catalog and product-editor presentation use React 18 with Arco Design; QuickIntake and QuickEdit share the same compact fields. Existing domain controllers own requests, idempotency, recovery, inventory, source evidence and publishing. React roots are aborted with page lifetime. ControllerSlot is an explicit DOM ownership boundary; memoized dictionary markup must not be regenerated by selection-only renders. Field rebase preserves the media queue and receipts outside the replaced field root. No database/API ownership changed.
+
+ui08.css remains the sole final visual entry. The rc.16 legacy layer has been retired in rc.18; the current ordered layers are arco-base/workbench/arco/product, declared before any stylesheet rules. Arco's page reset precedes business layout; component styles follow it. Only used Arco CSS dependencies are imported. Row dropdowns render outside the scrolling table. See [ARCO-RC16](ARCO-RC16.md) for migration history and [UI-CLEANUP-RC18](UI-CLEANUP-RC18.md) for the current ownership.
+
+## rc.17 catalog result controls
+
+Search actions stay inside the filter form; ordering and view selection sit above results, with Arco pagination and page size below. All result-changing actions read and validate current filter inputs before navigation; changed filters or sort/page size reset to page one. Expanding filters and choosing items do not apply draft input. Canonical catalogFilterScope sorts query keys and normalizes empty/default BUSINESS values, excluding page, size, sort and view, so equivalent filters preserve cross-page selections. It remains account-local UI state, not a new business fact. Native dictionary semantics, server-side query validation, permissions and item writes are unchanged.
+
+## rc.18 shared UI ownership and cleanup
+
+main.ts imports only ui08.css. This file owns the neutral Arco theme aliases on body, native controls and accessibility/recovery affordances, login/showroom layout, existing business pages and product-specific layouts. Native input/button selectors exclude Arco internals; base input type exclusions use :where so focus states can override the ordinary border. Previously undefined procurement/source variables now resolve through the same theme.
+
+Unused productFields HTML and native catalogue row-menu positioning were removed. readProduct/changedProduct/bindProductRows and native bulk/page menu behavior remain; React and Arco own the existing product fields and row dropdown. Shared record tables have an explicit record-table class for readable minimum column widths, without changing Arco table geometry. Mobile headers and native filter heights share responsive rules. The source-page hand-entry action calls existing QuickIntake with the same permission and recovery rules. No API, migration, inventory, cost or media persistence changes.
+
+
+## rc.19 product overview and explicit maintenance
+
+The ordinary Item route now renders a read-only product overview; explicit tab routes preserve the advanced facts/media/publishing/finance/history controllers. Catalog, confirmed candidate, procurement and material-history view links no longer infer edit intent from permission. The overview composes existing Item facts, original-media reads, MaterialExport, inquiry and stock commands, without a new business table or write path. A browse-only visit does not PATCH Item or classify images.
+
+Overview editing carries the originating detail URL, whose own return context retains the catalog filter or batch. Saving from this entry returns to that detail; cancellation retains the existing unsaved/uncertain guard. Full new-item, publishing and sequential edit still use ProductEntry and its established staged recovery. In-page previous/next browsing is limited to the current catalog page, distinct from the selected-item editing queue.
+
+The shared image viewer uses derived previews initially and fetches authenticated original bytes on explicit request. Original reads are generation-checked and aborted/revoked on close; keyboard navigation retains focus after rendering. Existing image metadata actions remain immediate and explicitly labelled; no claim of atomic rollback with text edits is introduced. Pause uses the same idempotent stock command with an explicit confirmation dialog.
+
+Material exports retain immutable snapshots and IndexedDB command recovery, then automatically download the existing result. Download failures allow retry without a new snapshot. History detail has an explicit return to its current history page. Batch reset retains batchId/returnTo while clearing search conditions; completed batches go to confirmed members. Publishing approval is labelled as publishing review, not general material completeness. No migration or dependency change.
+
+
+## UX 1.0.1 integration on rc.19
+
+Dashboard is the default read-only work projection; the original catalog, imports, settings and permission-gated sales are direct navigation entries. The existing Arco/React lifecycle, single stylesheet owner and rc.19 overview/edit return contract remain. Sale-facts product links preserve their filtered sales context and enter the same read-only overview. Direct inventory actions share studioStock in overview and editor, with existing Commands and stock locks; release uses a stable dialog command and leaves PAUSED.
+
+The new sell-only `/api/sale-facts` projection whitelists nonfinancial sale fields and BUSINESS, nondeleted items. Finance continues using `/api/sales` with its original ledger/history scope and aggregate logic. No Sale model, revenue facts or finance write authority is changed.
+
+Candidate sale readiness is separate from possession: new UI and bulk API default PAUSED, explicit AVAILABLE remains supported. rc.19 PendingBulk persists this choice alongside per-candidate gap acknowledgements, versions, keys and completed chunks. QuickIntake retains React fields and the account-scoped byte-preserving queue while validating files before create and reporting upload progress. Original ApiError propagation preserves login/unknown-result recovery. Prisma, all historical migrations, seals and dependency versions remain byte-for-byte at rc.19. See UX-1.0.1-REWORK.md for conflict decisions.

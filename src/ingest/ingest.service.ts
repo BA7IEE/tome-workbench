@@ -1,6 +1,11 @@
 import sharp from "sharp";
 import { assetPath } from "../media/storage";
-import { inspectCapture, record, batchManifest } from "./ingest-integrity";
+import {
+  inspectCapture,
+  record,
+  batchManifest,
+  type Integrity,
+} from "./ingest-integrity";
 import { Injectable } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { PrismaService } from "../database/prisma.service";
@@ -268,6 +273,10 @@ export class IngestService {
         version: row.version,
         snapshot: json(snapshot),
       },
+    });
+    await tx.ingestBatchMember.createMany({
+      data: [{ batchId, candidateId: row.id, firstVersion: row.version }],
+      skipDuplicates: true,
     });
     return { id: row.id, version: row.version, unchanged: false };
   }
@@ -1359,6 +1368,26 @@ export class IngestService {
     );
   }
   async batchReport(tx: Tx | PrismaService, id: string) {
+    const sealed = await tx.ingestBatch.findUniqueOrThrow({ where: { id } });
+    if (sealed.status === "SEALED") {
+      const evidence = await tx.audit.findFirst({
+        where: { action: "INGEST_BATCH_SEALED", resourceId: id },
+        orderBy: { createdAt: "desc" },
+      });
+      const report = record(evidence?.detail).integrity;
+      if (report)
+        return report as {
+          state: string;
+          expectedCount: number | null;
+          receivedCount: number;
+          blockers: string[];
+          rows: ({
+            id: string;
+            title: string;
+            externalKey: string;
+          } & Integrity)[];
+        };
+    }
     const batch = await tx.ingestBatch.findUniqueOrThrow({
       where: { id },
       include: { candidates: { include: { assets: true } } },

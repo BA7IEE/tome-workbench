@@ -199,3 +199,12 @@ test('采集检查区分来源缺项、漏传文件和未核验，不能用空�
   assert.equal(captureEvidence.safeParse({...capture,fields:[...capture.fields,...capture.fields]}).success,false);
   assert.equal(captureEvidence.safeParse({...capture,images:[{sourceUrl:'https://example.invalid/2.png',quality:'UNAVAILABLE'}]}).success,false);
 });
+
+test('文件型来源凭据无需伪造网址，缺少原文件或记录位置仍拒绝',()=>{
+  const {captureEvidence,inspectCapture}=require('../dist/ingest/ingest-integrity');
+  const evidence={fileEvidence:{name:'合成来源.csv',sha256:'a'.repeat(64),row:'第2行'},capturedAt:'2026-09-15T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'}],images:[{sourceFile:'原图.png',sha256:'b'.repeat(64),width:1500,height:2000,quality:'ORIGINAL'}]};
+  assert.equal(captureEvidence.safeParse(evidence).success,true);
+  assert.equal(captureEvidence.safeParse({...evidence,fileEvidence:{...evidence.fileEvidence,row:''}}).success,false);
+  assert.equal(captureEvidence.safeParse({...evidence,pageUrl:'https://example.invalid/product'}).success,false);
+  const check=inspectCapture({titleRaw:'合成外套',sourceFacts:{capture:evidence}},[]);assert.match(check.blockers.join(),/原文件尚未保存/);
+});

@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 const { revealSection } = require("./reveal-section.cjs");
 const { test, expect } = require("@playwright/test");
@@ -10,7 +11,7 @@ async function login(page) {
   await page.goto("/");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toContainText(
     "合成ADMIN",
   );
@@ -498,13 +499,16 @@ test("商品列表可删除、取消删除并在回收站恢复原编号", async
   });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
   const row = page.locator("tr").filter({ hasText: title });
-  await row.locator(".catalog-row-menu > summary").click();
-  await row.getByRole("button", { name: "删除商品", exact: true }).click();
+  await row.locator(".catalog-row-menu").click();
+  await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "取消", exact: true }).click();
   await expect(row).toBeVisible();
-  if ((await row.locator(".catalog-row-menu").getAttribute("open")) === null)
-    await row.locator(".catalog-row-menu > summary").click();
-  await row.getByRole("button", { name: "删除商品", exact: true }).click();
+  if (
+    (await row.locator(".catalog-row-menu").getAttribute("aria-expanded")) !==
+    "true"
+  )
+    await row.locator(".catalog-row-menu").click();
+  await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
   await expect(page.locator("#dialog")).not.toBeVisible();
   await expect(row).toHaveCount(0);
@@ -535,6 +539,7 @@ test("批量清理仅影响本测试创建并勾选的两件样本", async ({ pa
   for (const sample of samples.slice(0, 2)) {
     await page.locator(`[data-pick="${sample.id}"]`).click();
   }
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量删除", exact: true }).click();
   await page.getByRole("button", { name: "核对所选商品", exact: true }).click();
   await page.getByRole("button", { name: "开始执行", exact: true }).click();
@@ -552,6 +557,7 @@ test("手机商品详情提供删除，旧编辑页提示先恢复", async ({ pa
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/#/items/${sample.id}`);
+  await page.locator(".overview-more summary").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
   await expect(page.locator("#content")).toContainText("已移入回收站");

@@ -1,23 +1,21 @@
-import { sourceFieldNote } from "./item-source-facts";
+import { createElement } from "react";
+import { mountView } from "./arco/runtime";
+import { QuickFields } from "./arco/quick-fields";
 import {
   ApiError,
   button,
   cents,
-  currencies,
   dialog,
-  field,
   form,
   onDialogClosed,
   request,
-  select,
   text,
 } from "./core";
 import {
   bindDictionaryFields,
-  dictionaryField,
   readDictionarySelections,
 } from "./dictionary-picker";
-import { categories, type Item } from "./types";
+import { type Item } from "./types";
 
 export function quickEdit(item: Item, after?: () => Promise<void> | void) {
   let formEl: HTMLFormElement | null = null;
@@ -29,11 +27,7 @@ export function quickEdit(item: Item, after?: () => Promise<void> | void) {
     },
     "subtle",
   )}</div>
-    ${field("title", "商品名称", item.title, "text", true)}
-    <div class="quick-edit-brand">${dictionaryField("BRAND", item.dictionary?.brand || undefined, item.brand, item.brand)}${sourceFieldNote(item, "brand")}</div>
-    ${select("category", "品类", categories, item.category)}
-    <div class="quick-edit-price">${field("price", "对外报价", item.currentPrice == null ? "" : item.currentPrice / 100, "text", false, 'inputmode="decimal" placeholder="可留空"')}${select("currency", "币种", currencies, item.currency)}</div>
-    ${dictionaryField("CONDITION", item.dictionary?.condition || undefined, item.facts.conditionGrade || "", item.facts.conditionGrade || "")}${sourceFieldNote(item, "condition")}`;
+    <div class="quick-edit-core"></div>`;
   form(
     `快速修改 · ${item.code}`,
     body,
@@ -72,7 +66,13 @@ export function quickEdit(item: Item, after?: () => Promise<void> | void) {
   formEl = dialog.querySelector<HTMLFormElement>("form")!;
   const scope = new AbortController();
   onDialogClosed(() => scope.abort());
+  mountView(
+    formEl.querySelector<HTMLElement>(".quick-edit-core")!,
+    scope.signal,
+  )(createElement(QuickFields, { item }));
   bindDictionaryFields(formEl, scope.signal);
-  dialog.classList.add("quick-edit-dialog");
-  onDialogClosed(() => dialog.classList.remove("quick-edit-dialog"));
+  dialog.classList.add("quick-edit-dialog", "arco-workspace");
+  onDialogClosed(() =>
+    dialog.classList.remove("quick-edit-dialog", "arco-workspace"),
+  );
 }

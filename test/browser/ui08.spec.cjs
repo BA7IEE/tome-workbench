@@ -1,13 +1,14 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom")).toBeVisible();
 }
 async function openNew(page) {
@@ -74,17 +75,19 @@ test("手机顶级业务导航全部可达", async ({ page }) => {
     page.getByRole("link", { name: "商品库", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "待确认", exact: true }),
+    page.getByRole("link", { name: "导入记录", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "设置", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "设置", exact: true }).click();
+  await page.getByText("其他业务记录与维护工具", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "经营待办", exact: true }),
   ).toBeVisible();
-  for (const name of ["销售", "资源", "系统"])
-    await expect(page.getByText(name, { exact: true })).toBeVisible();
-  await page.getByText("销售", { exact: true }).click();
-  await expect(
-    page.getByRole("link", { name: "发布记录", exact: true }),
-  ).toBeVisible();
+  await page.locator(".library-tools details.nav-group > summary").filter({ hasText: /^销售$/ }).click();
+  await page.getByRole("link", { name: "发布记录", exact: true }).click();
+  await expect(page).toHaveURL(/#\/listings/);
 });
 
 test("正式商品列表状态标签克制，页头只保留一个主动作", async ({ page }) => {
@@ -109,12 +112,20 @@ test("视觉层只有一个最终设计系统所有者", async () => {
   const main = fs.readFileSync("web/src/main.ts", "utf8");
   expect(main).toContain('import "./ui08.css"');
   for (const old of [
+    "style.css",
+    "interaction.css",
     "usability.css",
     "admin-flow.css",
     "studio.css",
     "ux2.css",
-  ])
+  ]) {
     expect(main).not.toContain(`import "./${old}"`);
+    // rc.18 retained active rules in ui08.css; retired files must not return.
+    expect(fs.existsSync("web/src/" + old)).toBe(false);
+  }
+  expect(main.match(/import "\.\/[^\"]+\.css"/g)).toEqual([
+    'import "./ui08.css"',
+  ]);
 });
 
 const { randomUUID } = require("node:crypto");
@@ -139,26 +150,39 @@ test("列表末行菜单不被裁切，外部点击与Escape收起并可实际�
   const title = "菜单边界 " + randomUUID(),
     item = await uiApi(page, "/items", { title });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
-  const menu = page.locator(".catalog-row-menu"),
-    summary = menu.locator("summary");
+  const menu = page.getByRole("button", {
+      name: item.code + " 更多操作",
+      exact: true,
+    }),
+    summary = menu;
+  // A click can auto-scroll the table and hide an offscreen action column.
+  // Operators must see this entry before scrolling sideways.
+  await expect(menu).toBeVisible();
+  await expect(page.locator(".catalog-row-menu")).toHaveCount(1);
+  expect(
+    await menu.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= innerWidth;
+    }),
+  ).toBe(true);
   await summary.click();
-  await expect(menu).toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "true");
   await expect
     .poll(() =>
-      menu.locator(":scope > div").evaluate((el) => {
+      page.locator(".catalog-dropdown-actions").evaluate((el) => {
         const r = el.getBoundingClientRect();
         return el.contains(document.elementFromPoint(r.x + 20, r.bottom - 15));
       }),
     )
     .toBe(true);
   await page.keyboard.press("Escape");
-  await expect(menu).not.toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
   await expect(summary).toBeFocused();
   await summary.click();
   await page.getByRole("heading", { name: "商品", exact: true }).click();
-  await expect(menu).not.toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
   await summary.click();
-  await menu.getByRole("button", { name: "快速修改", exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   await d.getByLabel("对外报价", { exact: true }).fill("218");
   await d.getByRole("button", { name: "保存修改", exact: true }).click();
@@ -214,7 +238,11 @@ test("快速修改完整页入口保护未保存输入，来源等级仍待人�
       },
     });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
-  await page.locator(".catalog-row-menu summary").click();
+  // A hash navigation may return before its event is dispatched. Wait for the
+  // intended item, rather than matching every menu in the previous catalogue.
+  await page
+    .getByRole("button", { name: `${item.code} 更多操作`, exact: true })
+    .click();
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   await expect(d.locator("[data-source-field=condition]")).toContainText(
@@ -267,7 +295,7 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
   ).toBe(true);
   await toolbar.getByRole("button", { name: "取消选择", exact: true }).click();
   await expect(toolbar).toBeHidden();
-  await page.locator(".catalog-row-menu summary").last().click();
+  await page.locator(".catalog-row-menu").last().click();
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth + 2)).toBe(
@@ -408,7 +436,10 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   await page.getByLabel("中文介绍", { exact: true }).fill("还没保存的商品文案");
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
   const d = page.getByRole("dialog", { name: "记录询盘", exact: true });
-  await d.getByLabel("渠道", { exact: true }).fill("合成微信");
+  await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
+  await d
+    .getByLabel("其他渠道名称（仅选择“其他渠道”时填写）", { exact: true })
+    .fill("合成微信");
   await d
     .getByLabel("客户内部标记", { exact: true })
     .fill("客户 " + randomUUID());
@@ -562,12 +593,20 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
   await page.locator(".candidate-history-note summary").click();
   await expect(page.locator(".candidate-warning")).toBeVisible();
   await page.locator(".candidate-actions a").click();
+  await expect(page.locator(".product-overview")).toBeVisible();
+  await page.getByRole("button", { name: "编辑商品", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "返回候选列表", exact: true }).first(),
+    page.getByRole("link", { name: "返回商品详情", exact: true }).first(),
   ).toBeVisible();
   await page.getByLabel("中文介绍", { exact: true }).fill("在TM中维护后的说明");
   await page.locator(".studio-more summary").click();
   await page.getByRole("button", { name: "保存并返回", exact: true }).click();
+  await expect(page.locator(".product-overview")).toContainText(
+    "在TM中维护后的说明",
+  );
+  await page
+    .getByRole("link", { name: "← 返回本次导入记录", exact: true })
+    .click();
   await expect(page).toHaveURL("http://127.0.0.1:4320" + hash);
   await expect(page.locator(".candidate-card")).toHaveCount(1);
   await uiApi(page, "/ingest/sessions/" + session.id + "/revoke", {
@@ -577,6 +616,8 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
 
 test("最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖", async ({ page }) => {
   await page.goto("/#/items");
+  await expect(page.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
+  await expect(page.locator(".admin-sidebar")).toBeVisible();
   const layout = await page.evaluate(() => ({
     aside: document.querySelector(".admin-sidebar").getBoundingClientRect()
       .right,

@@ -4,6 +4,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
   {
     name: "日常工作",
     items: [
+      ["dashboard", "工作台", "read"],
       ["items", "商品库", "read"],
       ["candidates", "待确认", "read"],
       ["tasks", "经营待办", "read"],
@@ -13,9 +14,9 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     name: "销售",
     compact: true,
     items: [
-      ["listings", "发布记录", "read"],
       ["inquiries", "客户询盘", "sell"],
-      ["sales", "成交记录", "finance"],
+      ["sales", "成交记录", "sell"],
+      ["listings", "发布记录", "read"],
       ["collections", "客户选品", "read"],
     ],
   },
@@ -32,7 +33,6 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     name: "系统",
     compact: true,
     items: [
-      ["dashboard", "工作总览", "read"],
       ["dictionaries", "字典管理", "dictionary"],
       ["settlements", "合作对账", "finance"],
       ["settings", "设置与账户", "read"],
@@ -42,7 +42,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     ],
   },
 ];
-export function navigation(page: string) {
+export function extraNavigation(page: string) {
   return sections
     .map((section) => {
       const entries = section.items.filter(([, , permission]) =>
@@ -61,8 +61,44 @@ export function navigation(page: string) {
     })
     .join("");
 }
-export const pageNames = Object.fromEntries(
-  sections.flatMap((section) =>
+export const pageNames = Object.fromEntries([
+  ...sections.flatMap((section) =>
     section.items.map(([key, label]) => [key, label]),
   ),
-);
+  ["imports", "导入记录"],
+]);
+
+export function navigation(page: string) {
+  const rows: [string, string, boolean][] = [
+    ["dashboard", "工作台", page === "dashboard"],
+    [
+      "items?view=grid&status=AVAILABLE",
+      "商品库",
+      page === "items" || page === "trash",
+    ],
+    ["imports", "导入记录", page === "imports" || page === "candidates"],
+    ...(can("sell")
+      ? [
+          ["sales", "销售", page === "sales" || page === "inquiries"] as [
+            string,
+            string,
+            boolean,
+          ],
+        ]
+      : []),
+    [
+      "settings",
+      "设置",
+      ![
+        "dashboard",
+        "items",
+        "trash",
+        "imports",
+        "candidates",
+        "sales",
+        "inquiries",
+      ].includes(page),
+    ],
+  ];
+  return `<div class="library-navigation">${rows.map(([path, label, active]) => `<a href="#/${path}" class="${active ? "active" : ""}" ${active ? 'aria-current="page"' : ""}>${label}</a>`).join("")}</div>`;
+}

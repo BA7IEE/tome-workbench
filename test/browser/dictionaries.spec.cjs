@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const {
   chooseDictionary,
   dictionaryRoot,
@@ -19,10 +20,10 @@ const fixture = JSON.parse(
   require("node:fs").readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toBeVisible();
 }
 async function command(page, path, body) {
@@ -85,6 +86,8 @@ test("录商品直接选择品牌、国际成色、颜色与材质，保存后�
     "非常好 · Very good condition",
   );
   await page.getByRole("button", { name: "搜索", exact: true }).click();
+  // MVP opens an image grid; explicitly switch to the table before checking its rows.
+  await page.getByRole("button", { name: "列表", exact: true }).click();
   await expect(page.locator("tbody")).toContainText(name);
   const rows = await (
     await page.request.get("/api/items?q=" + encodeURIComponent(name))
@@ -289,6 +292,7 @@ test("有模拟成交也能从删除窗口清理，保留历史金额并显示�
     channel: "浏览器模拟渠道",
   });
   await page.goto("/#/items/" + i.id);
+  await page.locator(".overview-more summary").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page
     .getByRole("button", { name: "有模拟成交？清理测试数据", exact: true })
@@ -339,6 +343,7 @@ test("批量改品牌只影响勾选商品与指定字段，版本冲突单独�
   await expect(page.locator("[data-pick]")).toHaveCount(3);
   await page.getByLabel("选择 " + a.code, { exact: true }).check();
   await page.getByLabel("选择 " + b.code, { exact: true }).check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量修改属性", exact: true }).click();
   await page.locator("#dialog").getByLabel("修改品牌", { exact: true }).check();
   await chooseDictionary(page.locator("#dialog"), "品牌", "Dior", "Dior");

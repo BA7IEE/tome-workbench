@@ -3,6 +3,8 @@ const base = require("./playwright.config.cjs");
 module.exports = defineConfig({
   ...base,
   testMatch: [
+    "arco-workspace.spec.cjs",
+    "product-library.spec.cjs",
     "studio.spec.cjs",
     "dictionaries.spec.cjs",
     "interaction.spec.cjs",
@@ -14,6 +16,7 @@ module.exports = defineConfig({
     "ux09-audit.spec.cjs",
     "ux09.spec.cjs",
     "ux10.spec.cjs",
+    "ux101.spec.cjs",
     "procurement.spec.cjs",
     "v1-item-center.spec.cjs",
   ],

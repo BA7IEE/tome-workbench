@@ -5,6 +5,12 @@ let guard: (() => boolean) | null = null;
 export function onPageReady(id: string, hook: Hook) {
   hooks.set(id, hook);
 }
+export function disposePage() {
+  active?.abort();
+  active = null;
+  guard = null;
+  hooks.clear();
+}
 export function runPageHooks() {
   active?.abort();
   active = new AbortController();

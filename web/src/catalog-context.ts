@@ -5,12 +5,24 @@ let owner = "",
   listScroll = 0,
   filter = "";
 let queue: string[] = [];
+let browse: string[] = [];
 const selected = new Map<string, Item>();
+// Presentation controls must not turn the same filter into a new selection scope.
+export function catalogFilterScope(query: URLSearchParams) {
+  const filters = new URLSearchParams(query);
+  for (const key of ["page", "size", "sort", "view"]) filters.delete(key);
+  if ((filters.get("dataMode") || "BUSINESS") === "BUSINESS")
+    filters.delete("dataMode");
+  for (const [key, value] of [...filters]) if (!value) filters.delete(key);
+  filters.sort();
+  return filters.toString();
+}
 function account() {
   if (owner !== (me?.id || "")) {
     owner = me?.id || "";
     selected.clear();
     queue = [];
+    browse = [];
     listHash = "#/items";
     listScroll = 0;
     filter = "";
@@ -18,7 +30,11 @@ function account() {
 }
 export function catalogContext() {
   account();
-  return { selected, listHash, listScroll, queue };
+  return { selected, listHash, listScroll, queue, browse };
+}
+export function rememberBrowseResults(ids: string[]) {
+  account();
+  browse = [...ids];
 }
 export function rememberList(hash: string, scope: string, scroll = 0) {
   account();

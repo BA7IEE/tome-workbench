@@ -1,0 +1,23 @@
+{
+  "command": "npm audit --audit-level=high",
+  "exitCode": 0,
+  "checkedAt": "2026-09-15T15:18:35.154Z",
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 288,
+      "dev": 174,
+      "optional": 83,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 490
+    }
+  }
+}

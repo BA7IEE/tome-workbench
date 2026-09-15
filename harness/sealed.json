@@ -10,6 +10,7 @@
     "prisma/migrations/202609120007_test_data_scope/migration.sql": "c0813e6c0d0447efcd14b2348948953c7c0f2b51e2244d5367d2acee4eff2007",
     "prisma/migrations/202609120008_procurement_records/migration.sql": "3dcf40b7c6f77f3e6295222f53b50cb364e2944e2f6d874e2239c68864707e6e",
     "prisma/migrations/202609130009_item_centric_v1/migration.sql": "cf985880a9f438ee5796ae162a650ba67c60a46b75af1b4af2f0a61ac0bc4722",
-    "prisma/migrations/202609140001_operating_record_versions/migration.sql": "ea1bbd83bc4678ecb04d7488749cef599aa53dcaae72af002d31ac3a7e709e84"
+    "prisma/migrations/202609140001_operating_record_versions/migration.sql": "ea1bbd83bc4678ecb04d7488749cef599aa53dcaae72af002d31ac3a7e709e84",
+    "prisma/migrations/202609150011_product_materials/migration.sql": "b4137a0f15e1c4a1823a324dc10f93ce10696872e83b4d6c528c8687f98aed64"
   }
 }

@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
@@ -9,7 +10,7 @@ async function login(page) {
   await page.goto("/");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(
     page.getByRole("button", { name: "退出登录", exact: true }),
   ).toBeVisible();
@@ -276,9 +277,11 @@ test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async
   await page.getByLabel("选择本页").check();
   await expect(page.locator("#candidate-bulk")).toContainText("已选 7 件");
   await page
-    .getByRole("button", { name: "确认在手并生成TM", exact: true })
+    .getByRole("button", { name: "批量生成TM", exact: true })
     .click();
   const d = page.getByRole("dialog", { name: "批量生成TM · 7件" });
+  await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
+  await d.getByLabel("生成TM后的状态").selectOption("AVAILABLE");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
   await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
   await expect(d).not.toBeVisible();
@@ -294,6 +297,8 @@ test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async
   ).json();
   expect(confirmed.total).toBe(7);
   expect(confirmed.rows.every((r) => r.item)).toBe(true);
+  for (const c of confirmed.rows)
+    expect((await (await page.request.get(`/api/items/${c.item.id}`)).json()).status).toBe("AVAILABLE");
 });
 test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批", async ({
   page,
@@ -345,7 +350,7 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
   await page.getByLabel("选择本页").check();
   await expect(page.locator("#candidate-bulk")).toContainText("已选 100 件");
   await page
-    .getByRole("button", { name: "确认在手并生成TM", exact: true })
+    .getByRole("button", { name: "批量生成TM", exact: true })
     .click();
   const d = page.getByRole("dialog", { name: "批量生成TM · 100件" });
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
@@ -509,7 +514,7 @@ test("v1 手机待确认保持单一批量任务且无横向溢出", async ({ br
     ).toBe(true);
     await mobile.getByLabel("选择本页").check();
     await expect(
-      mobile.getByRole("button", { name: "确认在手并生成TM", exact: true }),
+      mobile.getByRole("button", { name: "批量生成TM", exact: true }),
     ).toBeVisible();
     await mobile.screenshot({
       path: "reports/screenshots/v1-candidates-mobile.png",
@@ -571,7 +576,9 @@ test("v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同
   dialog = page.getByRole("dialog", { name: "关联已有TM" });
   await expect(dialog).toContainText(created.code);
   await expect(dialog).toContainText("完全相同的来源图片");
-  await expect(dialog.getByLabel("已有TM编号")).toHaveValue(created.code);
+  await expect(
+    dialog.locator(`input[name="matchedItemRef"][value="${created.code}"]`),
+  ).toBeChecked();
   await dialog.getByLabel("我已核对，确认这是同一件实物，不新建第二个TM").check();
   await dialog.getByRole("button", { name: "确认关联", exact: true }).click();
   await expect(dialog).not.toBeVisible();
@@ -662,7 +669,7 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
     const response=await route.fetch();
     if(!lost) {lost=true;await route.abort('failed');} else await route.fulfill({response});
   });
-  await page.getByRole('button',{name:'确认在手并生成TM',exact:true}).click();
+  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   const d=page.getByRole('dialog',{name:'批量生成TM · 101件'});
   await d.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
   await d.getByRole('button',{name:'确认生成TM',exact:true}).click();
@@ -735,7 +742,7 @@ test('批量部分失败显示逐件原因，成功移除而失败保留供重�
   await page.goto('/#/candidates?sourceId='+x.source.id);
   await page.locator(`[data-pick="${first.id}"]`).check();await page.locator(`[data-pick="${second.id}"]`).check();
   await api(page,`/ingest/candidates/${first.id}/review`,{version:first.version,possession:'UNKNOWN',title:'并发核对后的名称',note:'合成并发变更'});
-  await page.getByRole('button',{name:'确认在手并生成TM',exact:true}).click();
+  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
   await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
   const result=page.getByRole('dialog',{name:'批量处理结果'});
@@ -744,7 +751,7 @@ test('批量部分失败显示逐件原因，成功移除而失败保留供重�
   await expect(page.locator(`[data-candidate="${second.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-pick="${first.id}"]`)).toBeChecked();
   await page.locator(`[data-pick="${first.id}"]`).uncheck();await page.locator(`[data-pick="${first.id}"]`).check();
-  await page.getByRole('button',{name:'确认在手并生成TM',exact:true}).click();
+  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
   await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();

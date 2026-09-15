@@ -3101,3 +3101,131 @@ test('货源池用来源名称和原货号找到已关联TM，不把多来源关
  const sku=x.candidates[0].sourceItemKey,bySku=await ok('/supply/sources?page=1&q='+sku+'&stage=adopted');assert.ok(bySku.rows.some(r=>r.items.some(i=>i.id===confirmed.itemId)&&r.originalKey===sku));
  assert.equal((await ok('/supply/sources?page=1&q='+encodeURIComponent(label)+'&stage=pending')).total,0);
 });
+
+test('商品资料库：零成本与未知分开，尺码位置来源及缺项组合在分页前过滤', async () => {
+  const marker='MVP-filter-'+randomUUID();
+  const a=await sparse({title:marker+' A',location:'箱A-03',facts:{sizeLabel:'XL',attributes:{sourcePlatform:'线下寄卖'}}});
+  const b=await sparse({title:marker+' B',location:'箱A-03',currentPrice:128000,facts:{sizeLabel:'XL',attributes:{sourcePlatform:'其他门店'}}});
+  await ok(`/items/${a.id}/costs`,'POST',{kind:'PURCHASE',amount:0,currency:'CNY',confirmed:true,note:'合成赠送货品确认零成本',occurredAt:new Date().toISOString()});
+  const all=await ok('/items?q='+encodeURIComponent(marker));
+  assert.equal(all.rows.find(i=>i.id===a.id).currentCostCny,0);assert.equal(all.rows.find(i=>i.id===b.id).currentCostCny,null);
+  const filtered=await ok('/items?'+new URLSearchParams({q:marker,sizeLabel:'xl',location:'箱A',source:'线下',missing:'price'}));
+  assert.equal(filtered.total,1);assert.equal(filtered.rows[0].id,a.id);
+  assert.equal((await ok('/items?'+new URLSearchParams({q:marker,source:'其他',missing:'price'}))).total,0);
+  assert.equal((await ok('/items?'+new URLSearchParams({q:marker,missing:'size'}))).total,0);
+  assert.equal((await ok('/items?'+new URLSearchParams({q:marker,missing:'description'}))).total,2);
+  assert.equal((await ok('/items?'+new URLSearchParams({q:marker,missing:'images'}))).total,2);
+  assert.equal('currentCostCny' in (await ok('/items?q='+encodeURIComponent(marker),'GET',undefined,operator)).rows[0],false);
+});
+
+test('商品资料库：批量逐件缺项依据绑定版本且不绕过漏图或同图身份检查',async()=>{
+  const x=await setupAgentTrr('MVP合成缺项来源'), c=x.imported.rows[0];
+  const capture={fileEvidence:{name:'合成门店资料.json',sha256:'a'.repeat(64),row:'第1条'},capturedAt:new Date().toISOString(),fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.measurements',label:'尺寸',status:'UNAVAILABLE',reason:'原记录未提供'}],images:[]};
+  const changed=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[0],sourceFacts:{capture}}]});
+  const version=changed.rows[0].version;
+  await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
+  const body={ids:[c.id],versions:{[c.id]:version},possession:'IN_HAND',status:'AVAILABLE'};
+  assert.equal((await ok('/ingest/candidates/bulk-confirm','POST',body)).failed,1);
+  assert.equal((await api('/ingest/candidates/bulk-confirm','POST',{...body,versions:undefined,incompleteAcknowledgements:{[c.id]:'已核实来源未提供'}})).status,400);
+  assert.equal((await api('/ingest/candidates/bulk-confirm','POST',{...body,incompleteAcknowledgements:{[randomUUID()]:'错误对象'}})).status,400);
+  const accepted={...body,incompleteAcknowledgements:{[c.id]:'已核对实物，来源未提供的尺寸后补'}}, key=randomUUID();
+  const result=await ok('/ingest/candidates/bulk-confirm','POST',accepted,admin,key);
+  assert.equal(result.ok,1);assert.deepEqual(await ok('/ingest/candidates/bulk-confirm','POST',accepted,admin,key),result);
+  const proof=await db.audit.findFirst({where:{resourceId:c.id,action:'INGEST_CANDIDATE_CONFIRMED'}});
+  assert.ok(proof);assert.equal(proof.detail.acceptIncomplete,true);assert.match(proof.detail.note,/来源未提供/);
+  const missing=x.imported.rows[1];
+  const nextBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'mvp-missing-'+randomUUID(),agentName:'Synthetic'});
+  const newRows=await machineOk(`/agent-ingest/batches/${nextBatch.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[1],sourceFacts:{capture:{...capture,images:[{sourceFile:'missing.png',sha256:'b'.repeat(64),width:1500,height:2000,quality:'ORIGINAL'}]}}}]});
+  const blocked=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[missing.id],versions:{[missing.id]:newRows.rows[0].version},possession:'IN_HAND',incompleteAcknowledgements:{[missing.id]:'明知缺图仍试图越过检查'}});
+  assert.equal(blocked.failed,1);assert.match(blocked.rows[0].error,/原文件|保存|清单/);
+});
+
+test('商品资料库：跨批次补采保留历史成员与封存检查，候选只生成同一TM',async()=>{
+  const x=await setupAgentTrr('MVP合成批次历史');
+  const old=await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
+  const next=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'next-'+randomUUID(),agentName:'Synthetic'});
+  await machineOk(`/agent-ingest/batches/${next.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[0],titleRaw:'合成补采标题'}]});
+  const priorList=await ok(`/ingest/candidates?batchId=${x.batch.id}&decision=`),nextList=await ok(`/ingest/candidates?batchId=${next.id}&decision=`);
+  assert.equal(priorList.total,7);assert.equal(nextList.total,1);assert.ok(priorList.rows.some(c=>c.id===nextList.rows[0].id));
+  const report=await ok(`/ingest/batches/${x.batch.id}/integrity`);assert.deepEqual(report,old.integrity);
+  const records=await ok('/ingest/batch-records?q='+encodeURIComponent('MVP合成批次历史'));
+  assert.equal(records.total,2);assert.equal(records.rows.find(b=>b.id===x.batch.id)._count.members,7);
+  assert.equal(await db.ingestCandidate.count({where:{procurementSourceId:x.source.id}}),7);
+  await assert.rejects(db.ingestBatchMember.deleteMany({where:{batchId:x.batch.id}}),/append-only/);
+});
+
+test('商品资料库：通用资料包含逐件文字和原文件，金额单位清楚且默认不含内部资料',async()=>{
+  const i=await sparse({title:'MVP原图包 '+randomUUID(),currentPrice:128000,facts:{sizeLabel:'XL',descriptionZh:'合成中文文案',attributes:{privateNote:'MVP_INTERNAL_ONLY'}}});
+  const png=await sharp({create:{width:1500,height:2000,channels:3,background:'#526e52'}}).png().toBuffer();
+  const fd=new FormData();fd.set('itemId',i.id);fd.set('file',new Blob([png],{type:'image/png'}),'大图原件.png');fd.set('origin','SUPPLIER');fd.set('role','REFERENCE');fd.set('sourceNote','合成来源原件，内部参考');
+  const asset=await ok('/assets/upload','POST',fd);
+  await ok(`/items/${i.id}/costs`,'POST',{kind:'PURCHASE',amount:0,currency:'CNY',confirmed:true,note:'合成已确认零成本',occurredAt:new Date().toISOString()});
+  const version=(await item(i.id)).version,key=randomUUID(),body={title:'MVP合成运营包',items:[{id:i.id,version}]};
+  const bundle=await ok('/material-exports','POST',body,operator,key);
+  assert.deepEqual(await ok('/material-exports','POST',body,operator,key),bundle);
+  assert.equal(await db.materialExportEntry.count({where:{exportId:bundle.id}}),1);
+  const response=await fetch(`${origin}/api/material-exports/${bundle.id}/download`,{headers:{Cookie:operator.cookie}});
+  assert.equal(response.status,200);const files=zipFiles(Buffer.from(await response.arrayBuffer()));
+  const manifest=JSON.parse(files.get('商品资料.json').toString());const row=manifest.items[0];
+  assert.equal(row.priceMinor,128000);assert.equal(manifest.amountUnit,'MINOR_UNIT_100');assert.equal(row.images.length,1);
+  assert.deepEqual(files.get(row.images[0].path),png);assert.equal(row.images[0].id,asset.id);
+  assert.ok(files.has(`商品/${row.code}/商品资料.txt`));
+  assert.match(files.get('商品清单.csv').toString(),/售价（元）/);assert.match(files.get('商品清单.csv').toString(),/"1280\.00"/);
+  assert.equal(JSON.stringify(manifest).includes('MVP_INTERNAL_ONLY'),false);assert.equal('costCnyMinor' in row,false);
+  assert.equal((await api('/material-exports','POST',{...body,scope:'INTERNAL'},operator)).status,403);
+  const internal=await ok('/material-exports','POST',{...body,scope:'INTERNAL'});
+  assert.equal((await api(`/material-exports/${internal.id}`,'GET',undefined,operator)).status,403);
+  const detail=await ok(`/material-exports/${internal.id}`);assert.equal(detail.rows[0].before.costCnyMinor,0);
+  assert.equal(detail.rows[0].before.facts.attributes.privateNote,'MVP_INTERNAL_ONLY');
+  await assert.rejects(db.materialExport.update({where:{id:bundle.id},data:{title:'禁止改历史'}}),/append-only/);
+});
+
+test('商品资料库：补图、已售和删除改变资料包，旧包不能继续下载且清理摘要检测新依赖',async()=>{
+  const i=await sparse({title:'MVP变化 '+randomUUID()}), v=(await item(i.id)).version;
+  const preview=await ok(`/items/${i.id}/test-cleanup-preview`);
+  const bundle=await ok('/material-exports','POST',{items:[{id:i.id,version:v}]});
+  assert.notEqual((await ok(`/items/${i.id}/test-cleanup-preview`)).digest,preview.digest);
+  await upload(i.id);
+  assert.equal((await item(i.id)).version,v);
+  const change=await ok(`/material-exports/${bundle.id}`);assert.deepEqual(change.rows[0].changes,['图片']);
+  assert.equal((await fetch(`${origin}/api/material-exports/${bundle.id}/download`,{headers:{Cookie:admin.cookie}})).status,409);
+  const fresh=await ok('/material-exports','POST',{items:[{id:i.id,version:v}]});
+  await ok(`/items/${i.id}/sold`,'POST',{channel:'合成线下',customerRef:'合成买家',externalKey:'mvp-'+randomUUID()});
+  assert.ok((await ok(`/material-exports/${fresh.id}`)).rows[0].changes.includes('库存状态'));
+  // Stock transitions are independent of merchandising versions: a title edit is allowed, but cannot write stock.
+  const attempt=await api(`/items/${i.id}`,'PATCH',{version:v,title:'售出后仍可补文字'},operator);assert.equal(attempt.status,200);
+  assert.equal((await api(`/items/${i.id}`,'PATCH',{version:v,status:'AVAILABLE'},operator)).status,400);
+  assert.equal((await item(i.id)).status,'SOLD');
+  const deleted=await sparse({title:'MVP删除 '+randomUUID()}), before=await item(deleted.id), archive=await ok('/material-exports','POST',{items:[{id:deleted.id,version:before.version}]});
+  await ok(`/items/${deleted.id}/trash`,'POST',{version:before.version,reason:'合成误录清理',confirmed:true});
+  assert.ok((await ok(`/material-exports/${archive.id}`)).rows[0].changes.includes('已移入回收站'));
+});
+
+test('商品资料库：500件按批处理后可重试，明确版本和身份保护保持生效',async()=>{
+ const suffix=randomUUID().slice(0,8), source=await ok('/procurement/sources','POST',{code:'V'+suffix.toUpperCase(),name:'MVP500合成来源',kind:'OFFLINE',defaultCurrency:'CNY'}), session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'500件隔离验收',ttlMinutes:60});
+ const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'MVP500-'+suffix,agentName:'Synthetic'}), rows=[];
+ for(let n=0;n<500;n+=200){const candidates=Array.from({length:Math.min(200,500-n)},(_,j)=>({externalKey:suffix+':'+(n+j),titleRaw:'MVP500合成商品 '+(n+j)}));rows.push(...(await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates})).rows);}
+ await machineOk(`/agent-ingest/batches/${batch.id}/seal`,session.token,'POST',{});
+ const identities=new Set();
+ for(let n=0;n<500;n+=100){const slice=rows.slice(n,n+100),body={ids:slice.map(c=>c.id),versions:Object.fromEntries(slice.map(c=>[c.id,c.version])),possession:'IN_HAND'},key=randomUUID();const r=await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key);assert.equal(r.ok,100);assert.deepEqual(await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key),r);for(const c of r.rows)identities.add(c.itemId);}
+ assert.equal(identities.size,500);assert.equal((await ok(`/ingest/candidates?batchId=${batch.id}&decision=PENDING`)).total,0);assert.equal((await ok(`/ingest/candidates?batchId=${batch.id}&decision=CONFIRMED&page=5`)).rows.length,100);
+});
+
+test('商品资料库：内部导出重放重新核验财务权限，测试范围与内部凭证不泄露',async()=>{
+ const i=await sparse({title:'MVP权限 '+randomUUID()}), secret=await upload(i.id,{role:'DOCUMENT'});
+ const b={items:[{id:i.id,version:(await item(i.id)).version}],scope:'INTERNAL'},key=randomUUID();
+ const saved=await ok('/material-exports','POST',b,admin,key);
+ const defaultBundle=await ok('/material-exports','POST',{items:b.items},operator), data=await ok(`/material-exports/${defaultBundle.id}`,'GET',undefined,operator);
+ assert.equal(data.rows[0].before.images.some(a=>a.id===secret.id),false);
+ const testItem=await sparse({title:'MVP显式TEST',dataMode:'TEST'});
+ assert.equal((await api('/material-exports','POST',{items:[{id:testItem.id,version:1}]})).status,409);
+ assert.equal((await machineApi('/material-exports','a'.repeat(64),'GET')).status,401);
+ // A second synthetic account can lose financial authority between successful write and receipt replay.
+ const password='Synthetic!'+randomUUID(),email=randomUUID()+'@tome.test';
+ await ok('/auth/users','POST',{name:'合成权限回归',email,password,role:'FINANCE'});const who=await login(email,password);
+ const ownKey=randomUUID(), own=await ok('/material-exports','POST',b,who,ownKey);
+ await db.user.update({where:{id:who.id},data:{role:'OPERATOR'}});
+ assert.equal((await api('/material-exports','POST',b,who,ownKey)).status,403);
+ assert.equal((await api(`/material-exports/${own.id}`,'GET',undefined,who)).status,403);
+ assert.equal((await api(`/material-exports/${saved.id}`,'GET',undefined,who)).status,403);
+});

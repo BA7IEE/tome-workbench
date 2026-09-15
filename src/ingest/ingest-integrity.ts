@@ -8,7 +8,15 @@ const httpUrl = z
   .refine((v) => /^https?:\/\//i.test(v), "只允许HTTP来源地址");
 export const captureEvidence = z
   .object({
-    pageUrl: httpUrl,
+    pageUrl: httpUrl.optional(),
+    fileEvidence: z
+      .object({
+        name: safeText(300).min(1),
+        sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        row: safeText(160).min(1),
+      })
+      .strict()
+      .optional(),
     capturedAt: z.string().datetime(),
     fields: z
       .array(
@@ -29,7 +37,8 @@ export const captureEvidence = z
       .array(
         z
           .object({
-            sourceUrl: httpUrl,
+            sourceUrl: httpUrl.optional(),
+            sourceFile: safeText(300).min(1).optional(),
             sha256: z
               .string()
               .regex(/^[a-f0-9]{64}$/)
@@ -50,9 +59,17 @@ export const captureEvidence = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (!!v.pageUrl === !!v.fileEvidence)
+      ctx.addIssue({
+        code: "custom",
+        message: "采集依据必须明确选择网页地址或文件名、校验值和记录位置",
+      });
     if (new Set(v.fields.map((f) => f.path)).size !== v.fields.length)
       ctx.addIssue({ code: "custom", message: "字段检查项不能重复" });
-    if (new Set(v.images.map((i) => i.sourceUrl)).size !== v.images.length)
+    if (
+      new Set(v.images.map((i) => i.sourceUrl || `file:${i.sourceFile}`))
+        .size !== v.images.length
+    )
       ctx.addIssue({ code: "custom", message: "来源图地址不能重复" });
     for (const f of v.fields)
       if (f.status === "UNAVAILABLE" && !f.reason.trim())
@@ -61,6 +78,11 @@ export const captureEvidence = z
           message: "来源字段无法取得时必须记录原因",
         });
     for (const i of v.images) {
+      if (!!i.sourceUrl === !!i.sourceFile)
+        ctx.addIssue({
+          code: "custom",
+          message: "每张图片必须明确提供来源网址或原文件名称",
+        });
       if (i.quality !== "UNAVAILABLE" && (!i.sha256 || !i.width || !i.height))
         ctx.addIssue({
           code: "custom",

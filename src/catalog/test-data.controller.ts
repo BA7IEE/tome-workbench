@@ -89,6 +89,10 @@ async function impact(tx: Tx, id: string) {
     },
   });
   const basis = {
+    materialExports: await tx.materialExportEntry.findMany({
+      where: { itemId: id },
+      orderBy: { exportId: "asc" },
+    }),
     inquiries,
     id: item.id,
     code: tm(item.serial),

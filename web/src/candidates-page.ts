@@ -1,3 +1,4 @@
+import { readWork, saveWork } from "./work-storage";
 import {
   showSourceEvidence,
   integrityLabel,
@@ -22,6 +23,7 @@ import {
   check,
   reload,
   me,
+  dialog,
 } from "./core";
 import { onPageReady } from "./page-lifecycle";
 import { categories } from "./types";
@@ -240,78 +242,217 @@ type BulkResult = {
   failed: number;
   rows: { id: string; ok: boolean; error?: string; code?: string }[];
 };
-function bulkAction(
+type PendingBulk = {
+  key: string;
+  exclude: boolean;
+  selected: Candidate[];
+  body: {
+    ids: string[];
+    versions: Record<string, number>;
+    reason?: string;
+    possession?: string;
+    status?: string;
+    incompleteAcknowledgements?: Record<string, string>;
+  };
+  completed: Record<string, BulkResult>;
+};
+async function runBulk(plan: PendingBulk, storage: string) {
+  await saveWork(storage, plan);
+  for (let start = 0; start < plan.body.ids.length; start += 100) {
+    if (plan.completed[start]) continue;
+    const ids = plan.body.ids.slice(start, start + 100),
+      body = {
+        ...plan.body,
+        ids,
+        versions: Object.fromEntries(
+          ids.map((id) => [id, plan.body.versions[id]]),
+        ),
+        ...(plan.body.incompleteAcknowledgements
+          ? {
+              incompleteAcknowledgements: Object.fromEntries(
+                ids
+                  .filter((id) => plan.body.incompleteAcknowledgements?.[id])
+                  .map((id) => [id, plan.body.incompleteAcknowledgements![id]]),
+              ),
+            }
+          : {}),
+      };
+    const result = await request<BulkResult>(
+      `/ingest/candidates/${plan.exclude ? "bulk-exclude" : "bulk-confirm"}`,
+      "POST",
+      body,
+      `${plan.key}.${start}`,
+    );
+    plan.completed[start] = result;
+    await saveWork(storage, plan);
+  }
+  const rows = Object.values(plan.completed).flatMap((r) => r.rows);
+  for (const row of rows) if (row.ok) candidateSelection.delete(row.id);
+  return {
+    rows,
+    ok: rows.filter((r) => r.ok).length,
+    failed: rows.filter((r) => !r.ok).length,
+  };
+}
+async function finishBulk(
+  plan: PendingBulk,
+  storage: string,
+  after: () => Promise<void>,
+) {
+  const rows = Object.values(plan.completed).flatMap((r) => r.rows),
+    failed = rows.filter((r) => !r.ok);
+  await saveWork(storage, undefined);
+  await after();
+  if (failed.length)
+    viewDialog(
+      "批量处理结果",
+      `<p>${rows.length - failed.length}件成功，${failed.length}件需要处理。请核对失败原因后重新选择；成功记录已保存。</p><ul>${failed.map((r) => `<li><strong>${esc(plan.selected.find((c) => c.id === r.id)?.titleRaw || "商品")}</strong><p>${esc(r.error)}</p>${button("核对该件", () => showSourceEvidence(r.id))}</li>`).join("")}</ul>`,
+    );
+}
+function resumeBulk(
+  plan: PendingBulk,
+  storage: string,
+  after: () => Promise<void>,
+) {
+  form(
+    "继续上次批量处理",
+    note(
+      `共${plan.selected.length}件，已收到${Object.values(plan.completed).reduce((n, r) => n + r.rows.length, 0)}件处理结果。保留上次已确认的内容，继续原提交。`,
+    ),
+    () => runBulk(plan, storage),
+    "继续处理",
+    () => finishBulk(plan, storage, after),
+  );
+  dialog.querySelector("footer")!.insertAdjacentHTML(
+    "afterbegin",
+    button("结束本次尝试", async () => {
+      if (
+        !confirm(
+          "已完成的商品和服务器记录会保留。结束后请核对本批实际结果再重新选择，确认结束？",
+        )
+      )
+        return;
+      await saveWork(storage, undefined);
+      dialog.close();
+      await after();
+    }),
+  );
+}
+function reviewCandidateSelection() {
+  const rows = [...candidateSelection.values()],
+    bySource = new Map<string, number>();
+  for (const candidate of rows)
+    bySource.set(
+      candidate.procurementSource.name,
+      (bySource.get(candidate.procurementSource.name) || 0) + 1,
+    );
+  const duplicates = rows.filter((x) => x.possibleDuplicateCount > 0).length,
+    gaps = rows.filter((x) => x.integrity?.state === "GAPS").length,
+    warnings = rows.filter((x) => x.warnings.length).length;
+  viewDialog(
+    `已选候选 · ${rows.length}件`,
+    `<div class="candidate-selection-summary"><p><strong>来源</strong></p>${[
+      ...bySource.entries(),
+    ]
+      .map(([name, count]) => `<p>${esc(name)} · ${count}件</p>`)
+      .join(
+        "",
+      )}<p><strong>需要特别核对</strong></p><p>疑似重复 ${duplicates}件 · 来源有缺项 ${gaps}件 · 其他系统提示 ${warnings}件</p></div><details><summary>查看全部已选商品</summary><ol>${rows
+      .map(
+        (candidate) =>
+          `<li>${esc(candidate.procurementSource.name)} · ${esc(candidate.brandRaw || "品牌待确认")} · ${esc(candidate.titleRaw)}</li>`,
+      )
+      .join("")}</ol></details>`,
+  );
+}
+async function bulkAction(
   ids: string[],
   after: () => Promise<void>,
   exclude = false,
 ) {
+  const storage = `candidate-bulk:${me!.id}`,
+    pending = await readWork<PendingBulk>(storage);
+  if (pending) return resumeBulk(pending, storage, after);
   const selected = ids.map((id) => candidateSelection.get(id)!).filter(Boolean),
     versions = Object.fromEntries(selected.map((c) => [c.id, c.version]));
-  const completed = new Map<number, BulkResult>();
-  let finalResult: BulkResult | undefined;
+  const gaps = selected.filter(
+    (c) => c.integrity.state === "GAPS" && !c.integrity.blockers.length,
+  );
+  let plan: PendingBulk | undefined;
   form(
     exclude ? `批量排除 · ${ids.length}件` : `批量生成TM · ${ids.length}件`,
     note(
       exclude
         ? "排除不删除来源资料。"
-        : "确认实物在手后生成永久TM。系统分段提交并保留逐件结果；完整性未核验的旧资料仍需你自行核对，缺资料不等于不能销售。",
+        : "确认实物在手并纳入经营后生成永久TM。是否立即可售需要另行确认，默认先待整理；逐件保留结果，中断后可继续。",
     ) +
       (exclude
         ? area("reason", "排除原因", "", 3)
-        : check("confirmed", "我已确认所选商品为实际持有并应纳入经营")),
+        : select(
+            "status",
+            "生成TM后的状态",
+            {
+              PAUSED: "待整理 / 待复核（推荐）",
+              AVAILABLE: "已完成核对，直接可售",
+            },
+            "PAUSED",
+          ) +
+          check("confirmed", "我已确认所选商品为实际持有并应纳入经营") +
+          (gaps.length
+            ? `<section class="bulk-gap-review"><h3>${gaps.length} 件有来源缺项</h3>${gaps.map((c) => `<p><strong>${esc(c.titleRaw)}</strong><small>${c.integrity.issues.map(esc).join("；")}</small></p>`).join("")}${check("acceptGaps", "我已核对上述缺项，允许先建档并保留逐件说明")}${area("gapNote", "本批缺项处理依据", "", 2)}</section>`
+            : "")),
     async (d, key) => {
       if (!exclude && !d.has("confirmed"))
         throw new Error("请先确认实物和经营去向");
-      for (let start = 0; start < ids.length; start += 100) {
-        if (completed.has(start)) continue;
-        const slice = ids.slice(start, start + 100);
-        const result = await request<BulkResult>(
-          `/ingest/candidates/${exclude ? "bulk-exclude" : "bulk-confirm"}`,
-          "POST",
-          {
-            ids: slice,
-            versions: Object.fromEntries(slice.map((id) => [id, versions[id]])),
-            ...(exclude
-              ? { reason: text(d, "reason") }
-              : { possession: "IN_HAND", status: "AVAILABLE" }),
-          },
-          `${key}.${start}`,
-        );
-        completed.set(start, result);
-      }
-      const rows = [...completed.values()].flatMap((r) => r.rows);
-      finalResult = {
-        rows,
-        ok: rows.filter((r) => r.ok).length,
-        failed: rows.filter((r) => !r.ok).length,
+      const gapNote = text(d, "gapNote").trim();
+      if (d.has("acceptGaps") && gapNote.length < 3)
+        throw new Error("请填写缺项核对依据，至少3个字");
+      const next: PendingBulk = {
+        key,
+        exclude,
+        selected,
+        completed: {},
+        body: {
+          ids,
+          versions,
+          ...(exclude
+            ? { reason: text(d, "reason") }
+            : {
+                possession: "IN_HAND",
+                status: text(d, "status") || "PAUSED",
+                ...(d.has("acceptGaps")
+                  ? {
+                      incompleteAcknowledgements: Object.fromEntries(
+                        gaps.map((c) => [
+                          c.id,
+                          (
+                            gapNote +
+                            "；来源缺项：" +
+                            c.integrity.issues.join("；")
+                          ).slice(0, 2000),
+                        ]),
+                      ),
+                    }
+                  : {}),
+              }),
+        },
       };
-      for (const r of rows) if (r.ok) candidateSelection.delete(r.id);
-      return finalResult;
+      if (plan && JSON.stringify(plan.body) !== JSON.stringify(next.body))
+        throw new Error(
+          "上次批量处理仍需核对。请关闭后继续上次处理，或结束该次尝试，再修改内容。",
+        );
+      plan ??= next;
+      return runBulk(plan, storage);
     },
     exclude ? "确认排除" : "确认生成TM",
-    async () => {
-      await after();
-      if (finalResult?.failed) {
-        const result = finalResult;
-        viewDialog(
-          "批量处理结果",
-          `<p>${result.ok}件成功，${result.failed}件需要处理。失败项保持选中。若资料版本变化，请重新核对并重新勾选。</p><ul>${result.rows
-            .filter((r) => !r.ok)
-            .map(
-              (r) =>
-                `<li><strong>${esc(selected.find((c) => c.id === r.id)?.titleRaw || r.id)}</strong><p>${esc(r.error)}</p></li>`,
-            )
-            .join("")}</ul>`,
-        );
-      }
-    },
+    () => finishBulk(plan!, storage, after),
   );
 }
 function bulkConfirm(ids: string[], after: () => Promise<void>) {
-  bulkAction(ids, after);
+  return bulkAction(ids, after);
 }
 function bulkExclude(ids: string[], after: () => Promise<void>) {
-  bulkAction(ids, after, true);
+  return bulkAction(ids, after, true);
 }
 async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
   const matches = await request<CandidateMatch[]>(
@@ -320,21 +461,28 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
   const suggested = matches.length
       ? `<div class="candidate-match-list"><strong>系统发现可能的已有TM</strong>${matches
           .map(
-            (m) =>
-              `<article><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></article>`,
+            (m, index) =>
+              `<label class="candidate-match-choice"><input type="radio" name="matchedItemRef" value="${esc(m.code)}" ${index === 0 ? "checked" : ""}><span><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></span></label>`,
           )
           .join("")}</div>`
       : note(
           "当前没有找到强匹配；如果你已知这就是某件已有商品，可直接填写TM编号。",
         ),
-    defaultRef = matches.length === 1 ? matches[0].code : "";
+    fallback = field(
+      "itemRef",
+      matches.length ? "搜索其他TM编号（可选）" : "已有TM编号",
+      "",
+      "text",
+      !matches.length,
+      'placeholder="例如 TM000123"',
+    );
   form(
     "关联已有TM",
     note(
       "此操作不会修改已有TM的库存、成色、售价或已维护资料，只把这条来源证据归入同一件实物。",
     ) +
       suggested +
-      field("itemRef", "已有TM编号", defaultRef, "text", true) +
+      fallback +
       select(
         "possession",
         "本来源对应实物状态",
@@ -350,12 +498,15 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
       check("confirmed", "我已核对，确认这是同一件实物，不新建第二个TM"),
     (d, key) => {
       if (!d.has("confirmed")) throw new Error("请先确认这是同一件实物");
+      const itemRef =
+        text(d, "itemRef").trim() || text(d, "matchedItemRef").trim();
+      if (!itemRef) throw new Error("请选择匹配商品或填写TM编号");
       return request(
         `/ingest/candidates/${candidate.id}/link-item`,
         "POST",
         {
           version: candidate.version,
-          itemRef: text(d, "itemRef"),
+          itemRef,
           possession: text(d, "possession"),
           note: text(d, "note"),
         },
@@ -380,6 +531,15 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         : "确认该候选对应一件新的实际经营实物，系统将生成永久TM编号。",
     ) +
       check("confirmed", "我已确认实物在手并应纳入经营") +
+      select(
+        "status",
+        "生成TM后的状态",
+        {
+          PAUSED: "待整理 / 待复核（推荐）",
+          AVAILABLE: "已完成核对，直接可售",
+        },
+        "PAUSED",
+      ) +
       (incomplete
         ? note(candidate.integrity.issues.join("；")) +
           check("acceptIncomplete", "我已核对来源缺项，接受先建档后补充")
@@ -406,7 +566,7 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         {
           version: candidate.version,
           possession: "IN_HAND",
-          status: "AVAILABLE",
+          status: text(d, "status") || "PAUSED",
           duplicateOverride: d.has("duplicateOverride"),
           acceptIncomplete: d.has("acceptIncomplete"),
           note: text(d, "note"),
@@ -443,7 +603,7 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>) {
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {
   if (candidate.item)
-    return `<a class="btn" href="#/items/${candidate.item.id}${can("edit") ? `/edit?returnTo=${encodeURIComponent(location.hash)}` : ""}">查看 ${esc(tm(candidate.item.serial))}</a>`;
+    return `<a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
   if (candidate.decision === "EXCLUDED")
     return button("重新核对", () => candidateEdit(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
@@ -478,7 +638,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
       : "";
   return `<article class="candidate-card" data-candidate="${candidate.id}">
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
-    <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.code)}</span></div>
+    <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
     <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
     <div class="candidate-prices"><span>订单行 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
@@ -501,12 +661,14 @@ export async function candidatesPage() {
     q = qs.get("q") || "",
     decision = qs.get("decision") ?? "PENDING",
     sourceId = qs.get("sourceId") || "",
+    batchId = qs.get("batchId") || "",
     view = qs.get("view") || "cards",
     page = Math.max(1, Number(qs.get("page") || 1));
   const params = new URLSearchParams({
     q,
     decision,
     sourceId,
+    batchId,
     page: String(page),
     size: "100",
   });
@@ -515,7 +677,9 @@ export async function candidatesPage() {
     request<Source[]>("/procurement/sources"),
   ]);
   const root = "candidates-" + crypto.randomUUID(),
-    selected = rememberSelection(JSON.stringify({ q, decision, sourceId }));
+    selected = rememberSelection(
+      JSON.stringify({ q, decision, sourceId, batchId }),
+    );
   const sourceOptions = {
     "": "全部来源",
     ...Object.fromEntries(sources.map((x) => [x.id, x.name])),
@@ -534,22 +698,39 @@ export async function candidatesPage() {
     }
     await reload();
   };
+  const scopedHref = (status = decision) => {
+    const next = new URLSearchParams({ view, decision: status });
+    if (batchId) next.set("batchId", batchId);
+    const back = qs.get("returnTo");
+    if (back && /^#\/imports(?:\?|$)/.test(back)) next.set("returnTo", back);
+    return "#/candidates?" + esc(next.toString());
+  };
   const body = !data.rows.length
-    ? `<div class="empty panel"><h2>${q || sourceId ? "没有符合条件的商品" : decision === "PENDING" ? "当前没有待确认商品" : "当前没有这类商品"}</h2><p>${q || sourceId ? "试试更换关键词、来源或状态。" : "已确认的商品可以直接在商品库继续维护；新导入的资料会出现在这里。"}</p><div class="button-row">${q || sourceId ? `<a class="btn" href="#/candidates?view=${esc(view)}">清除筛选</a>` : ""}<a class="btn" href="#/items">进入商品库</a>${decision === "PENDING" ? `<a class="btn" href="#/candidates?decision=CONFIRMED&view=${esc(view)}">查看已归入TM</a>` : ""}</div></div>`
+    ? `<div class="empty panel"><h2>${q || sourceId ? "没有符合条件的商品" : decision === "PENDING" ? "当前没有待确认商品" : "当前没有这类商品"}</h2><p>${q || sourceId ? "试试更换关键词、来源或状态。" : "已确认的商品可以直接在商品库继续维护；新导入的资料会出现在这里。"}</p><div class="button-row">${q || sourceId ? `<a class="btn" href="${scopedHref()}">清除筛选</a>` : ""}<a class="btn" href="#/items">进入商品库</a>${decision === "PENDING" ? `<a class="btn" href="${scopedHref("CONFIRMED")}">查看已归入TM</a>` : ""}</div></div>`
     : view === "table"
       ? candidateTable(data.rows, refresh)
       : `<div class="candidate-grid">${data.rows.map((x) => candidateCard(x, refresh)).join("")}</div>`;
   const start = data.total ? (data.page - 1) * data.size + 1 : 0,
     end = Math.min(data.total, data.page * data.size);
+  const returnTo = qs.get("returnTo") || "";
+  const importReturn = /^#\/imports(?:\?|$)/.test(returnTo)
+    ? returnTo
+    : "#/imports";
+  const recoveryKey = `candidate-bulk:${me!.id}`;
+  const pending = await readWork<PendingBulk>(recoveryKey);
   const html = `<div id="${root}" class="candidate-page">
-    <div class="page-title"><div><h1>待确认商品</h1><p>外部Agent或脚本导入后先到这里。批量确认后才成为永久TM商品；订单和平台状态只作为来源证据。</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
+    <a class="btn subtle" href="${esc(importReturn)}">← 返回导入记录</a>
+    ${pending ? `<div class="panel recovery-notice"><strong>上次批量处理尚未核对完成 · ${pending.selected.length} 件</strong>${button("继续上次处理", () => resumeBulk(pending, recoveryKey, refresh), "primary")}</div>` : ""}
+    <div class="page-title"><div><h1>${decision === "PENDING" ? "待确认商品" : batchId ? "本批商品" : "导入商品记录"}</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
     <div class="candidate-metrics"><div><span>当前结果</span><strong>${data.total}</strong><small>${esc(decisionNames[decision] || "全部")}</small></div><div><span>本页</span><strong>${data.rows.length}</strong><small>${start}—${end}</small></div><div><span>处理方式</span><strong>批量优先</strong><small>异常件再单独调整</small></div></div>
-    <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="#/candidates?view=${esc(view)}">重置</a></form>
+    <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="${scopedHref()}">重置</a></form>
     <div class="candidate-viewbar"><label ${decision === "PENDING" && can("edit") ? "" : "hidden"}><input type="checkbox" id="select-candidate-page"> 选择本页</label><div><a class="btn ${view === "cards" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "cards" })}">图片模式</a><a class="btn ${view === "table" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "table" })}">表格模式</a></div></div>
     ${decision === "CONFIRMED" ? '<p class="note">这些商品已归入TM。后续文案、成色和库存请进入对应商品维护，下方保留导入时的来源记录。</p>' : ""}<div id="candidate-bulk" class="bulk-toolbar" hidden></div>${body}
     <div class="pagination"><span>共${data.total}件 · 每页100件</span>${page > 1 ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page - 1) })}">上一页</a>` : ""}${page * data.size < data.total ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page + 1) })}">下一页</a>` : ""}</div>
   </div>`;
   onPageReady(root, (el, signal) => {
+    if (qs.get("access") === "1" && can("supply"))
+      void agentAccess(sources).catch((e) => toast(e.message, true));
     const toolbar = el.querySelector<HTMLElement>("#candidate-bulk")!,
       boxes = () =>
         Array.from(
@@ -566,7 +747,7 @@ export async function candidatesPage() {
       pageSelect.indeterminate = checked > 0 && checked < boxes().length;
       toolbar.hidden = selected.size === 0;
       if (!selected.size) return;
-      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${decision === "PENDING" && can("edit") ? button("确认在手并生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
+      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${button("查看已选", reviewCandidateSelection)}${decision === "PENDING" && can("edit") ? button("批量生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
         "取消选择",
         () => {
           selected.clear();
@@ -624,7 +805,9 @@ export async function candidatesPage() {
         const values = {
           q: text(d, "q"),
           sourceId: text(d, "sourceId"),
+          batchId,
           decision: text(d, "decision"),
+          returnTo: /^#\/imports(?:\?|$)/.test(returnTo) ? returnTo : "",
         };
         for (const [key, value] of Object.entries(values))
           if (key === "decision" ? value !== "PENDING" : !!value)

@@ -1,0 +1,860 @@
+{
+  "sameCases": true,
+  "caseCount": 164,
+  "suiteFiles": [
+    "arco-workspace.spec.cjs",
+    "dictionaries.spec.cjs",
+    "interaction.spec.cjs",
+    "operations.spec.cjs",
+    "procurement.spec.cjs",
+    "product-library.spec.cjs",
+    "studio.spec.cjs",
+    "system-review.spec.cjs",
+    "ui08.spec.cjs",
+    "ux09-audit.spec.cjs",
+    "ux09.spec.cjs",
+    "ux10.spec.cjs",
+    "ux101.spec.cjs",
+    "ux2.spec.cjs",
+    "v1-item-center.spec.cjs",
+    "workbench.spec.cjs"
+  ],
+  "chromium": {
+    "startTime": "2026-09-15T15:08:54.355Z",
+    "duration": 214482.511,
+    "expected": 164,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "webkit": {
+    "startTime": "2026-09-15T15:12:29.535Z",
+    "duration": 233525.378,
+    "expected": 164,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 125,
+      "title": "arco-workspace.spec.cjs / 1440px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃"
+    },
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 125,
+      "title": "arco-workspace.spec.cjs / 390px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃"
+    },
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 219,
+      "title": "arco-workspace.spec.cjs / 1440px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响"
+    },
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 219,
+      "title": "arco-workspace.spec.cjs / 390px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响"
+    },
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 37,
+      "title": "arco-workspace.spec.cjs / 选择商品和操作菜单不擦除尚未提交的筛选输入，键盘可继续筛选"
+    },
+    {
+      "file": "arco-workspace.spec.cjs",
+      "line": 83,
+      "title": "arco-workspace.spec.cjs / 完整编辑遇到并发改价后保留中文草稿，合并仍需主动保存"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 102,
+      "title": "dictionaries.spec.cjs / 录货中新增缺少的品牌，原商品输入不丢且新选项立即可选"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 125,
+      "title": "dictionaries.spec.cjs / 字典维护可编辑和停用，重复别名有明确提示"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 151,
+      "title": "dictionaries.spec.cjs / 大量品牌时通过服务器搜索找到首批选项之外的品牌"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 178,
+      "title": "dictionaries.spec.cjs / 成色只显示VC五级与说明，不要求填写九成新或程序编码"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 196,
+      "title": "dictionaries.spec.cjs / 操作记录与失败任务默认展示中文，不把JSON放在主表格"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 213,
+      "title": "dictionaries.spec.cjs / 只搜索未选择品牌时明确提示，不能把搜索词当作已保存的选项"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 235,
+      "title": "dictionaries.spec.cjs / 手机录货选择国际成色并保存，新增选项入口不遮挡提交"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 262,
+      "title": "dictionaries.spec.cjs / 测试商品从建档即分区，保存返回测试列表，不混入正式商品"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 285,
+      "title": "dictionaries.spec.cjs / 有模拟成交也能从删除窗口清理，保留历史金额并显示测试成交"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 332,
+      "title": "dictionaries.spec.cjs / 批量改品牌只影响勾选商品与指定字段，版本冲突单独显示"
+    },
+    {
+      "file": "dictionaries.spec.cjs",
+      "line": 52,
+      "title": "dictionaries.spec.cjs / 录商品直接选择品牌、国际成色、颜色与材质，保存后筛选到同一件"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 123,
+      "title": "interaction.spec.cjs / pointer 1440 / 渠道确认勾选后能生成发布资料"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 123,
+      "title": "interaction.spec.cjs / pointer 390 / 渠道确认勾选后能生成发布资料"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 142,
+      "title": "interaction.spec.cjs / failure journeys / 原生必填缺项也显示可读错误而非没有反应"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 154,
+      "title": "interaction.spec.cjs / failure journeys / 渠道保存响应中断重试使用同一请求，不陷入版本冲突"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 177,
+      "title": "interaction.spec.cjs / failure journeys / 研究资料确认框可用文字标签勾选并保存"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 196,
+      "title": "interaction.spec.cjs / edit and retry / 确认后修改正文必须重新勾选，不能沿用旧确认"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 215,
+      "title": "interaction.spec.cjs / edit and retry / 生成资料响应丢失后重试不会重复生成"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 247,
+      "title": "interaction.spec.cjs / form recovery / 登录失效后原位重新登录并保留表单内容"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 279,
+      "title": "interaction.spec.cjs / form recovery / 上传被明确拒绝后修正来源可以重新提交"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 307,
+      "title": "interaction.spec.cjs / selection and in-flight writes / 本页全选和部分选择状态一致"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 326,
+      "title": "interaction.spec.cjs / selection and in-flight writes / 双击保存只提交一次且请求期间不能修改输入"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 356,
+      "title": "interaction.spec.cjs / selection and in-flight writes / 未核验图片明确说明不可选原因并提供处理入口"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 431,
+      "title": "interaction.spec.cjs / 回执丢失后登录失效 / 建档原请求在登录失效后仍待核对，改名不会再建一件"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 466,
+      "title": "interaction.spec.cjs / 回执丢失后登录失效 / 询盘回执丢失再登录失效，修改输入仍不能重复提交"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 501,
+      "title": "interaction.spec.cjs / 回执丢失后登录失效 / 图片弹窗上传回执丢失再登录失效，恢复后保留原图和来源且不重复"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 501,
+      "title": "interaction.spec.cjs / 回执丢失后登录失效 / 完整录货上传回执丢失再登录失效，恢复后保留原图和来源且不重复"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 89,
+      "title": "interaction.spec.cjs / pointer 1440 / 图库真实点击选择和批量复核可以提交"
+    },
+    {
+      "file": "interaction.spec.cjs",
+      "line": 89,
+      "title": "interaction.spec.cjs / pointer 390 / 图库真实点击选择和批量复核可以提交"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 111,
+      "title": "operations.spec.cjs / 手工连续录货：保存并新增不会带入上一件资料，编号各自唯一"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 136,
+      "title": "operations.spec.cjs / 供应商包袋：接手时复用资料和保管方式，不抄供货价为售价"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 181,
+      "title": "operations.spec.cjs / 保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 214,
+      "title": "operations.spec.cjs / 跨页选择后逐件编辑，保存回到原筛选页且不混淆两件商品"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 266,
+      "title": "operations.spec.cjs / 两人改同一件：显示差异、保留本次输入，确认合并后才写入"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 309,
+      "title": "operations.spec.cjs / 建档回执丢失后先核对原请求，仍只保存一件商品"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 338,
+      "title": "operations.spec.cjs / 手机整页录货：触摸确认、保存及返回可操作，无整页横向溢出"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 372,
+      "title": "operations.spec.cjs / 完整手工路径：录货、图片核对、准备渠道资料、登记发布、售出停售"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 464,
+      "title": "operations.spec.cjs / 回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品"
+    },
+    {
+      "file": "operations.spec.cjs",
+      "line": 76,
+      "title": "operations.spec.cjs / 手工录一件衣服：同页填写和选图，保存后继续维护而不是进入固定流水线"
+    },
+    {
+      "file": "procurement.spec.cjs",
+      "line": 226,
+      "title": "procurement.spec.cjs / TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本"
+    },
+    {
+      "file": "procurement.spec.cjs",
+      "line": 258,
+      "title": "procurement.spec.cjs / 订单行人工确认在手且纳入经营后才出现货源候选入口"
+    },
+    {
+      "file": "procurement.spec.cjs",
+      "line": 288,
+      "title": "procurement.spec.cjs / v1 采购历史不再逐件手填成本，统一由订单级成本面板计算"
+    },
+    {
+      "file": "procurement.spec.cjs",
+      "line": 315,
+      "title": "procurement.spec.cjs / 采购订单手机端按订单事实与本地核对分层，不横向溢出"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 143,
+      "title": "product-library.spec.cjs / 商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 193,
+      "title": "product-library.spec.cjs / 导入记录精确进入本批，来源缺项可集中核对并逐件保留依据"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 234,
+      "title": "product-library.spec.cjs / 批量真实写入后丢回执，关闭页面再继续只保留一份TM"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 295,
+      "title": "product-library.spec.cjs / 从商品库真实下载原图资料包，售价用元且能查看后续补图变化"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 351,
+      "title": "product-library.spec.cjs / 原图实际上传后断线，关闭页面再进入可恢复文件和原请求"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 386,
+      "title": "product-library.spec.cjs / 商品页保存后直接整理资料，真实回执丢失并关页后仍只产生一份记录"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 450,
+      "title": "product-library.spec.cjs / 商品从列表先查看，取消不写入，保存回详情并保留原筛选与相邻商品"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 549,
+      "title": "product-library.spec.cjs / 商品详情 1440px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 549,
+      "title": "product-library.spec.cjs / 商品详情 390px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 609,
+      "title": "product-library.spec.cjs / 完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 660,
+      "title": "product-library.spec.cjs / 单件录货可保存关闭，下载失败只重试文件不重复整理"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 717,
+      "title": "product-library.spec.cjs / 详情暂停需要确认，真实写入丢回执后同键重试且不产生销售"
+    },
+    {
+      "file": "product-library.spec.cjs",
+      "line": 757,
+      "title": "product-library.spec.cjs / 只读角色默认详情不暴露成本、编辑或库存写入入口"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 108,
+      "title": "studio.spec.cjs / 只录标题、价格和图片即可保存，不要求先走审核或流水线"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 146,
+      "title": "studio.spec.cjs / 一页录货到可复制资料：集中核对一次，不往返商品、素材和渠道页"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 211,
+      "title": "studio.spec.cjs / 发布缺项直接在本页补齐，已经修改的渠道文案保留"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 244,
+      "title": "studio.spec.cjs / 集中复核回执丢失后可继续，不能重复生成或误报已发到平台"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 282,
+      "title": "studio.spec.cjs / 已保存图片可以原地查看、标瑕疵和移除，未保存文字不丢失"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 324,
+      "title": "studio.spec.cjs / 手机主流程可触摸使用，基础表单无横向溢出"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 366,
+      "title": "studio.spec.cjs / 别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖对方"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 435,
+      "title": "studio.spec.cjs / 图片回执丢失显示可操作错误，重试后原地恢复而不是空白或死按钮"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 465,
+      "title": "studio.spec.cjs / 已经生成资料后仍能编辑并再次生成，回执恢复不会锁死输入框"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 505,
+      "title": "studio.spec.cjs / 供应商持有的包袋在本页补供货确认，不要求调货或重新拍摄"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 549,
+      "title": "studio.spec.cjs / 渠道切换先保存各自文案，返回原账号不丢内容不串号"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 580,
+      "title": "studio.spec.cjs / 在工作区登记售出后停止旧资料取用，不离开或清空未保存输入"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 612,
+      "title": "studio.spec.cjs / 点击可见上传区域就打开文件选择器，不需要寻找隐藏的素材入口"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 629,
+      "title": "studio.spec.cjs / 登记已发布使用本页回执，不跳转或重载工作区"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 669,
+      "title": "studio.spec.cjs / 保存并返回同时保留当前渠道的未保存文案，不会悄悄丢弃"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 699,
+      "title": "studio.spec.cjs / 未改过的预览在补齐尺寸后直接更新，不再要求手工重填一遍"
+    },
+    {
+      "file": "studio.spec.cjs",
+      "line": 719,
+      "title": "studio.spec.cjs / 读取发布预览失败可原地重试，已经保存的商品和图片不会消失"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 142,
+      "title": "system-review.spec.cjs / 询盘旧窗口保留本次输入，核对最新沟通后追加历史"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 177,
+      "title": "system-review.spec.cjs / 商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 239,
+      "title": "system-review.spec.cjs / 二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 294,
+      "title": "system-review.spec.cjs / 看图选品真实创建后丢失回执，重试只生成一个合集和资料包"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 361,
+      "title": "system-review.spec.cjs / 渠道维护可修改停用，发布查询保留显式范围且手机可操作"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 463,
+      "title": "system-review.spec.cjs / 集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 522,
+      "title": "system-review.spec.cjs / 采购第二页往返TM保留关键词来源页码和列表位置"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 579,
+      "title": "system-review.spec.cjs / 图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 639,
+      "title": "system-review.spec.cjs / 分次加入选品按合并后的数量限制，超限不改变已有选择"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 669,
+      "title": "system-review.spec.cjs / inquiries重置保留商品与返回路径，查看全部才解除商品范围"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 669,
+      "title": "system-review.spec.cjs / listings重置保留商品与返回路径，查看全部才解除商品范围"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 669,
+      "title": "system-review.spec.cjs / sales重置保留商品与返回路径，查看全部才解除商品范围"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 720,
+      "title": "system-review.spec.cjs / 待办进入单条询盘后重置仍只显示原记录，返回保留待办筛选"
+    },
+    {
+      "file": "system-review.spec.cjs",
+      "line": 87,
+      "title": "system-review.spec.cjs / 批量定价逐件展示并在真实写入回执丢失后重试，不重写成功项"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 111,
+      "title": "ui08.spec.cjs / 视觉层只有一个最终设计系统所有者"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 147,
+      "title": "ui08.spec.cjs / 列表末行菜单不被裁切，外部点击与Escape收起并可实际修改"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 196,
+      "title": "ui08.spec.cjs / 商品重置保留测试范围和图片视图，空状态可恢复且选择可见"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 226,
+      "title": "ui08.spec.cjs / 快速修改完整页入口保护未保存输入，来源等级仍待人工选择"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 23,
+      "title": "ui08.spec.cjs / 桌面商品编辑器保持清晰主栏与侧栏，不横向溢出"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 271,
+      "title": "ui08.spec.cjs / 手机批量操作随滚动可达，菜单和快速修改不溢出"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 313,
+      "title": "ui08.spec.cjs / 候选全部筛选包含已排除，空结果有恢复入口，手机筛选不溢出"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 37,
+      "title": "ui08.spec.cjs / 手机商品页按真实录货顺序排布且所有卡片占满宽度"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 393,
+      "title": "ui08.spec.cjs / 空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 428,
+      "title": "ui08.spec.cjs / 商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 481,
+      "title": "ui08.spec.cjs / 从经营待办直接跟进指定询盘，完成后返回待办且不改变库存"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 528,
+      "title": "ui08.spec.cjs / 已确认候选不再提供无效勾选，维护商品后返回原候选筛选"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 617,
+      "title": "ui08.spec.cjs / 最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 71,
+      "title": "ui08.spec.cjs / 手机顶级业务导航全部可达"
+    },
+    {
+      "file": "ui08.spec.cjs",
+      "line": 93,
+      "title": "ui08.spec.cjs / 正式商品列表状态标签克制，页头只保留一个主动作"
+    },
+    {
+      "file": "ux09-audit.spec.cjs",
+      "line": 12,
+      "title": "ux09-audit.spec.cjs / 低频经营页面使用统一后台语言和布局"
+    },
+    {
+      "file": "ux09-audit.spec.cjs",
+      "line": 24,
+      "title": "ux09-audit.spec.cjs / 设置页角色使用业务中文，技术入口默认收起"
+    },
+    {
+      "file": "ux09-audit.spec.cjs",
+      "line": 35,
+      "title": "ux09-audit.spec.cjs / 成交记录每行只突出补收支，其余危险动作收进更多"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 105,
+      "title": "ux09.spec.cjs / 已生效的字典筛选刷新后仍明确显示当前选项"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 113,
+      "title": "ux09.spec.cjs / 已选品牌继续输入时替换旧值而不是拼接到旧标签后面"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 28,
+      "title": "ux09.spec.cjs / 字典控件按选项规模选择正确交互，不再一律做搜索框"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 45,
+      "title": "ux09.spec.cjs / 品牌输入即搜索，鼠标和键盘都能完成真实选择"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 66,
+      "title": "ux09.spec.cjs / 列表筛选输入了品牌但没真正选择时明确阻止，不会静默忽略"
+    },
+    {
+      "file": "ux09.spec.cjs",
+      "line": 81,
+      "title": "ux09.spec.cjs / 新增品牌从当前输入预填，保存后回到同一个商品并自动选中"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 13,
+      "title": "ux10.spec.cjs / 快速录货只暴露首次需要的字段，完整建档退到更多"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 18,
+      "title": "ux10.spec.cjs / 快速录货保存图片后直接下一件，上一件内容不带入"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 24,
+      "title": "ux10.spec.cjs / 快速录货保存并完善，无缝进入同一件完整商品页"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 30,
+      "title": "ux10.spec.cjs / 快速录货打开即聚焦名称，Ctrl+Enter保存并进入下一件"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 34,
+      "title": "ux10.spec.cjs / 快速录货可在提交前单张移除图片，服务器只保存保留项"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 38,
+      "title": "ux10.spec.cjs / 快速录货桌面与手机布局保持单一主任务，不横向溢出"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 45,
+      "title": "ux10.spec.cjs / 商品列表可快速修改常用信息，不必进入完整编辑页"
+    },
+    {
+      "file": "ux10.spec.cjs",
+      "line": 49,
+      "title": "ux10.spec.cjs / 快速修改遇到并发变更时保留输入并阻止覆盖"
+    },
+    {
+      "file": "ux101.spec.cjs",
+      "line": 126,
+      "title": "ux101.spec.cjs / 只读详情直接预留和解除，真实写入丢回执后同键重试且不自动恢复可售"
+    },
+    {
+      "file": "ux101.spec.cjs",
+      "line": 185,
+      "title": "ux101.spec.cjs / 登录真实响应延迟时先等确定回执，保留页面断言且只提交一次"
+    },
+    {
+      "file": "ux101.spec.cjs",
+      "line": 34,
+      "title": "ux101.spec.cjs / 无hash登录后默认进入工作台而不是全量商品库"
+    },
+    {
+      "file": "ux101.spec.cjs",
+      "line": 42,
+      "title": "ux101.spec.cjs / 快速录货先校验图片，坏文件不会留下半成品TM"
+    },
+    {
+      "file": "ux101.spec.cjs",
+      "line": 63,
+      "title": "ux101.spec.cjs / 运营可以看成交事实但不能读取经营财务账"
+    },
+    {
+      "file": "ux2.spec.cjs",
+      "line": 17,
+      "title": "ux2.spec.cjs / 新建商品首屏提供保存和下载资料，发布从更多进入"
+    },
+    {
+      "file": "ux2.spec.cjs",
+      "line": 40,
+      "title": "ux2.spec.cjs / 次要保存动作放入更多菜单，不和主动作抢界面"
+    },
+    {
+      "file": "ux2.spec.cjs",
+      "line": 55,
+      "title": "ux2.spec.cjs / 商品列表行内不再同时堆编辑加图删除发布按钮"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 260,
+      "title": "v1-item-center.spec.cjs / v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 303,
+      "title": "v1-item-center.spec.cjs / v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 369,
+      "title": "v1-item-center.spec.cjs / v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 422,
+      "title": "v1-item-center.spec.cjs / Credit退款明细校验后一次算净额，重开保留明细与固定汇率"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 469,
+      "title": "v1-item-center.spec.cjs / v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 498,
+      "title": "v1-item-center.spec.cjs / v1 手机待确认保持单一批量任务且无横向溢出"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 529,
+      "title": "v1-item-center.spec.cjs / v1 经营待办把Agent候选直接带回对应来源的待确认处理页"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 542,
+      "title": "v1-item-center.spec.cjs / v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同一主档"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 595,
+      "title": "v1-item-center.spec.cjs / rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 628,
+      "title": "v1-item-center.spec.cjs / rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹窗"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 643,
+      "title": "v1-item-center.spec.cjs / 跨页选择101件分段确认，真实写入回执丢失后重试不重复建档"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 688,
+      "title": "v1-item-center.spec.cjs / 来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 740,
+      "title": "v1-item-center.spec.cjs / 批量部分失败显示逐件原因，成功移除而失败保留供重新核对"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 762,
+      "title": "v1-item-center.spec.cjs / 单件建档清除该件批量勾选并保留其他候选"
+    },
+    {
+      "file": "v1-item-center.spec.cjs",
+      "line": 777,
+      "title": "v1-item-center.spec.cjs / 来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 115,
+      "title": "workbench.spec.cjs / 卖出先停推广，金额未知不会被填成零"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 138,
+      "title": "workbench.spec.cjs / 货源批次先预览再写入，不直接变成自有库存"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 151,
+      "title": "workbench.spec.cjs / 上传图片保存原件，待复核授权不冒充已核验"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 177,
+      "title": "workbench.spec.cjs / 手机尺寸商品列表无整页横向溢出"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 191,
+      "title": "workbench.spec.cjs / 未登录展厅可看有效公开展示，不泄漏内部经营字段"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 200,
+      "title": "workbench.spec.cjs / 退出后无法返回受保护内容"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 271,
+      "title": "workbench.spec.cjs / 新增作业入口与运行健康页面读取真实数据"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 290,
+      "title": "workbench.spec.cjs / 操作人员可关联旧编号并显式记录和撤回尺寸不适用"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 317,
+      "title": "workbench.spec.cjs / 批量上传可先暂存，人工确认归属后才加入商品素材"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 386,
+      "title": "workbench.spec.cjs / 客户合集直接使用TM编号创建，售出一件只停止该件取用"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 413,
+      "title": "workbench.spec.cjs / 明确启用合成规则后可核对并确认单币种快照，不执行打款"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 494,
+      "title": "workbench.spec.cjs / 商品列表可删除、取消删除并在回收站恢复原编号"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 530,
+      "title": "workbench.spec.cjs / 批量清理仅影响本测试创建并勾选的两件样本"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 554,
+      "title": "workbench.spec.cjs / 手机商品详情提供删除，旧编辑页提示先恢复"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 56,
+      "title": "workbench.spec.cjs / 真实登录、商品列表与全部运营入口可读取"
+    },
+    {
+      "file": "workbench.spec.cjs",
+      "line": 84,
+      "title": "workbench.spec.cjs / 资料不完整仍可建档、维护并按缺项安排工作"
+    }
+  ]
+}

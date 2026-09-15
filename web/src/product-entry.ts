@@ -1,7 +1,13 @@
+import { exportMaterials } from "./materials";
 import { safeReturn } from "./record-controls";
 import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
-import { studioFields, placeStudioSections } from "./studio-fields";
+import { placeStudioSections } from "./studio-fields";
+import { createElement, createRef } from "react";
+import { flushSync } from "react-dom";
+import { mountView } from "./arco/runtime";
+import { ProductFields } from "./arco/product-fields";
+import { ProductHeader, type HeaderHandle } from "./arco/product-header";
 import { StudioPublisher } from "./studio-publisher";
 import { studioGallery, bindStudioMedia } from "./studio-media";
 import { deletedNotice } from "./recycle-bin";
@@ -114,11 +120,18 @@ export async function productEntry(id?: string) {
     base = { ...base, ...v, facts: { ...base.facts, ...v.facts } };
   }
   if (source?.items.length)
-    return `<section class="panel"><h2>这条货源已经建档</h2><p>不会再次创建同一件商品。请打开已有档案继续维护。</p><a class="btn primary" href="#/items/${source.items[0].id}/edit">打开已有商品</a></section>`;
+    return `<section class="panel"><h2>这条货源已经建档</h2><p>不会再次创建同一件商品。请打开已有档案继续维护。</p><a class="btn primary" href="#/items/${source.items[0].id}">打开已有商品</a></section>`;
   const root = "entry-" + crypto.randomUUID(),
     files = new ProductUploadQueue();
+  if (id) await files.restore(id);
   const origin = safeReturn(qs.get("returnTo"));
   const fromCandidates = /^#\/candidates(?:\?|$)/.test(origin);
+  const fromOverview = Boolean(
+    id &&
+    origin.startsWith(`#/items/${id}`) &&
+    !origin.split("?")[0].endsWith("/edit") &&
+    !new URLSearchParams(origin.split("?")[1] || "").has("tab"),
+  );
   const returnTarget = () => {
     if (origin) return origin;
     const last = catalogContext().listHash || "#/items";
@@ -127,15 +140,17 @@ export async function productEntry(id?: string) {
       ? "#/items?dataMode=TEST"
       : last;
   };
-  const returnLabel = fromCandidates
-    ? "返回候选列表"
-    : origin.startsWith("#/procurement")
-      ? "返回采购记录"
-      : origin.startsWith("#/collections")
-        ? "返回客户选品"
-        : "返回商品列表";
+  const returnLabel = fromOverview
+    ? "返回商品详情"
+    : fromCandidates
+      ? "返回候选列表"
+      : origin.startsWith("#/procurement")
+        ? "返回采购记录"
+        : origin.startsWith("#/collections")
+          ? "返回客户选品"
+          : "返回商品列表";
   const context = catalogContext(),
-    index = context.queue.indexOf(id || ""),
+    index = fromOverview ? -1 : context.queue.indexOf(id || ""),
     nextId = index >= 0 ? context.queue[index + 1] : undefined;
   const knownPhotos = base.assets.filter(
     (a) => !a.archived && a.role !== "DOCUMENT",
@@ -143,8 +158,8 @@ export async function productEntry(id?: string) {
   const provenance = id
     ? `<dl class="entry-summary"><dt>商品编号</dt><dd>${esc(base.code)}</dd><dt>实物持有</dt><dd>${base.ownership === "OWN" ? "自有库存" : "供应商持有"}</dd><dt>当前位置</dt><dd>${esc(base.location || "未填写")}</dd></dl><a class="btn" href="#/items/${id}?tab=supply">查看货源与交接</a>`
     : `<div class="form-grid">${select("ownership", "实物持有", { OWN: "自有库存", SUPPLIER: "供应商持有" }, base.ownership)}${field("location", "存放/保管位置", base.location)}</div>`;
-  const html = `<div id="${root}" class="product-entry-page studio-workspace"><nav class="breadcrumb" aria-label="当前位置"><a href="${esc(returnTarget())}">${fromCandidates ? "待确认商品" : origin.startsWith("#/procurement") ? "采购历史" : origin.startsWith("#/collections") ? "客户选品" : "商品"}</a><span>/</span><span>${id ? esc(base.code) : "新建"}</span></nav>
-  <header class="studio-commandbar"><div class="studio-command-main"><a class="studio-back" href="${esc(returnTarget())}" aria-label="${returnLabel}">←</a><div><h1>${id ? esc(base.title || "未命名商品") : "新建商品"}</h1><p class="entry-code">${esc(base.code)}${source ? " · 来自 " + esc(source.title) : ""}</p></div></div><div class="studio-command-actions"><span class="entry-save-state" role="status">${id ? "已保存" : "未保存"}</span><button class="btn primary" form="product-entry-form" type="submit" name="intent" value="stay" aria-label="保存商品">保存</button>${can("publish") ? '<button class="btn" form="product-entry-form" type="submit" name="intent" value="publish" aria-label="保存并准备发布">准备发布</button>' : ""}<details class="studio-more"><summary class="btn subtle">更多</summary><div class="studio-more-menu"><button type="submit" form="product-entry-form" name="intent" value="return">保存并返回</button>${nextId ? '<button type="submit" form="product-entry-form" name="intent" value="next">保存并编辑下一件</button>' : !source ? '<button type="submit" form="product-entry-form" name="intent" value="new">保存并新增下一件</button>' : ""}<a href="${esc(returnTarget())}">${returnLabel}</a>${id ? `<a data-detail-link href="#/items/${id}">查看详细记录</a>` : ""}</div></details></div></header>
+  const html = `<div id="${root}" class="product-entry-page studio-workspace arco-workspace"><nav class="breadcrumb" aria-label="当前位置"><a href="${esc(returnTarget())}">${fromCandidates ? "待确认商品" : origin.startsWith("#/procurement") ? "采购历史" : origin.startsWith("#/collections") ? "客户选品" : "商品"}</a><span>/</span><span>${id ? esc(base.code) : "新建"}</span></nav>
+  <header class="studio-commandbar"></header>
   ${
     index >= 0
       ? `<div class="editing-queue">连续编辑：第 ${index + 1} / ${context.queue.length} 件${button(
@@ -157,13 +172,38 @@ export async function productEntry(id?: string) {
       : ""
   }
   <div class="studio-operating-bar"><div class="studio-stock-controls" data-stock-controls></div>${id ? `<div class="item-source-access">${button("查看全部来源资料", () => showItemEvidence(id), "subtle")}</div>` : ""}</div>
-  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">先录货，随时补充。保存不会自动发布。</p><div class="entry-conflicts" hidden></div>
-  <section class="panel entry-source"><h2>货源与实物</h2>${provenance}${!id && can("users") ? select("dataMode", "记录类型", { BUSINESS: "正式经营商品", TEST: "测试数据（不计入经营统计）" }, "BUSINESS") : base.dataMode === "TEST" ? '<p class="notice warning">测试商品：不计入正式统计，不展示到公开展厅。</p>' : ""}</section><div class="entry-fields">${studioFields(base)}</div>
+  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">${id ? "正在编辑商品资料。文字和新图片点击保存后生效。" : "先录货，随时补充。保存不会自动发布。"}</p><div class="entry-conflicts" hidden></div>
+  <section class="panel entry-source"><h2>货源与实物</h2>${provenance}${!id && can("users") ? select("dataMode", "记录类型", { BUSINESS: "正式经营商品", TEST: "测试数据（不计入经营统计）" }, "BUSINESS") : base.dataMode === "TEST" ? '<p class="notice warning">测试商品：不计入正式统计，不展示到公开展厅。</p>' : ""}</section><div class="entry-fields"></div>
   <section class="entry-existing-media" ${knownPhotos.length ? "" : "hidden"}>${studioGallery(base.assets, base.id)}</section>
   ${files.markup(base.ownership === "SUPPLIER" ? "SUPPLIER" : "OWN")}
   ${can("review") ? `<section class="panel entry-review">${check("approveOnSave", "我已核对本次商品资料，保存时同时确认供后续发布使用")}<small>不勾选也能保存。图片授权、供货状态和渠道文案仍按实际情况检查。</small></section>` : ""}
   <div class="studio-save-feedback"><p class="form-error" role="alert" tabindex="-1"></p><button type="button" class="btn" id="entry-retry" hidden>核对上次提交</button><button type="button" class="btn" id="entry-login" hidden>重新登录并保留输入</button></div></form><aside class="studio-publisher" aria-label="本商品发布工作区" hidden></aside></div>`;
   onPageReady(root, (el, signal) => {
+    const header = createRef<HeaderHandle>();
+    mountView(
+      el.querySelector<HTMLElement>(".studio-commandbar")!,
+      signal,
+    )(
+      createElement(ProductHeader, {
+        ref: header,
+        item: base,
+        returnTarget: returnTarget(),
+        returnLabel,
+        sourceTitle: source?.title,
+        nextId,
+        finishOnSave: fromOverview,
+      }),
+    );
+    const renderFields = mountView(
+      el.querySelector<HTMLElement>(".entry-fields")!,
+      signal,
+    );
+    let fieldsRevision = 0;
+    const displayFields = (item: Item) =>
+      renderFields(
+        createElement(ProductFields, { item, key: fieldsRevision++ }),
+      );
+    displayFields(base);
     const f = el.querySelector<HTMLFormElement>("#product-entry-form")!,
       err = f.querySelector<HTMLElement>(".studio-save-feedback .form-error")!,
       status = el.querySelector<HTMLElement>(".entry-save-state")!;
@@ -248,21 +288,11 @@ export async function productEntry(id?: string) {
         version: result.version || (base.id ? base.version : 1),
       };
       dirty = false;
-      el.querySelector(".entry-code")!.textContent = base.code;
+      flushSync(() => header.current!.update(base));
       status.textContent = "已保存";
       replaceUrl();
-      el.querySelector(".studio-commandbar h1")!.textContent =
-        base.title || "未命名商品";
       el.querySelector(".breadcrumb span:last-child")!.textContent =
         base.code || "商品";
-      const more = el.querySelector<HTMLElement>(".studio-more-menu");
-      if (more && !more.querySelector("[data-detail-link]")) {
-        const link = document.createElement("a");
-        link.dataset.detailLink = "";
-        link.href = `#/items/${base.id}`;
-        link.textContent = "查看详细记录";
-        more.append(link);
-      }
     };
     const displayError = (error: unknown) => {
       err.textContent = (error as Error).message;
@@ -319,7 +349,9 @@ export async function productEntry(id?: string) {
           };
           base = latest;
           const sourceSection = f.querySelector("[data-section=supply]"),
-            reviewSection = f.querySelector(".entry-review");
+            reviewSection = f.querySelector(
+              ".entry-review, .studio-inline-review",
+            );
           sourceSection?.remove();
           reviewSection?.remove();
           const photoQueue = f.querySelector(".entry-photos")!,
@@ -328,7 +360,7 @@ export async function productEntry(id?: string) {
           photoQueue.remove();
           existingGallery?.remove();
           const fieldContainer = f.querySelector(".entry-fields")!;
-          fieldContainer.innerHTML = studioFields(merged);
+          displayFields(merged);
           bindProductRows(f, signal);
           fieldContainer.querySelector("[data-media-slot]")!.append(photoQueue);
           if (existingGallery) {
@@ -372,6 +404,7 @@ export async function productEntry(id?: string) {
       }
       if (!f.reportValidity()) return;
       const data = new FormData(f);
+      flushSync(() => header.current!.busy(true));
       const unlock = lockControls(el);
       busy = true;
       err.textContent = "";
@@ -433,6 +466,12 @@ export async function productEntry(id?: string) {
         stock.paint();
         status.textContent = "已保存";
         if (mode === "quiet") return base;
+        const more = el.querySelector<HTMLDetailsElement>(".studio-more");
+        if (more) more.open = false;
+        if (mode === "materials") {
+          await exportMaterials([base]);
+          return base;
+        }
         if (mode === "publish") {
           await publisher.open(base, publisher.isOpen());
           return base;
@@ -467,6 +506,7 @@ export async function productEntry(id?: string) {
       } finally {
         busy = false;
         unlock();
+        flushSync(() => header.current?.busy(false));
         for (const name of ["ownership", "location", "dataMode"]) {
           const control = f.elements.namedItem(name) as HTMLInputElement | null;
           if (control && base.id) control.disabled = true;
@@ -488,6 +528,7 @@ export async function productEntry(id?: string) {
       async () => {
         if (busy) return;
         busy = true;
+        flushSync(() => header.current!.busy(true));
         const unlock = lockControls(el);
         try {
           if (write.uncertain)
@@ -508,6 +549,7 @@ export async function productEntry(id?: string) {
         } finally {
           busy = false;
           unlock();
+          flushSync(() => header.current?.busy(false));
         }
       },
       { signal },

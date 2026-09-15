@@ -103,6 +103,72 @@ export class IngestAdminController {
   ) {
     return this.service.batchReport(this.db, uuid.parse(id));
   }
+  @Access("read") @Get("batch-records") async batchRecords(
+    @Query() raw: unknown,
+  ) {
+    const q = z
+      .object({
+        page: z.coerce.number().int().min(1).max(100000).default(1),
+        q: safeText(150).default(""),
+      })
+      .strict()
+      .parse(raw);
+    return this.db.$transaction(
+      async (tx) => {
+        const where: Prisma.IngestBatchWhereInput = q.q
+          ? {
+              OR: [
+                { externalBatchKey: { contains: q.q, mode: "insensitive" } },
+                {
+                  procurementSource: {
+                    name: { contains: q.q, mode: "insensitive" },
+                  },
+                },
+              ],
+            }
+          : {};
+        const total = await tx.ingestBatch.count({ where });
+        const page = Math.min(q.page, Math.max(1, Math.ceil(total / 30)));
+        const rows = await tx.ingestBatch.findMany({
+          where,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 30,
+          skip: (page - 1) * 30,
+          select: {
+            id: true,
+            externalBatchKey: true,
+            status: true,
+            createdAt: true,
+            agentName: true,
+            procurementSource: { select: { name: true } },
+            _count: { select: { members: true } },
+          },
+        });
+        const counts = rows.length
+          ? await tx.$queryRaw<
+              { batchId: string; decision: string; count: number }[]
+            >(Prisma.sql`
+        SELECT m."batchId", c."decision", count(*)::int AS count FROM "IngestBatchMember" m
+        JOIN "IngestCandidate" c ON c.id=m."candidateId"
+        WHERE m."batchId" IN (${Prisma.join(rows.map((b) => Prisma.sql`${b.id}::uuid`))})
+        GROUP BY m."batchId", c."decision"`)
+          : [];
+        return {
+          total,
+          page,
+          rows: rows.map((b) => ({
+            ...b,
+            counts: Object.fromEntries(
+              counts
+                .filter((c) => c.batchId === b.id)
+                .map((c) => [c.decision, c.count]),
+            ),
+          })),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
   @Access("read") @Get("items/:id/evidence") async itemEvidence(
     @Param("id") id: string,
   ) {
@@ -129,6 +195,7 @@ export class IngestAdminController {
           .enum(["", "PENDING", "CONFIRMED", "EXCLUDED"])
           .default("PENDING"),
         sourceId: z.union([uuid, z.literal("")]).default(""),
+        batchId: z.union([uuid, z.literal("")]).default(""),
         page: z.coerce.number().int().min(1).max(100000).default(1),
         size: z.coerce.number().int().min(20).max(100).default(100),
       })
@@ -137,6 +204,7 @@ export class IngestAdminController {
     const where: Prisma.IngestCandidateWhereInput = {
       ...(b.decision ? { decision: b.decision } : {}),
       ...(b.sourceId ? { procurementSourceId: b.sourceId } : {}),
+      ...(b.batchId ? { memberships: { some: { batchId: b.batchId } } } : {}),
       ...(b.q
         ? {
             OR: [
@@ -340,7 +408,8 @@ export class IngestAdminController {
             version: b.versions?.[id] ?? c.version,
             possession: b.possession,
             status: b.status,
-            note: "批量确认导入",
+            acceptIncomplete: !!b.incompleteAcknowledgements?.[id],
+            note: b.incompleteAcknowledgements?.[id] || "批量确认导入",
           },
         );
         rows.push({ ok: true, ...result });

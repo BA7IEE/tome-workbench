@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const {test,expect}=require('@playwright/test');
 const fs=require('node:fs');
 const fixture=JSON.parse(fs.readFileSync('data/browser-fixture.json','utf8'));
@@ -5,7 +6,7 @@ async function login(page){
   await page.goto('/');
   await page.getByLabel('登录邮箱').fill(fixture.email);
   await page.getByLabel('密码',{exact:true}).fill(fixture.password);
-  await page.getByRole('button',{name:'进入工作台'}).click();
+  await submitLogin(page);
   await expect(page.getByRole('button',{name:'退出登录',exact:true})).toBeVisible();
 }
 test('低频经营页面使用统一后台语言和布局',async({page})=>{
