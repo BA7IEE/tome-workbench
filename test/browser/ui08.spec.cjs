@@ -408,7 +408,10 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   await page.getByLabel("中文介绍", { exact: true }).fill("还没保存的商品文案");
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
   const d = page.getByRole("dialog", { name: "记录询盘", exact: true });
-  await d.getByLabel("渠道", { exact: true }).fill("合成微信");
+  await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
+  await d
+    .getByLabel("其他渠道名称（仅选择“其他渠道”时填写）", { exact: true })
+    .fill("合成微信");
   await d
     .getByLabel("客户内部标记", { exact: true })
     .fill("客户 " + randomUUID());
