@@ -468,7 +468,10 @@ test.describe("回执丢失后登录失效", () => {
     await page.getByRole("button", { name: "记录询盘", exact: true }).click();
     const d = page.locator("#dialog"),
       customer = "恢复询盘 " + randomUUID();
-    await d.getByLabel("渠道", { exact: true }).fill("合成渠道");
+    await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
+    await d
+      .getByLabel("其他渠道名称（仅选择“其他渠道”时填写）", { exact: true })
+      .fill("合成渠道");
     await d.getByLabel("客户内部标记", { exact: true }).fill(customer);
     const keys = await loseFirst(page, "/inquiries");
     await d.getByRole("button", { name: "保存询盘", exact: true }).click();

@@ -18,7 +18,7 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
   await page.getByRole("button", { name: "进入工作台" }).click();

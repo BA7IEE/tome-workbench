@@ -9,13 +9,14 @@ import {
 export async function itemActivity(item: Item) {
   const back = encodeURIComponent(location.hash),
     filter = `itemId=${item.id}&page=1&size=5`,
-    mode = item.dataMode === "TEST" ? "&dataMode=TEST" : "";
+    mode = item.dataMode === "TEST" ? "&dataMode=TEST" : "",
+    saleEndpoint = can("finance") ? "/sales?" : "/sale-facts?";
   const [inquiries, sales, listings, costs] = await Promise.all([
     can("sell")
       ? request<{ rows: Inquiry[]; total: number }>("/inquiries?" + filter)
       : null,
-    can("finance")
-      ? request<{ rows: Sale[]; total: number }>("/sales?" + filter + mode)
+    can("sell")
+      ? request<{ rows: Sale[]; total: number }>(saleEndpoint + filter + mode)
       : null,
     request<{ rows: Listing[]; total: number }>("/listings?" + filter + mode),
     can("finance")
@@ -38,7 +39,7 @@ export async function itemActivity(item: Item) {
       ? `<section><h3>客户询盘 · ${inquiries.total} 条</h3>${inquiries.rows.map((x) => `<p>${esc(x.customerRef)} · ${esc(x.channel)} · ${esc(states[x.state] || x.state)}<small>${esc(x.notes)}</small></p>`).join("")}${full("inquiries", "查看本商品全部询盘")}</section>`
       : "") +
       (sales
-        ? `<section><h3>成交记录 · ${sales.total} 笔</h3>${sales.rows.map((x) => `<p>${when(x.soldAt)} · ${esc(x.customerRef)} · ${money(x.amount, x.currency)}</p>`).join("")}${full("sales", "查看本商品全部成交")}</section>`
+        ? `<section><h3>成交记录 · ${sales.total} 笔</h3>${sales.rows.map((x) => `<p>${when(x.soldAt)} · ${esc(x.customerRef || "未标记客户")} · ${esc(x.channel)}${can("finance") ? ` · ${money(x.amount, x.currency)}` : ""}</p>`).join("")}${full("sales", "查看本商品全部成交")}</section>`
         : "") +
       `<section><h3>发布记录 · ${listings.total} 条</h3>${listings.rows.map((x) => `<p>${esc(x.channel.name)} · ${esc(states[x.observed] || x.observed)}</p>`).join("")}${full("listings", "查看本商品全部发布")}</section>` +
       (costs

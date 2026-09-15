@@ -22,6 +22,9 @@ import {
 
 type Created = { id: string; code: string; existing?: boolean };
 const fingerprint = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
+const validImage = (file: File) =>
+  ["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+  /\.(jpe?g|png|webp)$/i.test(file.name);
 
 export function quickIntake(
   afterSaved?: () => Promise<void> | void,
@@ -30,6 +33,7 @@ export function quickIntake(
   if (!can("edit")) return;
   const owner = me!.id;
   let formEl: HTMLFormElement | null = null;
+  let statusEl: HTMLElement | null = null;
   let lastItem: Created | null = null;
   let afterMode = "close",
     savedTitle = "";
@@ -37,12 +41,28 @@ export function quickIntake(
   const fields =
     '<input type="hidden" name="after" value="close"><section class="quick-intake-core"></section>';
   const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
-    <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>可一次选择多张；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div></section>`;
+    <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>最多100张；单张20MB以内；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div><p class="quick-intake-upload-status" role="status" aria-live="polite"></p></section>`;
   form(
     "快速录货",
     `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">先把货记下来。尺寸、材质、鉴定、英文和发布资料以后再补。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
     async (d, key) => {
       if (!formEl) throw new Error("录货窗口尚未准备完成");
+      const files = d
+        .getAll("photos")
+        .filter((x): x is File => x instanceof File && x.size > 0);
+      if (files.length > 100) throw new Error("每件商品最多上传100张图片");
+      const invalid = files.filter(
+        (file) => !validImage(file) || file.size > 20 * 1024 * 1024,
+      );
+      if (invalid.length)
+        throw new Error(
+          `请先处理不符合要求的图片：${invalid
+            .slice(0, 3)
+            .map((f) => f.name)
+            .join(
+              "、",
+            )}${invalid.length > 3 ? ` 等${invalid.length}张` : ""}。${lastItem ? `${lastItem.code} 已保存，请勿重复录货。` : "TM尚未创建。"}`,
+        );
       const picked = readDictionarySelections(formEl);
       afterMode = text(d, "after") || "close";
       savedTitle = text(d, "title");
@@ -55,11 +75,12 @@ export function quickIntake(
         currency: text(d, "currency"),
         facts: { conditionGrade: picked.labels.condition || "" },
       };
+      if (statusEl)
+        statusEl.textContent = lastItem
+          ? `${lastItem.code} 已保存，正在继续原提交…`
+          : "正在创建商品档案…";
       const item = await request<Created>("/items", "POST", body, key);
       lastItem = item;
-      const files = d
-        .getAll("photos")
-        .filter((x): x is File => x instanceof File && x.size > 0);
       const origin = text(d, "origin") || "OWN";
       type PendingImage = {
         file: File;
@@ -74,11 +95,6 @@ export function quickIntake(
       let pending = await readWork<PendingImage[]>(storage);
       if (!pending)
         pending = files.map((file) => {
-          if (
-            !/\.(jpe?g|png|webp)$/i.test(file.name) ||
-            file.size > 20 * 1024 * 1024
-          )
-            throw new Error(`${file.name}：请选择20MB以内的JPG、PNG或WebP`);
           const fp = fingerprint(file),
             uploadKey = uploadKeys.get(fp) || crypto.randomUUID();
           uploadKeys.set(fp, uploadKey);
@@ -102,6 +118,10 @@ export function quickIntake(
             ],
           };
         });
+      const total = pending.length;
+      let uploaded = 0;
+      if (statusEl)
+        statusEl.textContent = `${item.code} 已保存，待上传 ${total} 张。请勿重复录货。`;
       for (const job of [...pending]) {
         job.state = "上传中";
         await saveWork(storage, pending);
@@ -110,8 +130,18 @@ export function quickIntake(
           return f;
         }, new FormData());
         try {
-          await uploadWithProgress("/assets/upload", input, job.key, () => {});
+          await uploadWithProgress(
+            "/assets/upload",
+            input,
+            job.key,
+            (progress) => {
+              if (statusEl)
+                statusEl.textContent = `${item.code} 已保存 · 第 ${uploaded + 1} / ${total} 张 ${progress}% · 请勿重复录货`;
+            },
+          );
         } catch (error) {
+          if (statusEl)
+            statusEl.textContent = `${item.code} 已保存，图片上传停在 ${uploaded} / ${total} 张。可保留当前窗口重试，或稍后打开该商品继续；请勿重复录货。`;
           if (!formEl.querySelector(".quick-recovery"))
             formEl
               .querySelector(".quick-intake-note")!
@@ -121,6 +151,9 @@ export function quickIntake(
               );
           throw error;
         }
+        uploaded++;
+        if (statusEl)
+          statusEl.textContent = `${item.code} 已保存 · 已上传 ${uploaded} / ${total} 张`;
         pending = pending.filter((j) => j.key !== job.key);
         await saveWork(storage, pending.length ? pending : undefined);
       }
@@ -152,6 +185,7 @@ export function quickIntake(
   );
 
   formEl = dialog.querySelector<HTMLFormElement>("form")!;
+  statusEl = formEl.querySelector<HTMLElement>(".quick-intake-upload-status");
   const scope = new AbortController();
   dialog.addEventListener("close", () => scope.abort(), { once: true });
   mountView(
@@ -207,6 +241,8 @@ export function quickIntake(
         current.push(f);
         seen.add(fingerprint(f));
       }
+    if (current.length > 100 && statusEl)
+      statusEl.textContent = `最多保留100张图片，另外 ${current.length - 100} 张未加入。`;
     replaceFiles(current.slice(0, 100));
   };
   const paint = () => {
@@ -216,11 +252,29 @@ export function quickIntake(
       .map((f, n) => {
         const u = URL.createObjectURL(f);
         urls.push(u);
-        return `<figure><img src="${u}" alt="${esc(f.name)}"><figcaption>${esc(f.name)}</figcaption><button type="button" aria-label="移除图片 ${esc(f.name)}" data-remove-quick="${n}">×</button></figure>`;
+        const issue = !validImage(f)
+          ? "格式不支持"
+          : f.size > 20 * 1024 * 1024
+            ? "超过20MB"
+            : "";
+        return `<figure class="${issue ? "has-error" : ""}"><img src="${u}" alt="${esc(f.name)}"><figcaption>${esc(f.name)}${issue ? `<small>${esc(issue)}</small>` : ""}</figcaption><button type="button" aria-label="移除图片 ${esc(f.name)}" data-remove-quick="${n}">×</button></figure>`;
       })
       .join("");
   };
-  input.addEventListener("change", paint, { signal: scope.signal });
+  input.addEventListener(
+    "change",
+    () => {
+      const files = fileList();
+      if (files.length > 100) {
+        if (statusEl)
+          statusEl.textContent = `最多100张图片，另外 ${files.length - 100} 张未加入。`;
+        replaceFiles(files.slice(0, 100));
+        return;
+      }
+      paint();
+    },
+    { signal: scope.signal },
+  );
   drop.addEventListener("dragover", (e) => e.preventDefault(), {
     signal: scope.signal,
   });

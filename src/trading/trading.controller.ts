@@ -76,7 +76,10 @@ export class TradingController {
     );
   }
   @Access("finance") @Get("sales") sales(@Query() raw: unknown) {
-    return readSales(this.db, raw);
+    return readSales(this.db, raw, true);
+  }
+  @Access("sell") @Get("sale-facts") saleFacts(@Query() raw: unknown) {
+    return readSales(this.db, raw, false);
   }
   @Access("finance") @Post("sales/:id/finance") finance(
     @Param("id") id: string,

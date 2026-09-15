@@ -98,7 +98,10 @@ export const candidateBulkInput = z
       .record(uuid, safeText(2000).min(3))
       .optional(),
     possession: z.enum(["IN_HAND", "NOT_IN_HAND"]),
-    status: z.enum(["AVAILABLE", "PAUSED"]).default("AVAILABLE"),
+    // New callers default to PAUSED so a bulk receipt decision does not silently
+    // become a sale-readiness decision. Explicit AVAILABLE remains supported for
+    // reviewed/import integrations and backwards compatibility.
+    status: z.enum(["AVAILABLE", "PAUSED"]).default("PAUSED"),
   })
   .strict()
   .superRefine((value, ctx) => {

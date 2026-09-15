@@ -10,6 +10,7 @@ export const required = [
   "web/src/work-storage.ts",
   "test/browser/arco-workspace.spec.cjs",
   "test/browser/product-library.spec.cjs",
+  "test/browser/ux101.spec.cjs",
   "docs/contracts/product-materials.md",
   "prisma/migrations/202609150011_product_materials/migration.sql",
   "src/catalog/test-data.controller.ts",
@@ -162,6 +163,7 @@ export function checks(
     [
       "test/browser/arco-workspace.spec.cjs",
       "test/browser/product-library.spec.cjs",
+      "test/browser/ux101.spec.cjs",
       "test/unit.test.cjs",
       "test/integration.test.cjs",
       "test/browser/workbench.spec.cjs",
@@ -311,6 +313,23 @@ export function checks(
       "test:browser:webkit",
     ),
   );
+  check("browser-suite-parity", () => {
+    const chromium = read("playwright.config.cjs"),
+      webkit = read("playwright.webkit.config.cjs"),
+      files = fs
+        .readdirSync(path.join(root, "test/browser"))
+        .filter((name) => name.endsWith(".spec.cjs"))
+        .sort(),
+      listed = [...webkit.matchAll(/["']([^"']+\.spec\.cjs)["']/g)]
+        .map((match) => match[1])
+        .sort();
+    return (
+      chromium.includes("testDir:'./test/browser'") &&
+      !/testMatch|testIgnore/.test(chromium) &&
+      !/testIgnore/.test(webkit) &&
+      JSON.stringify(files) === JSON.stringify(listed)
+    );
+  });
   check(
     "product-library-both-browsers",
     () =>

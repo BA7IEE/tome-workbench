@@ -338,6 +338,33 @@ function resumeBulk(
     }),
   );
 }
+function reviewCandidateSelection() {
+  const rows = [...candidateSelection.values()],
+    bySource = new Map<string, number>();
+  for (const candidate of rows)
+    bySource.set(
+      candidate.procurementSource.name,
+      (bySource.get(candidate.procurementSource.name) || 0) + 1,
+    );
+  const duplicates = rows.filter((x) => x.possibleDuplicateCount > 0).length,
+    gaps = rows.filter((x) => x.integrity?.state === "GAPS").length,
+    warnings = rows.filter((x) => x.warnings.length).length;
+  viewDialog(
+    `已选候选 · ${rows.length}件`,
+    `<div class="candidate-selection-summary"><p><strong>来源</strong></p>${[
+      ...bySource.entries(),
+    ]
+      .map(([name, count]) => `<p>${esc(name)} · ${count}件</p>`)
+      .join(
+        "",
+      )}<p><strong>需要特别核对</strong></p><p>疑似重复 ${duplicates}件 · 来源有缺项 ${gaps}件 · 其他系统提示 ${warnings}件</p></div><details><summary>查看全部已选商品</summary><ol>${rows
+      .map(
+        (candidate) =>
+          `<li>${esc(candidate.procurementSource.name)} · ${esc(candidate.brandRaw || "品牌待确认")} · ${esc(candidate.titleRaw)}</li>`,
+      )
+      .join("")}</ol></details>`,
+  );
+}
 async function bulkAction(
   ids: string[],
   after: () => Promise<void>,
@@ -357,11 +384,20 @@ async function bulkAction(
     note(
       exclude
         ? "排除不删除来源资料。"
-        : "确认实物在手后生成永久TM。逐件保留结果，中断后可继续。",
+        : "确认实物在手并纳入经营后生成永久TM。是否立即可售需要另行确认，默认先待整理；逐件保留结果，中断后可继续。",
     ) +
       (exclude
         ? area("reason", "排除原因", "", 3)
-        : check("confirmed", "我已确认所选商品为实际持有并应纳入经营") +
+        : select(
+            "status",
+            "生成TM后的状态",
+            {
+              PAUSED: "待整理 / 待复核（推荐）",
+              AVAILABLE: "已完成核对，直接可售",
+            },
+            "PAUSED",
+          ) +
+          check("confirmed", "我已确认所选商品为实际持有并应纳入经营") +
           (gaps.length
             ? `<section class="bulk-gap-review"><h3>${gaps.length} 件有来源缺项</h3>${gaps.map((c) => `<p><strong>${esc(c.titleRaw)}</strong><small>${c.integrity.issues.map(esc).join("；")}</small></p>`).join("")}${check("acceptGaps", "我已核对上述缺项，允许先建档并保留逐件说明")}${area("gapNote", "本批缺项处理依据", "", 2)}</section>`
             : "")),
@@ -383,7 +419,7 @@ async function bulkAction(
             ? { reason: text(d, "reason") }
             : {
                 possession: "IN_HAND",
-                status: "AVAILABLE",
+                status: text(d, "status") || "PAUSED",
                 ...(d.has("acceptGaps")
                   ? {
                       incompleteAcknowledgements: Object.fromEntries(
@@ -425,21 +461,28 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
   const suggested = matches.length
       ? `<div class="candidate-match-list"><strong>系统发现可能的已有TM</strong>${matches
           .map(
-            (m) =>
-              `<article><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></article>`,
+            (m, index) =>
+              `<label class="candidate-match-choice"><input type="radio" name="matchedItemRef" value="${esc(m.code)}" ${index === 0 ? "checked" : ""}><span><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></span></label>`,
           )
           .join("")}</div>`
       : note(
           "当前没有找到强匹配；如果你已知这就是某件已有商品，可直接填写TM编号。",
         ),
-    defaultRef = matches.length === 1 ? matches[0].code : "";
+    fallback = field(
+      "itemRef",
+      matches.length ? "搜索其他TM编号（可选）" : "已有TM编号",
+      "",
+      "text",
+      !matches.length,
+      'placeholder="例如 TM000123"',
+    );
   form(
     "关联已有TM",
     note(
       "此操作不会修改已有TM的库存、成色、售价或已维护资料，只把这条来源证据归入同一件实物。",
     ) +
       suggested +
-      field("itemRef", "已有TM编号", defaultRef, "text", true) +
+      fallback +
       select(
         "possession",
         "本来源对应实物状态",
@@ -455,12 +498,15 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
       check("confirmed", "我已核对，确认这是同一件实物，不新建第二个TM"),
     (d, key) => {
       if (!d.has("confirmed")) throw new Error("请先确认这是同一件实物");
+      const itemRef =
+        text(d, "itemRef").trim() || text(d, "matchedItemRef").trim();
+      if (!itemRef) throw new Error("请选择匹配商品或填写TM编号");
       return request(
         `/ingest/candidates/${candidate.id}/link-item`,
         "POST",
         {
           version: candidate.version,
-          itemRef: text(d, "itemRef"),
+          itemRef,
           possession: text(d, "possession"),
           note: text(d, "note"),
         },
@@ -485,6 +531,15 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         : "确认该候选对应一件新的实际经营实物，系统将生成永久TM编号。",
     ) +
       check("confirmed", "我已确认实物在手并应纳入经营") +
+      select(
+        "status",
+        "生成TM后的状态",
+        {
+          PAUSED: "待整理 / 待复核（推荐）",
+          AVAILABLE: "已完成核对，直接可售",
+        },
+        "PAUSED",
+      ) +
       (incomplete
         ? note(candidate.integrity.issues.join("；")) +
           check("acceptIncomplete", "我已核对来源缺项，接受先建档后补充")
@@ -511,7 +566,7 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         {
           version: candidate.version,
           possession: "IN_HAND",
-          status: "AVAILABLE",
+          status: text(d, "status") || "PAUSED",
           duplicateOverride: d.has("duplicateOverride"),
           acceptIncomplete: d.has("acceptIncomplete"),
           note: text(d, "note"),
@@ -583,7 +638,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
       : "";
   return `<article class="candidate-card" data-candidate="${candidate.id}">
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
-    <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.code)}</span></div>
+    <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
     <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
     <div class="candidate-prices"><span>订单行 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
@@ -692,7 +747,7 @@ export async function candidatesPage() {
       pageSelect.indeterminate = checked > 0 && checked < boxes().length;
       toolbar.hidden = selected.size === 0;
       if (!selected.size) return;
-      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${decision === "PENDING" && can("edit") ? button("确认在手并生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
+      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${button("查看已选", reviewCandidateSelection)}${decision === "PENDING" && can("edit") ? button("批量生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
         "取消选择",
         () => {
           selected.clear();

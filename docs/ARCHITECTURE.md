@@ -215,3 +215,12 @@ Overview editing carries the originating detail URL, whose own return context re
 The shared image viewer uses derived previews initially and fetches authenticated original bytes on explicit request. Original reads are generation-checked and aborted/revoked on close; keyboard navigation retains focus after rendering. Existing image metadata actions remain immediate and explicitly labelled; no claim of atomic rollback with text edits is introduced. Pause uses the same idempotent stock command with an explicit confirmation dialog.
 
 Material exports retain immutable snapshots and IndexedDB command recovery, then automatically download the existing result. Download failures allow retry without a new snapshot. History detail has an explicit return to its current history page. Batch reset retains batchId/returnTo while clearing search conditions; completed batches go to confirmed members. Publishing approval is labelled as publishing review, not general material completeness. No migration or dependency change.
+
+
+## UX 1.0.1 integration on rc.19
+
+Dashboard is the default read-only work projection; the original catalog, imports, settings and permission-gated sales are direct navigation entries. The existing Arco/React lifecycle, single stylesheet owner and rc.19 overview/edit return contract remain. Sale-facts product links preserve their filtered sales context and enter the same read-only overview. Direct inventory actions share studioStock in overview and editor, with existing Commands and stock locks; release uses a stable dialog command and leaves PAUSED.
+
+The new sell-only `/api/sale-facts` projection whitelists nonfinancial sale fields and BUSINESS, nondeleted items. Finance continues using `/api/sales` with its original ledger/history scope and aggregate logic. No Sale model, revenue facts or finance write authority is changed.
+
+Candidate sale readiness is separate from possession: new UI and bulk API default PAUSED, explicit AVAILABLE remains supported. rc.19 PendingBulk persists this choice alongside per-candidate gap acknowledgements, versions, keys and completed chunks. QuickIntake retains React fields and the account-scoped byte-preserving queue while validating files before create and reporting upload progress. Original ApiError propagation preserves login/unknown-result recovery. Prisma, all historical migrations, seals and dependency versions remain byte-for-byte at rc.19. See UX-1.0.1-REWORK.md for conflict decisions.

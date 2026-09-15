@@ -47,6 +47,18 @@ for (const [name, p, fn, id] of [
     "no-skipped-tests",
   ],
   [
+    "missing UX WebKit suite",
+    "playwright.webkit.config.cjs",
+    (s) => s.replace('"ux101.spec.cjs",', ""),
+    "browser-suite-parity",
+  ],
+  [
+    "skipped UX browser journey",
+    "test/browser/ux101.spec.cjs",
+    (s) => s + '\ntest.skip("mutant",()=>{});',
+    "no-skipped-tests",
+  ],
+  [
     "network in domain",
     "src/common/domain.ts",
     (s) => s + '\nfetch("untrusted");',

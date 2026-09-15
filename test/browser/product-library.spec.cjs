@@ -6,7 +6,7 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
   await page.getByRole("button", { name: "进入工作台" }).click();
@@ -139,7 +139,7 @@ function zipFiles(buffer) {
 
 test.beforeEach(async ({ page }) => login(page));
 
-test("商品资料库按尺码位置来源及缺项找货，手机三入口可实际切换", async ({
+test("商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换", async ({
   page,
 }) => {
   const suffix = randomUUID().slice(0, 8),
@@ -166,7 +166,7 @@ test("商品资料库按尺码位置来源及缺项找货，手机三入口可�
   await expect(page.locator("tbody tr")).toContainText(title);
   await expect(page.locator("tbody tr")).not.toContainText("已定价");
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const label of ["商品库", "导入记录", "设置"])
+  for (const label of ["工作台", "商品库", "导入记录", "销售", "设置"])
     await expect(
       page
         .getByRole("navigation", { name: "主导航" })
@@ -199,9 +199,10 @@ test("导入记录精确进入本批，来源缺项可集中核对并逐件保�
   await expect(page.locator(".candidate-card")).toHaveCount(3);
   await page.getByLabel("选择本页", { exact: true }).check();
   await page
-    .getByRole("button", { name: "确认在手并生成TM", exact: true })
+    .getByRole("button", { name: "批量生成TM", exact: true })
     .click();
   const d = page.getByRole("dialog");
+  await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
   await d.getByLabel("我已核对上述缺项，允许先建档并保留逐件说明").check();
   await d
@@ -220,6 +221,8 @@ test("导入记录精确进入本批，来源缺项可集中核对并逐件保�
   );
   expect(result.total).toBe(3);
   expect(new Set(result.rows.map((c) => c.item.id)).size).toBe(3);
+  for (const c of result.rows)
+    expect((await api(page, `/items/${c.item.id}`, undefined, "GET")).status).toBe("PAUSED");
   await page.getByRole("link", { name: "返回导入记录", exact: false }).click();
   await page.getByLabel("查找导入批次").fill(x.source.name);
   await page.getByRole("button", { name: "查找", exact: true }).click();
@@ -235,7 +238,7 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
   await page.goto("/#/candidates?batchId=" + x.batch.id);
   await page.getByLabel("选择本页", { exact: true }).check();
   await page
-    .getByRole("button", { name: "确认在手并生成TM", exact: true })
+    .getByRole("button", { name: "批量生成TM", exact: true })
     .click();
   let intercepted = false;
   await page.route("**/api/ingest/candidates/bulk-confirm", async (route) => {
@@ -248,6 +251,7 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
     });
   });
   const d = page.getByRole("dialog");
+  await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
   await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
   await expect(d.locator(".form-error")).toContainText("响应未完整收到");
@@ -259,6 +263,8 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
     "GET",
   );
   expect(before.total).toBe(3);
+  for (const c of before.rows)
+    expect((await api(page, `/items/${c.item.id}`, undefined, "GET")).status).toBe("PAUSED");
   // Closing and reopening is the recovery scenario, not a refresh hiding stale rendering.
   await page.close();
   const resumed = await context.newPage();

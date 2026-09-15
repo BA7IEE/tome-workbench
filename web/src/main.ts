@@ -10,6 +10,7 @@ import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
 import { sourcesScreen } from "./sources-screen";
 import { dailyWork } from "./daily-work";
+import { salesFactsPage } from "./sales-facts-page";
 import { runPageHooks, canLeavePage, disposePage } from "./page-lifecycle";
 import {
   app,
@@ -81,19 +82,19 @@ async function render() {
     }
   }
   if (!location.hash || location.hash === "#/") {
-    history.replaceState(null, "", "#/items?view=grid&status=AVAILABLE");
+    history.replaceState(null, "", "#/dashboard");
   }
   const path = location.hash.replace(/^#\/?/, "").split("?")[0],
     parts = path.split("/"),
-    page = parts[0] || "items";
-  app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/items?view=grid&status=AVAILABLE" class="wordmark">ToMeBoutique<span>兔泥巴 · 商品资料库</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
+    page = parts[0] || "dashboard";
+  app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/dashboard" class="wordmark">ToMeBoutique<span>兔泥巴 · 经营工作台</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
     "退出登录",
     async () => {
       await request("/auth/logout", "POST", {});
       location.reload();
     },
     "subtle",
-  )}</div></aside><div class="workspace"><header class="topbar"><span>商品资料库</span><div>${button(
+  )}</div></aside><div class="workspace"><header class="topbar"><span>经营工作台</span><div>${button(
     "退出登录",
     async () => {
       await request("/auth/logout", "POST", {});
@@ -129,7 +130,8 @@ async function render() {
       html = await operationsPage();
     else if (page === "tasks") html = await tasksPage();
     else if (page === "listings") html = await listingsPage();
-    else if (page === "sales" && can("finance")) html = await salesPage();
+    else if (page === "sales" && can("sell"))
+      html = can("finance") ? await salesPage() : await salesFactsPage();
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings")
       html =

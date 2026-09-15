@@ -19,9 +19,15 @@ export function productReturn(item: Item) {
       ? "返回采购记录"
       : href.startsWith("#/collections")
         ? "返回客户选品"
-        : href.startsWith("#/tasks")
-          ? "返回待办"
-          : "返回商品列表";
+        : href.startsWith("#/sales")
+          ? "返回成交记录"
+          : href.startsWith("#/inquiries")
+            ? "返回客户询盘"
+            : href.startsWith("#/listings")
+              ? "返回发布记录"
+              : href.startsWith("#/tasks")
+                ? "返回待办"
+                : "返回商品列表";
   return { href, label };
 }
 

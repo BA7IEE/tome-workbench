@@ -4,7 +4,7 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
   await page.getByRole("button", { name: "进入工作台" }).click();
@@ -84,7 +84,7 @@ test("手机顶级业务导航全部可达", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "经营待办", exact: true }),
   ).toBeVisible();
-  await page.getByText("销售", { exact: true }).click();
+  await page.locator(".library-tools details.nav-group > summary").filter({ hasText: /^销售$/ }).click();
   await page.getByRole("link", { name: "发布记录", exact: true }).click();
   await expect(page).toHaveURL(/#\/listings/);
 });
@@ -435,7 +435,10 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   await page.getByLabel("中文介绍", { exact: true }).fill("还没保存的商品文案");
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
   const d = page.getByRole("dialog", { name: "记录询盘", exact: true });
-  await d.getByLabel("渠道", { exact: true }).fill("合成微信");
+  await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
+  await d
+    .getByLabel("其他渠道名称（仅选择“其他渠道”时填写）", { exact: true })
+    .fill("合成微信");
   await d
     .getByLabel("客户内部标记", { exact: true })
     .fill("客户 " + randomUUID());

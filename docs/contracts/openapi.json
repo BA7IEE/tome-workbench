@@ -2703,6 +2703,20 @@
         ]
       }
     },
+    "/api/sale-facts": {
+      "get": {
+        "operationId": "TradingController_saleFacts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
     "/api/sales/{id}/finance": {
       "post": {
         "operationId": "TradingController_finance",
@@ -3133,7 +3147,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.0.0-rc.19",
+    "version": "1.0.1-rc.1",
     "contact": {}
   },
   "tags": [],
