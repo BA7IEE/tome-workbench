@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Req, Query } from "@nestjs/common";
 import { ApiQuery, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
-import { Access, AuthRequest } from "../auth/auth";
+import { Access, AuthRequest, permission } from "../auth/auth";
 import { Commands, audit } from "../common/transaction";
 import { PrismaService } from "../database/prisma.service";
 import { amount, currency, safeText, uuid } from "../common/domain";
@@ -75,8 +75,11 @@ export class TradingController {
       b,
     );
   }
-  @Access("finance") @Get("sales") sales(@Query() raw: unknown) {
-    return readSales(this.db, raw);
+  @Access("sell") @Get("sales") sales(
+    @Query() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return readSales(this.db, raw, permission(r.actor.role, "finance"));
   }
   @Access("finance") @Post("sales/:id/finance") finance(
     @Param("id") id: string,
