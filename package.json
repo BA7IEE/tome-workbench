@@ -1,9 +1,9 @@
 {
   "name": "tome-workbench",
-  "version": "1.0.0-rc.14",
+  "version": "1.0.0-rc.15",
   "private": true,
   "license": "UNLICENSED",
-  "description": "兔泥巴商品经营工作台：商品维护、渠道草稿与人工发布协作",
+  "description": "兔泥巴商品资料库：永久TM、批量导入、原图维护与运营资料交接",
   "engines": {
     "node": ">=22.12 <25"
   },

@@ -4011,3 +4011,190 @@ dialog form > footer {
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
+
+/* Product-library MVP: the approved quiet, warm visual language. */
+:root {
+  --ui-bg: #f7f7f3;
+  --ui-surface-2: #fafbf7;
+  --ui-text: #27352f;
+  --ui-muted: #737f75;
+  --ui-border: #e2e6df;
+  --ui-border-strong: #cdd6ca;
+  --ui-primary: #355e48;
+  --ui-primary-soft: #eef3ed;
+}
+.library-navigation {
+  display: grid;
+  gap: 8px;
+  padding-top: 18px;
+}
+.library-navigation a {
+  padding: 13px 15px;
+}
+.library-tools > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.library-tools .nav-group {
+  padding: 12px 0;
+}
+.library-tools .nav-group > div,
+.library-tools .nav-group:not(details) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.library-tools .nav-label {
+  width: 100%;
+}
+.library-find-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.import-records {
+  display: grid;
+  gap: 14px;
+}
+.import-record {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.import-record > div {
+  min-width: 0;
+}
+.import-record h2 {
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+.material-changes {
+  max-height: 56vh;
+  overflow-y: auto;
+  width: 100%;
+}
+.material-changes article {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ui-border);
+  overflow-wrap: anywhere;
+}
+.material-changes small {
+  display: block;
+  margin-top: 5px;
+}
+.bulk-gap-review {
+  grid-column: 1/-1;
+  max-height: 48vh;
+  overflow: auto;
+  padding: 16px;
+  background: var(--ui-surface-2);
+}
+.bulk-gap-review small {
+  display: block;
+}
+.recovery-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+@media (min-width: 761px) {
+  .product-grid {
+    gap: 24px 18px;
+  }
+  .product-card {
+    box-shadow: none;
+  }
+  .product-visual {
+    background: #f0f0eb;
+    aspect-ratio: 3/3.65;
+  }
+}
+@media (max-width: 760px) {
+  .admin-sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 62px;
+    min-height: 62px;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    z-index: 30;
+  }
+  .admin-sidebar .wordmark,
+  .admin-sidebar .sidebar-bottom {
+    display: none;
+  }
+  .admin-sidebar nav {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+  }
+  .library-navigation {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    height: 62px;
+    gap: 0;
+    padding: 0;
+  }
+  .admin-sidebar .library-navigation a {
+    min-width: 0;
+    width: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    margin: 0;
+  }
+  .workspace {
+    margin-left: 0;
+    padding-bottom: 80px;
+  }
+  .library-find-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .import-record {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .recovery-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bulk-toolbar {
+    bottom: 74px;
+  }
+  #toast {
+    bottom: 140px;
+  }
+}
+.mobile-logout {
+  display: none;
+}
+@media (max-width: 760px) {
+  .admin-sidebar {
+    display: block;
+  }
+  .topbar {
+    display: flex;
+    padding: 10px 16px;
+    min-height: 48px;
+  }
+  .topbar .mobile-logout {
+    display: inline-flex;
+  }
+  .topbar a,
+  .topbar .environment {
+    display: none;
+  }
+}

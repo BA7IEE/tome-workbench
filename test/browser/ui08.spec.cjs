@@ -74,17 +74,19 @@ test("手机顶级业务导航全部可达", async ({ page }) => {
     page.getByRole("link", { name: "商品库", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "待确认", exact: true }),
+    page.getByRole("link", { name: "导入记录", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "设置", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "设置", exact: true }).click();
+  await page.getByText("其他业务记录与维护工具", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "经营待办", exact: true }),
   ).toBeVisible();
-  for (const name of ["销售", "资源", "系统"])
-    await expect(page.getByText(name, { exact: true })).toBeVisible();
   await page.getByText("销售", { exact: true }).click();
-  await expect(
-    page.getByRole("link", { name: "发布记录", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "发布记录", exact: true }).click();
+  await expect(page).toHaveURL(/#\/listings/);
 });
 
 test("正式商品列表状态标签克制，页头只保留一个主动作", async ({ page }) => {

@@ -85,6 +85,8 @@ test("录商品直接选择品牌、国际成色、颜色与材质，保存后�
     "非常好 · Very good condition",
   );
   await page.getByRole("button", { name: "搜索", exact: true }).click();
+  // MVP opens an image grid; explicitly switch to the table before checking its rows.
+  await page.getByRole("button", { name: "列表", exact: true }).click();
   await expect(page.locator("tbody")).toContainText(name);
   const rows = await (
     await page.request.get("/api/items?q=" + encodeURIComponent(name))

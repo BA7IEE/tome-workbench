@@ -1,10 +1,11 @@
 import { saveRoutePosition, restoreRoutePosition } from "./route-context";
+import { importsPage } from "./imports-page";
 import { candidatesPage } from "./candidates-page";
 import { procurementPage } from "./procurement-page";
 import { dictionariesPage } from "./dictionaries-page";
 import { recycleBinPage } from "./recycle-bin";
 declare const __APP_VERSION__: string;
-import { navigation, pageNames } from "./admin-navigation";
+import { navigation, pageNames, extraNavigation } from "./admin-navigation";
 import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
 import { sourcesScreen } from "./sources-screen";
@@ -79,17 +80,27 @@ async function render() {
       return;
     }
   }
+  if (!location.hash || location.hash === "#/") {
+    history.replaceState(null, "", "#/items?view=grid&status=AVAILABLE");
+  }
   const path = location.hash.replace(/^#\/?/, "").split("?")[0],
     parts = path.split("/"),
     page = parts[0] || "items";
-  app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/dashboard" class="wordmark">ToMeBoutique<span>兔泥巴 · 经营工作台</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
+  app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/items?view=grid&status=AVAILABLE" class="wordmark">ToMeBoutique<span>兔泥巴 · 商品资料库</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
     "退出登录",
     async () => {
       await request("/auth/logout", "POST", {});
       location.reload();
     },
     "subtle",
-  )}</div></aside><div class="workspace"><header class="topbar"><span>经营后台</span><div><a href="/showroom" target="_blank" rel="noopener">查看展厅 ↗</a><span class="environment">${__APP_VERSION__}</span></div></header><main id="content"><div class="loading">正在读取数据…</div></main><footer class="app-footer">ToMeBoutique / 事实只维护一次，使用各有记录。</footer></div></div>`;
+  )}</div></aside><div class="workspace"><header class="topbar"><span>商品资料库</span><div>${button(
+    "退出登录",
+    async () => {
+      await request("/auth/logout", "POST", {});
+      location.reload();
+    },
+    "subtle mobile-logout",
+  )}<a href="/showroom" target="_blank" rel="noopener">查看展厅 ↗</a><span class="environment">${__APP_VERSION__}</span></div></header><main id="content"><div class="loading">正在读取数据…</div></main><footer class="app-footer">ToMeBoutique / 事实只维护一次，使用各有记录。</footer></div></div>`;
   let html = "";
   try {
     if (page === "trash") html = await recycleBinPage();
@@ -102,6 +113,7 @@ async function render() {
             : parts[1]
               ? await detailPage(parts[1])
               : await catalogScreen();
+    else if (page === "imports") html = await importsPage();
     else if (page === "candidates") html = await candidatesPage();
     else if (page === "dictionaries") html = await dictionariesPage();
     else if (page === "procurement" && can("supply"))
@@ -119,7 +131,10 @@ async function render() {
     else if (page === "listings") html = await listingsPage();
     else if (page === "sales" && can("finance")) html = await salesPage();
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
-    else if (page === "settings") html = await settingsPage();
+    else if (page === "settings")
+      html =
+        `<div class="page-title"><div><h1>设置</h1><p>账户与常用配置；旧业务记录在下方按需查看。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
+        (await settingsPage());
     else if (page === "jobs" && can("users")) html = await jobsPage();
     else if (page === "audit" && can("audit")) html = await auditPage();
     else html = await dailyWork();

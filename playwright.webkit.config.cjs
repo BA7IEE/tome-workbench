@@ -3,6 +3,7 @@ const base = require("./playwright.config.cjs");
 module.exports = defineConfig({
   ...base,
   testMatch: [
+    "product-library.spec.cjs",
     "studio.spec.cjs",
     "dictionaries.spec.cjs",
     "interaction.spec.cjs",

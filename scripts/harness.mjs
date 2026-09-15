@@ -4,6 +4,13 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const required = [
+  "src/catalog/materials.controller.ts",
+  "web/src/materials.ts",
+  "web/src/imports-page.ts",
+  "web/src/work-storage.ts",
+  "test/browser/product-library.spec.cjs",
+  "docs/contracts/product-materials.md",
+  "prisma/migrations/202609150011_product_materials/migration.sql",
   "src/catalog/test-data.controller.ts",
   "web/src/test-data.ts",
   "web/src/bulk-dictionaries.ts",
@@ -138,6 +145,7 @@ export function checks(
   );
   check("no-skipped-tests", () =>
     [
+      "test/browser/product-library.spec.cjs",
       "test/unit.test.cjs",
       "test/integration.test.cjs",
       "test/browser/workbench.spec.cjs",
@@ -286,6 +294,15 @@ export function checks(
     JSON.parse(read("package.json")).scripts["harness:full"].includes(
       "test:browser:webkit",
     ),
+  );
+  check(
+    "product-library-both-browsers",
+    () =>
+      read("playwright.webkit.config.cjs").includes(
+        "product-library.spec.cjs",
+      ) &&
+      read("playwright.config.cjs").includes("testDir:'./test/browser'") &&
+      !/force\s*:\s*true/.test(read("test/browser/product-library.spec.cjs")),
   );
   return results;
 }

@@ -216,6 +216,9 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   );
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  // Existing work-queue tools now live under the approved MVP Settings entry.
+  await page.getByRole("link", { name: "设置", exact: true }).click();
+  await page.getByText("其他业务记录与维护工具", { exact: true }).click();
   await page.getByRole("link", { name: "经营待办", exact: true }).click();
   await expect(page.getByLabel("查看范围", { exact: true })).toBeVisible();
   await page.goto("/#/sales?id=" + second.id + "&from=tasks");

@@ -94,10 +94,23 @@ export const candidateBulkInput = z
   .object({
     ids: z.array(uuid).min(1).max(100),
     versions: z.record(uuid, z.number().int().positive()).optional(),
+    incompleteAcknowledgements: z
+      .record(uuid, safeText(2000).min(3))
+      .optional(),
     possession: z.enum(["IN_HAND", "NOT_IN_HAND"]),
     status: z.enum(["AVAILABLE", "PAUSED"]).default("AVAILABLE"),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Set(value.ids).size !== value.ids.length)
+      ctx.addIssue({ code: "custom", message: "不能重复选择同一候选" });
+    for (const id of Object.keys(value.incompleteAcknowledgements || {}))
+      if (!value.ids.includes(id) || !value.versions?.[id])
+        ctx.addIssue({
+          code: "custom",
+          message: "缺项确认必须对应所选候选及已核对版本",
+        });
+  });
 
 export const candidateBulkExcludeInput = z
   .object({

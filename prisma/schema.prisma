@@ -362,6 +362,7 @@ model Item {
   purchaseLinks        ItemPurchaseLink[]
   sourceLinks          ItemSourceLink[]
   ingestCandidates     IngestCandidate[]
+  materialExports      MaterialExportEntry[]
 
   @@index([deletedAt, serial])
 }
@@ -438,7 +439,7 @@ model Asset {
 }
 
 model Channel {
-  version Int @default(1)
+  version          Int               @default(1)
   id               String            @id @default(uuid()) @db.Uuid
   name             String
   platform         String
@@ -585,7 +586,7 @@ model Observation {
 }
 
 model Inquiry {
-  version Int @default(1)
+  version     Int      @default(1)
   id          String   @id @default(uuid()) @db.Uuid
   itemId      String   @db.Uuid
   item        Item     @relation(fields: [itemId], references: [id])
@@ -912,20 +913,21 @@ model IngestSession {
 }
 
 model IngestBatch {
-  id                  String            @id @default(uuid()) @db.Uuid
-  sessionId           String            @db.Uuid
-  session             IngestSession     @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  procurementSourceId String            @db.Uuid
-  procurementSource   ProcurementSource @relation(fields: [procurementSourceId], references: [id], onDelete: Restrict)
+  id                  String              @id @default(uuid()) @db.Uuid
+  sessionId           String              @db.Uuid
+  session             IngestSession       @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  procurementSourceId String              @db.Uuid
+  procurementSource   ProcurementSource   @relation(fields: [procurementSourceId], references: [id], onDelete: Restrict)
   externalBatchKey    String
   agentName           String
-  agentVersion        String            @default("")
-  kind                String            @default("ITEM_BATCH")
-  status              String            @default("OPEN")
+  agentVersion        String              @default("")
+  kind                String              @default("ITEM_BATCH")
+  status              String              @default("OPEN")
   rawManifest         Json
-  createdAt           DateTime          @default(now())
+  createdAt           DateTime            @default(now())
   sealedAt            DateTime?
   candidates          IngestCandidate[]
+  members             IngestBatchMember[]
 
   @@unique([procurementSourceId, externalBatchKey])
   @@index([status, createdAt])
@@ -966,10 +968,46 @@ model IngestCandidate {
   confirmedAt           DateTime?
   revisions             IngestCandidateRevision[]
   assets                IngestCandidateAsset[]
+  memberships           IngestBatchMember[]
 
   @@unique([procurementSourceId, externalKey])
   @@index([decision, createdAt])
   @@index([batchId, decision])
+}
+
+model IngestBatchMember {
+  batchId      String          @db.Uuid
+  candidateId  String          @db.Uuid
+  firstVersion Int
+  createdAt    DateTime        @default(now())
+  batch        IngestBatch     @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  candidate    IngestCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+
+  @@id([batchId, candidateId])
+  @@index([candidateId])
+}
+
+model MaterialExport {
+  id        String                @id @default(uuid()) @db.Uuid
+  createdBy String                @db.Uuid
+  createdAt DateTime              @default(now())
+  title     String
+  scope     String
+  dataMode  String
+  entries   MaterialExportEntry[]
+
+  @@index([createdAt, id])
+}
+
+model MaterialExportEntry {
+  exportId String         @db.Uuid
+  itemId   String         @db.Uuid
+  snapshot Json
+  bundle   MaterialExport @relation(fields: [exportId], references: [id], onDelete: Restrict)
+  item     Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([exportId, itemId])
+  @@index([itemId])
 }
 
 model IngestCandidateRevision {

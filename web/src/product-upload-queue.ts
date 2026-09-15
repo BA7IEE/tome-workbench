@@ -1,4 +1,5 @@
-import { ApiError, esc, select, uploadWithProgress } from "./core";
+import { ApiError, esc, select, uploadWithProgress, me } from "./core";
+import { readWork, saveWork } from "./work-storage";
 type ImageJob = {
   file: File;
   preview: string;
@@ -11,6 +12,46 @@ type ImageJob = {
 };
 /** Files stay in this page until the operator saves; the item is never recreated on upload retry. */
 export class ProductUploadQueue {
+  private owner = me?.id || "";
+  private itemId = "";
+  private storageKey() {
+    return `images:${this.owner}:${this.itemId}`;
+  }
+  async restore(itemId: string) {
+    this.itemId = itemId;
+    const saved = await readWork<
+      (Omit<ImageJob, "preview" | "input"> & {
+        input?: [string, FormDataEntryValue][];
+      })[]
+    >(this.storageKey());
+    this.jobs = (saved || []).map((j) => ({
+      ...j,
+      state: j.state === "上传中" ? "结果待确认" : j.state,
+      uncertain: j.uncertain || j.state === "上传中",
+      preview: URL.createObjectURL(j.file),
+      input: j.input
+        ? j.input.reduce((f, [k, v]) => {
+            f.append(k, v);
+            return f;
+          }, new FormData())
+        : undefined,
+    }));
+  }
+  private persist() {
+    if (!this.itemId || !this.owner) return Promise.resolve();
+    const pending = this.jobs
+      .filter((j) => j.state !== "已保存")
+      .map((j) => ({
+        file: j.file,
+        key: j.key,
+        state: j.state,
+        error: j.error,
+        progress: j.progress,
+        uncertain: j.uncertain,
+        input: j.input ? [...j.input.entries()] : undefined,
+      }));
+    return saveWork(this.storageKey(), pending.length ? pending : undefined);
+  }
   private jobs: ImageJob[] = [];
   private root: HTMLElement | null = null;
   private running = false;
@@ -132,6 +173,7 @@ export class ProductUploadQueue {
           return;
         URL.revokeObjectURL(job.preview);
         this.jobs.splice(n, 1);
+        void this.persist().catch((e) => this.error(e.message));
         this.paint();
         changed();
       },
@@ -164,6 +206,7 @@ export class ProductUploadQueue {
       : "";
   }
   async save(itemId: string, origin: string) {
+    this.itemId = itemId;
     let authError: ApiError | undefined;
     this.running = true;
     this.error("");
@@ -187,6 +230,8 @@ export class ProductUploadQueue {
         j.state = "上传中";
         j.error = "";
         this.paint();
+        // Persist the exact file, origin and command key before a write can occur.
+        await this.persist();
         try {
           await uploadWithProgress("/assets/upload", j.input, j.key, (p) => {
             j.progress = p;
@@ -212,9 +257,11 @@ export class ProductUploadQueue {
               e.code === "CSRF_INVALID")
           ) {
             authError = e;
+            await this.persist();
             break;
           }
         }
+        await this.persist();
         this.paint();
       }
     } finally {
@@ -224,7 +271,7 @@ export class ProductUploadQueue {
     if (authError) throw authError;
     if (this.pending)
       throw new Error(
-        "商品档案已保存，仍有图片未完成。保留当前页面后重试，不会重复创建商品。",
+        "商品档案已保存，仍有图片未完成。可在本页重试，或稍后用同一浏览器打开该商品继续，不会重复创建商品。",
       );
   }
 }

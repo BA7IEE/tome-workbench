@@ -1,3 +1,4 @@
+import { exportMaterials } from "./materials";
 import { safeReturn } from "./record-controls";
 import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
@@ -117,6 +118,7 @@ export async function productEntry(id?: string) {
     return `<section class="panel"><h2>这条货源已经建档</h2><p>不会再次创建同一件商品。请打开已有档案继续维护。</p><a class="btn primary" href="#/items/${source.items[0].id}/edit">打开已有商品</a></section>`;
   const root = "entry-" + crypto.randomUUID(),
     files = new ProductUploadQueue();
+  if (id) await files.restore(id);
   const origin = safeReturn(qs.get("returnTo"));
   const fromCandidates = /^#\/candidates(?:\?|$)/.test(origin);
   const returnTarget = () => {
@@ -144,7 +146,7 @@ export async function productEntry(id?: string) {
     ? `<dl class="entry-summary"><dt>商品编号</dt><dd>${esc(base.code)}</dd><dt>实物持有</dt><dd>${base.ownership === "OWN" ? "自有库存" : "供应商持有"}</dd><dt>当前位置</dt><dd>${esc(base.location || "未填写")}</dd></dl><a class="btn" href="#/items/${id}?tab=supply">查看货源与交接</a>`
     : `<div class="form-grid">${select("ownership", "实物持有", { OWN: "自有库存", SUPPLIER: "供应商持有" }, base.ownership)}${field("location", "存放/保管位置", base.location)}</div>`;
   const html = `<div id="${root}" class="product-entry-page studio-workspace"><nav class="breadcrumb" aria-label="当前位置"><a href="${esc(returnTarget())}">${fromCandidates ? "待确认商品" : origin.startsWith("#/procurement") ? "采购历史" : origin.startsWith("#/collections") ? "客户选品" : "商品"}</a><span>/</span><span>${id ? esc(base.code) : "新建"}</span></nav>
-  <header class="studio-commandbar"><div class="studio-command-main"><a class="studio-back" href="${esc(returnTarget())}" aria-label="${returnLabel}">←</a><div><h1>${id ? esc(base.title || "未命名商品") : "新建商品"}</h1><p class="entry-code">${esc(base.code)}${source ? " · 来自 " + esc(source.title) : ""}</p></div></div><div class="studio-command-actions"><span class="entry-save-state" role="status">${id ? "已保存" : "未保存"}</span><button class="btn primary" form="product-entry-form" type="submit" name="intent" value="stay" aria-label="保存商品">保存</button>${can("publish") ? '<button class="btn" form="product-entry-form" type="submit" name="intent" value="publish" aria-label="保存并准备发布">准备发布</button>' : ""}<details class="studio-more"><summary class="btn subtle">更多</summary><div class="studio-more-menu"><button type="submit" form="product-entry-form" name="intent" value="return">保存并返回</button>${nextId ? '<button type="submit" form="product-entry-form" name="intent" value="next">保存并编辑下一件</button>' : !source ? '<button type="submit" form="product-entry-form" name="intent" value="new">保存并新增下一件</button>' : ""}<a href="${esc(returnTarget())}">${returnLabel}</a>${id ? `<a data-detail-link href="#/items/${id}">查看详细记录</a>` : ""}</div></details></div></header>
+  <header class="studio-commandbar"><div class="studio-command-main"><a class="studio-back" href="${esc(returnTarget())}" aria-label="${returnLabel}">←</a><div><h1>${id ? esc(base.title || "未命名商品") : "新建商品"}</h1><p class="entry-code">${esc(base.code)}${source ? " · 来自 " + esc(source.title) : ""}</p></div></div><div class="studio-command-actions"><span class="entry-save-state" role="status">${id ? "已保存" : "未保存"}</span><button class="btn primary" form="product-entry-form" type="submit" name="intent" value="stay" aria-label="保存商品">保存</button><button class="btn" form="product-entry-form" type="submit" name="intent" value="materials" aria-label="保存并下载资料">保存并下载资料</button><details class="studio-more"><summary class="btn subtle">更多</summary><div class="studio-more-menu">${can("publish") ? '<button class="btn" form="product-entry-form" type="submit" name="intent" value="publish" aria-label="保存并准备发布">准备发布</button>' : ""}<button type="submit" form="product-entry-form" name="intent" value="return">保存并返回</button>${nextId ? '<button type="submit" form="product-entry-form" name="intent" value="next">保存并编辑下一件</button>' : !source ? '<button type="submit" form="product-entry-form" name="intent" value="new">保存并新增下一件</button>' : ""}<a href="${esc(returnTarget())}">${returnLabel}</a>${id ? `<a data-detail-link href="#/items/${id}">查看详细记录</a>` : ""}</div></details></div></header>
   ${
     index >= 0
       ? `<div class="editing-queue">连续编辑：第 ${index + 1} / ${context.queue.length} 件${button(
@@ -433,6 +435,12 @@ export async function productEntry(id?: string) {
         stock.paint();
         status.textContent = "已保存";
         if (mode === "quiet") return base;
+        const more = el.querySelector<HTMLDetailsElement>(".studio-more");
+        if (more) more.open = false;
+        if (mode === "materials") {
+          await exportMaterials([base]);
+          return base;
+        }
         if (mode === "publish") {
           await publisher.open(base, publisher.isOpen());
           return base;

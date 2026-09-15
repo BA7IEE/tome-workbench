@@ -1,3 +1,4 @@
+import { exportMaterials, materialHistory } from "./materials";
 import { beginCollection } from "./collection-builder";
 import { bulkPrices } from "./bulk-prices";
 import { quickEdit } from "./quick-edit";
@@ -96,6 +97,10 @@ export async function catalogScreen() {
     "conditionId",
     "colorId",
     "materialId",
+    "sizeLabel",
+    "location",
+    "source",
+    "missing",
     "dataMode",
     "size",
     "category",
@@ -153,6 +158,10 @@ export async function catalogScreen() {
           "conditionId",
           "colorId",
           "materialId",
+          "sizeLabel",
+          "location",
+          "source",
+          "missing",
           "page",
         ].map((key) => [key, ""]),
       ),
@@ -208,6 +217,7 @@ export async function catalogScreen() {
               selected.clear();
               paint();
             }) +
+            button("下载商品资料", () => exportMaterials(chosen()), "primary") +
             button("导出清单", () => downloadCsv(chosen())) +
             (can("publish")
               ? button("创建客户选品", () => beginCollection(chosen()))
@@ -398,6 +408,10 @@ export async function catalogScreen() {
               "listing",
               "sort",
               "size",
+              "sizeLabel",
+              "location",
+              "source",
+              "missing",
             ]
               .map((k) => [k, String(d.get(k) || "")])
               .concat([["page", ""]]),
@@ -438,9 +452,9 @@ export async function catalogScreen() {
     can("edit") || can("supply") || can("delete")
       ? `<details class="page-actions-menu"><summary class="btn">更多</summary><div>${can("edit") ? '<a href="#/items/new">完整建档</a>' : ""}${can("supply") ? '<a href="#/sources">从货源导入</a>' : ""}${can("delete") ? '<a href="#/trash">回收站</a>' : ""}</div></details>`
       : "";
-  return `<div id="${root}" class="catalog-page"><div class="page-title"><div><h1>商品</h1>${scopeTabs}</div><div class="button-row">${can("edit") ? button("＋ 快速录货", () => quickIntake(reload), "primary") : ""}${pageMore}</div></div>
-  <form id="catalog-search" class="catalog-filters admin-filter-form"><input type="hidden" name="dataMode" value="${esc(qs.get("dataMode") || "BUSINESS")}"><label class="search-field"><span>搜索商品</span><input name="q" aria-label="搜索商品" placeholder="编号、旧编号、品牌或商品名称" value="${esc(q)}"></label><label><span>库存状态</span><select name="status" aria-label="商品状态">${options({ "": "全部库存状态", ...statusChoices }, status)}</select></label><label><span>商品品类</span><select name="category" aria-label="筛选品类">${options({ "": "全部品类", ...categories }, qs.get("category") || "")}</select></label>
-  <details class="extra-filters" ${["ownership", "review", "listing", "brandId", "conditionId", "colorId", "materialId"].some((k) => qs.get(k)) ? "open" : ""}><summary>更多筛选</summary><div class="dictionary-filter-grid">${dictionaryFilterField("BRAND", qs.get("brandId") || undefined)}${dictionaryFilterField("CONDITION", qs.get("conditionId") || undefined)}${dictionaryFilterField("COLOR", qs.get("colorId") || undefined)}${dictionaryFilterField("MATERIAL", qs.get("materialId") || undefined)}</div><div class="button-row"><label><span>实物持有</span><select name="ownership">${options({ "": "全部实物持有", OWN: "我方持有", SUPPLIER: "供应商持有" }, qs.get("ownership") || "")}</select></label><label><span>资料状态</span><select name="review">${options({ "": "全部资料状态", pending: "待确认", approved: "已有确认版本" }, qs.get("review") || "")}</select></label><label><span>发布记录</span><select name="listing">${options({ "": "全部发布记录", none: "暂无发布记录", recorded: "有发布记录" }, qs.get("listing") || "")}</select></label></div></details>
+  return `<div id="${root}" class="catalog-page"><div class="page-title"><div><h1>商品</h1>${scopeTabs}</div><div class="button-row">${can("edit") ? button("＋ 快速录货", () => quickIntake(reload), "primary") : ""}${button("资料包与变化", materialHistory)}${pageMore}</div></div>
+  <form id="catalog-search" class="catalog-filters admin-filter-form"><input type="hidden" name="dataMode" value="${esc(qs.get("dataMode") || "BUSINESS")}"><label class="search-field"><span>搜索商品</span><input name="q" aria-label="搜索商品" placeholder="编号、旧编号、品牌或名称" value="${esc(q)}"></label><label><span>库存状态</span><select name="status" aria-label="商品状态">${options({ "": "全部库存状态", ...statusChoices }, status)}</select></label><label><span>商品品类</span><select name="category" aria-label="筛选品类">${options({ "": "全部品类", ...categories }, qs.get("category") || "")}</select></label>
+  <details class="extra-filters" ${["ownership", "review", "listing", "brandId", "conditionId", "colorId", "materialId", "sizeLabel", "location", "source", "missing"].some((k) => qs.get(k)) ? "open" : ""}><summary>更多筛选</summary><div class="library-find-grid">${field("sizeLabel", "尺码", qs.get("sizeLabel") || "")}${field("location", "实物位置", qs.get("location") || "")}${field("source", "来源名称", qs.get("source") || "")}${select("missing", "待补资料", { "": "全部资料", images: "缺图片", price: "缺售价", size: "缺尺码", description: "缺中文介绍" }, qs.get("missing") || "")}</div><div class="dictionary-filter-grid">${dictionaryFilterField("BRAND", qs.get("brandId") || undefined)}${dictionaryFilterField("CONDITION", qs.get("conditionId") || undefined)}${dictionaryFilterField("COLOR", qs.get("colorId") || undefined)}${dictionaryFilterField("MATERIAL", qs.get("materialId") || undefined)}</div><div class="button-row"><label><span>实物持有</span><select name="ownership">${options({ "": "全部实物持有", OWN: "我方持有", SUPPLIER: "供应商持有" }, qs.get("ownership") || "")}</select></label><label><span>资料状态</span><select name="review">${options({ "": "全部资料状态", pending: "待确认", approved: "已有确认版本" }, qs.get("review") || "")}</select></label><label><span>发布记录</span><select name="listing">${options({ "": "全部发布记录", none: "暂无发布记录", recorded: "有发布记录" }, qs.get("listing") || "")}</select></label></div></details>
   <div class="filter-actions"><button class="btn primary">搜索</button>${button(
     "重置",
     resetFilters,

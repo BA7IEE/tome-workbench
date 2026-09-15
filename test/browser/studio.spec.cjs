@@ -1,3 +1,4 @@
+const { revealPublishing } = require("./reveal-section.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 // New default product workspace: no force clicks, no page reloads masking stale rendering.
 const { test, expect } = require("@playwright/test");
@@ -75,9 +76,7 @@ async function basic(page, name) {
 }
 async function tradeFacts(page) {
   await page.getByText("尺寸与材质", { exact: true }).click();
-  await page
-    .getByLabel("实测尺寸")
-    .fill("肩宽40cm，胸围90cm，衣长60cm");
+  await page.getByLabel("实测尺寸").fill("肩宽40cm，胸围90cm，衣长60cm");
   await page.getByLabel("尺寸来源").fill("已核对供应商尺寸记录");
   await page.getByText("鉴定与资料", { exact: true }).click();
   await page.getByLabel("真实性复核").selectOption("PASSED");
@@ -154,11 +153,14 @@ test("一页录货到可复制资料：集中核对一次，不往返商品、�
   page.on("framenavigated", (f) => {
     if (f === page.mainFrame()) navigations.push(f.url());
   });
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
-  await expect(page.getByLabel("供应商图片授权依据", { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByLabel("供应商图片授权依据", { exact: true }),
+  ).not.toBeVisible();
   await expect(page.locator(".studio-missing")).toContainText("资料已齐");
   await expect(page.getByLabel("发布正文", { exact: true })).toContainText(
     "袖口",
@@ -166,9 +168,7 @@ test("一页录货到可复制资料：集中核对一次，不往返商品、�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "资料已就绪", exact: true }),
   ).toBeVisible();
@@ -210,6 +210,7 @@ test("一页录货到可复制资料：集中核对一次，不往返商品、�
 test("发布缺项直接在本页补齐，已经修改的渠道文案保留", async ({ page }) => {
   await start(page);
   await basic(page, "原地补齐 " + randomUUID());
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -219,16 +220,14 @@ test("发布缺项直接在本页补齐，已经修改的渠道文案保留", as
     .getByLabel("发布正文", { exact: true })
     .fill("我自己精修的开头；袖口有轻微磨损。");
   await page.locator("[data-studio-fix=measurements]").click();
-  await expect(
-    page.getByLabel("实测尺寸"),
-  ).toBeFocused();
-  await page
-    .getByLabel("实测尺寸")
-    .fill("宽40cm，长60cm");
+  await expect(page.getByLabel("实测尺寸")).toBeFocused();
+  await page.getByLabel("实测尺寸").fill("宽40cm，长60cm");
   await page.getByLabel("尺寸来源").fill("供应商提供的原始尺寸");
   await page.locator("[data-studio-fix=authentication]").click();
   await page.getByLabel("真实性复核").selectOption("PASSED");
-  await page.getByLabel("鉴定 / 复核依据", { exact: true }).fill("合成复核证据");
+  await page
+    .getByLabel("鉴定 / 复核依据", { exact: true })
+    .fill("合成复核证据");
   await page
     .getByRole("button", { name: "保存商品并重新检查", exact: true })
     .click();
@@ -248,6 +247,7 @@ test("集中复核回执丢失后可继续，不能重复生成或误报已发�
   const name = "集中复核重试 " + randomUUID();
   await basic(page, name);
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -263,9 +263,7 @@ test("集中复核回执丢失后可继续，不能重复生成或误报已发�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "继续上次提交", exact: true }),
   ).toBeVisible();
@@ -370,6 +368,7 @@ test("别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖�
   await start(page);
   await basic(page, "渠道并发 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -468,6 +467,7 @@ test("已经生成资料后仍能编辑并再次生成，回执恢复不会锁�
   await start(page);
   await basic(page, "复用之后继续编辑 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -483,9 +483,7 @@ test("已经生成资料后仍能编辑并再次生成，回执恢复不会锁�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "继续上次提交", exact: true }),
   ).toBeVisible();
@@ -499,9 +497,7 @@ test("已经生成资料后仍能编辑并再次生成，回执恢复不会锁�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(page.getByRole("heading", { name: "资料已就绪" })).toBeVisible();
 });
 
@@ -517,6 +513,7 @@ test("供应商持有的包袋在本页补供货确认，不要求调货或重�
   await page.getByText("货源与实物", { exact: true }).click();
   await page.getByLabel("实物持有", { exact: true }).selectOption("SUPPLIER");
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -539,9 +536,7 @@ test("供应商持有的包袋在本页补供货确认，不要求调货或重�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(page.getByRole("heading", { name: "资料已就绪" })).toBeVisible();
   const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1],
     i = await (await page.request.get("/api/items/" + id)).json();
@@ -554,6 +549,7 @@ test("渠道切换先保存各自文案，返回原账号不丢内容不串号",
   await start(page);
   await basic(page, "两渠道独立文案 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -586,6 +582,7 @@ test("在工作区登记售出后停止旧资料取用，不离开或清空未�
   await start(page);
   await basic(page, "即时售出 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -593,9 +590,7 @@ test("在工作区登记售出后停止旧资料取用，不离开或清空未�
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(page.getByRole("heading", { name: "资料已就绪" })).toBeVisible();
   const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1],
     i = await (await page.request.get("/api/items/" + id)).json(),
@@ -634,6 +629,7 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await start(page);
   await basic(page, "本页发布回执 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -641,9 +637,7 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(page.getByRole("heading", { name: "资料已就绪" })).toBeVisible();
   const current = page.url();
   await page.getByLabel("中文介绍", { exact: true }).fill("不会丢掉的本地备注");
@@ -654,9 +648,7 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
-  await page
-    .getByRole("button", { name: "生成发布资料", exact: true })
-    .click();
+  await page.getByRole("button", { name: "生成发布资料", exact: true }).click();
   await expect(page.getByRole("heading", { name: "资料已就绪" })).toBeVisible();
   await page.getByRole("button", { name: "登记已发布", exact: true }).click();
   await page
@@ -679,6 +671,7 @@ test("保存并返回同时保留当前渠道的未保存文案，不会悄悄�
   await start(page);
   await basic(page, "离开前保存 " + randomUUID());
   await tradeFacts(page);
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
@@ -707,14 +700,13 @@ test("未改过的预览在补齐尺寸后直接更新，不再要求手工重�
 }) => {
   await start(page);
   await basic(page, "自动预览更新 " + randomUUID());
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await page.locator("[data-studio-fix=measurements]").click();
-  await page
-    .getByLabel("实测尺寸")
-    .fill("宽39厘米、长度66厘米");
+  await page.getByLabel("实测尺寸").fill("宽39厘米、长度66厘米");
   await page.getByLabel("尺寸来源").fill("已确认的供应商尺寸说明");
   await page
     .getByRole("button", { name: "保存商品并重新检查", exact: true })
@@ -736,6 +728,7 @@ test("读取发布预览失败可原地重试，已经保存的商品和图片�
       await r.abort("failed");
     } else await r.continue();
   });
+  await revealPublishing(page);
   await page
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();

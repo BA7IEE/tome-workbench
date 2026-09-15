@@ -188,6 +188,20 @@
         ]
       }
     },
+    "/api/ingest/batch-records": {
+      "get": {
+        "operationId": "IngestAdminController_batchRecords",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
     "/api/ingest/items/{id}/evidence": {
       "get": {
         "operationId": "IngestAdminController_itemEvidence",
@@ -1948,6 +1962,78 @@
         ]
       }
     },
+    "/api/material-exports": {
+      "post": {
+        "operationId": "MaterialsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品资料包"
+        ]
+      },
+      "get": {
+        "operationId": "MaterialsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品资料包"
+        ]
+      }
+    },
+    "/api/material-exports/{id}": {
+      "get": {
+        "operationId": "MaterialsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品资料包"
+        ]
+      }
+    },
+    "/api/material-exports/{id}/download": {
+      "get": {
+        "operationId": "MaterialsController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品资料包"
+        ]
+      }
+    },
     "/api/supply/suppliers": {
       "get": {
         "operationId": "SupplyController_suppliers",
@@ -3047,7 +3133,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.0.0-rc.14",
+    "version": "1.0.0-rc.15",
     "contact": {}
   },
   "tags": [],

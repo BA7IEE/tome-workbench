@@ -42,7 +42,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     ],
   },
 ];
-export function navigation(page: string) {
+export function extraNavigation(page: string) {
   return sections
     .map((section) => {
       const entries = section.items.filter(([, , permission]) =>
@@ -66,3 +66,20 @@ export const pageNames = Object.fromEntries(
     section.items.map(([key, label]) => [key, label]),
   ),
 );
+
+export function navigation(page: string) {
+  const rows = [
+    [
+      "items?view=grid&status=AVAILABLE",
+      "商品库",
+      page === "items" || page === "trash",
+    ],
+    ["imports", "导入记录", page === "imports" || page === "candidates"],
+    [
+      "settings",
+      "设置",
+      !["items", "trash", "imports", "candidates"].includes(page),
+    ],
+  ] as const;
+  return `<div class="library-navigation">${rows.map(([path, label, active]) => `<a href="#/${path}" class="${active ? "active" : ""}" ${active ? 'aria-current="page"' : ""}>${label}</a>`).join("")}</div>`;
+}

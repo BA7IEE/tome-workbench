@@ -174,3 +174,17 @@ WriteAttempt、通用form及两种上传队列的未知结果标记持续保留�
 ## rc.14 记录导航上下文
 
 记录页的筛选与上下文独立处理。重置保留id、itemId、合法returnTo、from=tasks及TEST范围，清除搜索和分页。查看全部仅解除身份范围，仍保留数据类型与返回路径。返回地址沿用应用内白名单并进行HTML转义；不增加查询或写入权限，不改变API的数据隔离。
+
+
+## 1.0.0-rc.15 product-library MVP
+
+The operator entry is Items (available grid by default) → batch import records → Settings. Existing business modules remain reachable from Settings. All item, stock and finance writes still belong to their current modules; the prototype's in-memory mutation layer is not used.
+
+- Catalog queries apply size, location, source and missing-field predicates before count/pagination. A confirmed CNY cost sum of zero is zero; absence of confirmed CNY entries is null.
+- IngestBatchMember records stable batch/candidate membership and first observed version. Upserts append membership; the candidate's current batch pointer remains for compatibility. A sealed batch's integrity report comes from its immutable seal audit. Membership links display current candidate decisions; they are not snapshots of every historical source field. Migration backfills only currently provable memberships.
+- Capture evidence accepts webpage evidence or explicit filename/hash/row evidence for offline files. Agent ingestion still cannot directly mutate Item, inventory, sales or cost. Batch confirmation accepts per-candidate incomplete acknowledgements bound to versions; missing originals, identity conflicts and possession requirements remain enforced by the shared service.
+- MaterialExport/MaterialExportEntry hold immutable, role-scoped reference snapshots. Snapshot creation locks items in stable order, checks versions and data scope, and writes audit/receipt transactionally. OPERATIONS is a safe merchandising projection; INTERNAL additionally requires finance and includes raw source material, internal facts and CNY costs. Neither grants public image rights.
+- Downloads compare current facts, original-image metadata/order/rights, aliases, stock and scope with the snapshot. Deleted, reclassified or changed items block old bundle download. Original file length and SHA256 are verified before ZIP streaming; fresh permissions and comparisons are rechecked after hashing. CSV uses decimal currency units; JSON uses explicit integer hundredths and per-item currency. No cross-currency totals.
+- IndexedDB stores account-scoped original command inputs and keys for pending candidate batches, material exports and saved-item uploads. Files are serialized to byte buffers and reconstructed without altering content, including WebKit. Completed chunks/files are not recreated. Recovery requires the same browser profile and retained storage; server records remain authoritative after local storage is cleared. Unsaved text is not synchronized between devices.
+
+Migration 202609150011_product_materials adds only these three history tables, indexes, restricted references and append-only triggers. Existing deployed migrations, stock/ledger constraints and frozen publishing data are unchanged. Export entries also participate in the test-cleanup dependency digest.

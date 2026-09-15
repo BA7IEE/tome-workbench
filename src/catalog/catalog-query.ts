@@ -5,6 +5,10 @@ export const catalogQuery = z.object({
   conditionId: z.string().uuid().optional(),
   colorId: z.string().uuid().optional(),
   materialId: z.string().uuid().optional(),
+  sizeLabel: z.string().trim().max(100).default(""),
+  location: z.string().trim().max(150).default(""),
+  source: z.string().trim().max(150).default(""),
+  missing: z.enum(["", "images", "price", "size", "description"]).default(""),
   q: z.string().max(150).default(""),
   status: z
     .enum([
@@ -46,5 +50,9 @@ export type CatalogFilters = Partial<
     | "conditionId"
     | "colorId"
     | "materialId"
+    | "sizeLabel"
+    | "location"
+    | "source"
+    | "missing"
   >
 >;
