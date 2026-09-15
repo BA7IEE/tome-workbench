@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const fixture = JSON.parse(
@@ -7,7 +8,7 @@ async function login(page) {
   await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom")).toBeVisible();
 }
 async function openNew(page) {
@@ -615,6 +616,8 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
 
 test("最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖", async ({ page }) => {
   await page.goto("/#/items");
+  await expect(page.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
+  await expect(page.locator(".admin-sidebar")).toBeVisible();
   const layout = await page.evaluate(() => ({
     aside: document.querySelector(".admin-sidebar").getBoundingClientRect()
       .right,

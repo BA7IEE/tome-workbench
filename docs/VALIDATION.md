@@ -4,7 +4,7 @@
 
 ## 最终完整运行
 
-已先执行 `node scripts/prepare-test.mjs`，随后 `npm run verify:release` 完整退出 0。`passed=true`、`sourceUnchanged=true`，源码指纹 `61e3f1e7d645b339ee0cff36518d481b4fd800f7f52f007d78e2d3948ea67f9a`。所有检查在同一次最终运行中完成，无跳过、失败或 flaky；不复用旧分支测试结果。
+已先执行 `node scripts/prepare-test.mjs`，随后 `npm run verify:release` 完整退出 0。`passed=true`、`sourceUnchanged=true`，源码指纹 `289bc6599bde53466aa33a58273cf92ba4ef0cf9d7c1fd6bd21bb9a54b683d1d`。所有检查在同一次最终运行中完成，无跳过、失败或 flaky；不复用旧分支测试结果。
 
 | 检查 | 结果 |
 | --- | --- |
@@ -12,14 +12,14 @@
 | Unit | 20 / 20 |
 | Harness 自测 | 12 / 12 |
 | 实际 PostgreSQL integration | 122 / 122 |
-| Chromium | 163 / 163 |
-| WebKit | 163 / 163 |
+| Chromium | 164 / 164 |
+| WebKit | 164 / 164 |
 | HA 进程故障 | 8 / 8 |
-| Recovery 离线恢复 | 65 个模型、900 个素材文件哈希一致；TM 序列和维护锁通过 |
-| Harness 静态守卫 | 135 / 135 |
+| Recovery 离线恢复 | 65 个模型、1824 个素材文件哈希一致；TM 序列和维护锁通过 |
+| Harness 静态守卫 | 136 / 136 |
 | npm audit --audit-level=high | 退出 0，所有级别共 0 漏洞 |
 
-[完整摘要](validation/1.0.1-rc.1/summary.json)；[完整日志](validation/1.0.1-rc.1/verification.log)；[双浏览器逐用例范围比较](validation/1.0.1-rc.1/browser-scope.json)；[audit](validation/1.0.1-rc.1/npm-audit.json)。两种浏览器均执行相同的 16 个文件、163 个用例；包括原 UX 三项以及新增预留/解除恢复组合回归。
+[完整摘要](validation/1.0.1-rc.1/summary.json)；[完整日志](validation/1.0.1-rc.1/verification.log)；[双浏览器逐用例范围比较](validation/1.0.1-rc.1/browser-scope.json)；[audit](validation/1.0.1-rc.1/npm-audit.json)。两种浏览器均执行相同的 16 个文件、164 个用例；包括原 UX 三项、预留/解除恢复组合回归和新增登录真实回执延迟回归。
 
 ## 功能保留与数据库
 
@@ -32,6 +32,12 @@ rc.15–19 的全部原图资料包、导入批次成员和逐件缺项依据、
 新工作区首次单独启动浏览器检查时尚未生成测试夹具；按项目顺序先执行完整 integration 生成合成夹具后继续，没有复制真实资料。新增预留回归曾误把商品 API 的有效预留列表当作全部历史，修正为预留后 1 条、解除后 0 条有效预留；仍验证真实写入、同一幂等键、PAUSED 及显式恢复。
 
 首轮完整 Chromium 为 162 通过、1 失败，原因是旧手机测试用文本“销售”同时匹配新增主导航和设置分组。定位限定到原设置工具分组，保留实际点击与发布记录可达断言，单独复测通过；随后重新执行上表整轮完整验证。没有删减、skip、强制点击、放宽领域检查或刷新掩盖渲染问题。
+
+整合提交 `de6e34c` 的首次两条 Linux CI 均未通过：Chromium 163/163，WebKit 分别 161/163 和 162/163；失败点分散在三个不同用例的登录前置页面断言，业务操作尚未执行，npm audit 因此前失败未运行。上述远端运行不能作为最终通过证据。
+
+统一登录前置为实际点击后等待真实 HTTP 201 和会话响应结构，再执行原页面断言；新增真实后端已写入、回执延迟 5.5 秒的测试，检查禁用重复提交、会话及工作台可用、只发送一次登录。保留整例 45 秒、原页面断言期限及 retries=0。CI 增加不含凭据的登录诊断与合成失败截图/DOM 上下文，以便查明后续失败。未修改生产认证实现。
+
+后续本地全跑 Chromium 164/164、WebKit 163/164，发现布局用例在异步登录态读取完成前直接测量尚未挂载的侧栏。补齐商品标题和侧栏可见的前置条件后，原尺寸和间距断言单独通过；随后再次完整运行，最终为上表双浏览器各 164/164，全部其他检查同时通过。最新远端 CI 需在推送最终提交后另行核对。
 
 ## 交付边界
 

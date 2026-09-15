@@ -40,4 +40,9 @@ jobs:
         if: always()
         with:
           name: verification-reports
-          path: reports/
+          path: |
+            reports/
+            data/browser-artifacts/**/*.png
+            data/browser-artifacts/**/error-context.md
+            data/browser-webkit-artifacts/**/*.png
+            data/browser-webkit-artifacts/**/error-context.md

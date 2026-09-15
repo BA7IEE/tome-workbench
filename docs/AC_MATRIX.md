@@ -263,3 +263,5 @@ arco-workspace.spec.cjs 增加 1440px、390px 两条真实交互：31 件合成�
 - product-library.spec.cjs 的来源缺项与批量关页恢复检查默认 PAUSED。v1-item-center.spec.cjs 的七件导入明确选 AVAILABLE 并逐件核对状态；同图身份测试仍保留，匹配项改为点击单选控件。
 - Harness browser-suite-parity 比较完整文件范围，自测缺失 UX WebKit 文件或跳过 UX 用例应失败。浏览器测试不得删减、skip、放宽业务结果或强制点击。
 - 11 个历史 migration、Prisma Schema、迁移封印必须与 bfffa5c 保持一致；相对 main 仅包含已交付 product_materials 迁移。最终运行数量与证据见 docs/VALIDATION.md，不把目标或待执行检查列为通过。
+
+- Linux CI 登录前置：login.cjs 在真实登录 HTTP 201 和用户/CSRF 结构确认后执行原 UI 断言；保持整例 45 秒与 retries=0。ux101.spec.cjs「登录真实响应延迟时先等确定回执，保留页面断言且只提交一次」真实写入后延迟 5.5 秒，核对按钮禁用、唯一提交、工作台与会话。诊断不记录账户输入、Cookie、CSRF 或响应正文。

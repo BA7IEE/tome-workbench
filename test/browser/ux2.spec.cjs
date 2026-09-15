@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const fixture = JSON.parse(
@@ -7,7 +8,7 @@ async function login(page) {
   await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toBeVisible();
 }
 test.beforeEach(async ({ page }) => {

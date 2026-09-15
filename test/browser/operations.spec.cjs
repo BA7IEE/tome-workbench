@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 const { revealSection } = require("./reveal-section.cjs");
 
@@ -21,7 +22,7 @@ async function login(page) {
   await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(
     page.getByRole("button", { name: "退出登录", exact: true }),
   ).toBeVisible();

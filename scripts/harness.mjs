@@ -11,6 +11,7 @@ export const required = [
   "test/browser/arco-workspace.spec.cjs",
   "test/browser/product-library.spec.cjs",
   "test/browser/ux101.spec.cjs",
+  "test/browser/login.cjs",
   "docs/contracts/product-materials.md",
   "prisma/migrations/202609150011_product_materials/migration.sql",
   "src/catalog/test-data.controller.ts",

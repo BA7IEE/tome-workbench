@@ -1,10 +1,11 @@
+const { submitLogin } = require("./login.cjs");
 const {test,expect}=require('@playwright/test');
 const {randomUUID}=require('node:crypto');
 const fs=require('node:fs');
 const sharp=require('sharp');
 const {chooseDictionary}=require('./dictionary-control.cjs');
 const fixture=JSON.parse(fs.readFileSync('data/browser-fixture.json','utf8'));
-async function login(page){await page.goto('/');await page.getByLabel('登录邮箱').fill(fixture.email);await page.getByLabel('密码',{exact:true}).fill(fixture.password);await page.getByRole('button',{name:'进入工作台'}).click();await expect(page.getByRole('button',{name:'退出登录',exact:true})).toBeVisible();}
+async function login(page){await page.goto('/');await page.getByLabel('登录邮箱').fill(fixture.email);await page.getByLabel('密码',{exact:true}).fill(fixture.password);await submitLogin(page);await expect(page.getByRole('button',{name:'退出登录',exact:true})).toBeVisible();}
 async function photo(name='quick.png'){return{name,mimeType:'image/png',buffer:await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="500" height="600"><rect width="500" height="600" fill="#eee"/><path d="M160 100h180l50 110-70 35-15 250H195l-15-250-70-35z" fill="#555"/></svg>')).png().toBuffer()};}
 async function openQuick(page){await page.goto('/#/items');await page.getByRole('button',{name:'＋ 快速录货',exact:true}).click();const d=page.getByRole('dialog',{name:'快速录货'});await expect(d).toBeVisible();return d;}
 

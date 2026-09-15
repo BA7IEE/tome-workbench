@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const { randomUUID } = require("node:crypto");
@@ -9,7 +10,7 @@ async function login(page, email = fixture.email, password = fixture.password) {
   await page.goto("/");
   await page.getByLabel("登录邮箱").fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(page.locator(".sidebar-bottom")).toBeVisible();
 }
 
@@ -73,7 +74,7 @@ test("运营可以看成交事实但不能读取经营财务账", async ({ page 
   await page.getByRole("button", { name: "退出登录", exact: true }).click();
   await page.getByLabel("登录邮箱").fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(
     page
       .getByRole("navigation", { name: "主导航" })
@@ -179,4 +180,51 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
   expect((await api(page, `/items/${item.id}`, undefined, "GET")).status).toBe(
     "AVAILABLE",
   );
+});
+
+test("登录真实响应延迟时先等确定回执，保留页面断言且只提交一次", async ({
+  page,
+  browser,
+}) => {
+  const context = await browser.newContext();
+  const other = await context.newPage();
+  let writes = 0,
+    committed;
+  const received = new Promise((resolve) => {
+    committed = resolve;
+  });
+  try {
+    await other.goto(new URL(page.url()).origin);
+    await other.getByLabel("登录邮箱").fill(fixture.email);
+    await other.getByLabel("密码", { exact: true }).fill(fixture.password);
+    await other.route("**/api/auth/login", async (route) => {
+      writes++;
+      const response = await route.fetch();
+      committed();
+      // Deliberate post-write response latency, not a retry or a substitute backend.
+      await new Promise((resolve) => setTimeout(resolve, 5500));
+      await route.fulfill({ response });
+    });
+    const pending = submitLogin(other);
+    await received;
+    await expect(
+      other.getByRole("button", { name: "进入工作台" }),
+    ).toBeDisabled();
+    await expect(other.locator(".sidebar-bottom")).toHaveCount(0);
+    await pending;
+    await expect(other.locator(".sidebar-bottom strong")).toHaveText(
+      "合成ADMIN",
+    );
+    await expect(
+      other.getByRole("heading", { name: "工作总览", exact: true }),
+    ).toBeVisible();
+    expect(writes).toBe(1);
+    expect(
+      (
+        await other.request.get(new URL(page.url()).origin + "/api/auth/me")
+      ).status(),
+    ).toBe(200);
+  } finally {
+    await context.close();
+  }
 });

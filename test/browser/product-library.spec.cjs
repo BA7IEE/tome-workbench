@@ -1,3 +1,4 @@
+const { submitLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const { randomUUID, createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -9,7 +10,7 @@ async function login(page) {
   await page.goto("/#/items");
   await page.getByLabel("登录邮箱").fill(fixture.email);
   await page.getByLabel("密码", { exact: true }).fill(fixture.password);
-  await page.getByRole("button", { name: "进入工作台" }).click();
+  await submitLogin(page);
   await expect(
     page.getByRole("heading", { name: "商品", exact: true }),
   ).toBeVisible();
@@ -775,7 +776,7 @@ test("只读角色默认详情不暴露成本、编辑或库存写入入口", as
     await viewer.goto("/");
     await viewer.getByLabel("登录邮箱").fill(email);
     await viewer.getByLabel("密码", { exact: true }).fill(password);
-    await viewer.getByRole("button", { name: "进入工作台" }).click();
+    await submitLogin(viewer);
     await expect(
       viewer.getByRole("button", { name: "退出登录", exact: true }),
     ).toBeVisible();
