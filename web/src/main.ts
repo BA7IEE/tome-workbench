@@ -9,6 +9,7 @@ import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
 import { sourcesScreen } from "./sources-screen";
 import { dailyWork } from "./daily-work";
+import { salesFactsPage } from "./sales-facts-page";
 import { runPageHooks, canLeavePage } from "./page-lifecycle";
 import "./style.css";
 import {
@@ -117,7 +118,8 @@ async function render() {
       html = await operationsPage();
     else if (page === "tasks") html = await tasksPage();
     else if (page === "listings") html = await listingsPage();
-    else if (page === "sales" && can("sell")) html = await salesPage();
+    else if (page === "sales" && can("sell"))
+      html = can("finance") ? await salesPage() : await salesFactsPage();
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings") html = await settingsPage();
     else if (page === "jobs" && can("users")) html = await jobsPage();
