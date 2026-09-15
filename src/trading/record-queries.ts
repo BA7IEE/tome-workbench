@@ -64,47 +64,82 @@ export const dateRange = (q: { dateFrom?: string; dateTo?: string }) =>
 export const pendingFinance: Prisma.SaleWhereInput = {
   OR: [{ amount: null }, { cost: null }, { fees: null }, { paid: false }],
 };
-export async function readSales(db: PrismaService, raw: unknown) {
+export async function readSales(
+  db: PrismaService,
+  raw: unknown,
+  includeFinance = true,
+) {
   const q = recordQuery.parse(raw),
-    page = q.page || 1;
+    page = q.page || 1,
+    dataMode = includeFinance ? q.dataMode : "BUSINESS";
   const where: Prisma.SaleWhereInput = {
     ...(q.id ? { id: q.id } : {}),
     ...(q.itemId ? { itemId: q.itemId } : {}),
-    item: { dataMode: q.dataMode, ...itemSearch(q.q) },
+    item: { dataMode, ...itemSearch(q.q) },
     channel: { contains: q.channel, mode: "insensitive" },
     customerRef: { contains: q.customer, mode: "insensitive" },
     soldAt: dateRange(q),
-    ...(q.pending ? pendingFinance : {}),
+    ...(includeFinance && q.pending ? pendingFinance : {}),
   };
   return db.$transaction(
     async (tx) => {
-      const rows = (
-        await tx.sale.findMany({
-          where,
-          include: {
-            item: {
-              select: {
-                serial: true,
-                title: true,
-                dataMode: true,
-                deletedAt: true,
-              },
+      const found = await tx.sale.findMany({
+        where,
+        include: {
+          item: {
+            select: {
+              serial: true,
+              title: true,
+              dataMode: true,
+              deletedAt: true,
             },
-            adjustments: true,
           },
-          orderBy: [{ soldAt: "desc" }, { id: "asc" }],
-          ...(q.export
-            ? {}
-            : q.page
-              ? { skip: (page - 1) * q.size, take: q.size }
-              : { take: 1000 }),
-        })
-      ).map((s) => ({
-        ...s,
-        code: tm(s.item.serial),
-        contribution: contribution(s),
-      }));
+          adjustments: includeFinance,
+        },
+        orderBy: [{ soldAt: "desc" }, { id: "asc" }],
+        ...(q.export
+          ? {}
+          : q.page
+            ? { skip: (page - 1) * q.size, take: q.size }
+            : { take: 1000 }),
+      });
+      const rows = found.map((s) =>
+        includeFinance
+          ? {
+              ...s,
+              code: tm(s.item.serial),
+              contribution: contribution(s),
+            }
+          : {
+              id: s.id,
+              itemId: s.itemId,
+              code: tm(s.item.serial),
+              item: {
+                serial: s.item.serial,
+                title: s.item.title,
+                dataMode: s.item.dataMode,
+                deletedAt: s.item.deletedAt,
+              },
+              version: s.version,
+              channel: s.channel,
+              customerRef: s.customerRef,
+              state: s.state,
+              returned: s.returned,
+              soldAt: s.soldAt,
+              externalKey: s.externalKey,
+            },
+      );
       if (!q.page && !q.export) return rows; // Legacy bounded array; operator pages explicitly use pagination.
+      const total = await tx.sale.count({ where });
+      if (!includeFinance)
+        return {
+          rows,
+          total,
+          page,
+          size: q.size,
+          financialVisible: false,
+          scope: { dateFrom: q.dateFrom, dateTo: q.dateTo, dataMode },
+        };
       const complete: Prisma.SaleWhereInput = {
         cooperation: "INCLUDED",
         paid: true,
@@ -112,8 +147,7 @@ export async function readSales(db: PrismaService, raw: unknown) {
         cost: { not: null },
         fees: { not: null },
       };
-      const [total, excluded, groups] = await Promise.all([
-        tx.sale.count({ where }),
+      const [excluded, groups] = await Promise.all([
         tx.sale.count({ where: { AND: [where, { cooperation: "EXCLUDED" }] } }),
         tx.sale.groupBy({
           by: ["currency", "returned"],
@@ -141,13 +175,14 @@ export async function readSales(db: PrismaService, raw: unknown) {
         total,
         page,
         size: q.size,
+        financialVisible: true,
         summary: {
           totals,
           pending: total - excluded - included,
           excluded,
           included,
         },
-        scope: { dateFrom: q.dateFrom, dateTo: q.dateTo, dataMode: q.dataMode },
+        scope: { dateFrom: q.dateFrom, dateTo: q.dateTo, dataMode },
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
