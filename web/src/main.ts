@@ -11,7 +11,6 @@ import { catalogScreen } from "./catalog-screen";
 import { sourcesScreen } from "./sources-screen";
 import { dailyWork } from "./daily-work";
 import { runPageHooks, canLeavePage, disposePage } from "./page-lifecycle";
-import "./style.css";
 import {
   app,
   actions,
@@ -43,7 +42,7 @@ import { operationsPage } from "./operations-page";
 let generation = 0;
 let renderedHash = "";
 async function login() {
-  app.innerHTML = `<div class="login-page"><div class="login-brand"><div class="wordmark">ToMeBoutique<span>兔泥巴</span></div><div><div class="eyebrow">PRODUCT & OPERATIONS</div><h1>一件商品，<br>一份清晰的档案。</h1><p>让事实、素材与每一次使用，都留在同一个地方。</p></div><small>内部经营工作台 / ${__APP_VERSION__}</small></div><main class="login-card"><h2>登录工作台</h2><p>使用管理员为你开通的内部账户。</p><form id="login-form"><label class="field"><span>登录邮箱</span><input type="email" name="email" autocomplete="username" required autofocus></label><label class="field"><span>密码</span><input type="password" name="password" autocomplete="current-password" required></label><p class="form-error" role="alert"></p><button type="submit" class="btn primary">进入工作台 →</button></form><small>没有公共注册入口。首次使用请执行管理员初始化脚本。</small></main></div>`;
+  app.innerHTML = `<div class="login-page"><div class="login-brand"><div class="wordmark">ToMeBoutique<span>兔泥巴</span></div><div><div class="eyebrow">PRODUCT & OPERATIONS</div><h1>一件商品，<br>一份清晰的档案。</h1><p>让事实、素材与每一次使用，都留在同一个地方。</p></div><small>内部经营工作台 / ${__APP_VERSION__}</small></div><main class="login-card"><h2>登录工作台</h2><p>使用管理员为你开通的内部账户。</p><form id="login-form"><label class="field"><span>登录邮箱</span><input type="email" name="email" autocomplete="username" required autofocus></label><label class="field"><span>密码</span><input type="password" name="password" autocomplete="current-password" required></label><p class="form-error" role="alert"></p><button type="submit" class="btn primary">进入工作台 →</button></form><small>如需开通账户或重置密码，请联系管理员。</small></main></div>`;
   app.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement,
@@ -134,7 +133,7 @@ async function render() {
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings")
       html =
-        `<div class="page-title"><div><h1>设置</h1><p>账户与常用配置；旧业务记录在下方按需查看。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
+        `<div class="page-title"><div><h1>设置</h1><p>账户与常用配置；其他业务记录可在下方查看。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
         (await settingsPage());
     else if (page === "jobs" && can("users")) html = await jobsPage();
     else if (page === "audit" && can("audit")) html = await auditPage();
@@ -175,8 +174,5 @@ window.addEventListener("hashchange", () => {
 render().catch((e) => {
   app.textContent = "启动失败：" + e.message;
 });
-
-// Interaction fixes load after the original layout styles.
-import "./interaction.css";
 
 import "./ui08.css";

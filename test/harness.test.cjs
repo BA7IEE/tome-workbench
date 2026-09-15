@@ -64,6 +64,12 @@ for (const [name, p, fn, id] of [
     () => "",
     "file:docs/ARCHITECTURE.md",
   ],
+  [
+    "retired stylesheet import",
+    "web/src/main.ts",
+    (s) => s + '\nimport "./style.css";',
+    "single-visual-owner",
+  ],
 ])
   test("harness rejects " + name, async () =>
     assert.equal((await run(p, fn)).find((x) => x.id === id).pass, false),

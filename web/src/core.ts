@@ -392,7 +392,7 @@ export const empty = (message = "暂无记录") =>
 export const note = (s: string) => `<p class="note">${esc(s)}</p>`;
 export function table(heads: string[], rows: string[][]) {
   return rows.length
-    ? `<div class="table-wrap"><table><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+    ? `<div class="table-wrap"><table class="record-table"><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
     : empty();
 }
 export function section(title: string, body: string, controls = "") {

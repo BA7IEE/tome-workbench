@@ -213,3 +213,234 @@ for (const width of [1440, 390]) {
     );
   });
 }
+
+for (const width of [1440, 390]) {
+  test(`${width}px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响`, async ({
+    page,
+  }) => {
+    test.setTimeout(90000);
+    await page.setViewportSize({ width, height: 900 });
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const key = randomUUID().slice(0, 8);
+    const item = await command(page, "/items", {
+      title: "系统样式 " + key,
+      facts: {
+        attributes: {
+          sourceBrand: "Synthetic brand",
+          sourceCondition: "Very Good",
+          sourcePlatform: "Synthetic source",
+        },
+      },
+    });
+    const source = await command(page, "/procurement/sources", {
+      code: "UI" + key,
+      name: "合成样式来源 " + key,
+      defaultCurrency: "USD",
+    });
+    const order = await command(page, "/procurement/orders/import", {
+      procurementSourceId: source.id,
+      externalOrderNo: "UI-" + key,
+      orderedAt: "2024-06-15T12:00:00Z",
+      currency: "USD",
+      paymentAmount: 10000,
+      totalAmount: 10000,
+      rawPayload: { synthetic: true },
+      lines: [
+        {
+          lineKey: "UI-LINE",
+          title: "合成商品 " + key,
+          currency: "USD",
+          lineAmount: 10000,
+        },
+      ],
+    });
+    const routes = [
+      "items?view=grid",
+      "items?view=table",
+      "items/new",
+      `items/${item.id}/edit`,
+      `items/${item.id}?tab=facts`,
+      `items/${item.id}?tab=media`,
+      "imports",
+      "candidates",
+      "settings",
+      "dictionaries",
+      "sources",
+      "procurement",
+      `procurement/${order.id}`,
+      "tasks",
+      "sales",
+      "inquiries",
+      "listings",
+      "collections",
+      "intake",
+      "settlements",
+      "operations",
+      "audit",
+      "jobs",
+      "dashboard",
+      "trash",
+    ];
+    for (const route of routes) {
+      const previousContent = await page.locator("#content").elementHandle();
+      await page.goto("/#/" + route);
+      // Wait for this hash route to mount before inspecting its UI, including
+      // routes that share a heading or show the same type of search form.
+      await page.waitForFunction(
+        (previous) => !previous.isConnected,
+        previousContent,
+      );
+      await previousContent.dispose();
+      const content = page.locator("#content");
+      await expect(content).not.toContainText("正在读取数据");
+      await expect(content).not.toContainText("没有完成读取");
+      await expect(content.locator("h1,h2").first()).toBeVisible();
+      const layout = await page.evaluate(() => ({
+        overflow: document.documentElement.scrollWidth - innerWidth,
+        background: getComputedStyle(document.body).backgroundColor,
+        primary: getComputedStyle(document.body)
+          .getPropertyValue("--ui-primary")
+          .trim(),
+        border: getComputedStyle(document.body)
+          .getPropertyValue("--ui-border")
+          .trim(),
+      }));
+      expect(layout.overflow, route).toBeLessThanOrEqual(2);
+      expect(layout.background, route).toBe("rgb(242, 243, 245)");
+      expect(layout.primary, route).toMatch(/rgb\(\s*22,\s*93,\s*255\s*\)/);
+      expect(layout.border, route).toBeTruthy();
+      if (route === "imports") {
+        const positions = await content
+          .locator(".admin-filter-form")
+          .evaluate((form) => {
+            const input = form.querySelector("input").getBoundingClientRect(),
+              button = form.querySelector("button").getBoundingClientRect();
+            return {
+              inputHeight: input.height,
+              buttonHeight: button.height,
+              bottomDifference: Math.abs(input.bottom - button.bottom),
+            };
+          });
+        expect(positions.inputHeight).toBe(width < 760 ? 40 : 36);
+        expect(positions.buttonHeight).toBe(positions.inputHeight);
+        if (width > 760) expect(positions.bottomDifference).toBeLessThan(2);
+      }
+      if (route === "sources") {
+        const geometry = await content.evaluate((el) => {
+          const rect = (s) => el.querySelector(s).getBoundingClientRect(),
+            input = rect("#source-search"),
+            select = rect("#source-search-form select"),
+            button = rect("#source-search-form button"),
+            title = rect(".page-title > div:first-child"),
+            actions = rect(".page-title > .button-row");
+          return {
+            heights: [input.height, select.height, button.height],
+            actionsBelowTitle: actions.top >= title.bottom,
+            actionsWidth: actions.width,
+          };
+        });
+        expect(geometry.heights).toEqual(Array(3).fill(width < 720 ? 40 : 36));
+        if (width < 720) {
+          expect(geometry.actionsBelowTitle).toBe(true);
+          expect(geometry.actionsWidth).toBeGreaterThan(350);
+        }
+        await page
+          .getByRole("button", { name: "手工录货", exact: true })
+          .click();
+        await expect(
+          page.getByRole("dialog", { name: "快速录货", exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByLabel("商品名称", { exact: true }),
+        ).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).not.toBeVisible();
+        await expect(page).toHaveURL(/#\/sources$/);
+      }
+      if (route === "settings") {
+        const columns = await content
+          .locator(".record-table")
+          .first()
+          .locator("tbody tr")
+          .first()
+          .locator("td")
+          .evaluateAll((cells) =>
+            cells.map((cell) => cell.getBoundingClientRect().width),
+          );
+        expect(columns.length).toBe(6);
+        expect(columns.every((value) => value >= 80)).toBe(true);
+      }
+      if (route === `procurement/${order.id}`) {
+        await expect(page.locator(".procurement-line")).toHaveCount(1);
+        await expect(page.locator(".procurement-line")).toHaveCSS(
+          "border-top-width",
+          "1px",
+        );
+        await expect(page.locator(".procurement-line")).toHaveCSS(
+          "background-color",
+          "rgb(255, 255, 255)",
+        );
+        await expect(page.locator(".procurement-page")).toHaveCSS(
+          "row-gap",
+          "20px",
+        );
+      }
+      if (
+        [
+          "imports",
+          "settings",
+          "sources",
+          `items/${item.id}/edit`,
+          `procurement/${order.id}`,
+        ].includes(route)
+      ) {
+        await page.screenshot({
+          path: `reports/screenshots/system-ui-${width}-${route.split("/")[0]}.png`,
+        });
+      }
+    }
+    await page.goto("/#/items?q=" + encodeURIComponent("系统样式 " + key));
+    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "列表", exact: true }),
+    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    await page.getByRole("button", { name: "图片", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "图片", exact: true }),
+    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    await expect(
+      page.getByRole("button", { name: "列表", exact: true }),
+    ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await page.getByRole("button", { name: "更多筛选", exact: true }).click();
+    await page.getByLabel("品牌", { exact: true }).fill("没有选中的合成品牌");
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await expect(page.locator("#toast")).toContainText("品牌");
+    await expect(page.getByLabel("品牌", { exact: true })).toHaveValue(
+      "没有选中的合成品牌",
+    );
+    await page.getByRole("button", { name: "重置", exact: true }).click();
+    await page.getByRole("button", { name: "退出登录", exact: true }).click();
+    await expect(page.getByLabel("登录邮箱")).toBeVisible();
+    await page.getByLabel("登录邮箱").click();
+    await expect(page.getByLabel("登录邮箱")).toHaveCSS(
+      "border-top-color",
+      "rgb(22, 93, 255)",
+    );
+    await expect(page.getByRole("button", { name: "进入工作台" })).toHaveCSS(
+      "background-color",
+      "rgb(22, 93, 255)",
+    );
+    await page.screenshot({
+      path: `reports/screenshots/system-ui-${width}-login.png`,
+    });
+    await page.goto("/showroom");
+    await expect(page.locator(".showroom")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth,
+      ),
+    ).toBeLessThanOrEqual(2);
+    expect(errors).toEqual([]);
+  });
+}

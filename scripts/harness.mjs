@@ -79,13 +79,11 @@ export const required = [
   "web/src/studio-publisher.ts",
   "web/src/studio-media.ts",
   "web/src/studio-stock.ts",
-  "web/src/studio.css",
   "test/browser/studio.spec.cjs",
   "test/browser/ui08.spec.cjs",
   "test/browser/system-review.spec.cjs",
   "web/src/ui08.css",
   "test/browser/reveal-section.cjs",
-  "web/src/ux2.css",
   "test/browser/ux2.spec.cjs",
   "test/browser/dictionary-control.cjs",
   "test/browser/ux09.spec.cjs",
@@ -124,6 +122,22 @@ export function checks(
     }
   };
   for (const p of required) check("file:" + p, () => read(p).length > 20);
+  // Retired stylesheet presence is no longer a UX gate; the shared owner and
+  // the existing studio/ux2 browser behavior are the current contract.
+  check("single-visual-owner", () => {
+    const imports = [
+      ...read("web/src/main.ts").matchAll(
+        /import\s+["'](\.\/[^"']+\.css)["']/g,
+      ),
+    ].map((match) => match[1]);
+    return (
+      imports.length === 1 &&
+      imports[0] === "./ui08.css" &&
+      read("web/src/ui08.css").startsWith(
+        "@layer arco-base, workbench, arco, product;",
+      )
+    );
+  });
   check(
     "no-real-external-default",
     () =>

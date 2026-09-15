@@ -111,12 +111,20 @@ test("视觉层只有一个最终设计系统所有者", async () => {
   const main = fs.readFileSync("web/src/main.ts", "utf8");
   expect(main).toContain('import "./ui08.css"');
   for (const old of [
+    "style.css",
+    "interaction.css",
     "usability.css",
     "admin-flow.css",
     "studio.css",
     "ux2.css",
-  ])
+  ]) {
     expect(main).not.toContain(`import "./${old}"`);
+    // rc.18 retained active rules in ui08.css; retired files must not return.
+    expect(fs.existsSync("web/src/" + old)).toBe(false);
+  }
+  expect(main.match(/import "\.\/[^\"]+\.css"/g)).toEqual([
+    'import "./ui08.css"',
+  ]);
 });
 
 const { randomUUID } = require("node:crypto");
@@ -229,7 +237,11 @@ test("快速修改完整页入口保护未保存输入，来源等级仍待人�
       },
     });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
-  await page.locator(".catalog-row-menu").click();
+  // A hash navigation may return before its event is dispatched. Wait for the
+  // intended item, rather than matching every menu in the previous catalogue.
+  await page
+    .getByRole("button", { name: `${item.code} 更多操作`, exact: true })
+    .click();
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   await expect(d.locator("[data-source-field=condition]")).toContainText(
