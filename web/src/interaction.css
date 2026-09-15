@@ -1,3 +1,4 @@
+@layer workbench {
 /* Controls must remain reachable by pointer, keyboard and touch. */
 [hidden] {
   display: none !important;
@@ -119,4 +120,6 @@ select:disabled {
 }
 .reauth-dialog .field {
   margin-top: 16px;
+}
+
 }

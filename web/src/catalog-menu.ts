@@ -1,7 +1,9 @@
 // Keep row actions outside the scrolling table's clipping rectangle.
 export function bindCatalogMenus(root: HTMLElement, signal: AbortSignal) {
   const menus = Array.from(
-    root.querySelectorAll<HTMLDetailsElement>(".catalog-row-menu"),
+    root.querySelectorAll<HTMLDetailsElement>(
+      "details.catalog-row-menu, .bulk-more, .page-actions-menu",
+    ),
   );
   const close = (except?: HTMLDetailsElement) => {
     for (const menu of menus) if (menu !== except) menu.open = false;
@@ -12,6 +14,7 @@ export function bindCatalogMenus(root: HTMLElement, signal: AbortSignal) {
       () => {
         if (!menu.open) return;
         close(menu);
+        if (!menu.classList.contains("catalog-row-menu")) return;
         const summary = menu.querySelector("summary")!;
         const panel = menu.querySelector<HTMLElement>(":scope > div")!;
         const rect = summary.getBoundingClientRect();
@@ -31,7 +34,9 @@ export function bindCatalogMenus(root: HTMLElement, signal: AbortSignal) {
     "click",
     (event) => {
       const target = event.target as Element;
-      const menu = target.closest<HTMLDetailsElement>(".catalog-row-menu");
+      const menu = target.closest<HTMLDetailsElement>(
+        "details.catalog-row-menu, .bulk-more, .page-actions-menu",
+      );
       close(menu || undefined);
       if (menu && target.closest("button,a")) menu.open = false;
     },

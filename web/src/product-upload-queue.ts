@@ -68,7 +68,7 @@ export class ProductUploadQueue {
     return this.jobs.length > 0;
   }
   markup(origin = "OWN") {
-    return `<section class="panel entry-photos"><h2>商品图片</h2><p class="note">拖入图片或点击上传；保存时一起处理。</p>${select("entryImageOrigin", "本批图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, origin)}<label class="field studio-file-input"><span>选择商品图片</span><input type="file" name="entryPhotos" accept="image/jpeg,image/png,image/webp" multiple></label><div class="entry-drop" role="button" tabindex="0" aria-label="点击或拖入商品图片"><strong>＋ 添加图片</strong><span>点击选择，或拖到这里</span><small>JPG / PNG / WebP · 每张20MB以内</small></div><div class="entry-file-list"></div><p class="entry-file-error form-error" role="alert"></p><p class="entry-file-summary" role="status"></p></section>`;
+    return `<section class="panel entry-photos"><div class="entry-photo-head"><h2>商品图片</h2>${select("entryImageOrigin", "本批图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, origin)}</div><label class="field studio-file-input"><span>选择商品图片</span><input type="file" name="entryPhotos" accept="image/jpeg,image/png,image/webp" multiple></label><div class="entry-drop" role="button" tabindex="0" aria-label="点击或拖入商品图片"><strong>＋ 添加图片</strong><span>点击选择，或拖到这里</span><small>JPG / PNG / WebP · 每张20MB以内</small></div><div class="entry-file-list"></div><p class="entry-file-error form-error" role="alert"></p><p class="entry-file-summary" role="status"></p></section>`;
   }
   bind(el: HTMLElement, signal: AbortSignal, changed: () => void) {
     this.root = el;

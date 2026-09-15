@@ -341,6 +341,7 @@ test("批量改品牌只影响勾选商品与指定字段，版本冲突单独�
   await expect(page.locator("[data-pick]")).toHaveCount(3);
   await page.getByLabel("选择 " + a.code, { exact: true }).check();
   await page.getByLabel("选择 " + b.code, { exact: true }).check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量修改属性", exact: true }).click();
   await page.locator("#dialog").getByLabel("修改品牌", { exact: true }).check();
   await chooseDictionary(page.locator("#dialog"), "品牌", "Dior", "Dior");

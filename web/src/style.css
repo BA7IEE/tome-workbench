@@ -1,4 +1,5 @@
 /* Legacy structural defaults. ui08.css owns all current visual decisions. */
+@layer legacy, arco-base, workbench, arco, product;
 @layer legacy {
 :root {
   font-family:

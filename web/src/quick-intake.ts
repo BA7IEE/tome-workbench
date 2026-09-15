@@ -1,11 +1,12 @@
+import { createElement } from "react";
+import { mountView } from "./arco/runtime";
+import { QuickFields } from "./arco/quick-fields";
 import { readWork, saveWork } from "./work-storage";
 import {
   can,
   cents,
-  currencies,
   dialog,
   esc,
-  field,
   form,
   request,
   select,
@@ -14,11 +15,9 @@ import {
   me,
 } from "./core";
 import {
-  dictionaryField,
   bindDictionaryFields,
   readDictionarySelections,
 } from "./dictionary-picker";
-import { categories } from "./types";
 
 type Created = { id: string; code: string; existing?: boolean };
 const fingerprint = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
@@ -34,14 +33,8 @@ export function quickIntake(
   let afterMode = "next",
     savedTitle = "";
   const uploadKeys = new Map<string, string>();
-  const fields = `<input type="hidden" name="after" value="next">
-    <section class="quick-intake-core">
-      ${field("title", "商品名称", "", "text", true, 'placeholder="例如：Dior 羊毛短外套"')}
-      ${dictionaryField("BRAND", undefined, "", "")}
-      ${select("category", "品类", categories, "CLOTHING")}
-      <div class="quick-intake-price">${field("price", "对外报价", "", "text", false, 'inputmode="decimal" placeholder="可留空"')}${select("currency", "币种", currencies, "CNY")}</div>
-      ${dictionaryField("CONDITION", undefined, "", "")}
-    </section>`;
+  const fields =
+    '<input type="hidden" name="after" value="next"><section class="quick-intake-core"></section>';
   const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
     <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>可一次选择多张；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div></section>`;
   form(
@@ -156,6 +149,10 @@ export function quickIntake(
   formEl = dialog.querySelector<HTMLFormElement>("form")!;
   const scope = new AbortController();
   dialog.addEventListener("close", () => scope.abort(), { once: true });
+  mountView(
+    formEl.querySelector<HTMLElement>(".quick-intake-core")!,
+    scope.signal,
+  )(createElement(QuickFields));
   bindDictionaryFields(formEl, scope.signal);
   const editButton = formEl.querySelector<HTMLButtonElement>(
     '[data-after="edit"]',
@@ -263,10 +260,10 @@ export function quickIntake(
     },
     { signal: scope.signal },
   );
-  dialog.classList.add("quick-intake-dialog");
+  dialog.classList.add("quick-intake-dialog", "arco-workspace");
   dialog.addEventListener(
     "close",
-    () => dialog.classList.remove("quick-intake-dialog"),
+    () => dialog.classList.remove("quick-intake-dialog", "arco-workspace"),
     { once: true },
   );
 }

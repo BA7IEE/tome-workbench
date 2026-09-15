@@ -10,7 +10,7 @@ import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
 import { sourcesScreen } from "./sources-screen";
 import { dailyWork } from "./daily-work";
-import { runPageHooks, canLeavePage } from "./page-lifecycle";
+import { runPageHooks, canLeavePage, disposePage } from "./page-lifecycle";
 import "./style.css";
 import {
   app,
@@ -66,6 +66,7 @@ async function login() {
 }
 async function render() {
   const g = ++generation;
+  disposePage();
   actions.clear();
   if (location.pathname === "/showroom") {
     app.innerHTML = await showroomPage();

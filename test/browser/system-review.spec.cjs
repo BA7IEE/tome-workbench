@@ -91,6 +91,7 @@ test("批量定价逐件展示并在真实写入回执丢失后重试，不重�
     b = await api(page, "/items", { title: prefix + " B" });
   await page.goto("/#/items?q=" + encodeURIComponent(prefix));
   await page.locator("#select-page").check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量定价", exact: true }).click();
   let d = page.getByRole("dialog");
   expect(
@@ -251,6 +252,7 @@ test("二十件看图选品集中显示两件缺项，维护返回保留标题�
   });
   await page.goto("/#/items?q=" + encodeURIComponent(prefix));
   await page.locator("#select-page").check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
   await page.getByLabel("合集名称", { exact: true }).fill("周末试穿二十件");
   await page.getByLabel("语言与内容模板", { exact: true }).selectOption(c.id);
@@ -301,6 +303,7 @@ test("看图选品真实创建后丢失回执，重试只生成一个合集和�
   });
   await page.goto("/#/items?q=" + encodeURIComponent(prefix));
   await page.locator("#select-page").check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
   await page.getByLabel("合集名称", { exact: true }).fill(prefix);
   await page.getByLabel("语言与内容模板", { exact: true }).selectOption(c.id);
@@ -633,6 +636,7 @@ test("分次加入选品按合并后的数量限制，超限不改变已有选�
       location.hash = "/items?q=" + id;
     }, rows[n].code);
     await page.locator("#select-page").check();
+    await page.locator(".bulk-more > summary").click();
     await page
       .getByRole("button", { name: "创建客户选品", exact: true })
       .click();
@@ -642,6 +646,7 @@ test("分次加入选品按合并后的数量限制，超限不改变已有选�
     location.hash = "/items?q=" + id;
   }, rows[40].code);
   await page.locator("#select-page").check();
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
   await expect(page.locator("#toast")).toContainText("超过40件");
   await page.evaluate(() => {

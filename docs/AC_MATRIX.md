@@ -218,3 +218,15 @@ Multi-source PostgreSQL gate: `多平台异构字段与无订单门店来源共�
 原测试调整依据：导航及主按钮来自已确认的 MVP 需求；售出不递增商品文案版本，因此不能要求合法标题补充必定冲突，库存命令与普通字段编辑仍隔离。新权限测试对普通只读 GET 使用机器 token，明确断言未登录拒绝；写入 POST 还会先受 Origin 保护，不能混淆两种拒绝原因。测试仍使用合成数据和真实隔离 PG，不使用个人订单作自动化夹具。
 
 完整首轮发现两条旧入口断言：字典筛选测试在图片首页返回后真实点击「列表」再检查表格；system-review 保留同件第二笔成交/未保存草稿检查，经设置中的维护工具进入待办。仅调整入口，字段、数量、记录与库存断言不变。
+
+## 1.0.0-rc.16 商品工作区 Arco 展示层
+
+| 验收面 | 边界 | 证据入口 |
+|---|---|---|
+| 商品库与完整编辑 | React + Arco 控件和卡片，日常字段、图片主次分区，手机保持业务顺序；不宣称全站改写 | ui08.spec.cjs、ux2.spec.cjs、ux10.spec.cjs |
+| 选择与筛选共存 | 勾选、半选、批量菜单不擦除待提交搜索或已选品牌；Escape 关闭与回焦 | arco-workspace.spec.cjs、interaction.spec.cjs |
+| 弹层和批量操作 | 真实 Arco 行菜单在表格外，仍可命中、关闭、快速修改和删除；批量操作从明确菜单进入 | ui08.spec.cjs、workbench.spec.cjs、dictionaries.spec.cjs、system-review.spec.cjs |
+| 字段重建与数据保护 | 并发修改后显示差异，保留本次草稿与原图，人工合并后仍需主动保存 | arco-workspace.spec.cjs、operations.spec.cjs、studio.spec.cjs |
+| 原图与断线恢复 | 上传、材料导出保持真实原文件字节和请求键；页面关闭再开恢复 | product-library.spec.cjs |
+
+以上所有浏览器套件仍在 Chromium 和 WebKit 执行。实际通过状态见 docs/VALIDATION.md；合成测试不代表经营者试用或公网部署验收。

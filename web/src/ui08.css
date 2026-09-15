@@ -1,3 +1,25 @@
+@layer legacy, arco-base, workbench, arco, product;
+@import "@arco-design/web-react/es/style/index.css" layer(arco-base);
+@import "@arco-design/web-react/es/Button/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Spin/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Card/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Checkbox/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Empty/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Input/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Trigger/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/_class/OverflowEllipsis/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Tag/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/InputTag/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Select/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Pagination/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Radio/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Space/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Tooltip/style/index.css" layer(arco);
+@import "@arco-design/web-react/es/Table/style/index.css" layer(arco);
+
+@import "@arco-design/web-react/es/Dropdown/style/index.css" layer(arco);
+
+@layer workbench {
 /* 0.8 visual system: one final visual owner for the operational UI. */
 :root {
   --ui-bg: #f6f7f9;
@@ -4196,5 +4218,162 @@ dialog form > footer {
   .topbar a,
   .topbar .environment {
     display: none;
+  }
+}
+
+}
+
+/* React product workspace. Arco owns its components; adapters share its tokens. */
+@layer product {
+  :root {
+    --ui-bg: #f2f3f5;
+    --ui-surface-2: #f7f8fa;
+    --ui-border: #e5e6eb;
+    --ui-border-strong: #c9cdd4;
+    --ui-text: #1d2129;
+    --ui-muted: #86909c;
+    --ui-primary: #165dff;
+    --ui-primary-hover: #4080ff;
+    --ui-primary-soft: #e8f3ff;
+    --ui-radius: 6px;
+  }
+  .arco-workspace { color: var(--color-text-1); }
+  .arco-workspace .arco-btn { min-height: 34px; font-weight: 500; flex-shrink: 0; }
+  .arco-workspace .arco-btn-text { font-weight: 400; }
+  .arco-workspace .arco-btn-secondary { color: rgb(var(--primary-6)); }
+  .arco-workspace input.arco-input,
+  .arco-workspace textarea.arco-textarea {
+    min-height: 34px;
+    padding: 6px 12px;
+    box-shadow: none;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .arco-workspace .arco-input-inner-wrapper { padding: 0 12px; }
+  .arco-workspace .arco-input-inner-wrapper input.arco-input { padding: 0; }
+  .arco-workspace input:focus-visible,
+  .arco-workspace select:focus-visible,
+  .arco-workspace textarea:focus-visible { outline: 2px solid rgba(var(--primary-6), .2); outline-offset: 1px; }
+  .arco-workspace .arco-card { border-radius: 6px; min-width: 0; }
+  .arco-workspace .arco-card-header { padding: 0 20px; height: 48px; border-color: var(--color-border-2); }
+  .arco-workspace .arco-card-header-title { font-size: 14px; font-weight: 600; }
+  .arco-workspace .arco-card-body { padding: 20px; }
+  .arco-workspace .arco-field { gap: 8px; }
+  .arco-field em { color: rgb(var(--danger-6)); font-style: normal; }
+  .arco-workspace label > span:not([class*="arco-"]) { font-size: 13px; color: var(--color-text-2); }
+  .arco-workspace select,
+  .arco-workspace .dictionary-input {
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    background-color: var(--color-fill-2);
+    font-size: 14px;
+    box-shadow: none;
+  }
+  .arco-workspace select:hover,
+  .arco-workspace .dictionary-input:hover { background-color: var(--color-fill-3); }
+  .arco-workspace select:focus,
+  .arco-workspace .dictionary-input:focus { border-color: rgb(var(--primary-6)); background-color: var(--color-bg-2); }
+  .arco-workspace .arco-checkbox { min-width: 0; min-height: 24px; gap: 0; padding: 0; line-height: 24px; cursor: pointer; }
+  .arco-workspace .arco-checkbox input { position: absolute; inset: 0; z-index: 1; cursor: inherit; width: 100%; height: 100%; min-width: 0; min-height: 0; margin: 0; }
+  .arco-workspace .arco-checkbox-text { font-size: 13px; font-weight: 400; }
+  .arco-workspace .arco-tag { font-weight: 400; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .arco-workspace .catalog-filter-card { margin-bottom: 16px; }
+  .arco-workspace .catalog-filters { padding: 0; margin: 0; border: 0; background: none; box-shadow: none; gap: 16px; }
+  .arco-workspace .filter-actions { padding-top: 16px; gap: 8px; }
+  .arco-workspace .catalog-count { font-size: 13px; margin: 20px 0 14px; }
+  .arco-workspace .extra-filters > summary { font-size: 13px; min-height: 34px; }
+  .arco-workspace .product-grid { gap: 20px; }
+  .arco-workspace .product-card { box-shadow: none; transition: border-color .15s; }
+  .arco-workspace .product-visual { background: #fff; aspect-ratio: 4/5; }
+  .arco-workspace .product-check { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 6px; min-width: 36px; min-height: 36px; }
+  .arco-workspace .product-check .arco-checkbox { width: 24px; }
+  .arco-workspace .product-card-info { padding: 16px; }
+  .arco-workspace .product-name { font-size: 14px; line-height: 1.6; min-height: 44px; margin: 8px 0; }
+  .arco-workspace .product-number { font-size: 12px; }
+  .arco-workspace .product-reference-summary { font-size: 12px; color: var(--color-text-3); margin: 12px 0; }
+  .arco-workspace .catalog-price { white-space: nowrap; }
+  .arco-workspace .catalog-price strong { font-size: 15px; font-weight: 600; }
+  .arco-workspace small { display: block; font-size: 12px; line-height: 1.6; }
+  .arco-workspace .table-wrap { overflow: visible; }
+  .arco-workspace .arco-table-container { border-radius: 6px; }
+  .arco-workspace .arco-table-td, .arco-workspace .arco-table-th { padding: 0; vertical-align: middle; }
+  .arco-workspace .arco-table-td .arco-table-cell { padding: 16px 12px; }
+  .arco-workspace .table-product { gap: 14px; }
+  .arco-workspace .table-picture { width: 64px; height: 80px; flex: 0 0 64px; border: 1px solid var(--color-border-2); background: #fff; }
+  .arco-workspace .table-product a:not(.table-picture) { font-weight: 500; }
+  .arco-workspace tr.is-selected .arco-table-td { background: var(--ui-primary-soft); }
+  .arco-workspace .product-card.is-selected { border-color: rgb(var(--primary-6)); box-shadow: 0 0 0 1px rgb(var(--primary-6)); }
+  .arco-workspace .bulk-toolbar { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; background: #fff; border-color: var(--ui-border); font-size: 13px; }
+  .bulk-heading, .bulk-primary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bulk-heading small { margin: 0; }
+  .bulk-more { position: relative; }
+  .bulk-more > summary { list-style: none; cursor: pointer; }
+  .bulk-more > div { position: absolute; z-index: 24; top: calc(100% + 8px); right: 0; display: grid; gap: 4px; padding: 8px; min-width: 180px; max-height: 50vh; overflow: auto; border: 1px solid var(--ui-border); background: #fff; border-radius: 4px; box-shadow: 0 4px 16px #1d212918; }
+  .arco-workspace .studio-commandbar { box-shadow: none; }
+  .arco-workspace .entry-code { font-size: 12px; }
+  .arco-workspace .entry-fields { gap: 20px; }
+  .arco-workspace .studio-main-column,
+  .arco-workspace .studio-inspector { gap: 16px; }
+  .arco-workspace .studio-inspector .arco-card-body { display: grid; gap: 16px; }
+  .arco-workspace .studio-title-card input[name="title"] { height: 40px; font-size: 16px; }
+  .arco-workspace .studio-optional > summary { min-height: 48px; font-size: 14px; }
+  .arco-workspace .studio-optional-body { display: grid; gap: 16px; }
+  .arco-workspace .studio-card, .arco-workspace .entry-photos { box-shadow: none; }
+  .arco-workspace .entry-photos { padding: 20px; }
+  .arco-workspace .entry-photo-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .arco-workspace .entry-photo-head h2 { margin: 0; font-size: 14px; }
+  .arco-workspace .entry-photo-head > label { width: 160px; max-width: 60%; }
+  .arco-workspace .studio-price { grid-template-columns: minmax(0, 1fr) 118px; }
+  .arco-workspace .catalog-row-menu { min-width: 28px; }
+  .catalog-dropdown-actions { display: grid; gap: 4px; padding: 6px; background: var(--color-bg-popup); border: 1px solid var(--color-border-2); border-radius: 4px; min-width: 168px; box-shadow: 0 4px 12px #1d21291a; }
+  .catalog-dropdown-actions .arco-btn { text-align: left; justify-content: flex-start; background: transparent; }
+  .catalog-dropdown-actions .arco-btn:hover { background: var(--color-fill-2); }
+
+  .arco-workspace .extra-filters > .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .arco-workspace .studio-more-menu .arco-btn { text-align: left; justify-content: flex-start; }
+  .admin-sidebar .wordmark { font-family: inherit; font-weight: 600; font-size: 20px; }
+
+  .arco-workspace .studio-photo { border-radius: 4px; box-shadow: none; }
+  .arco-workspace .studio-hint, .arco-workspace .studio-intro { font-size: 12px; }
+  .arco-workspace .quick-edit-core { display: grid; gap: 16px; grid-column: 1/-1; }
+  .arco-workspace .quick-intake-core { gap: 16px; }
+  .arco-workspace .dimension-help, .arco-workspace .dictionary-help { font-size: 12px; }
+  @media (max-width: 760px) {
+    .arco-workspace .arco-btn { min-height: 40px; padding: 0 12px; }
+    .arco-workspace .arco-card-body { padding: 16px; }
+    .arco-workspace .arco-card-header { padding: 0 16px; }
+    .arco-workspace .catalog-filters { gap: 12px; }
+    .arco-workspace .extra-filters > .form-grid { grid-template-columns: 1fr; }
+    .arco-workspace .filter-actions { flex-wrap: wrap; }
+    .arco-workspace .filter-actions label { width: calc(50% - 4px); }
+    .arco-workspace .filter-actions .view-switch { margin-left: auto; }
+    .arco-workspace .catalog-count { font-size: 12px; }
+    .arco-workspace .bulk-toolbar { position: sticky; top: 60px; bottom: auto; max-height: none; overflow: visible; display: grid; }
+    .arco-workspace .bulk-primary { display: grid; grid-template-columns: 1fr 1fr; }
+    .arco-workspace .bulk-primary > .arco-btn { width: 100%; }
+    .arco-workspace .bulk-more > summary { width: 100%; min-height: 40px; }
+    .arco-workspace .bulk-more > div { max-height: 45vh; }
+    .arco-workspace .product-grid { gap: 12px; }
+    .arco-workspace .product-card-info { padding: 10px; }
+    .arco-workspace .product-name { font-size: 13px; }
+    .arco-workspace .product-bottom { flex-wrap: wrap; }
+    .arco-workspace .studio-commandbar { display: grid; grid-template-columns: minmax(0, 1fr); padding: 0; gap: 8px; }
+    .arco-workspace .studio-command-main { width: 100%; }
+    .arco-workspace .studio-command-main > div { flex: 1; overflow: hidden; }
+    .arco-workspace .studio-command-main h1 { max-width: none; }
+    .arco-workspace .entry-code { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .arco-workspace .entry-fields { align-items: stretch; }
+    .arco-workspace .entry-fields .arco-card { width: 100%; }
+
+    .arco-workspace .studio-command-actions { display: flex; flex-wrap: wrap; width: 100%; gap: 8px; }
+    .arco-workspace .entry-save-state { flex: 1 0 100%; }
+    .arco-workspace .studio-command-actions > .arco-btn { flex: 1; }
+    .arco-workspace .entry-fields { gap: 12px; }
+    .arco-workspace .entry-photos { padding: 16px; }
+    .arco-workspace .table-wrap { max-width: 100%; }
+    .arco-workspace .arco-checkbox { min-height: 32px; }
   }
 }

@@ -8,6 +8,7 @@ export const required = [
   "web/src/materials.ts",
   "web/src/imports-page.ts",
   "web/src/work-storage.ts",
+  "test/browser/arco-workspace.spec.cjs",
   "test/browser/product-library.spec.cjs",
   "docs/contracts/product-materials.md",
   "prisma/migrations/202609150011_product_materials/migration.sql",
@@ -145,6 +146,7 @@ export function checks(
   );
   check("no-skipped-tests", () =>
     [
+      "test/browser/arco-workspace.spec.cjs",
       "test/browser/product-library.spec.cjs",
       "test/unit.test.cjs",
       "test/integration.test.cjs",
@@ -303,6 +305,15 @@ export function checks(
       ) &&
       read("playwright.config.cjs").includes("testDir:'./test/browser'") &&
       !/force\s*:\s*true/.test(read("test/browser/product-library.spec.cjs")),
+  );
+  check(
+    "arco-workspace-both-browsers",
+    () =>
+      read("playwright.webkit.config.cjs").includes(
+        "arco-workspace.spec.cjs",
+      ) &&
+      read("playwright.config.cjs").includes("testDir:'./test/browser'") &&
+      !/force\s*:\s*true/.test(read("test/browser/arco-workspace.spec.cjs")),
   );
   return results;
 }

@@ -141,26 +141,39 @@ test("列表末行菜单不被裁切，外部点击与Escape收起并可实际�
   const title = "菜单边界 " + randomUUID(),
     item = await uiApi(page, "/items", { title });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
-  const menu = page.locator(".catalog-row-menu"),
-    summary = menu.locator("summary");
+  const menu = page.getByRole("button", {
+      name: item.code + " 更多操作",
+      exact: true,
+    }),
+    summary = menu;
+  // A click can auto-scroll the table and hide an offscreen action column.
+  // Operators must see this entry before scrolling sideways.
+  await expect(menu).toBeVisible();
+  await expect(page.locator(".catalog-row-menu")).toHaveCount(1);
+  expect(
+    await menu.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= innerWidth;
+    }),
+  ).toBe(true);
   await summary.click();
-  await expect(menu).toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "true");
   await expect
     .poll(() =>
-      menu.locator(":scope > div").evaluate((el) => {
+      page.locator(".catalog-dropdown-actions").evaluate((el) => {
         const r = el.getBoundingClientRect();
         return el.contains(document.elementFromPoint(r.x + 20, r.bottom - 15));
       }),
     )
     .toBe(true);
   await page.keyboard.press("Escape");
-  await expect(menu).not.toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
   await expect(summary).toBeFocused();
   await summary.click();
   await page.getByRole("heading", { name: "商品", exact: true }).click();
-  await expect(menu).not.toHaveAttribute("open", "");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
   await summary.click();
-  await menu.getByRole("button", { name: "快速修改", exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   await d.getByLabel("对外报价", { exact: true }).fill("218");
   await d.getByRole("button", { name: "保存修改", exact: true }).click();
@@ -216,7 +229,7 @@ test("快速修改完整页入口保护未保存输入，来源等级仍待人�
       },
     });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
-  await page.locator(".catalog-row-menu summary").click();
+  await page.locator(".catalog-row-menu").click();
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   await expect(d.locator("[data-source-field=condition]")).toContainText(
@@ -269,7 +282,7 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
   ).toBe(true);
   await toolbar.getByRole("button", { name: "取消选择", exact: true }).click();
   await expect(toolbar).toBeHidden();
-  await page.locator(".catalog-row-menu summary").last().click();
+  await page.locator(".catalog-row-menu").last().click();
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const d = page.getByRole("dialog");
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth + 2)).toBe(
