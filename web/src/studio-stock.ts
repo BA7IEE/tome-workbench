@@ -24,10 +24,48 @@ export function studioStock(
     const latest = await request<Item>(`/items/${get().id}`);
     get().status = latest.status;
     get().offers = latest.offers;
+    get().reservations = latest.reservations;
     paint();
     changed();
   };
   const sold = () => recordSale(get(), refresh);
+  const reserve = () =>
+    form(
+      "预留给客户",
+      field("customerRef", "客户内部标记", "", "text", true) +
+        field(
+          "minutes",
+          "预留时长（分钟）",
+          120,
+          "number",
+          true,
+          'min="5" max="10080"',
+        ) +
+        area("note", "内部说明", "", 2),
+      async (d, key) => {
+        const minutes = Number(text(d, "minutes"));
+        if (!Number.isInteger(minutes) || minutes < 5 || minutes > 10080)
+          throw new Error("预留时长需为5—10080分钟");
+        const result = await request(
+          `/items/${get().id}/reserve`,
+          "POST",
+          {
+            customerRef: text(d, "customerRef"),
+            minutes,
+          },
+          key,
+        );
+        void d.get("note");
+        return result;
+      },
+      "确认预留",
+      refresh,
+    );
+  const release = async () => {
+    await request(`/items/${get().id}/release`, "POST", {});
+    await refresh();
+    toast("预留已解除，商品保持暂停；重新销售前请确认恢复可售");
+  };
   const reopen = () =>
     form(
       "恢复可售",
@@ -116,17 +154,28 @@ export function studioStock(
   function paint() {
     const i = get(),
       host = root.querySelector<HTMLElement>("[data-stock-controls]");
-    if (host)
+    if (host) {
+      const direct: string[] = [];
+      if (can("sell")) {
+        direct.push(button("记录询盘", () => recordInquiry(i)));
+        if (i.status === "AVAILABLE") direct.push(button("预留", reserve));
+        if (canRecordSale(i) && ["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status))
+          direct.push(button("登记售出", sold, "primary"));
+        if (i.status === "RESERVED") direct.push(button("解除预留", release));
+        if (["PAUSED", "QUARANTINED"].includes(i.status) && can("review"))
+          direct.push(button("恢复可售", reopen));
+      }
+      if (i.status === "SOLD")
+        direct.push(
+          `<a class="btn primary" href="#/sales?itemId=${i.id}&returnTo=${encodeURIComponent(location.hash)}">查看成交</a>`,
+        );
       host.innerHTML = i.id
         ? `<span class="studio-stock-badge">${esc(states[i.status] || i.status)}${i.dataMode === "TEST" ? " · 测试" : ""}</span>` +
-          (can("sell")
-            ? button("记录询盘", () => recordInquiry(i, async () => {}))
-            : "") +
+          direct.join("") +
           button("经营记录", () => itemActivity(i)) +
-          `<details class="studio-stock-menu"><summary class="btn subtle">库存操作</summary><div class="studio-stock-menu-list">` +
+          `<details class="studio-stock-menu"><summary class="btn subtle">更多操作</summary><div class="studio-stock-menu-list">` +
           (can("sell")
-            ? (canRecordSale(i) ? button("登记售出", sold) : "") +
-              (["AVAILABLE", "RESERVED"].includes(i.status)
+            ? (["AVAILABLE", "RESERVED"].includes(i.status)
                 ? button("暂停推广", async () => {
                     await request(`/items/${i.id}/state`, "POST", {
                       state: "PAUSED",
@@ -135,13 +184,11 @@ export function studioStock(
                     await refresh();
                     toast("已暂停，渠道实际下架仍需登记回执");
                   })
-                : "") +
-              (["PAUSED", "QUARANTINED"].includes(i.status) && can("review")
-                ? button("复核后恢复可售", reopen)
                 : "")
             : "") +
-          `<a href="#/items/${i.id}">查看详细记录</a></div></details>`
+          `<a href="#/items/${i.id}">档案与历史</a></div></details>`
         : "";
+    }
     const source = root.querySelector<HTMLElement>(
       "[data-section=supply] .studio-optional-body",
     );
