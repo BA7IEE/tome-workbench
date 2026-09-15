@@ -24,7 +24,7 @@ export async function salesFactsPage() {
     page: number;
     size: number;
     financialVisible: false;
-  }>("/sales?" + new URLSearchParams({
+  }>("/sale-facts?" + new URLSearchParams({
     page: qs.get("page") || "1",
     size: "50",
     ...(qs.get("id") ? { id: qs.get("id")! } : {}),
