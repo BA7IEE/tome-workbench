@@ -81,7 +81,7 @@ async function render() {
   }
   const path = location.hash.replace(/^#\/?/, "").split("?")[0],
     parts = path.split("/"),
-    page = parts[0] || "items";
+    page = parts[0] || "dashboard";
   app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/dashboard" class="wordmark">ToMeBoutique<span>兔泥巴 · 经营工作台</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
     "退出登录",
     async () => {
@@ -117,7 +117,7 @@ async function render() {
       html = await operationsPage();
     else if (page === "tasks") html = await tasksPage();
     else if (page === "listings") html = await listingsPage();
-    else if (page === "sales" && can("finance")) html = await salesPage();
+    else if (page === "sales" && can("sell")) html = await salesPage();
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings") html = await settingsPage();
     else if (page === "jobs" && can("users")) html = await jobsPage();
