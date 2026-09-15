@@ -589,12 +589,20 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
   await page.locator(".candidate-history-note summary").click();
   await expect(page.locator(".candidate-warning")).toBeVisible();
   await page.locator(".candidate-actions a").click();
+  await expect(page.locator(".product-overview")).toBeVisible();
+  await page.getByRole("button", { name: "编辑商品", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "返回候选列表", exact: true }).first(),
+    page.getByRole("link", { name: "返回商品详情", exact: true }).first(),
   ).toBeVisible();
   await page.getByLabel("中文介绍", { exact: true }).fill("在TM中维护后的说明");
   await page.locator(".studio-more summary").click();
   await page.getByRole("button", { name: "保存并返回", exact: true }).click();
+  await expect(page.locator(".product-overview")).toContainText(
+    "在TM中维护后的说明",
+  );
+  await page
+    .getByRole("link", { name: "← 返回本次导入记录", exact: true })
+    .click();
   await expect(page).toHaveURL("http://127.0.0.1:4320" + hash);
   await expect(page.locator(".candidate-card")).toHaveCount(1);
   await uiApi(page, "/ingest/sessions/" + session.id + "/revoke", {

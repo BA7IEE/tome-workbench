@@ -345,11 +345,12 @@ test.describe("selection and in-flight writes", () => {
     await expect(
       page.getByLabel("材质成分 / 细节", { exact: true }),
     ).toBeDisabled();
-    await expect(page.locator(".entry-save-state")).toContainText("已保存");
+    await expect(page.locator(".product-overview")).toContainText(
+      "双击保护的合成材质",
+    );
     expect(writes).toBe(1);
-    await expect(
-      page.getByLabel("材质成分 / 细节", { exact: true }),
-    ).toHaveValue("双击保护的合成材质");
+    const saved = await (await page.request.get(`/api/items/${i.id}`)).json();
+    expect(saved.facts.material).toBe("双击保护的合成材质");
   });
   test("未核验图片明确说明不可选原因并提供处理入口", async ({ page }) => {
     const i = await product(page, false);

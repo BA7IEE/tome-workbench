@@ -55,17 +55,34 @@ async function download(id: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
-export async function materialDetails(id: string) {
+export async function materialDetails(
+  id: string,
+  back?: () => Promise<void>,
+  autoDownload = false,
+) {
   const b = await request<Bundle>(`/material-exports/${id}`);
   const changed = b.rows.filter((r) => r.changes.length);
+  const startDownload = async () => {
+    const state = dialog.querySelector<HTMLElement>(
+      ".material-download-state",
+    )!;
+    state.textContent = "资料已整理，正在下载原图资料包…";
+    try {
+      await download(id);
+      state.textContent =
+        "已发起下载。如未收到文件，可再次下载，无需重新整理。";
+    } catch (e) {
+      state.textContent = `资料已整理，下载未完成：${(e as Error).message}。可以重试下载。`;
+    }
+  };
   viewDialog(
     b.title,
     note(
       `整理于 ${when(b.createdAt)} · ${b.rows.length} 件 · ${changed.length} 件有变化。资料整理记录不代表平台已发布。`,
     ) +
-      `<div class="material-changes">${b.rows.map((r) => `<article><div>${r.current ? `<a href="#/items/${r.id}/edit">${esc(r.code)} · ${esc(r.title)}</a>` : esc(r.code + " " + r.title)}<small>${r.changes.length ? "已变化：" + r.changes.map(esc).join("、") : "与整理时一致"}</small></div></article>`).join("")}</div><div class="button-row">` +
+      `<div class="material-changes">${b.rows.map((r) => `<article><div>${r.current ? `<a href="#/items/${r.id}">${esc(r.code)} · ${esc(r.title)}</a>` : esc(r.code + " " + r.title)}<small>${r.changes.length ? "已变化：" + r.changes.map(esc).join("、") : "与整理时一致"}</small></div></article>`).join("")}</div><p class="material-download-state" role="status"></p><div class="button-row">` +
       (!changed.length
-        ? button("下载原图资料包", () => download(id), "primary")
+        ? button("下载原图资料包", startDownload, "primary")
         : button(
             "按当前资料重新整理",
             () =>
@@ -83,8 +100,10 @@ export async function materialDetails(id: string) {
               ),
             "primary",
           )) +
+      (back ? button("返回资料包记录", back) : "") +
       "</div>",
   );
+  if (autoDownload && !changed.length) await startDownload();
 }
 export async function materialHistory() {
   let page = 1;
@@ -110,7 +129,7 @@ export async function materialHistory() {
         (data.rows
           .map(
             (b) =>
-              `<article class="import-check-row"><strong>${esc(b.title)}</strong><span>${b._count.entries}件 · ${when(b.createdAt)} · ${b.scope === "INTERNAL" ? "内部完整" : "运营参考"}</span>${button("查看变化 / 下载", () => materialDetails(b.id))}</article>`,
+              `<article class="import-check-row"><strong>${esc(b.title)}</strong><span>${b._count.entries}件 · ${when(b.createdAt)} · ${b.scope === "INTERNAL" ? "内部完整" : "运营参考"}</span>${button("查看变化 / 下载", () => materialDetails(b.id, paint))}</article>`,
           )
           .join("") || "<p>尚未整理资料包。从商品库勾选商品后下载。</p>") +
         `<div class="pagination">${
@@ -183,9 +202,9 @@ export async function exportMaterials(items: Item[]) {
       await saveWork(storage, undefined);
       return result;
     },
-    "整理资料包",
+    "生成并下载",
     async () => {
-      await materialDetails(attempt!.id!);
+      await materialDetails(attempt!.id!, undefined, true);
     },
   );
 }
@@ -207,7 +226,7 @@ async function resumeMaterialExport(storage: string, attempt: Attempt) {
       return result;
     },
     "继续原提交",
-    () => materialDetails(attempt.id!),
+    () => materialDetails(attempt.id!, undefined, true),
   );
   dialog.querySelector("footer")!.insertAdjacentHTML(
     "afterbegin",

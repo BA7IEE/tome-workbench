@@ -22,7 +22,7 @@ import {
   dictionaryFilterField,
   readDictionarySelections,
 } from "../dictionary-picker";
-import { materialHistory } from "../materials";
+import { materialHistory, exportMaterials } from "../materials";
 import { quickIntake } from "../quick-intake";
 import { quickEdit } from "../quick-edit";
 import { deleteProduct } from "../recycle-bin";
@@ -87,6 +87,12 @@ function RowMenu({ item }: { item: Item }) {
           className="catalog-dropdown-actions arco-workspace"
           aria-label={`${item.code} 操作菜单`}
         >
+          <Action
+            action={{
+              label: "下载商品资料",
+              run: () => run(() => exportMaterials([item])),
+            }}
+          />
           {can("edit") && (
             <Action
               action={{
@@ -129,7 +135,7 @@ function RowMenu({ item }: { item: Item }) {
     </Dropdown>
   );
 }
-const itemLink = (i: Item) => `#/items/${i.id}/${can("edit") ? "edit" : ""}`;
+const itemLink = (i: Item) => `#/items/${i.id}`;
 function Photo({ item }: { item: Item }) {
   return item.assets[0] ? (
     <img
@@ -150,7 +156,6 @@ function Status({ item: i }: { item: Item }) {
       <Tag color={i.status === "AVAILABLE" ? "green" : undefined}>
         {states[i.status]}
       </Tag>
-      {!i.approvedValid && <Tag>待核资料</Tag>}
     </div>
   );
 }
@@ -469,11 +474,11 @@ export function Catalog({
               />
               <SelectField
                 name="review"
-                label="资料状态"
+                label="发布资料审核"
                 choices={{
-                  "": "全部资料状态",
-                  pending: "待确认",
-                  approved: "已有确认版本",
+                  "": "全部审核状态",
+                  pending: "尚未确认发布资料",
+                  approved: "发布资料已确认",
                 }}
                 value={qs.get("review") || ""}
               />

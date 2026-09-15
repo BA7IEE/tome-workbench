@@ -548,7 +548,7 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>) {
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {
   if (candidate.item)
-    return `<a class="btn" href="#/items/${candidate.item.id}${can("edit") ? `/edit?returnTo=${encodeURIComponent(location.hash)}` : ""}">查看 ${esc(tm(candidate.item.serial))}</a>`;
+    return `<a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
   if (candidate.decision === "EXCLUDED")
     return button("重新核对", () => candidateEdit(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
@@ -643,8 +643,15 @@ export async function candidatesPage() {
     }
     await reload();
   };
+  const scopedHref = (status = decision) => {
+    const next = new URLSearchParams({ view, decision: status });
+    if (batchId) next.set("batchId", batchId);
+    const back = qs.get("returnTo");
+    if (back && /^#\/imports(?:\?|$)/.test(back)) next.set("returnTo", back);
+    return "#/candidates?" + esc(next.toString());
+  };
   const body = !data.rows.length
-    ? `<div class="empty panel"><h2>${q || sourceId ? "没有符合条件的商品" : decision === "PENDING" ? "当前没有待确认商品" : "当前没有这类商品"}</h2><p>${q || sourceId ? "试试更换关键词、来源或状态。" : "已确认的商品可以直接在商品库继续维护；新导入的资料会出现在这里。"}</p><div class="button-row">${q || sourceId ? `<a class="btn" href="#/candidates?view=${esc(view)}">清除筛选</a>` : ""}<a class="btn" href="#/items">进入商品库</a>${decision === "PENDING" ? `<a class="btn" href="#/candidates?decision=CONFIRMED&view=${esc(view)}">查看已归入TM</a>` : ""}</div></div>`
+    ? `<div class="empty panel"><h2>${q || sourceId ? "没有符合条件的商品" : decision === "PENDING" ? "当前没有待确认商品" : "当前没有这类商品"}</h2><p>${q || sourceId ? "试试更换关键词、来源或状态。" : "已确认的商品可以直接在商品库继续维护；新导入的资料会出现在这里。"}</p><div class="button-row">${q || sourceId ? `<a class="btn" href="${scopedHref()}">清除筛选</a>` : ""}<a class="btn" href="#/items">进入商品库</a>${decision === "PENDING" ? `<a class="btn" href="${scopedHref("CONFIRMED")}">查看已归入TM</a>` : ""}</div></div>`
     : view === "table"
       ? candidateTable(data.rows, refresh)
       : `<div class="candidate-grid">${data.rows.map((x) => candidateCard(x, refresh)).join("")}</div>`;
@@ -659,9 +666,9 @@ export async function candidatesPage() {
   const html = `<div id="${root}" class="candidate-page">
     <a class="btn subtle" href="${esc(importReturn)}">← 返回导入记录</a>
     ${pending ? `<div class="panel recovery-notice"><strong>上次批量处理尚未核对完成 · ${pending.selected.length} 件</strong>${button("继续上次处理", () => resumeBulk(pending, recoveryKey, refresh), "primary")}</div>` : ""}
-    <div class="page-title"><div><h1>待确认商品</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
+    <div class="page-title"><div><h1>${decision === "PENDING" ? "待确认商品" : batchId ? "本批商品" : "导入商品记录"}</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
     <div class="candidate-metrics"><div><span>当前结果</span><strong>${data.total}</strong><small>${esc(decisionNames[decision] || "全部")}</small></div><div><span>本页</span><strong>${data.rows.length}</strong><small>${start}—${end}</small></div><div><span>处理方式</span><strong>批量优先</strong><small>异常件再单独调整</small></div></div>
-    <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="#/candidates?view=${esc(view)}">重置</a></form>
+    <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="${scopedHref()}">重置</a></form>
     <div class="candidate-viewbar"><label ${decision === "PENDING" && can("edit") ? "" : "hidden"}><input type="checkbox" id="select-candidate-page"> 选择本页</label><div><a class="btn ${view === "cards" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "cards" })}">图片模式</a><a class="btn ${view === "table" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "table" })}">表格模式</a></div></div>
     ${decision === "CONFIRMED" ? '<p class="note">这些商品已归入TM。后续文案、成色和库存请进入对应商品维护，下方保留导入时的来源记录。</p>' : ""}<div id="candidate-bulk" class="bulk-toolbar" hidden></div>${body}
     <div class="pagination"><span>共${data.total}件 · 每页100件</span>${page > 1 ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page - 1) })}">上一页</a>` : ""}${page * data.size < data.total ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page + 1) })}">下一页</a>` : ""}</div>
@@ -745,6 +752,7 @@ export async function candidatesPage() {
           sourceId: text(d, "sourceId"),
           batchId,
           decision: text(d, "decision"),
+          returnTo: /^#\/imports(?:\?|$)/.test(returnTo) ? returnTo : "",
         };
         for (const [key, value] of Object.entries(values))
           if (key === "decision" ? value !== "PENDING" : !!value)

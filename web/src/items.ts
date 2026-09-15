@@ -1,6 +1,8 @@
 import { recordSale, canRecordSale } from "./sale-form";
 import { itemActivity } from "./item-activity";
 import { safeReturn } from "./record-controls";
+import { productOverview } from "./product-overview";
+import { productHref } from "./product-navigation";
 import {
   sourceFieldNote,
   catalogBrand,
@@ -135,6 +137,11 @@ function suggestions(i: Item) {
   );
 }
 export async function detailPage(id: string) {
+  const query = new URLSearchParams(location.hash.split("?")[1] || "");
+  if (!query.has("tab")) {
+    const item = await request<Item>(`/items/${id}`);
+    return item.deletedAt ? deletedNotice(item) : productOverview(item);
+  }
   const [i, channels] = await Promise.all([
     request<Item>(`/items/${id}`),
     request<Channel[]>("/channels"),
@@ -174,7 +181,12 @@ export async function detailPage(id: string) {
   );
   if (back)
     header += `<p><a class="btn" href="${esc(back)}">返回商品工作区</a></p>`;
-  header += `<div class="button-row">${ops.join("")}</div><nav class="tabs">${tabs.map(([key, label]) => `<a class="${key === tab ? "active" : ""}" href="#/items/${i.id}?tab=${key}">${label}</a>`).join("")}</nav>`;
+  const overview =
+    back.split("?")[0] === `#/items/${id}` &&
+    !new URLSearchParams(back.split("?")[1] || "").has("tab")
+      ? back
+      : productHref(id, back);
+  header += `<div class="button-row">${ops.join("")}</div><nav class="tabs"><a href="${esc(overview)}">商品概览</a>${tabs.map(([key, label]) => `<a class="${key === tab ? "active" : ""}" href="#/items/${i.id}?${esc(new URLSearchParams({ tab: key, ...(back ? { returnTo: back } : {}) }).toString())}">${label}</a>`).join("")}</nav>`;
   let content = "";
   if (tab === "facts") {
     const f = i.facts;

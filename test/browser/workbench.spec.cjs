@@ -502,7 +502,10 @@ test("商品列表可删除、取消删除并在回收站恢复原编号", async
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "取消", exact: true }).click();
   await expect(row).toBeVisible();
-  if ((await row.locator(".catalog-row-menu").getAttribute("aria-expanded")) !== "true")
+  if (
+    (await row.locator(".catalog-row-menu").getAttribute("aria-expanded")) !==
+    "true"
+  )
     await row.locator(".catalog-row-menu").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
@@ -553,6 +556,7 @@ test("手机商品详情提供删除，旧编辑页提示先恢复", async ({ pa
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/#/items/${sample.id}`);
+  await page.locator(".overview-more summary").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
   await expect(page.locator("#content")).toContainText("已移入回收站");

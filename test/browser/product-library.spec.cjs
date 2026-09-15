@@ -307,11 +307,10 @@ test("从商品库真实下载原图资料包，售价用元且能查看后续�
   await d
     .getByLabel("我知道来源参考图需另行核对外部使用权限，下载不代表已经发布")
     .check();
-  await d.getByRole("button", { name: "整理资料包", exact: true }).click();
+  const event = page.waitForEvent("download");
+  await d.getByRole("button", { name: "生成并下载", exact: true }).click();
   d = page.getByRole("dialog", { name: title + " 资料" });
   await expect(d).toBeVisible();
-  const event = page.waitForEvent("download");
-  await d.getByRole("button", { name: "下载原图资料包", exact: true }).click();
   const download = await event,
     files = zipFiles(fs.readFileSync(await download.path()));
   const manifest = JSON.parse(files.get("商品资料.json").toString()),
@@ -409,7 +408,7 @@ test("商品页保存后直接整理资料，真实回执丢失并关页后仍�
       body: "{",
     });
   });
-  await d.getByRole("button", { name: "整理资料包", exact: true }).click();
+  await d.getByRole("button", { name: "生成并下载", exact: true }).click();
   await expect(d.locator(".form-error")).toContainText("响应未完整收到");
   const before = await api(page, "/material-exports", undefined, "GET");
   expect(before.rows.filter((r) => r.title === title)).toHaveLength(1);
@@ -438,4 +437,362 @@ test("商品页保存后直接整理资料，真实回执丢失并关页后仍�
   expect(after.total).toBe(before.total);
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
+});
+
+// rc.19: viewing is the default; writes require an explicit action.
+test("商品从列表先查看，取消不写入，保存回详情并保留原筛选与相邻商品", async ({
+  page,
+}) => {
+  const prefix = "浏览路径 " + randomUUID().slice(0, 8);
+  const first = await api(page, "/items", {
+    title: prefix + " A",
+    facts: { sizeLabel: "M" },
+  });
+  const second = await api(page, "/items", { title: prefix + " B" });
+  const before = await api(page, `/items/${first.id}`, undefined, "GET");
+  const hash =
+    "#/items?" +
+    new URLSearchParams({
+      q: prefix,
+      view: "grid",
+      sort: "oldest",
+      size: "60",
+    });
+  await page.goto("/" + hash);
+  const writes = [];
+  page.on("request", (r) => {
+    if (
+      /\/api\//.test(r.url()) &&
+      ["POST", "PATCH", "DELETE"].includes(r.method())
+    )
+      writes.push(r.url());
+  });
+  await page
+    .getByRole("link", { name: prefix + " A", exact: true })
+    .last()
+    .click();
+  await expect(page.locator(".product-overview")).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "保存商品", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".product-overview-facts").first()).toContainText(
+    "M",
+  );
+  await page.getByRole("link", { name: "下一件", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: prefix + " B", exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(second.id));
+  await page.getByRole("link", { name: "上一件", exact: true }).click();
+  await page.getByRole("button", { name: "编辑商品", exact: true }).click();
+  await page.getByLabel("中文介绍", { exact: true }).fill("取消的草稿");
+  const cancelled = new Promise((resolve) =>
+    page.once("dialog", async (d) => {
+      await d.dismiss();
+      resolve();
+    }),
+  );
+  await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+  await cancelled;
+  await expect(page).toHaveURL(new RegExp(first.id + "/edit"));
+  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
+    "取消的草稿",
+  );
+  const left = new Promise((resolve) =>
+    page.once("dialog", async (d) => {
+      await d.accept();
+      resolve();
+    }),
+  );
+  await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+  await left;
+  await expect(page.locator(".product-overview")).toBeVisible();
+  expect(writes).toEqual([]);
+  const unchanged = await api(page, `/items/${first.id}`, undefined, "GET");
+  expect(unchanged.version).toBe(before.version);
+  expect(unchanged.facts).toEqual(before.facts);
+  await page.getByRole("button", { name: "编辑商品", exact: true }).click();
+  await page.getByLabel("中文介绍", { exact: true }).fill("这次主动保存的说明");
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".product-overview")).toContainText(
+    "这次主动保存的说明",
+  );
+  expect(writes.filter((x) => x.endsWith(first.id))).toHaveLength(1);
+  await page.getByRole("link", { name: "← 返回商品列表", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:4320/" + hash);
+  await expect(page.getByLabel("搜索商品")).toHaveValue(prefix);
+});
+
+async function attachOverviewImage(page, item, p) {
+  const auth = await api(page, "/auth/me", undefined, "GET");
+  const r = await page.request.post("/api/assets/upload", {
+    headers: {
+      Origin: new URL(page.url()).origin,
+      "X-CSRF-Token": auth.csrf,
+      "Idempotency-Key": randomUUID(),
+    },
+    multipart: { itemId: item.id, role: "PRODUCT", origin: "OWN", file: p },
+  });
+  expect(r.ok(), await r.text()).toBeTruthy();
+  return r.json();
+}
+
+for (const width of [1440, 390]) {
+  test(`商品详情 ${width}px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const title = "原图浏览 " + randomUUID().slice(0, 8);
+    const item = await api(page, "/items", { title, currentPrice: 128000 });
+    const original = await photo("overview-front.png"),
+      other = await photo("overview-back.png");
+    await attachOverviewImage(page, item, original);
+    await attachOverviewImage(page, item, other);
+    await page.goto(`/#/items/${item.id}`);
+    await expect(page.locator(".product-overview")).toBeVisible();
+    const cover = page.locator(".overview-cover-button img");
+    await expect
+      .poll(() => cover.evaluate((img) => img.naturalWidth))
+      .toBeGreaterThan(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 2,
+      ),
+    ).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "设封面", exact: true }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: `reports/screenshots/product-overview-${width}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole("button", { name: "查看商品大图", exact: true })
+      .click();
+    const d = page.getByRole("dialog", { name: "查看商品图片" });
+    await expect(
+      d.getByRole("button", { name: "上一张", exact: true }),
+    ).toBeDisabled();
+    await d.getByRole("button", { name: "下一张", exact: true }).click();
+    await expect(d.locator(".image-viewer-name")).toHaveText(other.name);
+    await page.keyboard.press("ArrowLeft");
+    await expect(d.locator(".image-viewer-name")).toHaveText(original.name);
+    await d.getByRole("button", { name: "查看原图", exact: true }).click();
+    await expect
+      .poll(() => d.locator("img").evaluate((img) => img.naturalHeight))
+      .toBe(2000);
+    await d.getByRole("button", { name: "放大", exact: true }).click();
+    await expect(
+      d.getByRole("button", { name: "适应窗口", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth + 2)).toBe(
+      true,
+    );
+    const event = page.waitForEvent("download");
+    await d.getByRole("link", { name: "下载原图", exact: true }).click();
+    expect(
+      fs.readFileSync(await (await event).path()).equals(original.buffer),
+    ).toBe(true);
+    await d.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(page.locator(".product-overview")).toBeVisible();
+  });
+}
+
+test("完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批", async ({
+  page,
+}) => {
+  const x = await makeBatch(page, 1),
+    other = await makeBatch(page, 1);
+  const c = x.rows[0];
+  await api(page, `/ingest/candidates/${c.id}/confirm`, {
+    version: c.version,
+    possession: "IN_HAND",
+  });
+  await page.goto("/#/imports?q=" + encodeURIComponent(x.source.name));
+  await page.getByRole("link", { name: "查看本批商品", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "本批商品", exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).hash).toContain("batchId=" + x.batch.id);
+  await page
+    .getByLabel("搜索候选", { exact: true })
+    .fill("没有这种商品-" + randomUUID());
+  await page.getByRole("button", { name: "筛选", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "没有符合条件的商品", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "重置", exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(1);
+  expect(
+    new URLSearchParams(new URL(page.url()).hash.split("?")[1]).get("batchId"),
+  ).toBe(x.batch.id);
+  await page.getByLabel("状态", { exact: true }).selectOption("PENDING");
+  await page.getByRole("button", { name: "筛选", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "当前没有待确认商品", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "查看已归入TM", exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(1);
+  const hash = new URL(page.url()).hash;
+  await page.locator(".candidate-actions a").click();
+  await expect(page.locator(".product-overview")).toBeVisible();
+  await page
+    .getByRole("link", { name: "← 返回本次导入记录", exact: true })
+    .click();
+  await expect(page).toHaveURL("http://127.0.0.1:4320/" + hash);
+  const pending = await api(
+    page,
+    `/ingest/candidates?batchId=${other.batch.id}&decision=PENDING`,
+    undefined,
+    "GET",
+  );
+  expect(pending.total).toBe(1);
+});
+
+test("单件录货可保存关闭，下载失败只重试文件不重复整理", async ({ page }) => {
+  const title = "单件完成 " + randomUUID().slice(0, 8);
+  await page.getByRole("button", { name: "＋ 快速录货", exact: true }).click();
+  const intake = page.getByRole("dialog", { name: "快速录货" });
+  await intake.getByLabel("商品名称", { exact: true }).fill(title);
+  await intake.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(intake).not.toBeVisible();
+  const rows = await api(
+    page,
+    "/items?q=" + encodeURIComponent(title),
+    undefined,
+    "GET",
+  );
+  expect(rows.total).toBe(1);
+  await page.goto(`/#/items/${rows.rows[0].id}`);
+  await page.getByRole("button", { name: "下载商品资料", exact: true }).click();
+  const d = page.getByRole("dialog", { name: "下载商品资料" });
+  await d.getByLabel("本批资料名称").fill(title);
+  await d
+    .getByLabel("我知道来源参考图需另行核对外部使用权限，下载不代表已经发布")
+    .check();
+  let dropped = false;
+  await page.route("**/api/material-exports/*/download", async (route) => {
+    if (!dropped) {
+      dropped = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await d.getByRole("button", { name: "生成并下载", exact: true }).click();
+  const result = page.getByRole("dialog", { name: title, exact: true });
+  await expect(result.locator(".material-download-state")).toContainText(
+    "下载未完成",
+  );
+  const event = page.waitForEvent("download");
+  await result
+    .getByRole("button", { name: "下载原图资料包", exact: true })
+    .click();
+  await event;
+  const exports = await api(page, "/material-exports", undefined, "GET");
+  expect(exports.rows.filter((r) => r.title === title)).toHaveLength(1);
+  await page.keyboard.press("Escape");
+  await page.getByRole("link", { name: "← 返回商品列表", exact: true }).click();
+  await page.getByRole("button", { name: "资料包与变化", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .locator(".import-check-row")
+    .filter({ hasText: title })
+    .getByRole("button", { name: "查看变化 / 下载", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "返回资料包记录", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "资料包与变化", exact: true }),
+  ).toBeVisible();
+});
+
+test("详情暂停需要确认，真实写入丢回执后同键重试且不产生销售", async ({
+  page,
+}) => {
+  const item = await api(page, "/items", { title: "暂停确认 " + randomUUID() });
+  await page.goto(`/#/items/${item.id}`);
+  await page.locator(".studio-stock-menu summary").click();
+  await page.getByRole("button", { name: "暂停推广", exact: true }).click();
+  const d = page.getByRole("dialog", { name: "暂停这件商品推广" });
+  await d.getByRole("button", { name: "取消", exact: true }).click();
+  expect((await api(page, `/items/${item.id}`, undefined, "GET")).status).toBe(
+    "AVAILABLE",
+  );
+  await page.getByRole("button", { name: "暂停推广", exact: true }).click();
+  const keys = [];
+  await page.route(`**/api/items/${item.id}/state`, async (route) => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (keys.length === 1) {
+      const r = await route.fetch();
+      expect(r.ok()).toBe(true);
+      await route.fulfill({
+        status: r.status(),
+        contentType: "application/json",
+        body: "{",
+      });
+    } else await route.continue();
+  });
+  await d.getByRole("button", { name: "确认暂停", exact: true }).click();
+  await expect(d.locator(".form-error")).toContainText("响应未完整收到");
+  await d.getByRole("button", { name: "确认暂停", exact: true }).click();
+  await expect(d).not.toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+  const latest = await api(page, `/items/${item.id}`, undefined, "GET");
+  expect(latest.status).toBe("PAUSED");
+  const sales = await api(page, `/sales?itemId=${item.id}`, undefined, "GET");
+  expect(Array.isArray(sales) ? sales : sales.rows).toHaveLength(0);
+  await expect(page.locator(".studio-stock-badge")).toContainText("已暂停");
+  await expect(page.locator("[data-overview-status]")).toContainText("已暂停");
+});
+
+test("只读角色默认详情不暴露成本、编辑或库存写入入口", async ({
+  page,
+  browser,
+}) => {
+  const suffix = randomUUID(),
+    email = `viewer-${suffix}@example.test`,
+    password = "Synthetic-" + suffix;
+  await api(page, "/auth/users", {
+    email,
+    password,
+    name: "详情只读合成账户",
+    role: "VIEWER",
+  });
+  const item = await api(page, "/items", { title: "只读商品 " + suffix });
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:4320",
+  });
+  const viewer = await context.newPage();
+  try {
+    await viewer.goto("/");
+    await viewer.getByLabel("登录邮箱").fill(email);
+    await viewer.getByLabel("密码", { exact: true }).fill(password);
+    await viewer.getByRole("button", { name: "进入工作台" }).click();
+    await expect(
+      viewer.getByRole("button", { name: "退出登录", exact: true }),
+    ).toBeVisible();
+    await viewer.goto(`/#/items/${item.id}`);
+    await expect(viewer.locator(".product-overview")).toBeVisible();
+    await expect(
+      viewer.getByRole("button", { name: "编辑商品", exact: true }),
+    ).toHaveCount(0);
+    await expect(viewer.getByText("人民币成本", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(
+      viewer.getByRole("button", { name: "记录询盘", exact: true }),
+    ).toHaveCount(0);
+    await expect(viewer.locator(".studio-stock-menu")).toHaveCount(0);
+    await expect(
+      viewer.getByRole("button", { name: "暂停推广", exact: true }),
+    ).toHaveCount(0);
+    const body = await (
+      await viewer.request.get(`/api/items/${item.id}`)
+    ).json();
+    expect("currentCostCny" in body).toBe(false);
+  } finally {
+    await context.close();
+  }
 });

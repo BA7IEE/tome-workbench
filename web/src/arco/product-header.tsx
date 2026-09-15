@@ -14,9 +14,10 @@ export const ProductHeader = forwardRef<
     returnLabel: string;
     sourceTitle?: string;
     nextId?: string;
+    finishOnSave?: boolean;
   }
 >(function ProductHeader(
-  { item, returnTarget, returnLabel, sourceTitle, nextId },
+  { item, returnTarget, returnLabel, sourceTitle, nextId, finishOnSave },
   ref,
 ) {
   const [identity, setIdentity] = useState(item);
@@ -49,6 +50,7 @@ export const ProductHeader = forwardRef<
         <div>
           <h1>{identity.id ? identity.title || "未命名商品" : "新建商品"}</h1>
           <p className="entry-code">
+            {identity.id ? "编辑 · " : ""}
             {identity.code}
             {sourceTitle ? " · 来自 " + sourceTitle : ""}
           </p>
@@ -58,8 +60,13 @@ export const ProductHeader = forwardRef<
         <span className="entry-save-state" role="status">
           {item.id ? "已保存" : "未保存"}
         </span>
-        {save("stay", "保存", "保存商品")}
-        {save("materials", "保存并下载资料", "保存并下载资料", true)}
+        {save(finishOnSave ? "return" : "stay", "保存", "保存商品", true)}
+        {identity.id && (
+          <a className="btn" href={returnTarget}>
+            取消编辑
+          </a>
+        )}
+        {save("materials", "保存并下载资料", "保存并下载资料")}
         <details className="studio-more">
           <summary className="btn subtle">更多</summary>
           <div className="studio-more-menu">
@@ -70,7 +77,7 @@ export const ProductHeader = forwardRef<
               : !sourceTitle && save("new", "保存并新增下一件")}
             <a href={returnTarget}>{returnLabel}</a>
             {identity.id && (
-              <a data-detail-link href={`#/items/${identity.id}`}>
+              <a data-detail-link href={`#/items/${identity.id}?tab=facts`}>
                 查看详细记录
               </a>
             )}

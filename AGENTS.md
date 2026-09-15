@@ -90,3 +90,9 @@ Keep search, ordering and pagination in distinct operator positions with mobile 
 
 ## Shared UI cleanup gate (1.0.0-rc.18)
 Do not restore style.css, interaction.css, usability.css, admin-flow.css, studio.css or ux2.css. Keep the single-visual-owner harness guard and the 1440px/390px whole-system checks in both browsers. Native fields retain visible keyboard focus; filters align controls and mobile headings keep actions below readable text. Native record tables scroll inside their container rather than crushing Chinese labels or widening the page. Removing obsolete presentation code must preserve the existing domain controllers and their real-write, recovery, permissions and original-media tests.
+
+
+## Product browsing and maintenance gate (1.0.0-rc.19)
+Catalog images/titles and links labelled 查看 open the read-only product overview. Editing permission must never choose edit mode implicitly. Overview -> explicit edit -> Save/Cancel returns to the same product and preserves the originating catalog or batch context. Intentional full-entry, publishing and sequential-edit routes retain their full controller/recovery paths.
+Viewing images must not write metadata; original viewing/download uses the authenticated original endpoint. Image navigation retains keyboard focus, handles failed original reads, and cannot render a stale original after changing images. Existing-image actions state that they save immediately and are separate from unsaved text.
+Material creation continues directly to download with retry of the existing snapshot; permission, freshness, original bytes, and response-loss recovery stay enforced. Single intake can finish; continuous intake remains explicit. Completed batch links and filter reset must retain batch identity and return context. Keep the rc.19 journeys in product-library.spec.cjs in both browsers; older default-edit or manual-download-step expectations are superseded only for the changed navigation.

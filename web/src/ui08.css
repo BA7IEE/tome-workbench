@@ -20,6 +20,257 @@
 
 @import "@arco-design/web-react/es/Dropdown/style/index.css" layer(arco);
 
+@layer product {
+  .product-overview {
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+  .product-overview-breadcrumb,
+  .product-overview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .product-overview-breadcrumb {
+    margin-bottom: 20px;
+  }
+  .product-overview-breadcrumb > div {
+    display: flex;
+    gap: 8px;
+  }
+  .product-overview-header {
+    margin-bottom: 24px;
+    align-items: flex-start;
+  }
+  .product-overview-header > div:first-child {
+    min-width: 0;
+  }
+  .product-overview-header h1 {
+    margin: 6px 0 10px;
+    font-size: 26px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .product-overview-header p {
+    margin: 0;
+    color: var(--ui-muted);
+  }
+  .product-overview-header .button-row {
+    flex-shrink: 0;
+  }
+  .product-overview-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+    align-items: start;
+  }
+  .product-overview .panel {
+    padding: 24px;
+  }
+  .product-overview-gallery {
+    margin: 0;
+  }
+  .product-overview .overview-cover-button {
+    display: block;
+    padding: 0;
+    width: 100%;
+    height: auto;
+    background: var(--ui-surface-2);
+    border: 0;
+  }
+  .overview-cover-button img {
+    display: block;
+    width: 100%;
+    height: min(52vw, 540px);
+    object-fit: contain;
+  }
+  .product-overview-thumbnails {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 12px 2px 4px;
+  }
+  .product-overview .overview-thumbnail {
+    width: 64px;
+    height: 80px;
+    padding: 3px;
+    flex: 0 0 64px;
+    background: var(--ui-surface-2);
+  }
+  .overview-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .product-overview-info {
+    min-width: 0;
+  }
+  .product-overview-prices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px 40px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--ui-border);
+  }
+  .product-overview-prices span {
+    display: block;
+    color: var(--ui-muted);
+    margin-bottom: 8px;
+  }
+  .product-overview-prices strong {
+    display: block;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .product-overview-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 28px;
+    margin: 22px 0 0;
+  }
+  .product-overview-facts dt {
+    font-size: 13px;
+    color: var(--ui-muted);
+    margin-bottom: 5px;
+  }
+  .product-overview-facts dd {
+    margin: 0;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .product-overview-operations [data-stock-controls] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .product-overview-operations h2 {
+    margin: 0 0 16px;
+  }
+  .product-overview-operations .note {
+    margin-bottom: 0;
+  }
+  .product-overview-gaps {
+    padding: 0 4px;
+    color: var(--ui-muted);
+  }
+  .product-overview-descriptions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .product-overview-descriptions h3 {
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0 0 12px;
+  }
+  .product-overview-records > summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .product-overview-records[open] > summary {
+    margin-bottom: 20px;
+  }
+  dialog.product-image-dialog {
+    width: min(1120px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+  .image-viewer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .image-viewer-toolbar span {
+    min-width: 50px;
+    text-align: center;
+  }
+  .image-viewer-stage {
+    height: min(65vh, 760px);
+    width: 100%;
+    overflow: auto;
+    background: var(--ui-surface-2);
+  }
+  .image-viewer-stage img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .image-viewer-stage.enlarged img {
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+  .image-viewer-name {
+    overflow-wrap: anywhere;
+    color: var(--ui-muted);
+  }
+  @media (max-width: 900px) {
+    .product-overview-header {
+      flex-direction: column;
+    }
+    .product-overview-layout {
+      gap: 16px;
+    }
+    .product-overview .panel {
+      padding: 18px;
+    }
+  }
+  @media (max-width: 600px) {
+    .product-overview-layout,
+    .product-overview-descriptions {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .product-overview-header h1 {
+      font-size: 22px;
+    }
+    .product-overview-breadcrumb {
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .product-overview-breadcrumb .btn {
+      padding: 6px 10px;
+    }
+    .overview-cover-button img {
+      height: 400px;
+      max-height: 55vh;
+    }
+    .product-overview-header .button-row {
+      width: 100%;
+    }
+    .product-overview-header .button-row .btn {
+      flex: 1;
+    }
+    .product-overview .panel {
+      padding: 16px;
+    }
+    .product-overview-prices {
+      gap: 16px 28px;
+    }
+    .image-viewer-toolbar {
+      gap: 8px;
+    }
+    .image-viewer-toolbar .btn {
+      padding: 6px 10px;
+      min-height: 36px;
+    }
+    dialog.product-image-dialog .dialog-content {
+      padding: 16px;
+    }
+    .quick-intake-dialog footer {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
 @layer workbench {
   :root {
     font-family:

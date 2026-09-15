@@ -12,7 +12,6 @@ import {
   area,
   check,
   text,
-  toast,
 } from "./core";
 import { states, type Item, type Supplier } from "./types";
 export function studioStock(
@@ -127,21 +126,33 @@ export function studioStock(
           (can("sell")
             ? (canRecordSale(i) ? button("登记售出", sold) : "") +
               (["AVAILABLE", "RESERVED"].includes(i.status)
-                ? button("暂停推广", async () => {
-                    await request(`/items/${i.id}/state`, "POST", {
-                      state: "PAUSED",
-                      reason: "经营者在商品工作区暂停推广",
-                    });
-                    await refresh();
-                    toast("已暂停，渠道实际下架仍需登记回执");
-                  })
+                ? button("暂停推广", () =>
+                    form(
+                      "暂停这件商品推广",
+                      `<p>确认暂停 ${esc(i.code)} · ${esc(i.title)}？已发布的渠道仍需实际下架并登记回执。</p>` +
+                        area("reason", "暂停原因", "暂时停止推广", 2),
+                      (d, k) =>
+                        request(
+                          `/items/${i.id}/state`,
+                          "POST",
+                          {
+                            state: "PAUSED",
+                            reason: text(d, "reason"),
+                          },
+                          k,
+                        ),
+                      "确认暂停",
+                      refresh,
+                    ),
+                  )
                 : "") +
               (["PAUSED", "QUARANTINED"].includes(i.status) && can("review")
                 ? button("复核后恢复可售", reopen)
                 : "")
             : "") +
-          `<a href="#/items/${i.id}">查看详细记录</a></div></details>`
+          `<a href="#/items/${i.id}?tab=supply&returnTo=${encodeURIComponent(location.hash)}">其他库存与交接操作</a></div></details>`
         : "";
+    if (!can("sell")) host?.querySelector(".studio-stock-menu")?.remove();
     const source = root.querySelector<HTMLElement>(
       "[data-section=supply] .studio-optional-body",
     );

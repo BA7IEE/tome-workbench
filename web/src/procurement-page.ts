@@ -834,7 +834,7 @@ function lineActions(line: PLine) {
   ];
   if (line.itemLink)
     parts.push(
-      `<a class="btn" href="#/items/${line.itemLink.item.id}/edit?returnTo=${encodeURIComponent(location.hash)}">${esc(`查看 TM${String(line.itemLink.item.serial).padStart(6, "0")}`)}</a>`,
+      `<a class="btn" href="#/items/${line.itemLink.item.id}?returnTo=${encodeURIComponent(location.hash)}">${esc(`查看 TM${String(line.itemLink.item.serial).padStart(6, "0")}`)}</a>`,
     );
   else if (line.sourceCandidate)
     parts.push(

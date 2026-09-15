@@ -6,6 +6,7 @@ import {
   catalogFilterScope,
   rememberList,
   selectItem,
+  rememberBrowseResults,
 } from "./catalog-context";
 import { bindCatalogMenus } from "./catalog-menu";
 import { bindDictionaryFields } from "./dictionary-picker";
@@ -27,6 +28,7 @@ export async function catalogScreen() {
     page: number;
     size: number;
   }>(`/items?${filters}`);
+  rememberBrowseResults(data.rows.map((i) => i.id));
   for (const row of data.rows)
     if (catalogContext().selected.has(row.id)) selectItem(row, true);
   const root = "catalog-" + crypto.randomUUID();

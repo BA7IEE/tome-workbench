@@ -90,7 +90,7 @@ export async function dailyWork() {
         ? drafts
             .map(
               (i) =>
-                `<div class="action-row"><div><a href="#/items/${i.id}/${can("edit") ? "edit" : ""}">${esc(i.title)}</a><small>${esc(i.code)} · ${esc(i.brand || "品牌待补")}</small></div><a class="btn" href="#/items/${i.id}/${can("edit") ? "edit" : ""}">继续维护</a></div>`,
+                `<div class="action-row"><div><a href="#/items/${i.id}">${esc(i.title)}</a><small>${esc(i.code)} · ${esc(i.brand || "品牌待补")}</small></div><a class="btn" href="#/items/${i.id}/${can("edit") ? "edit" : ""}">继续维护</a></div>`,
             )
             .join("")
         : note("最近载入的商品中没有待确认资料。"),

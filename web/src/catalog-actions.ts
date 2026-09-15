@@ -31,7 +31,7 @@ function downloadCsv(rows: Item[]) {
       "位置",
       "币种",
       "对外报价",
-      "资料状态",
+      "发布资料审核",
     ],
     ...rows.map((i) => [
       i.code,
@@ -117,7 +117,7 @@ export function catalogActions(chosen: () => Item[]): CatalogAction[] {
         },
       },
       {
-        label: "安排补资料",
+        label: "检查发布缺项",
         run: async () => {
           const channels = await request<Channel[]>("/channels"),
             choices = Object.fromEntries(

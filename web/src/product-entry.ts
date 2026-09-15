@@ -120,12 +120,18 @@ export async function productEntry(id?: string) {
     base = { ...base, ...v, facts: { ...base.facts, ...v.facts } };
   }
   if (source?.items.length)
-    return `<section class="panel"><h2>这条货源已经建档</h2><p>不会再次创建同一件商品。请打开已有档案继续维护。</p><a class="btn primary" href="#/items/${source.items[0].id}/edit">打开已有商品</a></section>`;
+    return `<section class="panel"><h2>这条货源已经建档</h2><p>不会再次创建同一件商品。请打开已有档案继续维护。</p><a class="btn primary" href="#/items/${source.items[0].id}">打开已有商品</a></section>`;
   const root = "entry-" + crypto.randomUUID(),
     files = new ProductUploadQueue();
   if (id) await files.restore(id);
   const origin = safeReturn(qs.get("returnTo"));
   const fromCandidates = /^#\/candidates(?:\?|$)/.test(origin);
+  const fromOverview = Boolean(
+    id &&
+    origin.startsWith(`#/items/${id}`) &&
+    !origin.split("?")[0].endsWith("/edit") &&
+    !new URLSearchParams(origin.split("?")[1] || "").has("tab"),
+  );
   const returnTarget = () => {
     if (origin) return origin;
     const last = catalogContext().listHash || "#/items";
@@ -134,15 +140,17 @@ export async function productEntry(id?: string) {
       ? "#/items?dataMode=TEST"
       : last;
   };
-  const returnLabel = fromCandidates
-    ? "返回候选列表"
-    : origin.startsWith("#/procurement")
-      ? "返回采购记录"
-      : origin.startsWith("#/collections")
-        ? "返回客户选品"
-        : "返回商品列表";
+  const returnLabel = fromOverview
+    ? "返回商品详情"
+    : fromCandidates
+      ? "返回候选列表"
+      : origin.startsWith("#/procurement")
+        ? "返回采购记录"
+        : origin.startsWith("#/collections")
+          ? "返回客户选品"
+          : "返回商品列表";
   const context = catalogContext(),
-    index = context.queue.indexOf(id || ""),
+    index = fromOverview ? -1 : context.queue.indexOf(id || ""),
     nextId = index >= 0 ? context.queue[index + 1] : undefined;
   const knownPhotos = base.assets.filter(
     (a) => !a.archived && a.role !== "DOCUMENT",
@@ -164,7 +172,7 @@ export async function productEntry(id?: string) {
       : ""
   }
   <div class="studio-operating-bar"><div class="studio-stock-controls" data-stock-controls></div>${id ? `<div class="item-source-access">${button("查看全部来源资料", () => showItemEvidence(id), "subtle")}</div>` : ""}</div>
-  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">先录货，随时补充。保存不会自动发布。</p><div class="entry-conflicts" hidden></div>
+  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">${id ? "正在编辑商品资料。文字和新图片点击保存后生效。" : "先录货，随时补充。保存不会自动发布。"}</p><div class="entry-conflicts" hidden></div>
   <section class="panel entry-source"><h2>货源与实物</h2>${provenance}${!id && can("users") ? select("dataMode", "记录类型", { BUSINESS: "正式经营商品", TEST: "测试数据（不计入经营统计）" }, "BUSINESS") : base.dataMode === "TEST" ? '<p class="notice warning">测试商品：不计入正式统计，不展示到公开展厅。</p>' : ""}</section><div class="entry-fields"></div>
   <section class="entry-existing-media" ${knownPhotos.length ? "" : "hidden"}>${studioGallery(base.assets, base.id)}</section>
   ${files.markup(base.ownership === "SUPPLIER" ? "SUPPLIER" : "OWN")}
@@ -183,6 +191,7 @@ export async function productEntry(id?: string) {
         returnLabel,
         sourceTitle: source?.title,
         nextId,
+        finishOnSave: fromOverview,
       }),
     );
     const renderFields = mountView(

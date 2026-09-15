@@ -13,6 +13,7 @@ import {
   text,
   uploadWithProgress,
   me,
+  toast,
 } from "./core";
 import {
   bindDictionaryFields,
@@ -30,20 +31,20 @@ export function quickIntake(
   const owner = me!.id;
   let formEl: HTMLFormElement | null = null;
   let lastItem: Created | null = null;
-  let afterMode = "next",
+  let afterMode = "close",
     savedTitle = "";
   const uploadKeys = new Map<string, string>();
   const fields =
-    '<input type="hidden" name="after" value="next"><section class="quick-intake-core"></section>';
+    '<input type="hidden" name="after" value="close"><section class="quick-intake-core"></section>';
   const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
     <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>可一次选择多张；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div></section>`;
   form(
     "快速录货",
-    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}/edit">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">先把货记下来。尺寸、材质、鉴定、英文和发布资料以后再补。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
+    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">先把货记下来。尺寸、材质、鉴定、英文和发布资料以后再补。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
     async (d, key) => {
       if (!formEl) throw new Error("录货窗口尚未准备完成");
       const picked = readDictionarySelections(formEl);
-      afterMode = text(d, "after") || "next";
+      afterMode = text(d, "after") || "close";
       savedTitle = text(d, "title");
       const body = {
         title: text(d, "title"),
@@ -125,13 +126,17 @@ export function quickIntake(
       }
       return item;
     },
-    "保存并下一件",
+    "保存并关闭",
     async () => {
       const saved = lastItem;
       if (!saved) return;
       await afterSaved?.();
       if (afterMode === "edit") {
         location.hash = `/items/${saved.id}/edit`;
+        return;
+      }
+      if (afterMode === "close") {
+        toast(`已保存 ${saved.code} · ${savedTitle}`);
         return;
       }
       setTimeout(
@@ -160,17 +165,29 @@ export function quickIntake(
   const footer = formEl.querySelector("footer")!,
     primary = footer.querySelector<HTMLButtonElement>("button[type=submit]")!;
   footer.insertBefore(editButton, primary);
+  const nextButton = document.createElement("button");
+  nextButton.type = "button";
+  nextButton.className = "btn";
+  nextButton.dataset.after = "next";
+  nextButton.textContent = "保存并下一件";
+  footer.insertBefore(nextButton, primary);
   const hidden = formEl.elements.namedItem("after") as HTMLInputElement;
-  formEl.querySelector('[data-after="edit"]')?.addEventListener(
+  primary.addEventListener(
     "click",
     () => {
-      hidden.value = "edit";
-      formEl!.requestSubmit(
-        formEl!.querySelector<HTMLButtonElement>("button[type=submit]")!,
-      );
+      hidden.value = "close";
     },
     { signal: scope.signal },
   );
+  for (const control of [editButton, nextButton])
+    control.addEventListener(
+      "click",
+      () => {
+        hidden.value = control.dataset.after!;
+        formEl!.requestSubmit(primary);
+      },
+      { signal: scope.signal },
+    );
   const input = formEl.elements.namedItem("photos") as HTMLInputElement,
     preview = formEl.querySelector<HTMLElement>(".quick-intake-previews")!,
     drop = formEl.querySelector<HTMLElement>(".quick-intake-drop")!;

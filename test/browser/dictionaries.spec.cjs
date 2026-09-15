@@ -291,6 +291,7 @@ test("有模拟成交也能从删除窗口清理，保留历史金额并显示�
     channel: "浏览器模拟渠道",
   });
   await page.goto("/#/items/" + i.id);
+  await page.locator(".overview-more summary").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
   await page
     .getByRole("button", { name: "有模拟成交？清理测试数据", exact: true })

@@ -554,10 +554,19 @@ test("采购第二页往返TM保留关键词来源页码和列表位置", async 
       .getByRole("link", { name: "核对订单", exact: true })
       .click();
   }
-  await page.locator('a[href*="/edit?returnTo="]').first().click();
+  await page
+    .getByRole("link", { name: /^查看 TM/ })
+    .first()
+    .click();
+  await expect(page.locator(".product-overview")).toBeVisible();
+  await page.getByRole("button", { name: "编辑商品", exact: true }).click();
   await page.getByLabel("中文介绍", { exact: true }).fill("合成采购往返补充");
   await page.locator("details.studio-more summary").click();
   await page.getByRole("button", { name: "保存并返回", exact: true }).click();
+  await expect(page.locator(".product-overview")).toContainText(
+    "合成采购往返补充",
+  );
+  await page.getByRole("link", { name: "← 返回采购记录", exact: true }).click();
   await expect(page).toHaveURL("http://127.0.0.1:4320/" + orderHash);
   await page.getByRole("link", { name: "← 采购订单", exact: true }).click();
   await expect(page).toHaveURL("http://127.0.0.1:4320" + hash);
