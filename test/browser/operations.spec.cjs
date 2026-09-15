@@ -227,7 +227,8 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
   const first = page.locator("[data-pick]").first();
   const firstId = await first.getAttribute("data-pick");
   await first.click();
-  await page.getByRole("button", { name: "下一页", exact: true }).click();
+  // Arco pagination exposes a keyboard-focusable, labelled page entry.
+  await page.getByLabel("下一页", { exact: true }).click();
   await expect(page.locator(".catalog-count")).toContainText("第 2 / 2 页");
   const second = page.locator("[data-pick]").first();
   const secondId = await second.getAttribute("data-pick");

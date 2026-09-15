@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Button,
   Card,
   Dropdown,
   Empty,
   Input,
+  Select,
   Table,
   Tag,
 } from "@arco-design/web-react";
 import { can, money, reload, toast, when } from "../core";
 import {
   catalogContext,
+  catalogFilterScope,
   rememberList,
   selectItem,
   saveListScroll,
@@ -28,6 +30,7 @@ import { catalogActions, type CatalogAction } from "../catalog-actions";
 import { categories, states, type Item } from "../types";
 import { ControllerSlot } from "./runtime";
 import { TextField, SelectField, SelectionBox } from "./fields";
+import { CatalogPagination } from "./catalog-pagination";
 
 function Action({ action }: { action: CatalogAction }) {
   const [pending, setPending] = useState(false);
@@ -173,6 +176,7 @@ export function Catalog({
   scope: string;
 }) {
   const [, update] = useState(0);
+  const searchForm = useRef<HTMLFormElement>(null);
   const selected = catalogContext().selected;
   const { page, size } = data;
   const view = qs.get("view") || "table";
@@ -226,9 +230,8 @@ export function Catalog({
       pick={i.id}
     />
   );
-  const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const f = e.currentTarget,
+  const applyFilters = (presentation: Record<string, string> = {}) => {
+    const f = searchForm.current!,
       d = new FormData(f);
     try {
       const chosen = readDictionarySelections(f).dictionary;
@@ -241,21 +244,25 @@ export function Catalog({
           "ownership",
           "review",
           "listing",
-          "sort",
-          "size",
           "sizeLabel",
           "location",
           "source",
           "missing",
         ].map((k) => [k, String(d.get(k) || "")]),
       );
-      go({
+      const filters = {
         ...changes,
         brandId: chosen.brand || "",
         conditionId: chosen.condition || "",
         colorId: chosen.color || "",
         materialId: chosen.material || "",
-        page: "",
+      };
+      const changed =
+        catalogFilterScope(new URLSearchParams(filters)) !== scope;
+      go({
+        ...filters,
+        ...presentation,
+        page: changed ? "" : presentation.page || "",
       });
     } catch (e) {
       toast((e as Error).message, true);
@@ -287,6 +294,7 @@ export function Catalog({
     "source",
     "missing",
   ].some((k) => qs.get(k));
+  const [expanded, setExpanded] = useState(hasMore);
   const dictionaryMarkup = useMemo(
     () =>
       (["BRAND", "CONDITION", "COLOR", "MATERIAL"] as const).map((kind) => ({
@@ -358,9 +366,13 @@ export function Catalog({
       </div>
       <Card className="catalog-filter-card">
         <form
+          ref={searchForm}
           id="catalog-search"
           className="catalog-filters admin-filter-form"
-          onSubmit={submit}
+          onSubmit={(event) => {
+            event.preventDefault();
+            applyFilters();
+          }}
         >
           <input
             type="hidden"
@@ -390,8 +402,26 @@ export function Catalog({
             choices={{ "": "全部品类", ...categories }}
             value={qs.get("category") || ""}
           />
-          <details className="extra-filters" open={hasMore || undefined}>
-            <summary>更多筛选</summary>
+          <div className="filter-actions">
+            <Button type="primary" htmlType="submit">
+              搜索
+            </Button>
+            <Button onClick={resetFilters}>重置</Button>
+            <Button
+              type="text"
+              aria-expanded={expanded}
+              aria-controls="catalog-extra-filters"
+              onClick={() => setExpanded(!expanded)}
+            >
+              <span>更多筛选</span>{" "}
+              <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+            </Button>
+          </div>
+          <div
+            id="catalog-extra-filters"
+            className="extra-filters"
+            hidden={!expanded}
+          >
             <div className="library-find-grid">
               <TextField
                 name="sizeLabel"
@@ -458,64 +488,59 @@ export function Catalog({
                 value={qs.get("listing") || ""}
               />
             </div>
-          </details>
-          <div className="filter-actions">
-            <Button type="primary" htmlType="submit">
-              搜索
-            </Button>
-            <Button onClick={resetFilters}>重置</Button>
-            <SelectField
-              name="sort"
-              label="排序"
-              choices={{
-                newest: "最新录入",
-                oldest: "最早录入",
-                updated: "最近更新",
-              }}
-              value={qs.get("sort") || "newest"}
-            />
-            <SelectField
-              name="size"
-              label="每页"
-              choices={{ "30": "30件", "60": "60件", "100": "100件" }}
-              value={String(size)}
-            />
-            <span className="view-switch">
-              <Button
-                type={view === "table" ? "secondary" : "text"}
-                className={view === "table" ? "active" : ""}
-                aria-pressed={view === "table"}
-                onClick={() => go({ view: "table" })}
-              >
-                列表
-              </Button>
-              <Button
-                type={view === "grid" ? "secondary" : "text"}
-                className={view === "grid" ? "active" : ""}
-                aria-pressed={view === "grid"}
-                onClick={() => go({ view: "grid" })}
-              >
-                图片
-              </Button>
-            </span>
           </div>
         </form>
       </Card>
-      <div className="catalog-count">
-        <SelectionBox
-          label="选择本页"
-          id="select-page"
-          checked={data.rows.length > 0 && pageSelected === data.rows.length}
-          mixed={pageSelected > 0 && pageSelected < data.rows.length}
-          disabled={!data.rows.length}
-          onChange={(checked) => pick(data.rows, checked)}
-        >
-          选择本页
-        </SelectionBox>
-        <span>
-          共 {data.total} 件 · 第 {page} /{" "}
-          {Math.max(1, Math.ceil(data.total / size))} 页
-        </span>
+      <div className="catalog-results-toolbar">
+        <div className="catalog-count">
+          <SelectionBox
+            label="选择本页"
+            id="select-page"
+            checked={data.rows.length > 0 && pageSelected === data.rows.length}
+            mixed={pageSelected > 0 && pageSelected < data.rows.length}
+            disabled={!data.rows.length}
+            onChange={(checked) => pick(data.rows, checked)}
+          >
+            选择本页
+          </SelectionBox>
+          <span>
+            共 {data.total} 件 · 第 {page} /{" "}
+            {Math.max(1, Math.ceil(data.total / size))} 页
+          </span>
+        </div>
+        <div className="catalog-display-controls">
+          <div className="catalog-order">
+            <span>排序</span>
+            <Select
+              aria-label="排序"
+              value={qs.get("sort") || "newest"}
+              options={[
+                { value: "newest", label: "最新录入" },
+                { value: "oldest", label: "最早录入" },
+                { value: "updated", label: "最近更新" },
+              ]}
+              onChange={(value) => applyFilters({ sort: value })}
+            />
+          </div>
+          <Button.Group className="view-switch">
+            <Button
+              type={view === "table" ? "secondary" : "default"}
+              aria-pressed={view === "table"}
+              onClick={() =>
+                applyFilters({ view: "table", page: String(page) })
+              }
+            >
+              列表
+            </Button>
+            <Button
+              type={view === "grid" ? "secondary" : "default"}
+              aria-pressed={view === "grid"}
+              onClick={() => applyFilters({ view: "grid", page: String(page) })}
+            >
+              图片
+            </Button>
+          </Button.Group>
+        </div>
       </div>
       <div id="bulk-toolbar" className="bulk-toolbar" hidden={!selected.size}>
         <div className="bulk-heading">
@@ -675,15 +700,14 @@ export function Catalog({
           />
         </div>
       )}
-      <div className="pagination">
-        <span>每页{size}件</span>
-        {page > 1 && (
-          <Button onClick={() => go({ page: String(page - 1) })}>上一页</Button>
-        )}
-        {page * size < data.total && (
-          <Button onClick={() => go({ page: String(page + 1) })}>下一页</Button>
-        )}
-      </div>
+      <CatalogPagination
+        total={data.total}
+        page={page}
+        size={size}
+        onChange={(nextPage, nextSize) =>
+          applyFilters({ page: String(nextPage), size: String(nextSize) })
+        }
+      />
     </div>
   );
 }

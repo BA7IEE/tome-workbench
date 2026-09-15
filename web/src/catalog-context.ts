@@ -6,6 +6,16 @@ let owner = "",
   filter = "";
 let queue: string[] = [];
 const selected = new Map<string, Item>();
+// Presentation controls must not turn the same filter into a new selection scope.
+export function catalogFilterScope(query: URLSearchParams) {
+  const filters = new URLSearchParams(query);
+  for (const key of ["page", "size", "sort", "view"]) filters.delete(key);
+  if ((filters.get("dataMode") || "BUSINESS") === "BUSINESS")
+    filters.delete("dataMode");
+  for (const [key, value] of [...filters]) if (!value) filters.delete(key);
+  filters.sort();
+  return filters.toString();
+}
 function account() {
   if (owner !== (me?.id || "")) {
     owner = me?.id || "";
