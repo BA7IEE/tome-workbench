@@ -240,6 +240,29 @@ type BulkResult = {
   failed: number;
   rows: { id: string; ok: boolean; error?: string; code?: string }[];
 };
+function reviewCandidateSelection() {
+  const rows = [...candidateSelection.values()],
+    bySource = new Map<string, number>();
+  for (const candidate of rows)
+    bySource.set(
+      candidate.procurementSource.name,
+      (bySource.get(candidate.procurementSource.name) || 0) + 1,
+    );
+  const duplicates = rows.filter((x) => x.possibleDuplicateCount > 0).length,
+    gaps = rows.filter((x) => x.integrity?.state === "GAPS").length,
+    warnings = rows.filter((x) => x.warnings.length).length;
+  viewDialog(
+    `已选候选 · ${rows.length}件`,
+    `<div class="candidate-selection-summary"><p><strong>来源</strong></p>${[...bySource.entries()]
+      .map(([name, count]) => `<p>${esc(name)} · ${count}件</p>`)
+      .join("")}<p><strong>需要特别核对</strong></p><p>疑似重复 ${duplicates}件 · 来源有缺项 ${gaps}件 · 其他系统提示 ${warnings}件</p></div><details><summary>查看全部已选商品</summary><ol>${rows
+      .map(
+        (candidate) =>
+          `<li>${esc(candidate.procurementSource.code)} · ${esc(candidate.brandRaw || "品牌待确认")} · ${esc(candidate.titleRaw)}</li>`,
+      )
+      .join("")}</ol></details>`,
+  );
+}
 function bulkAction(
   ids: string[],
   after: () => Promise<void>,
@@ -254,11 +277,20 @@ function bulkAction(
     note(
       exclude
         ? "排除不删除来源资料。"
-        : "确认实物在手后生成永久TM。系统分段提交并保留逐件结果；完整性未核验的旧资料仍需你自行核对，缺资料不等于不能销售。",
+        : "这里确认的是“这些候选对应实际持有并纳入经营的实物”。生成TM后是否立即可售是另一项决定；默认先进入待整理，避免批量入库时把未验货商品直接设为可售。",
     ) +
       (exclude
         ? area("reason", "排除原因", "", 3)
-        : check("confirmed", "我已确认所选商品为实际持有并应纳入经营")),
+        : select(
+            "status",
+            "生成TM后的状态",
+            {
+              PAUSED: "待整理 / 待复核（推荐）",
+              AVAILABLE: "已完成核对，直接可售",
+            },
+            "PAUSED",
+          ) +
+          check("confirmed", "我已确认所选商品为实际持有并应纳入经营")),
     async (d, key) => {
       if (!exclude && !d.has("confirmed"))
         throw new Error("请先确认实物和经营去向");
@@ -273,7 +305,10 @@ function bulkAction(
             versions: Object.fromEntries(slice.map((id) => [id, versions[id]])),
             ...(exclude
               ? { reason: text(d, "reason") }
-              : { possession: "IN_HAND", status: "AVAILABLE" }),
+              : {
+                  possession: "IN_HAND",
+                  status: text(d, "status") || "PAUSED",
+                }),
           },
           `${key}.${start}`,
         );
@@ -320,21 +355,28 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
   const suggested = matches.length
       ? `<div class="candidate-match-list"><strong>系统发现可能的已有TM</strong>${matches
           .map(
-            (m) =>
-              `<article><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></article>`,
+            (m, index) =>
+              `<label class="candidate-match-choice"><input type="radio" name="matchedItemRef" value="${esc(m.code)}" ${index === 0 ? "checked" : ""}><span><b>${esc(m.code)} · ${esc(m.brand || "品牌待补")} · ${esc(m.title)}</b><small>${m.reasons.map(esc).join("；")}</small></span></label>`,
           )
           .join("")}</div>`
       : note(
           "当前没有找到强匹配；如果你已知这就是某件已有商品，可直接填写TM编号。",
         ),
-    defaultRef = matches.length === 1 ? matches[0].code : "";
+    fallback = field(
+      "itemRef",
+      matches.length ? "搜索其他TM编号（可选）" : "已有TM编号",
+      "",
+      "text",
+      !matches.length,
+      'placeholder="例如 TM000123"',
+    );
   form(
     "关联已有TM",
     note(
       "此操作不会修改已有TM的库存、成色、售价或已维护资料，只把这条来源证据归入同一件实物。",
     ) +
       suggested +
-      field("itemRef", "已有TM编号", defaultRef, "text", true) +
+      fallback +
       select(
         "possession",
         "本来源对应实物状态",
@@ -350,12 +392,14 @@ async function candidateLink(candidate: Candidate, after: () => Promise<void>) {
       check("confirmed", "我已核对，确认这是同一件实物，不新建第二个TM"),
     (d, key) => {
       if (!d.has("confirmed")) throw new Error("请先确认这是同一件实物");
+      const itemRef = text(d, "itemRef").trim() || text(d, "matchedItemRef").trim();
+      if (!itemRef) throw new Error("请选择匹配商品或填写TM编号");
       return request(
         `/ingest/candidates/${candidate.id}/link-item`,
         "POST",
         {
           version: candidate.version,
-          itemRef: text(d, "itemRef"),
+          itemRef,
           possession: text(d, "possession"),
           note: text(d, "note"),
         },
@@ -380,6 +424,15 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         : "确认该候选对应一件新的实际经营实物，系统将生成永久TM编号。",
     ) +
       check("confirmed", "我已确认实物在手并应纳入经营") +
+      select(
+        "status",
+        "生成TM后的状态",
+        {
+          PAUSED: "待整理 / 待复核（推荐）",
+          AVAILABLE: "已完成核对，直接可售",
+        },
+        "PAUSED",
+      ) +
       (incomplete
         ? note(candidate.integrity.issues.join("；")) +
           check("acceptIncomplete", "我已核对来源缺项，接受先建档后补充")
@@ -406,7 +459,7 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         {
           version: candidate.version,
           possession: "IN_HAND",
-          status: "AVAILABLE",
+          status: text(d, "status") || "PAUSED",
           duplicateOverride: d.has("duplicateOverride"),
           acceptIncomplete: d.has("acceptIncomplete"),
           note: text(d, "note"),
@@ -566,7 +619,7 @@ export async function candidatesPage() {
       pageSelect.indeterminate = checked > 0 && checked < boxes().length;
       toolbar.hidden = selected.size === 0;
       if (!selected.size) return;
-      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${decision === "PENDING" && can("edit") ? button("确认在手并生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
+      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${button("查看已选", reviewCandidateSelection)}${decision === "PENDING" && can("edit") ? button("批量生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
         "取消选择",
         () => {
           selected.clear();
