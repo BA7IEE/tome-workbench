@@ -155,6 +155,7 @@ export function studioStock(
     const i = get(),
       host = root.querySelector<HTMLElement>("[data-stock-controls]");
     if (host) {
+      host.classList.add("button-row");
       const direct: string[] = [];
       if (can("sell")) {
         direct.push(button("记录询盘", () => recordInquiry(i)));

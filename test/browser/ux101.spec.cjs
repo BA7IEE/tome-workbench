@@ -73,6 +73,8 @@ test("运营可以看成交事实但不能读取经营财务账", async ({ page 
   await page.getByLabel("登录邮箱").fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "进入工作台" }).click();
+  const salesGroup = page.locator("details.nav-group").filter({ hasText: "销售" });
+  await salesGroup.locator("summary").click();
   await expect(page.getByRole("link", { name: "成交记录", exact: true })).toBeVisible();
   await api(page, `/items/${item.id}/sold`, {
     channel: "线下成交",
