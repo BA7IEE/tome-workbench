@@ -83,10 +83,10 @@ export const candidateConfirmInput = z
   .object({
     version: z.number().int().positive(),
     possession: z.enum(["IN_HAND", "NOT_IN_HAND"]),
-    status: z.enum(["AVAILABLE", "PAUSED"]).default("PAUSED"),
+    status: z.enum(["AVAILABLE", "PAUSED"]).default("AVAILABLE"),
     duplicateOverride: z.boolean().default(false),
     acceptIncomplete: z.boolean().default(false),
-    note: safeText(2000).default("批量确认导入"),
+    note: safeText(2000).default("单件确认导入"),
   })
   .strict();
 
@@ -95,13 +95,12 @@ export const candidateBulkInput = z
     ids: z.array(uuid).min(1).max(100),
     versions: z.record(uuid, z.number().int().positive()).optional(),
     possession: z.enum(["IN_HAND", "NOT_IN_HAND"]),
-    // Bulk adoption is intentionally conservative. Existing clients may still
-    // submit AVAILABLE, but the parsed bulk command starts newly created TM
-    // items paused so the operator explicitly decides when they are sale-ready.
+    // New callers default to PAUSED so a bulk receipt decision does not silently
+    // become a sale-readiness decision. Explicit AVAILABLE remains supported for
+    // reviewed/import integrations and backwards compatibility.
     status: z.enum(["AVAILABLE", "PAUSED"]).default("PAUSED"),
   })
-  .strict()
-  .transform((value) => ({ ...value, status: "PAUSED" as const }));
+  .strict();
 
 export const candidateBulkExcludeInput = z
   .object({
