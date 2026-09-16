@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { pendingApprovals } from "./operations-evidence.mjs";
 import { releaseVersion, versionChecks } from "./release-version.mjs";
 import path from "node:path";
 import https from "node:https";
@@ -138,14 +139,7 @@ if (fs.existsSync(path.join(dir, "operations-approval.json")))
   approval = JSON.parse(
     fs.readFileSync(path.join(dir, "operations-approval.json"), "utf8"),
   );
-const humanChecks = [
-  "businessUat",
-  "offHostBackupVerified",
-  "recoveryDrillReviewed",
-  "domainAndFirewallReviewed",
-  "alertRecipientConfirmed",
-];
-const pending = humanChecks.filter((k) => approval[k] !== true);
+const pending = pendingApprovals(dir, approval);
 const publicReady =
   softwareReady && !cfg.rehearsal && cfg.publicBind && pending.length === 0;
 const report = {

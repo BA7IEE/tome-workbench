@@ -64,3 +64,35 @@ test("preflight rejects stale configuration, either API and either worker versio
   assert.equal(versionChecks(v, "0.0.0", v, observations)[0].pass, false);
   assert.equal(versionChecks(v, v, "dev", observations)[1].pass, false);
 });
+
+test("production approvals require hashed, dated local evidence; booleans alone cannot enable GO", async () => {
+  const { pendingApprovals, humanChecks } =
+    await import("../scripts/operations-evidence.mjs");
+  const { createHash } = await import("node:crypto");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tome-evidence-test-"));
+  try {
+    const approval = Object.fromEntries(humanChecks.map((key) => [key, true]));
+    assert.deepEqual(pendingApprovals(dir, approval), humanChecks);
+    fs.writeFileSync(
+      path.join(dir, "evidence.txt"),
+      "Synthetic fixture, not actual production approval",
+    );
+    const evidence = {
+      file: "evidence.txt",
+      reviewedAt: new Date().toISOString(),
+      sha256: createHash("sha256")
+        .update(fs.readFileSync(path.join(dir, "evidence.txt")))
+        .digest("hex"),
+    };
+    approval.evidence = Object.fromEntries(
+      humanChecks.map((key) => [key, { ...evidence }]),
+    );
+    assert.deepEqual(pendingApprovals(dir, approval), []);
+    approval.evidence.businessUat.file = "../outside.txt";
+    assert.ok(pendingApprovals(dir, approval).includes("businessUat"));
+    fs.writeFileSync(path.join(dir, "evidence.txt"), "changed");
+    assert.deepEqual(pendingApprovals(dir, approval), humanChecks);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
