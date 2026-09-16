@@ -1,4 +1,4 @@
-const { submitLogin } = require("./login.cjs");
+const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const { randomUUID } = require("node:crypto");
@@ -8,8 +8,7 @@ const fixture = JSON.parse(
 
 async function login(page, email = fixture.email, password = fixture.password) {
   await page.goto("/");
-  await page.getByLabel("登录邮箱").fill(email);
-  await page.getByLabel("密码", { exact: true }).fill(password);
+  await fillLogin(page, email, password);
   await submitLogin(page);
   await expect(page.locator(".sidebar-bottom")).toBeVisible();
 }
@@ -72,8 +71,7 @@ test("运营可以看成交事实但不能读取经营财务账", async ({ page 
     role: "OPERATOR",
   });
   await page.getByRole("button", { name: "退出登录", exact: true }).click();
-  await page.getByLabel("登录邮箱").fill(email);
-  await page.getByLabel("密码", { exact: true }).fill(password);
+  await fillLogin(page, email, password);
   await submitLogin(page);
   await expect(
     page
@@ -195,8 +193,7 @@ test("登录真实响应延迟时先等确定回执，保留页面断言且只�
   });
   try {
     await other.goto(new URL(page.url()).origin);
-    await other.getByLabel("登录邮箱").fill(fixture.email);
-    await other.getByLabel("密码", { exact: true }).fill(fixture.password);
+    await fillLogin(other, fixture.email, fixture.password);
     await other.route("**/api/auth/login", async (route) => {
       writes++;
       const response = await route.fetch();

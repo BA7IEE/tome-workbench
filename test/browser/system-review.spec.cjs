@@ -1,4 +1,4 @@
-const { submitLogin } = require("./login.cjs");
+const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
@@ -78,8 +78,7 @@ async function ready(page, title) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("登录邮箱").fill(fixture.email);
-  await page.getByLabel("密码", { exact: true }).fill(fixture.password);
+  await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(page.locator(".sidebar-bottom")).toBeVisible();
 });
