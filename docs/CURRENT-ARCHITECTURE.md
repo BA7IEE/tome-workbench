@@ -34,3 +34,7 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 应用版本由 package.json 读取；配置生成、OCI label 与 preflight 对齐。生产备份、恢复和上线条件见 [PRODUCTION](PRODUCTION.md)。历史演练不能替代新源码或实际主机验收。
 
 详细业务不变量见 [CURRENT-BUSINESS-RULES](CURRENT-BUSINESS-RULES.md)，阶段演进见 [历史架构](archive/ARCHITECTURE-through-1.0.1-rc.1.md)。
+
+## 验证环境
+
+正式 Release CI 固定 Node 22.22.3、Ubuntu 24.04 与 deploy/images.json 相同 PostgreSQL digest。compatibility.yml 为手工触发的独立非阻断任务，使用 Node 22 / PG16 最新补丁；其结果不替代发布指纹或 release gate。发布汇总同时拒绝双浏览器通过数量不等、flaky、skip 和非零 retry。
