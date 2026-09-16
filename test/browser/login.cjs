@@ -126,9 +126,11 @@ async function submitLogin(page) {
 async function fillLogin(page, email, password) {
   const emailField = page.getByLabel("登录邮箱");
   const passwordField = page.getByLabel("密码", { exact: true });
-  // Native autofocus is asynchronous in WebKit. Wait for its initial focus
-  // before fill() moves focus, otherwise the password can enter the email input.
-  await expect(emailField).toBeFocused();
+  // The mounted form focuses email synchronously. Compare DOM focus rather
+  // than OS-window activation, which headless Chromium need not own on macOS.
+  await expect
+    .poll(() => emailField.evaluate((el) => document.activeElement === el))
+    .toBe(true);
   await emailField.fill(email);
   await passwordField.fill(password);
   // Compare booleans so even assertion failures never print credentials.

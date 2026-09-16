@@ -106,3 +106,5 @@ Keep ux101.spec.cjs and every browser suite in both Chromium and WebKit. Harness
 Browser login setup must await and assert the real login response before the existing UI assertions. Do not bypass UI login, automatically retry, raise the whole-test timeout, or weaken business assertions to hide CI failures. Keep latency diagnostics free of credentials and retain the delayed real-response login journey in both browsers.
 
 Product-save browser journeys must wait for visible save completion and enabled controls before leaving. A successful database poll alone is insufficient. Keep the real post-commit receipt gate in the source-condition journey, checking the busy leave guard and a single PATCH without weakening saved-field assertions.
+
+Login fields must receive initial focus synchronously on mount, not via delayed native autofocus. Browser setup checks DOM focus and field equality as booleans, never prints credentials, and still performs exactly one real click/HTTP login. OS foreground-window focus is not a headless test precondition.

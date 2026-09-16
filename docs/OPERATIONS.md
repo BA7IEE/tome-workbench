@@ -152,3 +152,7 @@ API/Worker在data/run创建本库进程标记。进程崩溃的标记检查PID�
 ## 保存期间返回页面
 
 修改商品后等待“已保存”且保存按钮恢复可用再离开；“正在保存，请稍候”表示页面仍在处理回执。自动化也必须等待这一前提，不能把数据库已写入当作页面操作完成。成色回归通过延后真实回执核对该保护，不改变现有商品数据或保存实现。
+
+## 登录 CI 诊断
+
+reports/browser-login.jsonl 记录点击前控件状态、请求/响应出现时间、状态码、表单 click/submit/invalid 计数和关闭状态；失败同时检查独立 ready 请求与 browser server 存活。ready=200 包含服务器真实 SELECT 1。reports/browser-login-server.jsonl 记录服务端收到/完成/关闭时间。不记录输入、Cookie、CSRF、请求/响应正文或 pageerror 原文。失败摘要同时输出到 CI 日志，下载 artifact 慢时可直接查日志。

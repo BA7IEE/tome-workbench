@@ -62,3 +62,10 @@ rc.15–19 的全部原图资料包、导入批次成员和逐件缺项依据、
 原 rc.19 工作区与本机 4318 经营实例没有切换，真实商品、图片、库存、成本及历史订单没有写入。main 仍保持 `28158fb18df4239933a781e9793e2be40d700cba`；当前交付是待用户确认的 PR，不执行 Squash Merge、下一阶段开发或部署。GitHub 对最终提交的 CI 状态以 PR #1 为准。
 
 源码包使用 `npm run pack` 的已验证指纹门禁；包内排除真实 .env、data、node_modules、会话、密钥与备份，仅允许合成测试源码和公开配置示例。
+
+## 2026-09-16 登录稳定化取证（尚待最新 head 完整验证）
+
+- 旧失败 run 35052422246 的表单现场显示邮箱混入密码输入、密码字段为空，无服务器错误提示。根因类别 1：原生 autofocus 与快速填写发生焦点竞争，浏览器必填校验阻止 submit；不是增加响应超时能解决的问题。诊断补充 request/response/requestfailed、form submit/invalid、服务端收发、ready/SELECT 1 与进程存活，均不记录凭据。
+- 仅在测试等待原生 focus 的尝试不完整：Chromium 的带 hash 地址不保证原生 autofocus，且 macOS headless 不保证 OS 窗口激活；已废弃该实现。修复改为登录页挂载时同步 focus，并只检查 DOM activeElement。
+- 中途全量验证因上述 focus 断言失败主动中断，不算通过。修正后 ux101 定向 Chromium 5/5、WebKit 5/5，包括实际登录响应延迟 5.5 秒和单次提交。
+- 最新完整本地验证、远端 CI、打包结果待运行后记录。未合并、未部署、认证/权限规则未修改。
