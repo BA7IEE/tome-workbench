@@ -1,4 +1,4 @@
-# 生产部署与发布手册 · 0.2.0-rc.2
+# 生产部署与发布手册 · 1.0.1-rc.2
 
 ## 1. 本版可部署边界
 
@@ -15,6 +15,8 @@
 ```sh
 node scripts/production-config.mjs --domain=inventory.your-company.com --public
 ```
+
+版本唯一来源为 package.json.version；生成器据此写入 TOME_IMAGE_TAG 和 configuration.json.appVersion。Compose 缺少 tag 即失败，镜像构建校验 APP_VERSION 与 package 相同。升级已有配置时由运维明确更新这两个版本字段，不能重新生成并覆盖密码。
 
 该命令不会覆盖已有目录或重置密码。配置生成后应备份密钥至受控位置，并检查`configuration.json`中的origin、域名和rehearsal状态。
 
@@ -45,7 +47,7 @@ Caddy只有在域名解析和80/443访问符合条件时才能获得公认证书
 node scripts/production-preflight.mjs --config-dir=data/production --project=tome-production
 ```
 
-它检查Compose配置、容器健康、非root只读运行、私有端口和真实TLS访问。它不会把localhost演练当成公网验证。默认仍返回NO_GO，直到授权运维人员独立核对下面几件事，并在配置目录保存`operations-approval.json`：
+它检查Compose配置、容器健康、非root只读运行、私有端口和真实TLS访问，并核对 package、配置、两个 API 实时版本、两个 API/Worker 镜像 OCI label 及 HTTPS 入口版本一致。它不会把localhost演练当成公网验证。默认仍返回NO_GO，直到授权运维人员独立核对下面几件事，并在配置目录保存`operations-approval.json`：
 
 ```json
 {
@@ -81,4 +83,4 @@ Worker租约过期由其他Worker接续，超过失败预算进入FAILED待人�
 
 ## 7. 当前已验证的平台
 
-本次在用户Mac的Docker Linux环境实际构建、部署和浏览器操作。准确架构与镜像ID记录在验证报告。没有把未运行的Windows、特定云主机、跨可用区故障切换或公网证书写成通过。示例服务器域名、自动申请公网证书及真实平台账户均未启用。
+历史版本曾在用户Mac的Docker Linux环境构建和演练；当前源码的实际验收以 CURRENT-RELEASE.md 与 VALIDATION.md 为准，不能沿用旧镜像证据。没有把未运行的Windows、特定云主机、跨可用区故障切换或公网证书写成通过。示例服务器域名、自动申请公网证书及真实平台账户均未启用。
