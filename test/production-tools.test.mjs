@@ -96,3 +96,46 @@ test("production approvals require hashed, dated local evidence; booleans alone 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("PushPlus sends only allowlisted health checks and distinguishes accepted from delivered", async () => {
+  const { notification, sendNotification } =
+    await import("../scripts/production-notify.mjs");
+  const checks = {
+    ready: false,
+    certificate: true,
+    database: true,
+    outbox: true,
+    mediaDisk: true,
+    databaseDisk: true,
+    backupAge: false,
+  };
+  const message = notification({ checks, raw: "private-business-data" });
+  assert.ok(!JSON.stringify(message).includes("private-business-data"));
+  assert.equal(message.signature, "ready,backupAge");
+  let count = 0;
+  const accepted = await sendNotification(
+    message,
+    "synthetic-token",
+    async (url, options) => {
+      count++;
+      assert.equal(url, "https://www.pushplus.plus/send");
+      assert.equal(options.method, "POST");
+      assert.equal(options.redirect, "error");
+      assert.equal(JSON.parse(options.body).token, "synthetic-token");
+      return {
+        ok: true,
+        json: async () => ({ code: 200, data: "synthetic-receipt" }),
+      };
+    },
+  );
+  assert.equal(count, 1);
+  assert.deepEqual(accepted, { accepted: true, delivered: false });
+  await assert.rejects(
+    () =>
+      sendNotification(message, "synthetic-token", async () => {
+        throw new Error("Do not expose synthetic-token or request body");
+      }),
+    (error) => !error.message.includes("synthetic-token"),
+  );
+  assert.throws(() => notification({ checks: {} }));
+});

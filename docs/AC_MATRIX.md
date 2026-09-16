@@ -275,3 +275,14 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 公共 fillLogin 在输入前确认挂载后的邮箱焦点，并以布尔断言核对两个输入均落在正确字段（不打印凭据）；各业务场景仍走真实 UI 和 HTTP 登录，不注入会话。登录页同步设置初始焦点，移除 WebKit 可能延迟抢焦点的原生 autofocus。保留 ux101 的真实响应延迟 5.5 秒且只提交一次回归，两浏览器范围不变。
 
 保存完成提示补充：operations「两人改同一件」在真实图片上传 HTTP 201 后暂缓 XHR 成功事件，断言仍禁用保存且不提前显示全部已保存；释放事件后再验证两个字段及唯一图片。保留原断言，增加对可见完成状态的约束。
+
+## 1.0.1-rc.2 稳定化增量（验收结果以当前 VALIDATION 为准）
+
+| 要求 | 实现 / 真实验证入口 | 边界 |
+| --- | --- | --- |
+| 单一版本来源与当前文档一致性 | production-config/preflight、release-version、check-current-docs；production-tools.test.mjs | 不同 API/worker/config 版本必须拒绝 |
+| 文件补偿与重放 | integration：图片重试、数据库回滚、预览写盘失败、孤儿扫描；product-library：原图实际上传后断线 | 默认扫描不删除，维护删除需独占锁；不覆盖原图 |
+| 服务端能力唯一来源 | integration：登录和当前会话能力；ux101：各角色界面使用服务端能力 | 服务端仍重新鉴权；角色改变使旧 Session 失效 |
+| 一致性备份与恢复 | verify-production-tools.mjs，production-backup/restore，operations-evidence 单测 | 仅 localhost 合成演练；真实异机副本/人工复核未完成 |
+| 图片处理资源预算 | verify-upload-budget.mjs | 4 并发 20MiB / 40M 像素合成测量，非公网容量承诺 |
+| PushPlus 显式启用 | production-notify.mjs 与 production-tools.test.mjs | 默认预览；真实通知送达未验收 |

@@ -84,3 +84,58 @@ Worker租约过期由其他Worker接续，超过失败预算进入FAILED待人�
 ## 7. 当前已验证的平台
 
 历史版本曾在用户Mac的Docker Linux环境构建和演练；当前源码的实际验收以 CURRENT-RELEASE.md 与 VALIDATION.md 为准，不能沿用旧镜像证据。没有把未运行的Windows、特定云主机、跨可用区故障切换或公网证书写成通过。示例服务器域名、自动申请公网证书及真实平台账户均未启用。
+
+## 1.0.1 稳定化：1Panel、备份和 PushPlus
+
+1Panel 是运维入口，不改变本项目 Compose 的数据库账号隔离、版本检查及维护门禁。不要用面板普通网站目录备份代替数据库与原图的一致性备份。所有命令从对应源码版本的仓库目录执行，配置路径必须指向自己创建的本应用配置；不得复用其他应用数据库。
+
+### 一致性备份与独立恢复
+
+维护窗口先停止本项目 api-a、api-b、worker-a、worker-b 和其他 CLI 写入者，再运行：
+
+```sh
+node scripts/production-backup.mjs --config-dir=/私有配置目录 --project=tome-你的项目名 --offline-confirmed
+```
+
+脚本拒绝 API/Worker 仍在运行的项目，持有数据库维护锁，检查活跃事务，生成 database.dump、media、各类 manifest 和 checksums.sha256。备份前后数据库摘要必须相同。备份完成或失败后，由操作者检查结果并恢复原服务；脚本不会悄悄启动业务进程。
+
+恢复只能使用新的 `tome_restore_` 数据库名及不存在的媒体目录，已有目标直接拒绝：
+
+```sh
+node scripts/production-restore.mjs --config-dir=/私有配置目录 --project=tome-你的项目名 --backup=/备份目录 --target=tome_restore_20260916 --media-dir=/新的恢复媒体目录
+```
+
+脚本先核验全包 SHA，再恢复至独立数据库，核验全部模型摘要、迁移、TM 序列及媒体哈希。结果为 reports/production-recovery.json；这不启动公开应用、不覆盖业务库。每月至少演练一次，并由经营者核对样本后保存评审证据。
+
+### 服务器之外的备份副本
+
+只放在同一台腾讯云服务器上的备份，仍会随整机故障、磁盘损坏或误删一起丢失。最低建议在服务器之外保留一份，例如腾讯云 COS；可用 1Panel 的 COS 备份账户或独立运维工具上传上述已验证的完整备份目录。应用不引入云 SDK，也不保存云密钥。异地域副本进一步覆盖地域故障；具体地域、保留期由经营者选择。
+
+上传后必须从 COS 下载到新的临时目录，用恢复脚本验证哈希并完成恢复演练，才能确认异机备份有效。仅配置账户或看到上传任务成功不足以把 offHostBackupVerified 设为 true。建议日备份保留 7 份、周备份保留 4 份；实际保留周期需结合数据量及经营要求确认。
+
+1Panel 官方设置说明：https://1panel.cn/docs/v1/user_manual/settings/ 。面板版本不同，菜单可能不同；本项目不自动修改面板任务。
+
+### PushPlus 告警（明确启用才发送）
+
+独立于应用进程执行监控采集：
+
+```sh
+node scripts/production-status.mjs --config-dir=/私有配置目录 --project=tome-你的项目名 > /私有监控目录/status.json
+node scripts/production-notify.mjs --report=/私有监控目录/status.json
+```
+
+第二条默认只预览。PushPlus Token 放服务器权限 600 的独立文件，不能放源码、参数值、日志或聊天。创建权限 700 的状态目录，明确启用后才运行：
+
+```sh
+node scripts/production-notify.mjs --report=/私有监控目录/status.json --token-file=/私有监控目录/pushplus-token --state-dir=/私有监控目录/notify-state --send
+```
+
+仅发送固定健康检查名称，不转发原始报告、商品或财务记录。重复相同告警 30 分钟内抑制；首次健康不发送，故障恢复发送恢复通知。网络结果不确定也先记发送尝试，避免立即重复。异常退出留下 notify.lock 时应先确认无通知进程，再处理锁文件。不要自动重试不确定请求。
+
+可由明确配置的 1Panel 计划任务执行；采集失败时也应检查退出码和 status.json 是否完整，不可把脚本异常当健康。服务器上的任务不能发现整机断电，因此还需要服务器之外的可用性探测来检查 HTTPS /api/system/ready，并送达同一接收人。当前仓库不自动创建任务或开通外部服务。
+
+PushPlus 官方接口：https://www.pushplus.plus/doc/guide/api.html 。接口 code=200 仅表示接收请求，不代表微信收到。先做一次人工确认的测试告警，由接收人确认实际送达并记录时间，再登记 alertRecipientConfirmed 的证据。源码测试只验证请求格式和错误处理，不冒充实际送达。
+
+### 人工批准证据
+
+operations-approval.json 的每个批准项还需 `evidence[批准项]`：`file`（配置目录内相对文件）、`sha256`、`reviewedAt`（ISO 时间）。文件应包含操作者、场景、实际结果及时间；布尔值 true 单独无效。合成演练不能代替真实业务 UAT、COS 副本、域名/防火墙和告警收件人确认。

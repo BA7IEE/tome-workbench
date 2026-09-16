@@ -3246,7 +3246,7 @@ test("图片重试只持久化一次，相同命令不同图片冲突且没有�
   assert.deepEqual(replay, first);
   assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), committed);
   const different = await sharp(image).negate().png().toBuffer();
-  assert.equal((await api("/assets/upload", "POST", payload(different), admin, key)).data.code, "IDEMPOTENCY_CONFLICT");
+  assert.equal((await api("/assets/upload", "POST", payload(different), admin, key)).data.error.code, "IDEMPOTENCY_CONFLICT");
   assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), committed);
 });
 
@@ -3322,7 +3322,7 @@ test("登录和当前会话能力来自后端权限，角色变化撤销旧会�
     const user = await ok("/auth/users", "POST", { email, password, name: "合成权限核对", role });
     const auth = await api("/auth/login", "POST", { email, password }, null);
     assert.equal(auth.status, 201);
-    assert.deepEqual(auth.data.capabilities, actions.filter((a) => permission(role, a)));
+    assert.deepEqual([...auth.data.capabilities].sort(), actions.filter((a) => permission(role, a)).sort());
     const session = { ...auth.data.user, csrf: auth.data.csrf, cookie: auth.headers.get("set-cookie").split(";")[0] };
     const me = await ok("/auth/me", "GET", undefined, session);
     assert.deepEqual(me.capabilities, auth.data.capabilities);

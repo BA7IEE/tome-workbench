@@ -225,3 +225,24 @@ test("登录真实响应延迟时先等确定回执，保留页面断言且只�
     await context.close();
   }
 });
+
+test("各角色界面使用服务端能力，商品编辑与销售入口符合真实权限", async ({ page, browser }) => {
+  const { permission } = require("../../dist/auth/auth");
+  for (const role of ["ADMIN", "REVIEWER", "OPERATOR", "FINANCE", "VIEWER"]) {
+    const email = `ui-cap-${randomUUID()}@tome.test`, password = "Synthetic!" + randomUUID();
+    await api(page, "/auth/users", { email, password, name: "合成能力核验", role });
+    const account = await browser.newContext();
+    try {
+      const other = await account.newPage();
+      await login(other, email, password);
+      const session = await (await other.request.get("/api/auth/me")).json();
+      expect(session.capabilities.includes("sell")).toBe(permission(role, "sell"));
+      await expect(other.getByRole("link", { name: "销售", exact: true })).toHaveCount(permission(role, "sell") ? 1 : 0);
+      await other.goto("/#/items");
+      await expect(other.getByRole("heading", { name: "商品库", exact: true })).toBeVisible();
+      await expect(other.getByRole("button", { name: "＋ 快速录货", exact: true })).toHaveCount(permission(role, "edit") ? 1 : 0);
+      const users = await other.request.get("/api/auth/users");
+      expect(users.status()).toBe(permission(role, "users") ? 200 : 403);
+    } finally { await account.close(); }
+  }
+});

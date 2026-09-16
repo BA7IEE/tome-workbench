@@ -179,7 +179,9 @@ export async function databaseSnapshot(db) {
     ),
   );
   const sequence = JSON.parse(
-    await db.query(`SELECT row_to_json(s) FROM "Item_serial_seq" s`),
+    await db.query(
+      `SELECT json_build_object('last_value',last_value,'is_called',is_called) FROM "Item_serial_seq"`,
+    ),
   );
   return { models, migrations, sequence };
 }
