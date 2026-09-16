@@ -134,14 +134,17 @@ export async function collectionBuilder() {
   const paintSelected = () =>
     `<h2>已选 ${selected.size} / 40 件</h2>${[...selected.values()].map((i) => `<article class="selection-row">${picture(i)}<div><strong>${esc(i.code)} · ${esc(i.title)}</strong><small>${money(i.currentPrice, i.currency)} · ${i.approvedValid ? "已有确认资料" : "资料待确认"}</small>${(issues.get(i.id) || []).map((x) => `<p class="form-error">${esc(x)}</p>`).join("")}</div>${edit(i)}<button type="button" class="btn" data-remove-item="${i.id}">移除 ${esc(i.code)}</button></article>`).join("")}`;
   onPageReady("collection-builder", (root, signal) => {
-    let busy = false;
+    let busy = false,
+      localSaveFailed = false;
     const f = root.querySelector<HTMLFormElement>("#collection-build")!,
       error = root.querySelector<HTMLElement>("[data-collection-error]")!;
     const saveLocally = () => {
       try {
         persist();
+        localSaveFailed = false;
         return true;
       } catch (e) {
+        localSaveFailed = true;
         error.textContent = (e as Error).message;
         return false;
       }
@@ -331,7 +334,7 @@ export async function collectionBuilder() {
     window.addEventListener(
       "beforeunload",
       (e) => {
-        if (busy || selected.size || title) {
+        if (busy || localSaveFailed) {
           e.preventDefault();
           e.returnValue = "";
         }
