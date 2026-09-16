@@ -813,8 +813,32 @@ test('来源品牌成色与品相在商品常用位置可见，人工等级优�
   // The operator control is labeled 成色; 成色等级 is the backend dictionary name.
   await page.getByRole('combobox',{name:'成色',exact:true}).selectOption(grade.id);
   await page.getByLabel('瑕疵与使用痕迹',{exact:true}).fill('合成实物核验记录');
-  await page.getByRole('button',{name:'保存商品',exact:true}).click();
-  await expect.poll(async()=> (await getItem()).facts.conditionGrade).toBe('良好');
+  // A committed database write is not yet a completed UI save. Hold the real
+  // PATCH receipt until the busy-state/leave guard assertions have executed.
+  let releaseReceipt, writes = 0;
+  const receipt = new Promise(resolve => { releaseReceipt = resolve; });
+  await page.route('**/api/items/'+confirmed.itemId, async route => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    writes++;
+    const response = await route.fetch();
+    await receipt;
+    await route.fulfill({response});
+  });
+  try {
+    await page.getByRole('button',{name:'保存商品',exact:true}).click();
+    await expect.poll(async()=> (await getItem()).facts.conditionGrade).toBe('良好');
+    await expect(page.getByRole('button',{name:'保存商品',exact:true})).toBeDisabled();
+    await expect(page.locator('.entry-save-state')).toHaveText('保存中…');
+    await page.getByRole('link',{name:'取消编辑',exact:true}).click();
+    await expect(page.getByRole('status').filter({hasText:'正在保存，请稍候'})).toBeVisible();
+    await expect(page).toHaveURL(new RegExp('/items/'+confirmed.itemId+'/edit$'));
+    expect(writes).toBe(1);
+  } finally {
+    releaseReceipt();
+  }
+  await expect(page.locator('.entry-save-state')).toHaveText('已保存');
+  await expect(page.getByRole('button',{name:'保存商品',exact:true})).toBeEnabled();
+  expect(writes).toBe(1);
   await page.goto('/#/items?q='+confirmed.code);
   await expect(page.locator('tbody tr').filter({hasText:confirmed.code})).toContainText('良好');
   await expect(page.locator('tbody tr').filter({hasText:confirmed.code})).not.toContainText('来源成色：Excellent');

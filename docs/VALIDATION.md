@@ -1,3 +1,19 @@
+# 成色列表 CI 回归修复验证 · 2026-09-16
+
+基于已合并 main `314b5cecb8e8ea7f57173ea0d56e7f49b6188469`。失败运行 34993818717 的真实成色写入已经成功，但测试在页面尚未收到保存回执时跳转，被正常的保存中离开保护阻止。
+
+本次仅修正浏览器测试及契约记录。以真实 PATCH 回执控制复现该时序，验证保存中不能离开且只写一次；释放回执后等待“已保存”和保存按钮恢复，再检查列表及重新打开后的成色。原有业务断言全部保留，无 skip、重试、加长超时或刷新。
+
+先执行 prepare-test，再执行完整 `npm run verify:release`，退出 0，源码在验证期间未变化。syntax、typecheck、lint、build 全通过；Unit 20、Harness 自测 12、integration 122、Chromium 164、WebKit 164、HA 8 全通过。双浏览器均无失败、跳过或 flaky，范围一致。Recovery 65 个模型和 2286 个素材文件校验通过，静态守卫 136 项通过；npm audit 所有级别 0 漏洞。
+
+源码指纹：`d1322a0e63aba7e7620ceeb6ec3383a7ed68775c3145c504cd1fae5f3dbed2d6`。
+
+[完整摘要](validation/1.0.1-rc.1/summary.json) · [完整日志](validation/1.0.1-rc.1/verification.log) · [浏览器范围](validation/1.0.1-rc.1/browser-scope.json) · [audit](validation/1.0.1-rc.1/npm-audit.json)。当前这些文件记录本轮验证，下面保留整合背景；原整合验证产物可从 main 基线提交读取。
+
+src、web、Prisma Schema、历史迁移、依赖和版本均未改动。未合并本次修复，未部署，未触碰真实商品库。
+
+---
+
 # 实际验证记录 · 1.0.1-rc.1
 
 2026-09-15 完成本地整合验证。以 rc.19 `bfffa5cd8cb997db440c9b06ef6dd067e722e281` 为第一父提交，整合 UX `1783947288266a2846ae008c1c01d76227b6ef2d`；采用保留两条提交链的 merge，不重写 UX 分支历史。保护分支 `codex/backup-rc19-bfffa5c`、`codex/backup-ux101-1783947` 均已推至 origin。具体冲突决策与测试映射见 [UX-1.0.1-REWORK](UX-1.0.1-REWORK.md)。
