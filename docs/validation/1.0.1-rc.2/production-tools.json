@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "at": "2026-09-16T08:25:33.439Z",
+  "checks": {
+    "realHttpOriginalReplay": true,
+    "runningBackupRefused": true,
+    "backup": true,
+    "restore": {
+      "at": "2026-09-16T08:25:25.681Z",
+      "passed": true,
+      "appVersion": "1.0.1-rc.2",
+      "target": "tome_restore_mu3u5ig2",
+      "media": "/Users/dengwang/Documents/coding/tome-workbench/data/stabilization-rehearsal/tome_restore_mu3u5ig2",
+      "modelsVerified": 65,
+      "migrationsVerified": 11,
+      "mediaFilesVerified": 26,
+      "tmSequenceVerified": true,
+      "readOnlyDatabaseChecks": true,
+      "sampleIds": [
+        {
+          "id": "6d0a0e82-475d-4b47-b748-5152fa5c5582",
+          "serial": 2
+        },
+        {
+          "id": "4c325b47-d628-421a-9f0d-8d507084fdd4",
+          "serial": 6
+        },
+        {
+          "id": "c18d122f-0ec4-463d-a384-5bbe82411e75",
+          "serial": 7
+        },
+        {
+          "id": "50aa12c3-c2fa-40c4-b645-5f92c4e71927",
+          "serial": 3
+        },
+        {
+          "id": "49d641c0-624d-47be-b8ba-e97372617fe1",
+          "serial": 11
+        },
+        {
+          "id": "a6d49851-6e05-48b0-98b2-289f328b20c5",
+          "serial": 4
+        },
+        {
+          "id": "ba7c21c5-ab9d-4376-9bfc-921e6d46653a",
+          "serial": 9
+        },
+        {
+          "id": "6239a5ee-0ff8-470e-93aa-bf6b5c97b1ce",
+          "serial": 1
+        },
+        {
+          "id": "90eda573-3631-4840-a8f9-af467e4edc34",
+          "serial": 5
+        },
+        {
+          "id": "d5371e86-c882-4727-ad9d-95a7b64b5e09",
+          "serial": 10
+        },
+        {
+          "id": "2af95fca-4779-4312-8f65-f648737eb767",
+          "serial": 8
+        }
+      ],
+      "businessUat": false,
+      "applicationStarted": false,
+      "workerStarted": false,
+      "publicDeployment": false
+    },
+    "existingDatabaseRefused": true,
+    "manifest": {
+      "appVersion": "1.0.1-rc.2",
+      "modelCount": 65,
+      "migrationCount": 11,
+      "mediaFiles": 26
+    },
+    "versionPreflight": true
+  },
+  "publicDeployment": false,
+  "offHostBackupVerified": false,
+  "businessUat": false,
+  "alertDelivered": false
+}
