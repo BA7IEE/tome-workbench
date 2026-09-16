@@ -35,16 +35,19 @@ async function start() {
     app.getHttpServer().prependListener("request", (req, res) => {
       if (req.method !== "POST" || req.url !== "/api/auth/login") return;
       const started = Date.now();
-      const write = (event) =>
+      const write = (event) => {
+        const record = {
+          event,
+          requestAt: new Date(started).toISOString(),
+          elapsedMs: Date.now() - started,
+          status: res.statusCode,
+        };
         fs.appendFileSync(
           "reports/browser-login-server.jsonl",
-          JSON.stringify({
-            event,
-            requestAt: new Date(started).toISOString(),
-            elapsedMs: Date.now() - started,
-            status: res.statusCode,
-          }) + "\n",
+          JSON.stringify(record) + "\n",
         );
+        console.log("LOGIN_TRANSPORT " + JSON.stringify(record));
+      };
       write("received");
       res.once("finish", () => write("finished"));
       res.once("close", () => write("closed"));

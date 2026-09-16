@@ -113,6 +113,8 @@ async function submitLogin(page) {
     page.off("requestfailed", onFailed);
     page.off("pageerror", onError);
     record.elapsedMs = Date.now() - started;
+    if (!record.passed)
+      console.error("LOGIN_DIAGNOSTIC " + JSON.stringify(record));
     // No input values, cookies, CSRF tokens or response bodies in diagnostics.
     fs.mkdirSync("reports", { recursive: true });
     fs.appendFileSync(
