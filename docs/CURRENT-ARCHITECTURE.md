@@ -6,7 +6,7 @@
 |---|---|---|
 | auth | User、Session、LoginThrottle | 服务端实时授权，Cookie/Origin/CSRF |
 | supply / procurement | 来源、供货、采购、物流、退款来源记录 | 不拥有本地库存；追加来源修订 |
-| ingest | Session、Batch、Candidate、候选原图 | 人工确认边界；机器身份不能直接写 TM |
+| ingest | Session、Batch、Candidate、候选原图、版本化 Skill/Profile | `/api/agent-ingest` 是最终合同；机器身份不能直接写 TM、库存、成交、成本或发布 |
 | catalog | Item(TM)、Cycle、Revision、Movement、MaterialExport | 唯一商品事实；版本冲突和冻结资料 |
 | dictionaries | 标准 ID、别名、停用状态 | 来源原文不自动成为标准字典 |
 | media | Asset、IntakeFile | 原图不可覆盖，授权独立 |
@@ -42,3 +42,5 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 2026-09-16 本地 Docker 合成压力验收：两 API 同时共 4 张图片，每张原文件 20MiB / 40M pixels，全部 HTTP 201；超过文件上限为 413，超过像素上限为 400。最新镜像重复演练的 cgroup memory.peak 分别 240529408 / 260296704 bytes，均低于 768MiB，无 OOM。结果见 reports/upload-budget.json；这只证明该合成负载在本地 ARM 容器的表现，腾讯云实际机型仍需部署前复核，不是全局并发上限或长期吞吐保证。
 
 UX 1.0.2：collection-draft 只负责账号范围的浏览器草稿持久化，collection-builder 继续调用现有预检、Package 和 Collection 命令；studio-image-order 只重排发布选图，studio-publisher 保持真实写入及版本恢复；batch-actions 由上游明确传递已确认状态。未添加服务端草稿表、外部发布或新角色权限。
+
+Agent Ingest Standard v1.2：机器会话先取得协议、校验 Skill 与当前来源 Profile 的 SHA-256，再经 HTTP、薄 MCP 或 `tome-ingest` CLI 调用同一 `IngestService`。TRR 与通用市场 Profile 的服务端必查字段会和 Agent 自报字段取并集；历史未带标准元数据的批次仍按其旧合同读取。MCP 只提供协议、批次、订单、候选和封批工具，图片仍走原 multipart 接口。CLI 状态文件仅保存 fingerprint、幂等键、服务器 ID 和状态，不能保存 Token。

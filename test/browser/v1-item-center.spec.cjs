@@ -487,6 +487,8 @@ test("v1 Agent接入Token只在创建时显示一次，之后后台只保留会�
   d = page.getByRole("dialog", { name: "Agent接入信息 · 仅显示一次" });
   const token = (await d.locator("code").textContent()).trim();
   expect(token).toMatch(/^[a-f0-9]{64}$/);
+  await expect(d).toContainText("标准 CLI");
+  await expect(d).toContainText("MCP 入口");
   await d.getByRole("button", { name: "关闭" }).click();
   await page.getByRole("button", { name: "Agent接入", exact: true }).click();
   d = page.getByRole("dialog", { name: "Agent接入" });

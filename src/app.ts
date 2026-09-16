@@ -5,6 +5,7 @@ import {
   IngestAdminController,
   IngestMachineController,
 } from "./ingest/ingest.controller";
+import { IngestMcpController } from "./ingest/ingest-mcp.controller";
 import { IngestService } from "./ingest/ingest.service";
 import { ProcurementController } from "./procurement/procurement.controller";
 import { StudioController } from "./publishing/studio.controller";
@@ -63,6 +64,7 @@ import { OperationsController } from "./operations/operations.controller";
     CostingController,
     IngestAdminController,
     IngestMachineController,
+    IngestMcpController,
     ProcurementController,
     StudioController,
     TestDataController,

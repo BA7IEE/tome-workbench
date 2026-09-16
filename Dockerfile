@@ -11,6 +11,7 @@ COPY tsconfig.json vite.config.mjs ./
 COPY prisma ./prisma
 COPY src ./src
 COPY web ./web
+COPY agent ./agent
 RUN DATABASE_URL=postgresql://unused:unused@127.0.0.1/tome_build npm run db:generate && npm run build
 FROM build AS migration
 COPY scripts ./scripts
@@ -28,6 +29,7 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/agent ./agent
 COPY package.json package-lock.json ./
 COPY scripts/runtime-lock.cjs scripts/probe.mjs scripts/supervise-container.mjs ./scripts/
 RUN mkdir -p data/media && chown -R node:node data

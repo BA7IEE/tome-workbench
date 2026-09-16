@@ -296,3 +296,9 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 - 批量表单的最终“确认并执行”后立即执行；取消第二次“开始执行”点击，原逐项结果、幂等 key、失败重试断言保留。未经过参数确认的货源接手仍显式“确认执行”。对应 dictionaries/interaction/operations/system-review/workbench 期望按此更新。
 - 图片排序由 studio-image-order 负责表示和交互；拖动、上/下移及指定位置共用同一移动逻辑，手机无需 hover；只改变选图顺序，不写原图元数据，瑕疵选图规则不变。studio 的新排序用例验证真实草稿请求及原素材不变。
 - 商品详情和编辑共用 studioStock；按库存状态呈现主要动作，暂停商品仍可从更多登记实际售出，未知财务不阻断。
+
+## v1.1 Agent Ingest Standard v1.2
+
+本增量只标准化机器采集入口，不把长期蓝图中的外部发布、远端回执、独立站交易或自动库存同步改成“已覆盖”。`/api/agent-ingest` 仍是候选层唯一合同：服务端提供带 SHA-256 的 Skill 和按来源选择的 Profile，Profile 必查字段与 Agent Manifest 额外字段一起参与真实封批检查。MCP 的六个工具与 CLI 都复用相同 `IngestService`，不暴露确认候选、TM、库存、成交、成本或发布；图片仍经 multipart 保留原文件验证。
+
+`test/integration.test.cjs` 新增标准协议/Profile 降级拒绝、HTTP 与 MCP 黄金夹具等价、CLI 重启重用幂等状态且无 Token 的真实 PostgreSQL 场景。它们使用 `tome_test` 合成来源，不证明任何第三方网页、账号或真实订单已经接入。

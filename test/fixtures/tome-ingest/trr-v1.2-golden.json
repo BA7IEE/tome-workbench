@@ -1,0 +1,73 @@
+{
+  "batch": {
+    "externalBatchKey": "trr-golden-batch",
+    "agentName": "Golden TRR Adapter",
+    "agentVersion": "1.0",
+    "kind": "ORDER_HISTORY",
+    "rawManifest": {
+      "protocolVersion": "1.2",
+      "skillVersion": "tome-ingest/1.0",
+      "profile": "TRR/1.0",
+      "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
+      "requiredFields": ["sourceFacts.conditionDescription"]
+    }
+  },
+  "candidates": [
+    {
+      "externalKey": "TRR:GOLDEN:SKU-001",
+      "sourceItemKey": "GOLDEN-SKU-001",
+      "titleRaw": "Golden fixture silk dress",
+      "brandRaw": "Golden Brand",
+      "categoryRaw": "Dresses",
+      "conditionRaw": "Excellent",
+      "currency": "USD",
+      "sourceLineAmount": 123400,
+      "sourceCurrentPrice": 156700,
+      "sourceEstimatedRetail": 400000,
+      "sourceFacts": {
+        "sizeLabel": "US 6",
+        "color": "Black",
+        "material": "100% Silk",
+        "measurements": {
+          "Bust": "37 in",
+          "Length": "44 in"
+        },
+        "productUrl": "https://example.invalid/trr-golden-sku-001",
+        "description": "Golden fixture source description with a documented small mark.",
+        "conditionDescription": "A documented small mark near the hem.",
+        "capture": {
+          "pageUrl": "https://example.invalid/trr-golden-sku-001",
+          "capturedAt": "2026-09-17T00:00:00.000Z",
+          "fields": [
+            { "path": "titleRaw", "label": "商品名称", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceItemKey", "label": "来源货号", "status": "CAPTURED", "reason": "" },
+            { "path": "brandRaw", "label": "来源品牌", "status": "CAPTURED", "reason": "" },
+            { "path": "categoryRaw", "label": "来源分类", "status": "CAPTURED", "reason": "" },
+            { "path": "conditionRaw", "label": "来源成色", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.sizeLabel", "label": "标签尺码", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.color", "label": "颜色", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.material", "label": "材质", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.measurements", "label": "尺寸", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.productUrl", "label": "商品链接", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.description", "label": "来源描述", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceLineAmount", "label": "订单行金额", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceCurrentPrice", "label": "来源现价", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceEstimatedRetail", "label": "来源估价", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.conditionDescription", "label": "品相说明", "status": "CAPTURED", "reason": "" }
+          ],
+          "images": [
+            {
+              "sourceUrl": "https://example.invalid/trr-golden-sku-001-image.jpg",
+              "quality": "UNAVAILABLE",
+              "reason": "Golden fixture deliberately has no binary image."
+            }
+          ]
+        }
+      },
+      "rawPayload": {
+        "fixture": "trr-v1.2-golden",
+        "sourceSchemaVersion": "trr-synthetic-1"
+      }
+    }
+  ]
+}

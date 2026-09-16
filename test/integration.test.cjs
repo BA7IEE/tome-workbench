@@ -1,8 +1,11 @@
 /* Real HTTP + PostgreSQL tests. Only tome_test on localhost may be reset. */
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const { randomUUID, randomBytes } = require("node:crypto");
-const { mkdirSync, writeFileSync } = require("node:fs");
+const { randomUUID, randomBytes, createHash } = require("node:crypto");
+const { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } = require("node:fs");
+const { join, resolve } = require("node:path");
+const os = require("node:os");
+const { spawn } = require("node:child_process");
 require("dotenv").config({ quiet: true });
 const { guardDatabase } = require("../scripts/db-test-guard.cjs");
 const url = new URL(process.env.DATABASE_URL);
@@ -2628,6 +2631,29 @@ async function machineOk(path,token,method='GET',body,key){
   assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
   return r.data;
 }
+async function mcpApi(token, body, extra={}){
+  const r=await fetch(origin+'/api/mcp/ingest',{method:'POST',headers:{'X-Ingest-Token':token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null)};
+}
+async function mcpTool(token,name,args={},id=randomUUID()){
+  const r=await mcpApi(token,{jsonrpc:'2.0',id,method:'tools/call',params:{name,arguments:args}});
+  assert.equal(r.status,200,JSON.stringify(r.data));
+  assert.ok(r.data?.result?.content?.[0],JSON.stringify(r.data));
+  return {isError:!!r.data.result.isError,value:JSON.parse(r.data.result.content[0].text)};
+}
+function goldenIngestFixture(){
+  return JSON.parse(readFileSync('test/fixtures/tome-ingest/trr-v1.2-golden.json','utf8'));
+}
+function runCli(args,cwd,env){
+  return new Promise((done,reject)=>{
+    const child=spawn(process.execPath,[resolve('tools/tome-ingest/cli.mjs'),...args],{cwd,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+    let stdout='',stderr='';
+    child.stdout.on('data',chunk=>stdout+=chunk);
+    child.stderr.on('data',chunk=>stderr+=chunk);
+    child.once('error',reject);
+    child.once('close',code=>done({code,stdout,stderr}));
+  });
+}
 async function syntheticImage(name='agent.png'){
   return await sharp({create:{width:72,height:96,channels:3,background:{r:180,g:170,b:190}}}).png().toBuffer();
 }
@@ -2647,6 +2673,67 @@ async function setupAgentTrr(label='Agent TRR'){
   const imported=await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates});
   return {source,session,orderInput,order,batch,candidates,imported};
 }
+test('v1.1 标准 Agent 协议校验 Skill/Profile，且服务端 Profile 必查项不能被 Manifest 降低',async()=>{
+  const suffix=randomUUID().slice(0,8).toUpperCase(), before=await db.item.count();
+  const source=await ok('/procurement/sources','POST',{code:'TRR-'+suffix,name:'标准协议合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
+  const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'标准协议测试',ttlMinutes:60});
+  const protocol=await machineOk('/agent-ingest/protocol',session.token);
+  assert.equal(protocol.version,'1.2');assert.equal(protocol.skill.id,'tome-ingest/1.0');assert.equal(protocol.profile.id,'TRR/1.0');assert.ok(protocol.profile.requiredFields.includes('sourceFacts.productUrl'));
+  const skill=await fetch(origin+'/api/agent-ingest/skill',{headers:{'X-Ingest-Token':session.token}}),profile=await fetch(origin+'/api/agent-ingest/profile',{headers:{'X-Ingest-Token':session.token}});
+  const skillMarkdown=await skill.text(),profileMarkdown=await profile.text();
+  assert.equal(skill.status,200);assert.match(skill.headers.get('content-type'),/text\/markdown/);assert.match(skillMarkdown,/标准采集 Skill/);assert.equal(createHash('sha256').update(skillMarkdown).digest('hex'),protocol.skill.sha256);
+  assert.equal(profile.status,200);assert.match(profileMarkdown,/TRR\/1\.0/);assert.equal(createHash('sha256').update(profileMarkdown).digest('hex'),protocol.profile.sha256);
+  const incompatible=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-'+suffix,agentName:'old agent',rawManifest:{protocolVersion:'2.0',skillVersion:'tome-ingest/2.0',profile:'TRR/1.0'}});
+  assert.equal(incompatible.status,400);assert.equal(incompatible.data.error.code,'INGEST_PROTOCOL_INCOMPATIBLE');
+  const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/2.0',profile:'TRR/1.0'}});
+  assert.equal(skillMismatch.status,400);assert.equal(skillMismatch.data.error.code,'INGEST_SKILL_INCOMPATIBLE');
+  const fixture=goldenIngestFixture();fixture.batch.externalBatchKey+='-'+suffix;
+  const batch=await machineOk('/agent-ingest/batches',session.token,'POST',fixture.batch);
+  await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:fixture.candidates});
+  const complete=await machineOk(`/agent-ingest/batches/${batch.id}`,session.token);
+  assert.equal(complete.integrity.blockers.length,0);assert.equal((await machineOk(`/agent-ingest/batches/${batch.id}/seal`,session.token,'POST',{})).status,'SEALED');
+  const weakBatch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'weak-'+suffix,agentName:'weak agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/1.0',profile:'TRR/1.0',expectedCandidateKeys:['WEAK-'+suffix],requiredFields:['titleRaw']}});
+  await machineOk(`/agent-ingest/batches/${weakBatch.id}/candidates`,session.token,'POST',{candidates:[{externalKey:'WEAK-'+suffix,titleRaw:'只报名称的合成商品',sourceFacts:{capture:{pageUrl:'https://example.invalid/weak-'+suffix,capturedAt:'2026-09-17T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED',reason:''}],images:[]}}}]});
+  const weak=await machineOk(`/agent-ingest/batches/${weakBatch.id}`,session.token);
+  assert.ok(weak.integrity.blockers.some(x=>x.includes('缺少字段检查：sourceItemKey')));
+  const blocked=await machineApi(`/agent-ingest/batches/${weakBatch.id}/seal`,session.token,'POST',{});
+  assert.equal(blocked.status,409);assert.equal(blocked.data.error.code,'CAPTURE_INCOMPLETE');
+  assert.equal(await db.item.count(),before);
+});
+test('v1.1 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',async()=>{
+  const suffix=randomUUID().slice(0,8).toUpperCase();
+  const httpSource=await ok('/procurement/sources','POST',{code:'TRR-H-'+suffix,name:'HTTP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),mcpSource=await ok('/procurement/sources','POST',{code:'TRR-M-'+suffix,name:'MCP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
+  const httpSession=await ok('/ingest/sessions','POST',{procurementSourceId:httpSource.id,label:'HTTP Golden',ttlMinutes:60}),mcpSession=await ok('/ingest/sessions','POST',{procurementSourceId:mcpSource.id,label:'MCP Golden',ttlMinutes:60});
+  const init=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-03-26',capabilities:{},clientInfo:{name:'integration-test',version:'1.0'}}});assert.equal(init.status,200);assert.equal(init.data.result.serverInfo.name,'tome-ingest');assert.equal(init.data.result.protocolVersion,'2025-03-26');
+  const initialized=await mcpApi(mcpSession.token,{jsonrpc:'2.0',method:'notifications/initialized'});assert.equal(initialized.status,202);assert.equal(initialized.data,null);
+  const listed=await mcpApi(mcpSession.token,[{jsonrpc:'2.0',id:2,method:'tools/list',params:{}},{jsonrpc:'2.0',method:'notifications/initialized'}]);assert.equal(listed.status,200);assert.equal(listed.data.length,1);const names=listed.data[0].result.tools.map(x=>x.name).sort();assert.deepEqual(names,['tome_ingest_create_batch','tome_ingest_get_batch_status','tome_ingest_get_protocol','tome_ingest_import_order','tome_ingest_seal_batch','tome_ingest_upsert_candidates']);assert.ok(!names.some(x=>/confirm|item|stock|sale|cost|publish/i.test(x)));
+  const noStream=await fetch(origin+'/api/mcp/ingest',{headers:{'X-Ingest-Token':mcpSession.token}});assert.equal(noStream.status,405);assert.equal(noStream.headers.get('allow'),'POST');
+  const foreignOrigin=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:3,method:'tools/list',params:{}},{Origin:'https://example.invalid'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.error.code,'MCP_ORIGIN_DENIED');
+  const mcpProtocol=await mcpTool(mcpSession.token,'tome_ingest_get_protocol');assert.equal(mcpProtocol.isError,false);assert.equal(mcpProtocol.value.profile.id,'TRR/1.0');
+  const fixture=goldenIngestFixture(), httpBatchInput=structuredClone(fixture.batch), mcpBatchInput=structuredClone(fixture.batch);
+  httpBatchInput.externalBatchKey+='-http-'+suffix;mcpBatchInput.externalBatchKey+='-mcp-'+suffix;
+  const httpBatch=await machineOk('/agent-ingest/batches',httpSession.token,'POST',httpBatchInput);
+  await machineOk(`/agent-ingest/batches/${httpBatch.id}/candidates`,httpSession.token,'POST',{candidates:fixture.candidates});
+  const orderInput=trrSample(mcpSource.id),orderResult=await mcpTool(mcpSession.token,'tome_ingest_import_order',{idempotencyKey:'mcp-order-'+suffix,order:orderInput});assert.equal(orderResult.isError,false);assert.equal(orderResult.value.lineCount,7);
+  const mcpBatch=await mcpTool(mcpSession.token,'tome_ingest_create_batch',{idempotencyKey:'mcp-batch-'+suffix,batch:mcpBatchInput});assert.equal(mcpBatch.isError,false);
+  const mcpCandidates=await mcpTool(mcpSession.token,'tome_ingest_upsert_candidates',{idempotencyKey:'mcp-candidates-'+suffix,batchId:mcpBatch.value.id,candidates:fixture.candidates});assert.equal(mcpCandidates.isError,false);assert.equal(mcpCandidates.value.rows.length,1);
+  const mcpStatus=await mcpTool(mcpSession.token,'tome_ingest_get_batch_status',{batchId:mcpBatch.value.id});assert.equal(mcpStatus.isError,false);assert.equal(mcpStatus.value.integrity.blockers.length,0);
+  const mcpSeal=await mcpTool(mcpSession.token,'tome_ingest_seal_batch',{idempotencyKey:'mcp-seal-'+suffix,batchId:mcpBatch.value.id});assert.equal(mcpSeal.isError,false);assert.equal(mcpSeal.value.status,'SEALED');
+  const [httpCandidate,mcpCandidate]=await Promise.all([db.ingestCandidate.findFirstOrThrow({where:{procurementSourceId:httpSource.id,externalKey:fixture.candidates[0].externalKey}}),db.ingestCandidate.findFirstOrThrow({where:{procurementSourceId:mcpSource.id,externalKey:fixture.candidates[0].externalKey}})]);
+  assert.deepEqual({titleRaw:httpCandidate.titleRaw,brandRaw:httpCandidate.brandRaw,categoryRaw:httpCandidate.categoryRaw,conditionRaw:httpCandidate.conditionRaw,currency:httpCandidate.currency,sourceFacts:httpCandidate.sourceFacts,rawPayload:httpCandidate.rawPayload},{titleRaw:mcpCandidate.titleRaw,brandRaw:mcpCandidate.brandRaw,categoryRaw:mcpCandidate.categoryRaw,conditionRaw:mcpCandidate.conditionRaw,currency:mcpCandidate.currency,sourceFacts:mcpCandidate.sourceFacts,rawPayload:mcpCandidate.rawPayload});
+});
+test('v1.1 确定性 tome-ingest CLI 重启后复用本地幂等状态且不保存 Token',async()=>{
+  const suffix=randomUUID().slice(0,8).toUpperCase(), dir=mkdtempSync(join(os.tmpdir(),'tome-ingest-cli-'));
+  try {
+    const source=await ok('/procurement/sources','POST',{code:'CLI'+suffix,name:'CLI 合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'CLI 重启恢复',ttlMinutes:60});
+    writeFileSync(join(dir,'batch.json'),JSON.stringify({externalBatchKey:'cli-'+suffix,agentName:'CLI fixture',kind:'ITEM_BATCH',rawManifest:{expectedCandidateKeys:['CLI:'+suffix],requiredFields:['titleRaw']}}));
+    const env={TOME_INGEST_BASE_URL:origin+'/api/agent-ingest',TOME_INGEST_TOKEN:session.token};
+    const first=await runCli(['batch','create','batch.json'],dir,env),second=await runCli(['batch','create','batch.json'],dir,env);
+    assert.equal(first.code,0,first.stderr);assert.equal(second.code,0,second.stderr);
+    const firstResult=JSON.parse(first.stdout),secondResult=JSON.parse(second.stdout);assert.equal(firstResult.id,secondResult.id);assert.equal(await db.ingestBatch.count({where:{procurementSourceId:source.id,externalBatchKey:'cli-'+suffix}}),1);
+    const state=readFileSync(join(dir,'.tome-ingest-state.json'),'utf8');assert.ok(!state.includes(session.token));const parsed=JSON.parse(state),entries=Object.values(parsed.operations);assert.equal(entries.length,1);assert.match(entries[0].idempotencyKey,/^[0-9a-f-]{36}$/);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
 test('v1 Agent短期Token只能写采集层，重复抓取同一商品只追加修订不制造TM',async()=>{
   const before=await db.item.count(),x=await setupAgentTrr('Agent scope source');
   assert.equal(x.imported.rows.length,7);assert.equal(await db.item.count(),before);

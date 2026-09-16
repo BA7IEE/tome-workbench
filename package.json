@@ -1,9 +1,12 @@
 {
   "name": "tome-workbench",
-  "version": "1.0.2-rc.1",
+  "version": "1.1.0-rc.1",
   "private": true,
   "license": "UNLICENSED",
   "description": "兔泥巴商品资料库：永久TM、批量导入、原图维护与运营资料交接",
+  "bin": {
+    "tome-ingest": "tools/tome-ingest/cli.mjs"
+  },
   "engines": {
     "node": ">=22.12 <25"
   },
@@ -19,6 +22,7 @@
     "db:deploy": "prisma migrate deploy",
     "setup:admin": "node dist/cli.js admin",
     "demo:seed": "node dist/cli.js demo",
+    "tome-ingest": "node tools/tome-ingest/cli.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
     "lint": "eslint src web/src test scripts --max-warnings 0",
     "format": "prettier --write src web/src test scripts prisma/schema.prisma README.md --ignore-unknown",
