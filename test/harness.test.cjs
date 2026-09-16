@@ -10,6 +10,34 @@ async function run(p, transform) {
 }
 test("harness baseline passes", async () =>
   assert.ok((await run("", (s) => s)).every((x) => x.pass)));
+for (const state of [
+  "未合并 main",
+  "尚未合并到 `main`",
+  "未合入 **main**",
+  "UX 1.0.2 在独立分支实现本机选品草稿",
+  "独立分支实现",
+  "独立分支待验收",
+  "UX 1.0.2 独立切片尚未交付",
+]) {
+  test(`harness rejects stale release state: ${state}`, async () => {
+    const result = await run(
+      "docs/CURRENT-RELEASE.md",
+      (s) => `${s}\n${state}`,
+    );
+    assert.equal(
+      result.find((x) => x.id === "current-release-no-transient-state")?.pass,
+      false,
+    );
+  });
+}
+test("harness permits outstanding production and business acceptance", async () => {
+  const result = await run(
+    "docs/CURRENT-RELEASE.md",
+    (s) =>
+      `${s}\n未部署，实际异地备份、告警收件人测试和真实经营 UAT 尚未验收。`,
+  );
+  assert.ok(result.every((x) => x.pass));
+});
 for (const [name, p, fn, id] of [
   [
     "stale current version",

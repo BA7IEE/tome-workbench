@@ -25,6 +25,12 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   return [
     { id: "current-release-version", pass: facts?.version === version },
+    {
+      id: "current-release-no-transient-state",
+      pass: !/(?:未合(?:并|入)(?:到|至)?main\b|独立(?:分支|切片)(?:实现|待验收|尚未交付)|在独立分支)/i.test(
+        release.replace(/[`*_\s]/g, ""),
+      ),
+    },
     { id: "current-migrations", pass: equal(facts?.migrations, migrations) },
     {
       id: "current-browser-scope",
