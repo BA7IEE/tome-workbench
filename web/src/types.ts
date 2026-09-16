@@ -1,3 +1,8 @@
+export interface SessionResponse {
+  user: User;
+  csrf: string;
+  capabilities: string[];
+}
 export type Obj = Record<string, unknown>;
 export interface User {
   id: string;
@@ -5,6 +10,7 @@ export interface User {
   email: string;
   role: string;
   active?: boolean;
+  capabilities?: string[];
 }
 export interface Facts {
   mainMaterial?: string;

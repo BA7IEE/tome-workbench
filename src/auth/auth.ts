@@ -46,6 +46,7 @@ const grants: Record<Role, string[]> = {
   FINANCE: ["read", "finance", "supply", "sell", "audit", "export"],
   VIEWER: ["read"],
 };
+export const capabilitiesFor = (role: Role): string[] => [...(grants[role] || [])];
 export const permission = (role: Role, action: string) =>
   grants[role]?.includes(action) === true;
 export const Access = (action: string) => SetMetadata("access", action);

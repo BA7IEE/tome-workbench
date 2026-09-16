@@ -10,6 +10,7 @@ import {
   AuthRequest,
   Public,
   actorOf,
+  capabilitiesFor,
   digest,
   passwordHashAsync,
   passwordMatchesAsync,
@@ -114,13 +115,18 @@ export class AuthController {
       path: "/",
       maxAge: 8 * 3600000,
     });
-    return { user: actorOf(user), csrf };
+    return {
+      user: actorOf(user),
+      csrf,
+      capabilities: capabilitiesFor(actorOf(user).role),
+    };
   }
   @Access("read") @Get("me") me(@Req() req: AuthRequest) {
     return {
       user: req.actor,
       csrf: req.session.csrf,
       environment: config().env,
+      capabilities: capabilitiesFor(req.actor.role),
     };
   }
   @Access("read") @Post("logout") async logout(

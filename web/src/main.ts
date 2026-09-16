@@ -24,7 +24,7 @@ import {
   toast,
   button,
 } from "./core";
-import type { User } from "./types";
+import type { SessionResponse } from "./types";
 import { detailPage } from "./items";
 import {
   tasksPage,
@@ -51,11 +51,11 @@ async function login() {
     b.disabled = true;
     try {
       const d = new FormData(form),
-        s = await request<{ user: User; csrf: string }>("/auth/login", "POST", {
+        s = await request<SessionResponse>("/auth/login", "POST", {
           email: String(d.get("email")),
           password: String(d.get("password")),
         });
-      setSession(s.user, s.csrf);
+      setSession(s.user, s.csrf, s.capabilities);
       await render();
     } catch (error) {
       form.querySelector(".form-error")!.textContent = (error as Error).message;
@@ -74,8 +74,8 @@ async function render() {
   }
   if (!me) {
     try {
-      const s = await request<{ user: User; csrf: string }>("/auth/me");
-      setSession(s.user, s.csrf);
+      const s = await request<SessionResponse>("/auth/me");
+      setSession(s.user, s.csrf, s.capabilities);
     } catch {
       await login();
       return;
