@@ -19,10 +19,33 @@ import { Commands, audit, lock, event } from "../common/transaction";
 import { recordQuery, itemSearch, dateRange } from "../trading/record-queries";
 import { Prisma } from "@prisma/client";
 import { Fault } from "../common/errors";
-import { uuid, safeText } from "../common/domain";
+import { currency, uuid, safeText } from "../common/domain";
 import { PrismaService } from "../database/prisma.service";
 import { assetPath } from "../media/media.controller";
 import { PublishingService, purpose } from "./publishing.service";
+import { DistributionService } from "../distribution/distribution.service";
+
+const endpointUrl = z.union([z.literal(""), z.string().url().max(2000)]);
+function safeEndpoint(value: string) {
+  if (!value) return value;
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    throw new Fault("INVALID_URL", "仅允许HTTP/HTTPS站点地址", 400);
+  if (url.username || url.password)
+    throw new Fault("SENSITIVE_ENDPOINT_DENIED", "站点地址不得包含登录信息", 400);
+  if (
+    [...url.searchParams.keys()].some((key) =>
+      /(?:token|secret|signature|password|api[_-]?key|access[_-]?(?:token|key)|credential|cookie|session|auth)/i.test(
+        key,
+      ),
+    ) ||
+    /(?:^|[?&#;])(?:token|secret|signature|password|api[_-]?key|access[_-]?(?:token|key)|credential|cookie|session|auth)\s*=/i.test(
+      url.hash,
+    )
+  )
+    throw new Fault("SENSITIVE_ENDPOINT_DENIED", "站点地址不得包含访问凭据", 400);
+  return value;
+}
 @ApiTags("使用与分发")
 @Controller("api")
 export class PublishingController {
@@ -30,6 +53,7 @@ export class PublishingController {
     private db: PrismaService,
     private service: PublishingService,
     private commands: Commands,
+    private distribution: DistributionService,
   ) {}
   @Access("read") @Get("channels") channels() {
     return this.db.channel.findMany({ orderBy: { createdAt: "asc" } });
@@ -47,10 +71,17 @@ export class PublishingController {
           "VC",
           "CAROUSELL",
           "SHOWROOM",
+          "ANQICMS",
+          "GRAILED",
           "OTHER",
         ]),
         locale: z.enum(["zh-CN", "en"]).default("zh-CN"),
         titleLimit: z.number().int().min(16).max(300).default(80),
+        defaultCurrency: currency.default("CNY"),
+        distributionMode: z
+          .enum(["MANUAL", "API", "AGENT", "SCRIPT"])
+          .default("MANUAL"),
+        endpointUrl: endpointUrl.default(""),
       })
       .strict()
       .parse(raw);
@@ -58,11 +89,13 @@ export class PublishingController {
       r.actor.id,
       "channel.create",
       r.get("Idempotency-Key"),
-      b,
+      { ...b, endpointUrl: safeEndpoint(b.endpointUrl) },
       async (tx) => {
-        const c = await tx.channel.create({ data: b });
+        const c = await tx.channel.create({
+          data: { ...b, endpointUrl: safeEndpoint(b.endpointUrl) },
+        });
         await audit(tx, r.actor.id, "CHANNEL_CREATED", c.id);
-        return { id: c.id };
+        return c;
       },
     );
   }
@@ -78,6 +111,11 @@ export class PublishingController {
         locale: z.enum(["zh-CN", "en"]),
         titleLimit: z.number().int().min(16).max(300),
         active: z.boolean(),
+        defaultCurrency: currency.optional(),
+        distributionMode: z
+          .enum(["MANUAL", "API", "AGENT", "SCRIPT"])
+          .optional(),
+        endpointUrl: endpointUrl.optional(),
       })
       .strict()
       .parse(raw);
@@ -98,7 +136,16 @@ export class PublishingController {
         const { version, ...data } = b;
         const updated = await tx.channel.update({
           where: { id },
-          data: { ...data, version: version + 1 },
+          data: {
+            ...data,
+            defaultCurrency: data.defaultCurrency ?? before.defaultCurrency,
+            distributionMode: data.distributionMode ?? before.distributionMode,
+            endpointUrl:
+              data.endpointUrl === undefined
+                ? before.endpointUrl
+                : safeEndpoint(data.endpointUrl),
+            version: version + 1,
+          },
         });
         await audit(tx, r.actor.id, "CHANNEL_UPDATED", id, {
           before,
@@ -276,7 +323,11 @@ export class PublishingController {
     @Body() b: unknown,
     @Req() r: AuthRequest,
   ) {
-    return this.service.receipt(r.actor, r.get("Idempotency-Key"), b);
+    return this.distribution.listingReceipt(
+      r.actor,
+      r.get("Idempotency-Key"),
+      b,
+    );
   }
   @Access("publish") @Post("listings/:id/observe") observe(
     @Param("id") id: string,

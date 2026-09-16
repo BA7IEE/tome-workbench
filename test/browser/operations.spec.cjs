@@ -489,8 +489,13 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   const row = (await find(page, title))[0],
     detail = await (await page.request.get("/api/items/" + row.id)).json();
   expect(detail.status).toBe("SOLD");
-  expect(detail.listings).toHaveLength(1);
-  expect(detail.listings[0].desired).toBe("OFFLINE");
+  expect(detail.listings).toHaveLength(0);
+  const attempts = await (
+    await page.request.get(`/api/distribution/attempts?itemId=${row.id}`)
+  ).json();
+  expect(attempts).toHaveLength(1);
+  expect(attempts[0].state).toBe("SUCCEEDED");
+  expect(attempts[0].remoteId).toBe("");
 });
 
 test("回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品", async ({

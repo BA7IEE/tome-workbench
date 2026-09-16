@@ -2628,6 +2628,289 @@
         ]
       }
     },
+    "/api/distribution/sessions": {
+      "post": {
+        "operationId": "DistributionController_createSession",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      },
+      "get": {
+        "operationId": "DistributionController_sessions",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/sessions/{id}/revoke": {
+      "post": {
+        "operationId": "DistributionController_revokeSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/plan": {
+      "post": {
+        "operationId": "DistributionController_plan",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/summary": {
+      "get": {
+        "operationId": "DistributionController_summary",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/attempts": {
+      "get": {
+        "operationId": "DistributionController_attempts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/attempts/{id}/retry": {
+      "post": {
+        "operationId": "DistributionController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution/attempts/{id}/manual-result": {
+      "post": {
+        "operationId": "DistributionController_manualResult",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
+    "/api/distribution-agent/protocol": {
+      "get": {
+        "operationId": "DistributionAgentController_protocol",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/attempts": {
+      "get": {
+        "operationId": "DistributionAgentController_attempts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/attempts/{id}/claim": {
+      "post": {
+        "operationId": "DistributionAgentController_claim",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/attempts/{id}/payload": {
+      "get": {
+        "operationId": "DistributionAgentController_payload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/attempts/{id}/assets/{assetId}": {
+      "get": {
+        "operationId": "DistributionAgentController_asset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/attempts/{id}/result": {
+      "post": {
+        "operationId": "DistributionAgentController_result",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
     "/api/items/{id}/reserve": {
       "post": {
         "operationId": "TradingController_reserve",
@@ -3201,7 +3484,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.1.0-rc.1",
+    "version": "1.1.0-rc.2",
     "contact": {}
   },
   "tags": [],

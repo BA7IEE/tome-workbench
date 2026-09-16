@@ -49,6 +49,9 @@ export interface Channel {
   locale: string;
   titleLimit: number;
   active: boolean;
+  defaultCurrency: string;
+  distributionMode: "MANUAL" | "API" | "AGENT" | "SCRIPT";
+  endpointUrl: string;
 }
 export interface Pack {
   id: string;
@@ -197,6 +200,7 @@ export interface Sale {
   item: { serial: number; title: string };
   version: number;
   channel: string;
+  channelId?: string | null;
   customerRef: string;
   cooperation: string;
   amount: number | null;
@@ -215,6 +219,7 @@ export interface Inquiry {
   id: string;
   item: { id: string; serial: number; title: string };
   channel: string;
+  channelId?: string | null;
   customerRef: string;
   notes: string;
   quote: number | null;

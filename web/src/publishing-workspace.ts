@@ -68,27 +68,47 @@ export function recordPublication(p: Pack, after?: () => Promise<void>) {
     note(
       p.channel.platform === "SHOWROOM"
         ? "将这份已确认资料展示到本系统展厅。"
-        : "请先实际完成平台发布，再登记结果；生成或下载资料不会被记成已发布。",
+        : "请先实际完成平台发布，再登记结果；没有稳定平台ID时，系统会保留发布 Attempt，不会伪造 Listing。",
     ) +
       field("url", "平台商品链接（可稍后补充）", "", "url") +
       field(
         "remoteId",
-        "平台货号或商品编号",
-        p.channel.platform === "SHOWROOM" ? p.id : "MANUAL:" + p.snapshot.code,
+        "稳定平台商品ID（可留空）",
+        p.channel.platform === "SHOWROOM" ? p.id : "",
         "text",
-        true,
+      ) +
+      area(
+        "evidenceNote",
+        "实际发布或核对依据",
+        p.channel.platform === "SHOWROOM"
+          ? "本系统展厅已展示该使用包。"
+          : `已在对应账号完成发布，可通过标题中的 ${p.snapshot.code} 核对。`,
+        3,
       ),
     async (d, k) => {
       await checked(p);
-      return request(
-        "/listings",
+      const attempt = await request<{ id: string }>(
+        "/distribution/plan",
         "POST",
         {
           packageId: p.id,
-          remoteId: String(d.get("remoteId")),
-          url: String(d.get("url") || ""),
+          action: "PUBLISH",
         },
         k,
+      );
+      return request(
+        `/distribution/attempts/${attempt.id}/manual-result`,
+        "POST",
+        {
+          state: "SUCCEEDED",
+          remoteId: String(d.get("remoteId") || ""),
+          remoteUrl: String(d.get("url") || ""),
+          evidence: {
+            method: "MANUAL_CONFIRMATION",
+            note: String(d.get("evidenceNote") || ""),
+          },
+        },
+        `${k}:manual`,
       );
     },
     p.channel.platform === "SHOWROOM" ? "确认展示" : "记录发布结果",

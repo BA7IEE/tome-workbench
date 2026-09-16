@@ -44,6 +44,9 @@ import { AiController } from "./ai/ai.controller";
 import { SystemController } from "./system.controller";
 import { RequestMonitor } from "./operations/request-monitor";
 import { OperationsController } from "./operations/operations.controller";
+import { DistributionService } from "./distribution/distribution.service";
+import { DistributionController } from "./distribution/distribution.controller";
+import { DistributionAgentController } from "./distribution/distribution-agent.controller";
 @Module({
   imports: [DatabaseModule],
   providers: [
@@ -55,6 +58,7 @@ import { OperationsController } from "./operations/operations.controller";
     Commands,
     CatalogService,
     PublishingService,
+    DistributionService,
     TradingService,
     SettlementService,
     WorkerService,
@@ -85,6 +89,8 @@ import { OperationsController } from "./operations/operations.controller";
     SupplyController,
     MediaController,
     PublishingController,
+    DistributionController,
+    DistributionAgentController,
     TradingController,
     JobsController,
     AiController,

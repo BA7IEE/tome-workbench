@@ -657,7 +657,7 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await page.getByRole("button", { name: "记录发布结果", exact: true }).click();
   await expect(page.locator("#dialog")).not.toBeVisible();
   await expect(page.locator(".studio-publish-feedback")).toContainText(
-    "已保存人工发布记录",
+    "已记录人工发布执行结果",
   );
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
     "不会丢掉的本地备注",

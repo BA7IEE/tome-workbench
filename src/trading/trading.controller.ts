@@ -171,13 +171,22 @@ export class TradingController {
     const b = z
       .object({
         itemId: uuid,
-        channel: safeText(120).min(1),
+        channel: safeText(120).optional(),
+        channelId: uuid.optional(),
         customerRef: safeText(200).min(1),
         notes: safeText(4000).default(""),
         quote: amount.default(null),
         currency: currency.default("CNY"),
       })
       .strict()
+      .superRefine((value, ctx) => {
+        if (!value.channel && !value.channelId)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["channel"],
+            message: "请填写实际询盘渠道或选择已配置账号",
+          });
+      })
       .parse(raw);
     return this.commands.run(
       r.actor.id,
@@ -186,7 +195,18 @@ export class TradingController {
       b,
       async (tx) => {
         await itemLock(tx, b.itemId);
-        const i = await tx.inquiry.create({ data: b });
+        let channelName = b.channel || "";
+        if (b.channelId) {
+          const configured = await tx.channel.findUnique({
+            where: { id: b.channelId },
+          });
+          if (!configured)
+            throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
+          channelName = configured.name;
+        }
+        const i = await tx.inquiry.create({
+          data: { ...b, channel: channelName, channelId: b.channelId || null },
+        });
         await audit(tx, r.actor.id, "INQUIRY_CREATED", b.itemId, {
           inquiryId: i.id,
         });

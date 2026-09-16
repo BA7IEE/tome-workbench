@@ -53,6 +53,7 @@ export const required = [
   "docs/PROVENANCE.md",
   "docs/V1-ITEM-CENTER.md",
   "docs/AGENT-INGEST-PROTOCOL.md",
+  "docs/DISTRIBUTION-FOUNDATION.md",
   "docs/RELEASE-NOTES-1.0.md",
   "package-lock.json",
   "prisma/schema.prisma",
@@ -106,6 +107,9 @@ export const required = [
   "src/ingest/ingest.controller.ts",
   "src/ingest/ingest-standard.ts",
   "src/ingest/ingest-mcp.controller.ts",
+  "src/distribution/distribution.service.ts",
+  "src/distribution/distribution.controller.ts",
+  "src/distribution/distribution-agent.controller.ts",
   "agent/skills/tome-ingest/SKILL.md",
   "agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
   "agent/skills/tome-ingest/profiles/TRR.md",
@@ -121,6 +125,7 @@ export const required = [
   "web/src/candidates-page.ts",
   "test/browser/v1-item-center.spec.cjs",
   "prisma/migrations/202609130009_item_centric_v1/migration.sql",
+  "prisma/migrations/202609170012_distribution_foundation/migration.sql",
 ];
 export function checks(
   read = (p) => fs.readFileSync(path.join(root, p), "utf8"),
@@ -307,6 +312,25 @@ export function checks(
       read("test/integration.test.cjs").includes(
         "标准 Agent 协议校验 Skill/Profile",
       ),
+  );
+  check(
+    "v11-distribution-foundation",
+    () =>
+      read("prisma/schema.prisma").includes("model DistributionAttempt") &&
+      read("prisma/schema.prisma").includes("model ChannelPrice") &&
+      read("src/auth/auth.ts").includes("MachineDistribution") &&
+      read("src/auth/auth.ts").includes("X-Distribution-Token") &&
+      read("src/distribution/distribution.service.ts").includes(
+        "RECONCILIATION_REQUIRED",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "FAKE_REMOTE_ID_DENIED",
+      ) &&
+      read("prisma/migrations/202609170012_distribution_foundation/migration.sql").includes(
+        "remoteId\" = '' OR \"remoteId\" !~* '^MANUAL:'",
+      ) &&
+      !read("web/src/publishing-workspace.ts").includes("MANUAL:") &&
+      read("test/integration.test.cjs").includes("Distribution Foundation："),
   );
   check("v1-item-center-webkit", () =>
     read("playwright.webkit.config.cjs").includes("v1-item-center.spec.cjs"),

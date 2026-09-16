@@ -302,3 +302,11 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 本增量只标准化机器采集入口，不把长期蓝图中的外部发布、远端回执、独立站交易或自动库存同步改成“已覆盖”。`/api/agent-ingest` 仍是候选层唯一合同：服务端提供带 SHA-256 的 Skill 和按来源选择的 Profile，Profile 必查字段与 Agent Manifest 额外字段一起参与真实封批检查。MCP 的六个工具与 CLI 都复用相同 `IngestService`，不暴露确认候选、TM、库存、成交、成本或发布；图片仍经 multipart 保留原文件验证。
 
 `test/integration.test.cjs` 新增标准协议/Profile 降级拒绝、HTTP 与 MCP 黄金夹具等价、CLI 重启重用幂等状态且无 Token 的真实 PostgreSQL 场景。它们使用 `tome_test` 合成来源，不证明任何第三方网页、账号或真实订单已经接入。
+
+## v1.1 Distribution Foundation
+
+本增量只把分发执行事实与受限 Agent 面落入数据库，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保存 PUBLISH/UPDATE 等执行状态、租约、重试和核对依据；`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。
+
+`test/integration.test.cjs` 的 Distribution Foundation 场景使用 `tome_test` 合成包，覆盖 Token 仅存哈希且不能访问正常写接口、渠道隔离、同包计划去重、并发领取/租约过期、FAILED 复用原 Attempt、UNKNOWN 原记录核对、稳定 ID 冲突拒绝、无 ID 成功不创建 Listing，以及 Sale/Inquiry 的渠道快照。它不证明任何真实账号、页面、远端 archive ID、渠道价格生效或经营成交。
+
+ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 是后续 Real Operations 的前向结构准备；effective channel price、Inquiry 原子转化、售出后 DELIST 计划和运营中心仍为后续范围。历史 migration 保持封印，新 migration 单独校验。

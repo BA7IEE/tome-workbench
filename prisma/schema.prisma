@@ -363,6 +363,8 @@ model Item {
   sourceLinks          ItemSourceLink[]
   ingestCandidates     IngestCandidate[]
   materialExports      MaterialExportEntry[]
+  channelPrices        ChannelPrice[]
+  distributionAttempts DistributionAttempt[]
 
   @@index([deletedAt, serial])
 }
@@ -439,17 +441,25 @@ model Asset {
 }
 
 model Channel {
-  version          Int               @default(1)
-  id               String            @id @default(uuid()) @db.Uuid
-  name             String
-  platform         String
-  locale           String            @default("zh-CN")
-  titleLimit       Int               @default(80)
-  active           Boolean           @default(true)
-  packages         UsePackage[]
-  listings         Listing[]
-  createdAt        DateTime          @default(now())
-  publishingDrafts PublishingDraft[]
+  version              Int                   @default(1)
+  id                   String                @id @default(uuid()) @db.Uuid
+  name                 String
+  platform             String
+  locale               String                @default("zh-CN")
+  titleLimit           Int                   @default(80)
+  active               Boolean               @default(true)
+  defaultCurrency      String                @default("CNY")
+  distributionMode    String                @default("MANUAL")
+  endpointUrl          String                @default("")
+  packages             UsePackage[]
+  listings             Listing[]
+  channelPrices        ChannelPrice[]
+  distributionSessions DistributionSession[]
+  distributionAttempts DistributionAttempt[]
+  sales                Sale[]                @relation("SaleChannel")
+  inquiries            Inquiry[]             @relation("InquiryChannel")
+  createdAt            DateTime              @default(now())
+  publishingDrafts     PublishingDraft[]
 }
 
 model UsePackage {
@@ -468,6 +478,7 @@ model UsePackage {
   createdAt         DateTime          @default(now())
   listings          Listing[]
   collectionEntries CollectionEntry[]
+  distributionAttempts DistributionAttempt[]
 
   @@unique([id, itemId, channelId])
 }
@@ -489,6 +500,76 @@ model Listing {
   tasks      Task[]
 
   @@unique([channelId, remoteId])
+}
+
+// A channel-specific override. Absence deliberately falls back to Item.currentPrice/currency.
+// This row is mutable and versioned; immutable UsePackage snapshots remain the publication fact.
+model ChannelPrice {
+  id        String   @id @default(uuid()) @db.Uuid
+  itemId    String   @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  channelId String   @db.Uuid
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  amount    Int
+  currency  String
+  version   Int      @default(1)
+  updatedBy String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, channelId])
+  @@index([channelId])
+}
+
+// An opaque, revocable machine credential scoped to exactly one concrete Channel account.
+// Only tokenHash is stored; plaintext tokens are returned once when created.
+model DistributionSession {
+  id         String                  @id @default(uuid()) @db.Uuid
+  channelId  String                  @db.Uuid
+  channel    Channel                 @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  tokenHash  String                  @unique
+  label      String
+  agentName  String                  @default("")
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdBy  String                  @db.Uuid
+  createdAt  DateTime                @default(now())
+  attempts   DistributionAttempt[]   @relation("DistributionClaim")
+
+  @@index([channelId, expiresAt])
+}
+
+// Execution fact for a publish/update/delist/verify operation. A Listing exists only
+// when a stable remoteId is actually known; a successful APP execution may have none.
+model DistributionAttempt {
+  id                 String               @id @default(uuid()) @db.Uuid
+  itemId             String               @db.Uuid
+  item               Item                 @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  channelId          String               @db.Uuid
+  channel            Channel              @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  packageId          String?              @db.Uuid
+  package            UsePackage?          @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  action             String
+  state              String               @default("PENDING")
+  dedupeKey          String               @unique
+  remoteId           String               @default("")
+  remoteUrl          String               @default("")
+  evidence           Json                 @default("{}")
+  errorCode          String               @default("")
+  errorMessage       String               @default("")
+  attemptCount       Int                  @default(0)
+  claimedBySessionId String?              @db.Uuid
+  claimedBySession   DistributionSession? @relation("DistributionClaim", fields: [claimedBySessionId], references: [id], onDelete: SetNull)
+  leaseUntil         DateTime?
+  createdBy          String?              @db.Uuid
+  createdAt          DateTime             @default(now())
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  updatedAt          DateTime             @updatedAt
+
+  @@index([channelId, state, createdAt])
+  @@index([itemId, channelId, createdAt])
 }
 
 model Task {
@@ -543,6 +624,10 @@ model Sale {
   cycle          Cycle            @relation(fields: [itemId, cycleNumber], references: [itemId, number])
   externalKey    String?          @unique
   channel        String
+  channelId      String?          @db.Uuid
+  channelAccount Channel?         @relation("SaleChannel", fields: [channelId], references: [id], onDelete: SetNull)
+  inquiryId      String?          @unique @db.Uuid
+  inquiry        Inquiry?         @relation("InquirySale", fields: [inquiryId], references: [id], onDelete: SetNull)
   customerRef    String           @default("")
   state          String           @default("RECORDED")
   amount         Int?
@@ -591,6 +676,9 @@ model Inquiry {
   itemId      String   @db.Uuid
   item        Item     @relation(fields: [itemId], references: [id])
   channel     String
+  channelId   String?  @db.Uuid
+  channelAccount Channel? @relation("InquiryChannel", fields: [channelId], references: [id], onDelete: SetNull)
+  sale        Sale?    @relation("InquirySale")
   customerRef String
   notes       String   @default("")
   quote       Int?

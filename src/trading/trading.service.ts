@@ -261,13 +261,22 @@ export class TradingService {
     // Financial inputs deliberately are a separate command. Missing price/cost/exception cannot prevent the safety action.
     const b = z
       .object({
-        channel: safeText(120).min(1),
+        channel: safeText(120).optional(),
+        channelId: z.string().uuid().optional(),
         customerRef: safeText(200).default(""),
         externalKey: safeText(300).optional(),
         intentId: safeText(100).optional(),
         note: safeText(3000).default(""),
       })
       .strict()
+      .superRefine((value, ctx) => {
+        if (!value.channel && !value.channelId)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["channel"],
+            message: "请填写实际成交渠道或选择已配置账号",
+          });
+      })
       .parse(raw);
     return this.commands.run(
       actor.id,
@@ -277,6 +286,17 @@ export class TradingService {
       async (tx) => {
         const item = await itemLock(tx, itemId);
         await expireReservations(tx, itemId);
+        let channelName = b.channel || "";
+        if (b.channelId) {
+          const configured = await tx.channel.findUnique({
+            where: { id: b.channelId },
+          });
+          if (!configured)
+            throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
+          // The immutable historical text is always the server-side account name,
+          // never a caller-supplied label that might later be edited or spoofed.
+          channelName = configured.name;
+        }
         if (b.externalKey) {
           const old = await tx.sale.findUnique({
             where: { externalKey: b.externalKey },
@@ -368,7 +388,8 @@ export class TradingService {
           data: {
             itemId,
             cycleNumber: item.cycle,
-            channel: b.channel,
+            channel: channelName,
+            channelId: b.channelId || null,
             customerRef: b.customerRef,
             externalKey: b.externalKey || null,
             cooperation,

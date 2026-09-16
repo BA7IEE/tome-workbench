@@ -1,4 +1,4 @@
-import { form, field, select, note, text, request, check } from "./core";
+import { currencies, form, field, select, note, text, request, check } from "./core";
 import type { Channel } from "./types";
 export const platformNames: Record<string, string> = {
   XIANYU: "闲鱼",
@@ -6,17 +6,37 @@ export const platformNames: Record<string, string> = {
   VC: "Vestiaire Collective",
   CAROUSELL: "Carousell",
   SHOWROOM: "自有展厅",
+  ANQICMS: "AnQiCMS 独立站",
+  GRAILED: "Grailed",
   OTHER: "其他渠道",
 };
 export function setupChannel(after?: () => Promise<void>) {
   form(
     "添加常用渠道",
     note(
-      "这里记录你实际使用的账号和内容规格，不会注册账号或自动登录平台。标题上限按实际平台要求填写。",
+      "这里记录实际账号、内容规格和非敏感站点地址，不会注册账号、自动登录平台或保存密码/Token。",
     ) +
       select("platform", "平台", platformNames, "XIANYU") +
       field("name", "账号名称", "", "text", true) +
       select("locale", "内容语言", { "zh-CN": "中文", en: "英文" }, "zh-CN") +
+      select("defaultCurrency", "渠道默认币种", currencies, "CNY") +
+      select(
+        "distributionMode",
+        "分发方式",
+        {
+          MANUAL: "人工登记",
+          AGENT: "受限 Agent 执行",
+          API: "API（尚未连接）",
+          SCRIPT: "脚本（尚未连接）",
+        },
+        "MANUAL",
+      ) +
+      field(
+        "endpointUrl",
+        "站点地址（可留空，不填账号或密钥）",
+        "",
+        "url",
+      ) +
       field(
         "titleLimit",
         "标题字数上限（包含商品编号）",
@@ -34,6 +54,9 @@ export function setupChannel(after?: () => Promise<void>) {
           name: text(d, "name"),
           locale: text(d, "locale"),
           titleLimit: Number(text(d, "titleLimit")),
+          defaultCurrency: text(d, "defaultCurrency"),
+          distributionMode: text(d, "distributionMode"),
+          endpointUrl: text(d, "endpointUrl"),
         },
         k,
       ),
@@ -50,6 +73,24 @@ export function editChannel(c: Channel) {
     ) +
       field("name", "账号显示名称", c.name, "text", true) +
       select("locale", "内容语言", { "zh-CN": "中文", en: "英文" }, c.locale) +
+      select("defaultCurrency", "渠道默认币种", currencies, c.defaultCurrency) +
+      select(
+        "distributionMode",
+        "分发方式",
+        {
+          MANUAL: "人工登记",
+          AGENT: "受限 Agent 执行",
+          API: "API（尚未连接）",
+          SCRIPT: "脚本（尚未连接）",
+        },
+        c.distributionMode,
+      ) +
+      field(
+        "endpointUrl",
+        "站点地址（可留空，不填账号或密钥）",
+        c.endpointUrl,
+        "url",
+      ) +
       field(
         "titleLimit",
         "标题字符上限",
@@ -69,6 +110,9 @@ export function editChannel(c: Channel) {
           locale: text(d, "locale"),
           titleLimit: Number(d.get("titleLimit")),
           active: d.has("active"),
+          defaultCurrency: text(d, "defaultCurrency"),
+          distributionMode: text(d, "distributionMode"),
+          endpointUrl: text(d, "endpointUrl"),
         },
         k,
       ),

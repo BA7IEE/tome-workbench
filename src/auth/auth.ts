@@ -26,6 +26,14 @@ export type AuthRequest = Request & {
 export type IngestRequest = Request & {
   ingestSession: { id:string; createdBy:string; procurementSourceId:string };
 };
+export type DistributionRequest = Request & {
+  distributionSession: {
+    id: string;
+    createdBy: string;
+    channelId: string;
+    agentName: string;
+  };
+};
 const grants: Record<Role, string[]> = {
   ADMIN: [
     "dictionary",
@@ -52,6 +60,8 @@ export const permission = (role: Role, action: string) =>
 export const Access = (action: string) => SetMetadata("access", action);
 export const Public = () => SetMetadata("public", true);
 export const MachineIngest = () => SetMetadata("machineIngest", true);
+export const MachineDistribution = () =>
+  SetMetadata("machineDistribution", true);
 export const digest = (s: string) =>
   createHash("sha256").update(s).digest("hex");
 export function passwordHash(password: string) {
@@ -83,7 +93,9 @@ export class AuthGuard implements CanActivate {
     private reflector: Reflector,
   ) {}
   async canActivate(ctx: ExecutionContext) {
-    const req = ctx.switchToHttp().getRequest<AuthRequest & IngestRequest>();
+    const req = ctx
+      .switchToHttp()
+      .getRequest<AuthRequest & IngestRequest & DistributionRequest>();
     const cfg = config();
     const machine = this.reflector.getAllAndOverride<boolean>("machineIngest", [ctx.getHandler(),ctx.getClass()]);
     if(machine){
@@ -92,6 +104,42 @@ export class AuthGuard implements CanActivate {
       const session=await this.db.ingestSession.findUnique({where:{tokenHash:digest(token)}});
       if(!session || session.revokedAt || session.expiresAt<=new Date()) throw new Fault("INGEST_SESSION_EXPIRED","导入会话不存在、已撤销或已过期",401);
       req.ingestSession={id:session.id,createdBy:session.createdBy,procurementSourceId:session.procurementSourceId};
+      return true;
+    }
+    const distribution = this.reflector.getAllAndOverride<boolean>(
+      "machineDistribution",
+      [ctx.getHandler(), ctx.getClass()],
+    );
+    if (distribution) {
+      const token = req.get("X-Distribution-Token") || "";
+      if (!/^[a-f0-9]{64}$/.test(token))
+        throw new Fault("DISTRIBUTION_TOKEN_REQUIRED", "缺少有效分发令牌", 401);
+      const now = new Date();
+      const session = await this.db.distributionSession.findUnique({
+        where: { tokenHash: digest(token) },
+      });
+      if (!session || session.revokedAt || session.expiresAt <= now)
+        throw new Fault(
+          "DISTRIBUTION_SESSION_EXPIRED",
+          "分发会话不存在、已撤销或已过期",
+          401,
+        );
+      const used = await this.db.distributionSession.updateMany({
+        where: { id: session.id, revokedAt: null, expiresAt: { gt: now } },
+        data: { lastUsedAt: now },
+      });
+      if (used.count !== 1)
+        throw new Fault(
+          "DISTRIBUTION_SESSION_EXPIRED",
+          "分发会话不存在、已撤销或已过期",
+          401,
+        );
+      req.distributionSession = {
+        id: session.id,
+        createdBy: session.createdBy,
+        channelId: session.channelId,
+        agentName: session.agentName,
+      };
       return true;
     }
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {

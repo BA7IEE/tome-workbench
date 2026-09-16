@@ -1,4 +1,4 @@
-# 生产部署与发布手册 · 1.1.0-rc.1
+# 生产部署与发布手册 · 1.1.0-rc.2
 
 ## 1. 本版可部署边界
 
@@ -19,6 +19,8 @@ node scripts/production-config.mjs --domain=inventory.your-company.com --public
 版本唯一来源为 package.json.version；生成器据此写入 TOME_IMAGE_TAG 和 configuration.json.appVersion。Compose 缺少 tag 即失败，镜像构建校验 APP_VERSION 与 package 相同。升级已有配置时由运维明确更新这两个版本字段，不能重新生成并覆盖密码。
 
 镜像会随源码带入只读的 `agent/skills/tome-ingest` 标准 Skill/Profile，使 `/api/agent-ingest/skill` 与 `/api/agent-ingest/profile` 可在运行时校验内容哈希；其中不应放入第三方账号、Cookie、Token 或 selector 私密资料。`tome-ingest` CLI 是交付包内的本地客户端，不需要也不应写入生产容器的会话凭据。
+
+Distribution Foundation 不包含任何真实平台连接器。若将来创建分发会话，Token 只在创建响应中显示一次，应由操作者用受控渠道交给执行环境；应用数据库和 Receipt 只保存哈希/是否签发，不保存 Token。不要把 Token、Cookie、密码或验证码写入 Channel 的端点字段、配置文件、日志、测试、镜像或数据库备注。
 
 该命令不会覆盖已有目录或重置密码。配置生成后应备份密钥至受控位置，并检查`configuration.json`中的origin、域名和rehearsal状态。
 

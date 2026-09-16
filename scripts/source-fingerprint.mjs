@@ -50,6 +50,7 @@ export function sourceFingerprint(root = process.cwd()) {
     "docs/PRODUCTION.md",
     "docs/OPERATIONS.md",
     "docs/AC_MATRIX.md",
+    "docs/DISTRIBUTION-FOUNDATION.md",
     "启动工作台.command",
     "启动工作台.bat",
   ])
