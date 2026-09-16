@@ -239,7 +239,7 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
       expect(session.capabilities.includes("sell")).toBe(permission(role, "sell"));
       await expect(other.getByRole("link", { name: "销售", exact: true })).toHaveCount(permission(role, "sell") ? 1 : 0);
       await other.goto("/#/items");
-      await expect(other.getByRole("heading", { name: "商品库", exact: true })).toBeVisible();
+      await expect(other.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
       await expect(other.getByRole("button", { name: "＋ 快速录货", exact: true })).toHaveCount(permission(role, "edit") ? 1 : 0);
       const users = await other.request.get("/api/auth/users");
       expect(users.status()).toBe(permission(role, "users") ? 200 : 403);
