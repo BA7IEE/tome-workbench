@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.3**，标准 Agent 采集、Distribution Foundation 与 Real Operations 启动版，尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、Distribution Foundation、Real Operations 与 AnQiCMS 本地 Spike 合同，尚未完成真实生产和经营验收。
 
 2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
 
@@ -12,6 +12,8 @@
 
 本版新增 Real Operations：前向 migrations `202609170013_real_operations_price_basis` 与 `202609170014_channel_price_revision_continuity` 让草稿和冻结 UsePackage 绑定有效渠道价的来源/版本，并保留“改回默认价”后的版本连续性。`ChannelPrice` 存在且启用时覆盖 Item 默认报价，否则回退 `Item.currentPrice/currency`；Readiness、预览、草稿、UsePackage 和有效包复核都使用同一解析。AnQiCMS 必须是 USD、闲鱼必须是 CNY；没有自动换汇。询盘的 `WON` 只由确认成交动作产生：同一事务锁定 Item、检查版本与预留、创建 Sale、停售、更新 Inquiry、写 Audit/Outbox 并为已成功分发渠道计划 DELIST。商品库提供批量批准预检、批量渠道价和批量分发计划；分发中心只记录执行结果，不调用第三方。
 
+本版新增 AnQiCMS 本地 Spike 合同：已领取的 AnQiCMS 分发会话可读取 tome.anqicms.spike/v1 资料；它将冻结使用包映射为 tm_code、USD、最多 9 张 Gallery 图片、正文图片、自定义字段与 SEO 资料。没有 archive ID 时只允许未来 Connector 按 tm_code 保护性查找，取得稳定 archive ID 后才可回填 Listing；售出后的 DELIST 合同要求 stock=0、保留页面、SOLD、无 Checkout。该端点没有 HTTP 客户端、配置或凭据读取、外部请求或数据库写入；真实 API/UAT 与 Connector 仍未实现。
+
 ## 自动维护约束
 
 以下清单由实际源码目录生成，`node scripts/check-current-docs.mjs` 核对版本、迁移和双浏览器文件范围。目录新增文件时必须更新清单，不能只手填通过数。
@@ -19,7 +21,7 @@
 <!-- current-facts -->
 ```json
 {
-  "version": "1.1.0-rc.3",
+  "version": "1.1.0-rc.4",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
@@ -71,12 +73,12 @@
 
 ## 本版范围
 
-- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation 与 Real Operations 建立受限分发执行、渠道报价、询盘成交转化、批量预检和下架计划。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
+- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations 与 AnQiCMS 本地 Spike 合同建立受限分发执行、渠道报价、询盘成交转化、批量预检、下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
 
 ## 尚未完成
 
 - 实际异地备份、正式独立恢复、告警收件人测试、域名防火墙核验和真实经营 UAT 尚未验收。
-- AnQiCMS API Spike、archive ID 回传、真实第三方连接器、真实账号操作、支付/订单和自动化发布尚未实现；本轮未部署、未连接真实经营数据库或第三方，外部副作用保持 OFF。代码合并和 CI 成功不代表实际生产或经营验收完成。
+- AnQiCMS 真实 API Spike、archive ID 实测回传、真实第三方 Connector、真实账号操作、支付/订单和自动化发布尚未实现；本轮未部署、未连接真实经营数据库或第三方，外部副作用保持 OFF。代码合并和 CI 成功不代表实际生产或经营验收完成。
 
 长期蓝图与实现差距见 [AC_MATRIX](AC_MATRIX.md)；历史阶段见 [archive](archive/README.md)，不是当前执行指令。

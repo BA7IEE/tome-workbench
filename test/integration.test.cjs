@@ -3987,3 +3987,154 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   assert.equal(finance.priority, 30);
   assert.ok(queue.summary.distribution >= 1);
 });
+
+test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID 更新与售出保页", async () => {
+  const anqicms = await ok("/channels", "POST", {
+    name: "AnQiCMS 本地 Spike " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+    distributionMode: "API",
+    endpointUrl: "https://example.invalid/anqicms-spike",
+  });
+  const i = await ready({
+    category: "BAG",
+    currentPrice: 200000,
+    currency: "CNY",
+    facts: {
+      mainMaterial: "Leather",
+      condition: "Synthetic corner wear is disclosed.",
+      measurements: "20 × 12 × 8 cm",
+      measurementSource: "Synthetic measurement note",
+      descriptionZh: "合成中文说明，瑕疵已披露。",
+      descriptionEn: "Local-only fixture. Synthetic corner wear is disclosed.",
+      authentication: {
+        status: "PASSED",
+        evidence: "Synthetic review evidence only",
+      },
+      attributes: {
+        year: "2022",
+        collection: "Local contract set",
+        style_number: "ANQI-SPIKE-01",
+      },
+    },
+  });
+  for (let position = 1; position <= 9; position += 1) {
+    const asset = await upload(i.id, {
+      role: position === 9 ? "DEFECT" : "DETAIL",
+    });
+    await assetReview(asset.id, { position });
+  }
+  await ok("/items/" + i.id + "/channel-prices/" + anqicms.id, "POST", {
+    amount: 138000,
+    currency: "USD",
+  });
+  const p = await pack(i.id, anqicms);
+  const publish = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const session = await distributionSession(anqicms.id, "AnQiCMS Spike 合成会话");
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + publish.id + "/claim",
+    session.token,
+    "POST",
+  );
+  const create = await distributionAgentOk(
+    "/distribution-agent/attempts/" + publish.id + "/anqicms-spike",
+    session.token,
+  );
+  assert.equal(create.payload.protocol, "tome.anqicms.spike/v1");
+  assert.equal(create.payload.operation, "LOOKUP_THEN_CREATE");
+  assert.equal(create.payload.identity.tm_code, i.code);
+  assert.equal(create.payload.fields.price, "1380.00");
+  assert.equal(create.payload.fields.currency, "USD");
+  assert.equal(create.payload.fields.stock, 1);
+  assert.equal(create.payload.fields.images.length, 9);
+  assert.equal(create.payload.fields.contentImages.length, 1);
+  assert.equal(create.payload.fields.contentImages[0].role, "DEFECT");
+  assert.equal(create.payload.fields.custom.style_number, "ANQI-SPIKE-01");
+  assert.ok(create.payload.fields.content.includes("Synthetic corner wear is disclosed."));
+  assert.equal(create.payload.page.checkout, false);
+  assert.equal(JSON.stringify(create.payload).includes("cost"), false);
+  assert.equal(JSON.stringify(create.payload).includes("supplier"), false);
+  const archiveId = "archive-" + randomUUID();
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + publish.id + "/result",
+    session.token,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: archiveId,
+      remoteUrl: "https://example.invalid/anqicms/" + archiveId,
+      evidence: { method: "API_RESPONSE", note: "本地脱敏回执返回 archive ID。" },
+    },
+  );
+  const createdListing = await db.listing.findUniqueOrThrow({
+    where: { channelId_remoteId: { channelId: anqicms.id, remoteId: archiveId } },
+  });
+  assert.equal(createdListing.itemId, i.id);
+  const update = await ok("/distribution/plan", "POST", {
+    packageId: p.id,
+    action: "UPDATE",
+  });
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + update.id + "/claim",
+    session.token,
+    "POST",
+  );
+  const updatePayload = await distributionAgentOk(
+    "/distribution-agent/attempts/" + update.id + "/anqicms-spike",
+    session.token,
+  );
+  assert.equal(updatePayload.payload.operation, "UPDATE");
+  assert.equal(updatePayload.payload.identity.archive_id, archiveId);
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + update.id + "/result",
+    session.token,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: archiveId,
+      remoteUrl: "https://example.invalid/anqicms/" + archiveId,
+      evidence: { method: "API_RESPONSE", note: "本地脱敏更新保留同一 archive ID。" },
+    },
+  );
+  await sold(i.id, { channelId: anqicms.id });
+  const soldItem = await item(i.id);
+  const delist = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: "delist:" + i.id + ":" + anqicms.id + ":" + soldItem.cycle },
+  });
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + delist.id + "/claim",
+    session.token,
+    "POST",
+  );
+  const soldPayload = await distributionAgentOk(
+    "/distribution-agent/attempts/" + delist.id + "/anqicms-spike",
+    session.token,
+  );
+  assert.equal(soldPayload.payload.operation, "STOCK_ZERO");
+  assert.equal(soldPayload.payload.identity.archive_id, archiveId);
+  assert.equal(soldPayload.payload.fields.stock, 0);
+  assert.equal(soldPayload.payload.page.retain, true);
+  assert.equal(soldPayload.payload.page.displayState, "SOLD");
+  assert.equal(soldPayload.payload.page.checkout, false);
+  await distributionAgentOk(
+    "/distribution-agent/attempts/" + delist.id + "/result",
+    session.token,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: archiveId,
+      remoteUrl: "https://example.invalid/anqicms/" + archiveId,
+      evidence: { method: "API_RESPONSE", note: "本地脱敏售出页保留，库存已置零。" },
+    },
+  );
+  assert.equal(
+    (
+      await db.listing.findUniqueOrThrow({
+        where: { channelId_remoteId: { channelId: anqicms.id, remoteId: archiveId } },
+      })
+    ).desired,
+    "OFFLINE",
+  );
+});

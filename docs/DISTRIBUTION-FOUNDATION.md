@@ -43,7 +43,7 @@
 
 ## 明确未做
 
-- 真实平台连接器、自动登录 APP、AnQiCMS 接口和 archive ID 实测；
+- 真实平台连接器、自动登录 APP、AnQiCMS API/真实 archive ID 实测；本地 AnQiCMS Spike 合同仅冻结字段和售出语义，见 `integrations/ANQICMS-CONTRACT.md`；
 - 第三方凭据托管、支付、订单或库存反写。
 
 这些项目必须在后续独立切片中用本地/脱敏测试先验证，真实账号或凭据不得进入源码、测试、日志、配置样例或数据库明文字段。

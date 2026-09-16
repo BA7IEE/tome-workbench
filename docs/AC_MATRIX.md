@@ -320,3 +320,9 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 `POST /api/inquiries/:id/convert` 锁定 Item 后检查版本、可售性、预留和既有 Sale，在同一事务创建 Sale、停售、标记 WON、写审计/事件并为已成功分发渠道创建去重 DELIST Attempt。若发布租约先领取、成功回执后到，回执落库也补建同一去重 DELIST Attempt。普通状态接口拒绝 WON 及已转化记录的后续改写。没有 Listing 的 APP 成功发布同样按永久 TM 创建下架执行记录；待办将待下架、UNKNOWN、询盘、FAILED 和财务补录按 100/95/85/70/30 显示。
 
 `test/integration.test.cjs` 使用隔离 `tome_test` 覆盖 USD 覆盖价、默认价不覆盖渠道价、清除/恢复后旧包仍 stale、Inquiry→Sale→SOLD 原子性、预留冲突、无 Listing 下架、批量批准预检和队列优先级。`test/browser/operations.spec.cjs` 用真实登录和点击覆盖确认成交、停售和分发中心显示；两个浏览器范围仍由当前文档守卫锁定。它们不证明真实账号、平台页面、AnQiCMS archive ID、支付或外部发布。
+
+## v1.1 AnQiCMS 本地 Spike 合同
+
+本增量不实现真实 Connector。受限分发会话可以为已领取的 AnQiCMS Attempt 读取 `tome.anqicms.spike/v1` 资料合同：新建先按 `tm_code` 保护性查找，已有稳定 archive ID 时更新同一页面；前 9 张公开核验实物图进入 Gallery，其余图片保留为正文图片清单，品相/瑕疵披露不能丢失。售出后的 DELIST 合同是 `STOCK_ZERO`，要求库存为 0、页面保留、SOLD、无 Checkout。
+
+`test/fixtures/anqicms-spike/deidentified-20.json` 与单元测试覆盖 20 件脱敏夹具、全部库存状态、USD、图片分流、SEO 字段、archive ID 规范化和伪 ID 拒绝；隔离集成测试覆盖真实 UsePackage、DistributionSession、Listing 更新与售出后的保页合同。它们不连接 AnQiCMS、不验证真实 endpoint/认证/图片上传/Sitemap/页面 URL，也不构成真实 20 件 UAT。具体字段、禁止字段和进入真实 Spike 的门槛见 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)。

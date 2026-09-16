@@ -112,7 +112,13 @@ Profile 的必查字段由服务端与 Agent 本次 `requiredFields` 合并。�
 
 商品库的「批量确认当前资料」先显示每件预检阻断项，再逐件批准；「批量渠道价」接受 `TM编号 金额` 的粘贴行；「批量生成分发计划」先按目标渠道筛 READY，只有当前仍合格的商品会生成使用包和 PUBLISH Attempt。任一件失败都查看该件结果，不用刷新、重开一批或假定平台已执行。
 
-销售中的「商品分发」只显示渠道的待处理、失败、未知和执行记录。UNKNOWN 必须进入指定账号按标题永久 TM 核对原 Attempt；FAILED 才能复用原记录重试。商品已售但下架尚未回填优先级最高，APP 没有 Listing 也一样；进入对应渠道完成实际操作后登记结果。当前没有真实平台连接器或 AnQiCMS 接口，不要在这里填写 Cookie、密码、Token 或真实账号资料。
+销售中的「商品分发」只显示渠道的待处理、失败、未知和执行记录。UNKNOWN 必须进入指定账号按标题永久 TM 核对原 Attempt；FAILED 才能复用原记录重试。商品已售但下架尚未回填优先级最高，APP 没有 Listing 也一样；进入对应渠道完成实际操作后登记结果。当前没有真实平台 Connector 或 AnQiCMS API 调用；本地 Spike 资料读取不改变这一点。不要在这里填写 Cookie、密码、Token 或真实账号资料。
+
+## v1.1-rc.4 AnQiCMS 本地 Spike
+
+目前只能由已领取 AnQiCMS Channel Attempt 的受限分发会话读取本地 Spike 资料合同；它不是站点登录入口，也不会调用 AnQiCMS。PUBLISH/UPDATE 的合同保留永久 tm_code、USD 渠道价、最多 9 张 Gallery 图片、其余正文图片和公开 SEO 字段；没有 archive ID 时未来执行方只能先按 tm_code 核对，不能用标题或 MANUAL:TM 占位。
+
+售出后的 AnQiCMS DELIST 合同要求已有 archive ID，并明确要求未来执行方把 stock 置 0、页面保留、显示 SOLD、不开 Checkout。当前必须由人工完成任何站点操作并回填真实结果；不要将 Cookie、密码、Token、真实账号、真实正文或客户资料放进 Channel、分发会话、日志或测试。字段与本地验收边界见 docs/integrations/ANQICMS-CONTRACT.md。
 
 ## rc.9 日常操作
 商品库“重置/清除筛选”保留正式/测试范围、图片/列表视图、排序和每页数量。勾选后选中商品有标记，批量栏随页面滚动停留；取消选择可清空本次跨页选择。手机图片视图在常用手机宽度下并排展示两件，原文件不变。未填写售价显示“尚未报价”。

@@ -1,0 +1,26 @@
+{
+  "protocol": "tome.anqicms.spike/v1",
+  "dataset": "deidentified-local-only",
+  "items": [
+    { "case": "ANQI-01", "tmCode": "TM990001", "brand": "Atelier One", "category": "BAG", "condition": "Light edge wear is disclosed.", "price": 138000, "imageCount": 10, "status": "AVAILABLE" },
+    { "case": "ANQI-02", "tmCode": "TM990002", "brand": "Atelier Two", "category": "CLOTHING", "condition": "Minor lining wear is disclosed.", "price": 98000, "imageCount": 1, "status": "AVAILABLE" },
+    { "case": "ANQI-03", "tmCode": "TM990003", "brand": "Atelier Three", "category": "SHOES", "condition": "Sole wear is disclosed.", "price": 126500, "imageCount": 9, "status": "AVAILABLE" },
+    { "case": "ANQI-04", "tmCode": "TM990004", "brand": "Atelier Four", "category": "ACCESSORY", "condition": "Surface scratches are disclosed.", "price": 56000, "imageCount": 12, "status": "AVAILABLE" },
+    { "case": "ANQI-05", "tmCode": "TM990005", "brand": "Atelier Five", "category": "BAG", "condition": "Handle patina is disclosed.", "price": 210000, "imageCount": 14, "status": "AVAILABLE" },
+    { "case": "ANQI-06", "tmCode": "TM990006", "brand": "Atelier Six", "category": "CLOTHING", "condition": "A small repair is disclosed.", "price": 74500, "imageCount": 4, "status": "AVAILABLE" },
+    { "case": "ANQI-07", "tmCode": "TM990007", "brand": "Atelier Seven", "category": "SHOES", "condition": "Toe creasing is disclosed.", "price": 112000, "imageCount": 8, "status": "AVAILABLE" },
+    { "case": "ANQI-08", "tmCode": "TM990008", "brand": "Atelier Eight", "category": "ACCESSORY", "condition": "Finish variation is disclosed.", "price": 44000, "imageCount": 11, "status": "AVAILABLE" },
+    { "case": "ANQI-09", "tmCode": "TM990009", "brand": "Atelier Nine", "category": "BAG", "condition": "Corner rubbing is disclosed.", "price": 165000, "imageCount": 6, "status": "AVAILABLE" },
+    { "case": "ANQI-10", "tmCode": "TM990010", "brand": "Atelier Ten", "category": "OTHER", "condition": "Age-related marks are disclosed.", "price": 39000, "imageCount": 3, "status": "AVAILABLE" },
+    { "case": "ANQI-11", "tmCode": "TM990011", "brand": "Atelier Eleven", "category": "BAG", "condition": "Interior marks are disclosed.", "price": 132000, "imageCount": 13, "status": "AVAILABLE" },
+    { "case": "ANQI-12", "tmCode": "TM990012", "brand": "Atelier Twelve", "category": "CLOTHING", "condition": "Fabric wear is disclosed.", "price": 87000, "imageCount": 5, "status": "AVAILABLE" },
+    { "case": "ANQI-13", "tmCode": "TM990013", "brand": "Atelier Thirteen", "category": "SHOES", "condition": "Heel wear is disclosed.", "price": 103000, "imageCount": 7, "status": "SELF_USE" },
+    { "case": "ANQI-14", "tmCode": "TM990014", "brand": "Atelier Fourteen", "category": "ACCESSORY", "condition": "Metal wear is disclosed.", "price": 62000, "imageCount": 2, "status": "AVAILABLE" },
+    { "case": "ANQI-15", "tmCode": "TM990015", "brand": "Atelier Fifteen", "category": "BAG", "condition": "Texture variation is disclosed.", "price": 154000, "imageCount": 10, "status": "SOLD" },
+    { "case": "ANQI-16", "tmCode": "TM990016", "brand": "Atelier Sixteen", "category": "CLOTHING", "condition": "Button wear is disclosed.", "price": 69000, "imageCount": 8, "status": "RESERVED" },
+    { "case": "ANQI-17", "tmCode": "TM990017", "brand": "Atelier Seventeen", "category": "SHOES", "condition": "Scuffing is disclosed.", "price": 93000, "imageCount": 9, "status": "PAUSED" },
+    { "case": "ANQI-18", "tmCode": "TM990018", "brand": "Atelier Eighteen", "category": "ACCESSORY", "condition": "Discoloration is disclosed.", "price": 48000, "imageCount": 11, "status": "QUARANTINED" },
+    { "case": "ANQI-19", "tmCode": "TM990019", "brand": "Atelier Nineteen", "category": "BAG", "condition": "Storage marks are disclosed.", "price": 119000, "imageCount": 12, "status": "SUPPLIER_SOLD" },
+    { "case": "ANQI-20", "tmCode": "TM990020", "brand": "Atelier Twenty", "category": "OTHER", "condition": "Finish wear is disclosed.", "price": 31000, "imageCount": 4, "status": "GIFTED" }
+  ]
+}
