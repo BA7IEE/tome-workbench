@@ -18,7 +18,7 @@ import {
   type DictionaryKind,
   type DictionarySelection,
 } from "./dictionary-editor";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Item } from "./types";
 export function bulkDictionaries(
   items: Pick<Item, "id" | "code" | "title" | "version">[],
@@ -76,7 +76,7 @@ export function bulkDictionaries(
       );
       return { nextStep: true };
     },
-    "核对后进入批量执行",
+    "确认并执行",
   );
   const scope = new AbortController();
   bindDictionaryFields(dialog.querySelector("form")!, scope.signal);

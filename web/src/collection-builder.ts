@@ -1,3 +1,4 @@
+import { readCollectionDraft, writeCollectionDraft } from "./collection-draft";
 import {
   request,
   button,
@@ -17,6 +18,8 @@ import { onPageReady, setLeaveGuard } from "./page-lifecycle";
 import { lockControls } from "./form-support";
 import { recordPaging } from "./record-controls";
 import type { Item, Channel } from "./types";
+let pendingIds: string[] = [];
+let restoreAttemptIds: string[] = [];
 let owner = "",
   title = "",
   channelId = "",
@@ -33,21 +36,58 @@ let attempt: {
 } | null = null;
 function account() {
   if (owner !== (me?.id || "")) {
-    owner = me?.id || "";
+    const nextOwner = me?.id || "";
+    const saved = nextOwner ? readCollectionDraft(nextOwner) : null;
+    owner = nextOwner;
     selected.clear();
     title = "";
     channelId = "";
     issues.clear();
     attempt = null;
+    pendingIds = saved?.itemIds || [];
+    title = saved?.title || "";
+    channelId = saved?.channelId || "";
+    restoreAttemptIds = saved?.attempt?.itemIds || [];
+    if (saved?.attempt)
+      attempt = {
+        ...saved.attempt,
+        items: [],
+        packages: new Map(saved.attempt.packages),
+      };
   }
+}
+function persist() {
+  writeCollectionDraft(owner, {
+    itemIds: [...new Set([...pendingIds, ...selected.keys()])],
+    title,
+    channelId,
+    updatedAt: new Date().toISOString(),
+    attempt: attempt
+      ? {
+          signature: attempt.signature,
+          title: attempt.title,
+          channelId: attempt.channelId,
+          itemIds: attempt.items.length
+            ? attempt.items.map((i) => i.id)
+            : restoreAttemptIds,
+          key: attempt.key,
+          packages: [...attempt.packages],
+          uncertain: attempt.uncertain,
+        }
+      : null,
+  });
 }
 export function beginCollection(items: Item[] = []) {
   account();
-  if (new Set([...selected.keys(), ...items.map((i) => i.id)]).size > 40)
+  if (
+    new Set([...pendingIds, ...selected.keys(), ...items.map((i) => i.id)])
+      .size > 40
+  )
     throw new Error("加上已保留的选品后超过40件，请先减少选择");
   if (items.some((i) => i.dataMode === "TEST"))
     throw new Error("客户选品只接收正式商品");
   for (const i of items) selected.set(i.id, i);
+  persist();
   location.hash = "/collections/new";
 }
 export async function collectionBuilder() {
@@ -61,6 +101,23 @@ export async function collectionBuilder() {
     ),
     request<Channel[]>("/channels"),
   ]);
+  const ids = [
+    ...new Set([...pendingIds, ...selected.keys(), ...restoreAttemptIds]),
+  ];
+  const fresh = await Promise.all(
+    ids.map((id) => request<Item>(`/items/${id}`)),
+  );
+  for (const item of fresh) {
+    if (item.dataMode === "TEST")
+      throw new Error("选品中包含测试商品，请先核对草稿");
+    if (pendingIds.includes(item.id) || selected.has(item.id))
+      selected.set(item.id, item);
+  }
+  pendingIds = [];
+  if (attempt && restoreAttemptIds.length)
+    attempt.items = restoreAttemptIds.map(
+      (id) => fresh.find((i) => i.id === id)!,
+    );
   const active = channels.filter((c) => c.active);
   const replayChannel = attempt?.uncertain
     ? channels.find((c) => c.id === attempt?.channelId && !c.active)
@@ -68,7 +125,6 @@ export async function collectionBuilder() {
   const options = replayChannel ? [...active, replayChannel] : active;
   if (!attempt?.uncertain && !active.some((c) => c.id === channelId))
     channelId = active[0]?.id || "";
-  for (const i of data.rows) if (selected.has(i.id)) selected.set(i.id, i);
   const picture = (i: Item) =>
     i.assets[0]
       ? `<img class="record-thumb" src="/api/assets/${i.assets[0].id}/preview" alt="${esc(i.title)}">`
@@ -78,14 +134,28 @@ export async function collectionBuilder() {
   const paintSelected = () =>
     `<h2>已选 ${selected.size} / 40 件</h2>${[...selected.values()].map((i) => `<article class="selection-row">${picture(i)}<div><strong>${esc(i.code)} · ${esc(i.title)}</strong><small>${money(i.currentPrice, i.currency)} · ${i.approvedValid ? "已有确认资料" : "资料待确认"}</small>${(issues.get(i.id) || []).map((x) => `<p class="form-error">${esc(x)}</p>`).join("")}</div>${edit(i)}<button type="button" class="btn" data-remove-item="${i.id}">移除 ${esc(i.code)}</button></article>`).join("")}`;
   onPageReady("collection-builder", (root, signal) => {
-    let busy = false;
+    let busy = false,
+      localSaveFailed = false;
     const f = root.querySelector<HTMLFormElement>("#collection-build")!,
       error = root.querySelector<HTMLElement>("[data-collection-error]")!;
+    const saveLocally = () => {
+      try {
+        persist();
+        localSaveFailed = false;
+        return true;
+      } catch (e) {
+        localSaveFailed = true;
+        error.textContent = (e as Error).message;
+        return false;
+      }
+    };
     const capture = () => {
       title = String(new FormData(f).get("title") || "");
       channelId = String(new FormData(f).get("channelId") || "");
+      return saveLocally();
     };
     const paint = () => {
+      saveLocally();
       root.querySelector("[data-selected-items]")!.innerHTML = paintSelected();
       root
         .querySelectorAll<HTMLInputElement>("[data-choose-item]")
@@ -163,7 +233,7 @@ export async function collectionBuilder() {
       "click",
       async () => {
         if (busy) return;
-        capture();
+        if (!capture()) return;
         busy = true;
         const unlock = lockControls(root);
         try {
@@ -171,6 +241,7 @@ export async function collectionBuilder() {
           error.textContent = "所选商品预检通过，可以确认生成。";
         } catch (e) {
           error.textContent = (e as Error).message;
+          saveLocally();
         } finally {
           busy = false;
           unlock();
@@ -183,7 +254,7 @@ export async function collectionBuilder() {
       async (e) => {
         e.preventDefault();
         if (busy) return;
-        capture();
+        if (!capture()) return;
         const confirmed = new FormData(f).has("confirmed");
         if (!confirmed) {
           error.textContent = "请先确认本次选品";
@@ -192,6 +263,7 @@ export async function collectionBuilder() {
         busy = true;
         const unlock = lockControls(root);
         error.textContent = "";
+        let uncertainBefore = attempt?.uncertain || false;
         try {
           const signature = JSON.stringify({
             title,
@@ -211,6 +283,9 @@ export async function collectionBuilder() {
               uncertain: false,
             };
           if (!attempt.uncertain) await preflight();
+          uncertainBefore = attempt.uncertain;
+          attempt.uncertain = true;
+          persist();
           for (const i of selected.values()) {
             if (attempt.packages.has(i.id)) continue;
             const p = await request<{ id: string }>(
@@ -220,6 +295,7 @@ export async function collectionBuilder() {
               attempt.key + ":" + i.id,
             );
             attempt.packages.set(i.id, p.id);
+            persist();
           }
           const result = await request<{ id: string }>(
             "/collections",
@@ -235,14 +311,18 @@ export async function collectionBuilder() {
           selected.clear();
           title = "";
           issues.clear();
+          restoreAttemptIds = [];
+          persist();
           toast("选品合集已生成");
           location.hash = "/collections/" + result.id;
         } catch (e) {
           if (attempt)
             attempt.uncertain =
-              attempt.uncertain ||
+              uncertainBefore ||
+              attempt.packages.size > 0 ||
               (e instanceof ApiError && (e.status === 0 || e.status >= 500));
           error.textContent = (e as Error).message;
+          saveLocally();
         } finally {
           busy = false;
           unlock();
@@ -254,7 +334,7 @@ export async function collectionBuilder() {
     window.addEventListener(
       "beforeunload",
       (e) => {
-        if (busy || selected.size || title) {
+        if (busy || localSaveFailed) {
           e.preventDefault();
           e.returnValue = "";
         }
@@ -262,13 +342,15 @@ export async function collectionBuilder() {
       { signal },
     );
   });
-  return `<div id="collection-builder"><a href="#/collections">← 客户选品</a><div class="page-title"><div><h1>看图选品</h1><p>先选择商品，集中预检；需要补资料时可进入商品维护，返回后继续。</p></div>${button(
+  return `<div id="collection-builder"><a href="#/collections">← 客户选品</a><div class="page-title"><div><h1>看图选品</h1><p>选择和名称会在当前账号、当前浏览器保留。生成时自动检查；需要补资料时可进入商品维护，返回后继续。</p></div>${button(
     "重新准备本次选品",
     () => {
       if (attempt?.uncertain)
         throw new Error("先使用原内容重试，确认上次结果后再重新准备");
       attempt = null;
+      restoreAttemptIds = [];
       issues.clear();
+      persist();
       void reload();
     },
   )}${button("恢复上次提交内容", () => {
@@ -280,6 +362,7 @@ export async function collectionBuilder() {
     channelId = attempt.channelId;
     selected.clear();
     for (const item of attempt.items) selected.set(item.id, item);
+    persist();
     void reload();
-  })}${can("users") ? button("添加渠道", () => setupChannel(reload)) : ""}</div>${!active.length ? '<div class="notice warning">还没有启用渠道，请先添加渠道；当前选择会保留。</div>' : ""}<form id="collection-search" class="filters">${field("q", "搜索选品商品", q, "text", false, 'placeholder="品牌、名称或TM编号"')}<button class="btn">搜索</button></form><div class="selection-grid">${data.rows.map((i) => `<label class="selection-choice">${picture(i)}<input type="checkbox" data-choose-item="${i.id}" aria-label="选品 ${esc(i.code)}" ${selected.has(i.id) ? "checked" : ""}><span>${esc(i.code)} · ${esc(i.title)}<small>${money(i.currentPrice, i.currency)}</small></span></label>`).join("")}</div>${recordPaging("collections/new", qs, data)}<form id="collection-build">${field("title", "合集名称", title, "text", true)}${select("channelId", "语言与内容模板", Object.fromEntries(options.map((c) => [c.id, c.name + " / " + c.locale + (c.active ? "" : "（上次提交，已停用）")])), channelId)}<div data-selected-items>${paintSelected()}</div>${check("confirmed", "我已确认选择的商品，生成本次客户选品快照")}<p class="form-error" data-collection-error role="alert"></p><div class="button-row"><button type="button" class="btn" data-check-selection>预检全部商品</button><button class="btn primary" ${options.length ? "" : "disabled"}>生成选品合集</button></div></form></div>`;
+  })}${can("users") ? button("添加渠道", () => setupChannel(reload)) : ""}</div>${!active.length ? '<div class="notice warning">还没有启用渠道，请先添加渠道；当前选择会保留。</div>' : ""}<form id="collection-search" class="filters">${field("q", "搜索选品商品", q, "text", false, 'placeholder="品牌、名称或TM编号"')}<button class="btn">搜索</button></form><div class="selection-grid">${data.rows.map((i) => `<label class="selection-choice">${picture(i)}<input type="checkbox" data-choose-item="${i.id}" aria-label="选品 ${esc(i.code)}" ${selected.has(i.id) ? "checked" : ""}><span>${esc(i.code)} · ${esc(i.title)}<small>${money(i.currentPrice, i.currency)}</small></span></label>`).join("")}</div>${recordPaging("collections/new", qs, data)}<form id="collection-build">${field("title", "合集名称", title, "text", true)}${select("channelId", "语言与内容模板", Object.fromEntries(options.map((c) => [c.id, c.name + " / " + c.locale + (c.active ? "" : "（上次提交，已停用）")])), channelId)}<div data-selected-items>${paintSelected()}</div>${check("confirmed", "我已确认选择的商品，生成本次客户选品快照")}<p class="form-error" data-collection-error role="alert"></p><div class="button-row"><button type="button" class="btn" data-check-selection>检查当前选择</button><button class="btn primary" ${options.length ? "" : "disabled"}>生成选品合集</button></div></form></div>`;
 }

@@ -288,3 +288,11 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 | PushPlus 显式启用 | production-notify.mjs 与 production-tools.test.mjs | 默认预览；真实通知送达未验收 |
 
 媒体丢回执回归说明：新增真实文件数量断言后，发现旧 product-library 用例在 WebKit 的 route.fetch 转发 multipart 失败时仍伪造 201，因此没有证明首次真实写入。现改为原生 XHR 保留真实 multipart，在实际 HTTP 201 后丢弃回执交付；断言首写恰好新增 original/preview 两文件、关页恢复后相同命令键、一个 Asset、原字节 SHA 和文件数量不再增加。不是放宽失败期望。
+
+## UX 1.0.2 独立增量
+
+- 选品草稿：同账号同浏览器保存商品 ID、名称、渠道、时间；待确认写入只额外保存命令键、包 ID 和原选择 ID，不持久化商品/成本/CSRF。重新打开重读服务器商品。system-review 的关页草稿和真实丢回执用例覆盖恢复及原命令重放。
+- 生成选品始终检查当前事实；“检查当前选择”是可选辅助。原“预检全部商品”文字已被该交互取代，失败仍逐件显示并阻止新包生成。
+- 批量表单的最终“确认并执行”后立即执行；取消第二次“开始执行”点击，原逐项结果、幂等 key、失败重试断言保留。未经过参数确认的货源接手仍显式“确认执行”。对应 dictionaries/interaction/operations/system-review/workbench 期望按此更新。
+- 图片排序由 studio-image-order 负责表示和交互；拖动、上/下移及指定位置共用同一移动逻辑，手机无需 hover；只改变选图顺序，不写原图元数据，瑕疵选图规则不变。studio 的新排序用例验证真实草稿请求及原素材不变。
+- 商品详情和编辑共用 studioStock；按库存状态呈现主要动作，暂停商品仍可从更多登记实际售出，未知财务不阻断。

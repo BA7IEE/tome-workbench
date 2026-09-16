@@ -158,17 +158,21 @@ export function studioStock(
       host.classList.add("button-row");
       const direct: string[] = [];
       if (can("sell")) {
-        direct.push(button("记录询盘", () => recordInquiry(i, async () => {})));
+        if (i.status === "AVAILABLE")
+          direct.push(
+            button("记录询盘", () => recordInquiry(i, async () => {})),
+          );
         if (i.status === "AVAILABLE") direct.push(button("预留", reserve));
-        if (
-          canRecordSale(i) &&
-          ["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status)
-        )
+        if (canRecordSale(i) && ["AVAILABLE", "RESERVED"].includes(i.status))
           direct.push(button("登记售出", sold, "primary"));
         if (i.status === "RESERVED") direct.push(button("解除预留", release));
         if (["PAUSED", "QUARANTINED"].includes(i.status) && can("review"))
           direct.push(button("恢复可售", reopen));
       }
+      if (i.status === "AVAILABLE" && can("publish"))
+        direct.push(
+          `<a class="btn" href="#/items/${i.id}?tab=use&returnTo=${encodeURIComponent(location.hash)}">准备发布</a>`,
+        );
       if (i.status === "SOLD" && can("sell"))
         direct.push(
           `<a class="btn primary" href="#/sales?itemId=${i.id}&returnTo=${encodeURIComponent(location.hash)}">查看成交</a>`,
@@ -176,11 +180,14 @@ export function studioStock(
       host.innerHTML = i.id
         ? `<span class="studio-stock-badge">${esc(states[i.status] || i.status)}${i.dataMode === "TEST" ? " · 测试" : ""}</span>` +
           direct.join("") +
-          button("经营记录", () => itemActivity(i)) +
+          (!can("sell") ? button("经营记录", () => itemActivity(i)) : "") +
           `<details class="studio-stock-menu"><summary class="btn subtle">更多操作</summary><div class="studio-stock-menu-list">` +
+          button("经营记录", () => itemActivity(i)) +
           (can("sell")
-            ? (canRecordSale(i) &&
-              !["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status)
+            ? (i.status !== "AVAILABLE" && i.status !== "SOLD"
+                ? button("记录询盘", () => recordInquiry(i, async () => {}))
+                : "") +
+              (canRecordSale(i) && !["AVAILABLE", "RESERVED"].includes(i.status)
                 ? button("登记售出", sold)
                 : "") +
               (["AVAILABLE", "RESERVED"].includes(i.status)
@@ -207,7 +214,7 @@ export function studioStock(
             : "") +
           `<a href="#/items/${i.id}?tab=supply&returnTo=${encodeURIComponent(location.hash)}">其他库存与交接操作</a></div></details>`
         : "";
-      if (!can("sell")) host?.querySelector(".studio-stock-menu")?.remove();
+      if (!can("sell")) host.querySelector(".studio-stock-menu")?.remove();
     }
     const source = root.querySelector<HTMLElement>(
       "[data-section=supply] .studio-optional-body",

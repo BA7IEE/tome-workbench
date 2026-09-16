@@ -742,3 +742,43 @@ test("读取发布预览失败可原地重试，已经保存的商品和图片�
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await expect(page.getByLabel("商品名称", { exact: true })).toHaveValue(name);
 });
+
+test.describe("触摸设备的发布排序", () => {
+  test.use({ hasTouch: true });
+test("发布图片可拖动键盘及手机指定位置，排序只改发布草稿", async ({ page }) => {
+  await start(page);
+  await basic(page, "发布排序 " + randomUUID());
+  await page.getByLabel("选择商品图片", { exact: true }).setInputFiles(await photograph("order-b.png"));
+  await tradeFacts(page);
+  await revealPublishing(page);
+  await page.getByRole("button", { name: "保存并准备发布", exact: true }).click();
+  await expect(page.locator(".studio-order-row")).toHaveCount(2);
+  const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1];
+  const before = await (await page.request.get("/api/items/" + id)).json();
+  const ids = await page.locator(".studio-order-row").evaluateAll(rows => rows.map(row => row.dataset.orderId));
+  await page.locator(".studio-order-row").last().dragTo(page.locator(".studio-order-row").first());
+  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
+  const up = page.locator(".studio-order-row").last().getByRole("button", { name: /^上移/ });
+  await up.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
+  await expect.poll(() => page.locator(".studio-order-row").first().locator("select").evaluate(el => el === document.activeElement)).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".studio-order-row").first().locator("select").selectOption({ value: "1" });
+  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
+  expect((await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).tap();
+  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
+  await page.locator(".studio-order-row").last().getByRole("button", { name: /^上移/ }).tap();
+  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
+  const saved = page.waitForResponse(r => r.url().includes("/publishing-draft") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "保存草稿", exact: true }).click();
+  const response = await saved;
+  expect(response.ok()).toBe(true);
+  expect(response.request().postDataJSON().assetIds).toEqual([ids[1], ids[0]]);
+  const after = await (await page.request.get("/api/items/" + id)).json();
+  expect(after.assets.map(a => [a.id, a.sha256, a.position])).toEqual(before.assets.map(a => [a.id, a.sha256, a.position]));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
+  await page.screenshot({ path: "reports/screenshots/ux102-image-order-mobile.png", fullPage: true });
+});
+});

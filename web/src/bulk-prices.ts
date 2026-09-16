@@ -9,7 +9,7 @@ import {
   cents,
   request,
 } from "./core";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Item } from "./types";
 export function bulkPrices(items: Item[]) {
   form(
@@ -51,6 +51,6 @@ export function bulkPrices(items: Item[]) {
       );
       return { nextStep: true };
     },
-    "核对后进入批量执行",
+    "确认并执行",
   );
 }

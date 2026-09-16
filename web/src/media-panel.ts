@@ -18,7 +18,7 @@ import {
 import type { Item, Asset } from "./types";
 import { uploadImages } from "./media-uploader";
 import { onPageReady } from "./page-lifecycle";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 export const mediaRoles: Record<string, string> = {
   PRODUCT: "商品实拍",
   DETAIL: "细节",
@@ -210,7 +210,7 @@ export function mediaPanel(i: Item) {
                   );
                   return { nextStep: true };
                 },
-                "核对后进入批量执行",
+                "确认并执行",
               );
             })
           : "");

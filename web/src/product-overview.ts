@@ -89,5 +89,5 @@ export function productOverview(item: Item) {
         ["瑕疵与使用痕迹", f.condition],
       ]),
     )}
-    <details class="panel product-overview-records"><summary>来源、复核与详细记录</summary><div class="button-row">${button("查看全部来源资料", () => showItemEvidence(item.id))}${link("facts", "完整资料与复核")}${link("assets", "素材管理")}${link("supply", "货源与交接")}${can("finance") ? link("costs", "成本明细") : ""}${link("history", "版本与记录")}${can("publish") ? link("use", "准备发布") : ""}</div><p class="note">来源原始记录保留在这里，人工维护的商品资料以当前档案为准。</p></details></div>`;
+    <details class="panel product-overview-records"><summary>来源、复核与详细记录</summary><div class="button-row">${button("查看全部来源资料", () => showItemEvidence(item.id))}${link("facts", "完整资料与复核")}${link("assets", "素材管理")}${link("supply", "货源与交接")}${can("finance") ? link("costs", "成本明细") : ""}${link("history", "版本与记录")}${can("publish") && item.status !== "AVAILABLE" ? link("use", "准备发布") : ""}</div><p class="note">来源原始记录保留在这里，人工维护的商品资料以当前档案为准。</p></details></div>`;
 }

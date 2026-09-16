@@ -452,9 +452,8 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   await page.getByLabel("以上每张图片均有权用于本商品公开展示").click();
   await page.getByLabel("统一依据与授权说明").fill("本次合成图片的测试授权");
   await page
-    .getByRole("button", { name: "核对后进入批量执行", exact: true })
+    .getByRole("button", { name: "确认并执行", exact: true })
     .click();
-  await page.getByRole("button", { name: "开始执行", exact: true }).click();
   await expect(page.locator("#batch-summary")).toContainText("完成1 / 1");
   await page
     .locator("#dialog")

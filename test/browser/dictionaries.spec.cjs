@@ -354,9 +354,8 @@ test("批量改品牌只影响勾选商品与指定字段，版本冲突单独�
     evidence: "模拟其他操作者登记交接",
   });
   await page
-    .getByRole("button", { name: "核对后进入批量执行", exact: true })
+    .getByRole("button", { name: "确认并执行", exact: true })
     .click();
-  await page.getByRole("button", { name: "开始执行", exact: true }).click();
   await expect(page.locator("#batch-summary")).toContainText("完成1 / 2");
   await expect(page.locator(".batch-results")).toContainText(
     "资料已被其他人修改",

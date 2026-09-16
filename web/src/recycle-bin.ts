@@ -13,7 +13,7 @@ import {
   reload,
 } from "./core";
 import { catalogContext, clearEditQueue } from "./catalog-context";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 import { onPageReady } from "./page-lifecycle";
 import type { Item } from "./types";
 type Target = Pick<Item, "id" | "code" | "title" | "version"> & {
@@ -90,7 +90,7 @@ export function deleteProducts(items: Target[]) {
       );
       return { nextStep: true };
     },
-    "核对所选商品",
+    "确认删除所选商品",
   );
 }
 export function restoreProduct(item: Target) {

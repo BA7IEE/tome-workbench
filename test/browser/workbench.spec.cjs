@@ -540,8 +540,7 @@ test("批量清理仅影响本测试创建并勾选的两件样本", async ({ pa
   }
   await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量删除", exact: true }).click();
-  await page.getByRole("button", { name: "核对所选商品", exact: true }).click();
-  await page.getByRole("button", { name: "开始执行", exact: true }).click();
+  await page.getByRole("button", { name: "确认删除所选商品", exact: true }).click();
   await expect(page.locator("#batch-summary")).toContainText("完成2 / 2");
   await page
     .locator("#dialog")
