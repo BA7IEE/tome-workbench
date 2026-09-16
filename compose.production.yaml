@@ -1,8 +1,8 @@
 # This profile is isolated from compose.yaml and does not mount development data.
 name: tome-production
 x-runtime: &runtime
-  image: tome-workbench:${TOME_IMAGE_TAG:-1.0.0-rc.1}
-  build: {context: ., target: runtime}
+  image: tome-workbench:${TOME_IMAGE_TAG:?Generate compose.env with production-config.mjs}
+  build: {context: ., target: runtime, args: {APP_VERSION: "${TOME_IMAGE_TAG:?Application version required}"}}
   env_file: ["${TOME_CONFIG_DIR:-./data/production}/api.env"]
   environment: {RUNTIME_DIR: /tmp/tome-run}
   volumes: ["tome_media:/app/data"]
@@ -37,8 +37,8 @@ services:
   worker-b:
     <<: *worker
   migration:
-    image: tome-workbench-migration:${TOME_IMAGE_TAG:-1.0.0-rc.1}
-    build: {context: ., target: migration}
+    image: tome-workbench-migration:${TOME_IMAGE_TAG:?Generate compose.env with production-config.mjs}
+    build: {context: ., target: migration, args: {APP_VERSION: "${TOME_IMAGE_TAG:?Application version required}"}}
     profiles: [tools]
     env_file: ["${TOME_CONFIG_DIR:-./data/production}/migration.env"]
     depends_on: {postgres: {condition: service_healthy}}

@@ -3,7 +3,9 @@ FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3e
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 FROM base AS build
+ARG APP_VERSION
 COPY package.json package-lock.json ./
+RUN node -e 'if(require("./package.json").version !== process.env.APP_VERSION) process.exit(1)'
 RUN npm ci --ignore-scripts --no-fund
 COPY tsconfig.json vite.config.mjs ./
 COPY prisma ./prisma
@@ -19,6 +21,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-fund && npm cache clean --force
 FROM base AS runtime
+ARG APP_VERSION
+LABEL org.opencontainers.image.version=$APP_VERSION
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4318 RUNTIME_DIR=/tmp/tome-run
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma

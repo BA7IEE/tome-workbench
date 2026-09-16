@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { releaseVersion } from "./release-version.mjs";
+const version = releaseVersion();
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 const arg = (name, fallback) =>
@@ -49,12 +51,13 @@ save(
 );
 save(
   "compose.env",
-  `TOME_CONFIG_DIR=${dir}\nTOME_IMAGE_TAG=0.4.0-rc.1\nTOME_BIND=${process.argv.includes("--public") && !test ? "0.0.0.0" : "127.0.0.1"}\nTOME_HTTPS_PORT=${httpsPort}\nTOME_HTTP_PORT=${httpPort}\n`,
+  `TOME_CONFIG_DIR=${dir}\nTOME_IMAGE_TAG=${version}\nTOME_BIND=${process.argv.includes("--public") && !test ? "0.0.0.0" : "127.0.0.1"}\nTOME_HTTPS_PORT=${httpsPort}\nTOME_HTTP_PORT=${httpPort}\n`,
 );
 save(
   "configuration.json",
   JSON.stringify(
     {
+      appVersion: version,
       domain,
       origin,
       rehearsal: test,
