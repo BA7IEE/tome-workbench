@@ -286,3 +286,11 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 | 一致性备份与恢复 | verify-production-tools.mjs，production-backup/restore，operations-evidence 单测 | 仅 localhost 合成演练；真实异机副本/人工复核未完成 |
 | 图片处理资源预算 | verify-upload-budget.mjs | 4 并发 20MiB / 40M 像素合成测量，非公网容量承诺 |
 | PushPlus 显式启用 | production-notify.mjs 与 production-tools.test.mjs | 默认预览；真实通知送达未验收 |
+
+## UX 1.0.2 独立增量
+
+- 选品草稿：同账号同浏览器保存商品 ID、名称、渠道、时间；待确认写入只额外保存命令键、包 ID 和原选择 ID，不持久化商品/成本/CSRF。重新打开重读服务器商品。system-review 的关页草稿和真实丢回执用例覆盖恢复及原命令重放。
+- 生成选品始终检查当前事实；“检查当前选择”是可选辅助。原“预检全部商品”文字已被该交互取代，失败仍逐件显示并阻止新包生成。
+- 批量表单的最终“确认并执行”后立即执行；取消第二次“开始执行”点击，原逐项结果、幂等 key、失败重试断言保留。未经过参数确认的货源接手仍显式“确认执行”。对应 dictionaries/interaction/operations/system-review/workbench 期望按此更新。
+- 图片排序由 studio-image-order 负责表示和交互；拖动、上/下移及指定位置共用同一移动逻辑，手机无需 hover；只改变选图顺序，不写原图元数据，瑕疵选图规则不变。studio 的新排序用例验证真实草稿请求及原素材不变。
+- 商品详情和编辑共用 studioStock；按库存状态呈现主要动作，暂停商品仍可从更多登记实际售出，未知财务不阻断。

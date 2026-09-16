@@ -231,7 +231,7 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
   for (const role of ["ADMIN", "REVIEWER", "OPERATOR", "FINANCE", "VIEWER"]) {
     const email = `ui-cap-${randomUUID()}@tome.test`, password = "Synthetic!" + randomUUID();
     await api(page, "/auth/users", { email, password, name: "合成能力核验", role });
-    const account = await browser.newContext();
+    const account = await browser.newContext({ baseURL: new URL(page.url()).origin });
     try {
       const other = await account.newPage();
       await login(other, email, password);

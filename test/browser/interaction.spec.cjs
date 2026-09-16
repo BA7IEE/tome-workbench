@@ -107,8 +107,7 @@ for (const viewport of [
       await page
         .getByLabel("统一依据与授权说明")
         .fill("合成测试授权，已逐图核验");
-      await page.getByRole("button", { name: "核对后进入批量执行" }).click();
-      await page.getByRole("button", { name: "开始执行", exact: true }).click();
+      await page.getByRole("button", { name: "确认并执行" }).click();
       await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
       await page
         .locator("#dialog")

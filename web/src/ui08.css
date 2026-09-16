@@ -5454,3 +5454,10 @@
     }
   }
 }
+
+@layer product {
+  .studio-order-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px; border:1px solid var(--color-border-2); border-radius:8px; }
+  .studio-order-row > span { flex:1 1 120px; min-width:0; overflow-wrap:anywhere; }
+  .studio-order-row select { width:auto; }
+  .studio-order-row label { display:flex; align-items:center; gap:4px; }
+}

@@ -1,3 +1,4 @@
+import { imageOrder, bindImageOrder } from "./studio-image-order";
 import {
   request,
   can,
@@ -275,6 +276,7 @@ export class StudioPublisher {
       this.updateCount();
     };
     f.addEventListener("input", (e) => {
+      if ((e.target as HTMLElement).closest(".studio-image-order")) return;
       if (
         ["studioTitle", "studioBody"].includes(
           (e.target as HTMLInputElement).name,
@@ -381,22 +383,7 @@ export class StudioPublisher {
           void switchTarget();
         },
       );
-    this.host
-      .querySelector(".studio-image-order")!
-      .addEventListener("click", (e) => {
-        const b = (e.target as Element).closest<HTMLElement>(
-          "[data-studio-up]",
-        );
-        if (!b) return;
-        const n = this.selected.indexOf(b.dataset.studioUp!);
-        if (n > 0) {
-          [this.selected[n - 1], this.selected[n]] = [
-            this.selected[n],
-            this.selected[n - 1],
-          ];
-          modify();
-        }
-      });
+    bindImageOrder(this.host.querySelector<HTMLElement>(".studio-image-order")!, () => this.selected, modify, () => this.busy || !!this.pending);
     if (this.conflictDraft) {
       const resolve = (remote: boolean) => {
         if (
@@ -441,12 +428,7 @@ export class StudioPublisher {
       `${Array.from(s.title).length} / ${this.plan!.channel.titleLimit} 字（保留完整 ${this.item.code}）`;
     this.host.querySelector(".studio-selection-count")!.textContent =
       `${this.selected.length} / 40 张`;
-    this.host.querySelector(".studio-image-order")!.innerHTML = this.selected
-      .map(
-        (id, n) =>
-          `<button type="button" class="btn subtle" data-studio-up="${id}" ${n === 0 ? "disabled" : ""}>${n + 1}. ${esc(this.plan!.assets.find((a) => a.id === id)?.originalName || "待核对图片")} ${n ? "↑" : ""}</button>`,
-      )
-      .join("");
+    this.host.querySelector(".studio-image-order")!.innerHTML = imageOrder(this.selected, this.plan!.assets);
   }
   private error(e: unknown) {
     if (e instanceof ApiError && e.code === "VERSION_CONFLICT")

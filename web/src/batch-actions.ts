@@ -4,7 +4,14 @@ export interface BatchAction {
   label: string;
   run: (key: string) => Promise<unknown>;
 }
-export function batchActions(title: string, actions: BatchAction[]) {
+export function confirmedBatchActions(title: string, actions: BatchAction[]) {
+  batchActions(title, actions, true);
+}
+export function batchActions(
+  title: string,
+  actions: BatchAction[],
+  confirmed = false,
+) {
   const tasks = actions.map((a) => ({
     ...a,
     key: crypto.randomUUID(),
@@ -14,7 +21,7 @@ export function batchActions(title: string, actions: BatchAction[]) {
   let running = false;
   viewDialog(
     title,
-    `<p>共${tasks.length}项。逐项执行并保留结果；失败项可以使用原请求重试，成功项不会重复执行。</p><div class="batch-results">${tasks.map((t, n) => `<div data-result="${n}"><span>${esc(t.label)}</span><strong>待执行</strong><small></small></div>`).join("")}</div><div class="button-row"><button class="btn primary" id="batch-start">开始执行</button><span id="batch-summary" role="status"></span></div>`,
+    `<p>共${tasks.length}项。逐项执行并保留结果；失败项可以使用原请求重试，成功项不会重复执行。</p><div class="batch-results">${tasks.map((t, n) => `<div data-result="${n}"><span>${esc(t.label)}</span><strong>待执行</strong><small></small></div>`).join("")}</div><div class="button-row"><button class="btn primary" id="batch-start">确认执行</button><span id="batch-summary" role="status"></span></div>`,
   );
   const start = dialog.querySelector<HTMLButtonElement>("#batch-start")!;
   const paint = () => {
@@ -26,7 +33,7 @@ export function batchActions(title: string, actions: BatchAction[]) {
     dialog.querySelector("#batch-summary")!.textContent =
       `完成${tasks.filter((t) => t.state === "已完成").length} / ${tasks.length}`;
   };
-  start.addEventListener("click", async () => {
+  const run = async () => {
     if (running) return;
     running = true;
     start.disabled = true;
@@ -65,7 +72,11 @@ export function batchActions(title: string, actions: BatchAction[]) {
         (t) => t.state === "已完成" || t.state === "待核对",
       );
     }
+  };
+  start.addEventListener("click", () => {
+    void run();
   });
+  if (confirmed) void run();
   dialog.oncancel = (e) => {
     if (running) e.preventDefault();
   };

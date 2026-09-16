@@ -15,7 +15,7 @@ import {
 } from "./core";
 import { onPageReady } from "./page-lifecycle";
 import { recordPaging } from "./record-controls";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 import {
   orderCostBasisDialog,
   type POrder,
@@ -156,7 +156,7 @@ export async function costBatchPage() {
         );
         return { nextStep: true };
       },
-      "核对后进入批量执行",
+      "确认并执行",
     );
   };
   const commit = () => {
@@ -191,7 +191,7 @@ export async function costBatchPage() {
         );
         return { nextStep: true };
       },
-      "核对后进入批量执行",
+      "确认并执行",
     );
   };
   onPageReady("cost-batch", (root, signal) => {

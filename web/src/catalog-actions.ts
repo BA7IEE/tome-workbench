@@ -5,7 +5,7 @@ import { bulkDictionaries } from "./bulk-dictionaries";
 import { deleteProducts } from "./recycle-bin";
 import { request, can, area, field, select, form, note } from "./core";
 import { beginEditQueue, saveListScroll } from "./catalog-context";
-import { batchActions } from "./batch-actions";
+import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Item, Channel } from "./types";
 import { states, categories } from "./types";
 export type CatalogAction = {

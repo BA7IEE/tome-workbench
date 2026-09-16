@@ -123,9 +123,8 @@ test("批量定价逐件展示并在真实写入回执丢失后重试，不重�
     }
     return route.fulfill({ response: r });
   });
-  await d.getByRole("button", { name: "核对后进入批量执行" }).click();
+  await d.getByRole("button", { name: "确认并执行" }).click();
   await expect(d.getByRole("heading", { name: "批量定价结果" })).toBeVisible();
-  await d.getByRole("button", { name: "开始执行" }).click();
   await expect(d.locator("#batch-summary")).toHaveText("完成1 / 2");
   await d.getByRole("button", { name: "重试未完成项" }).click();
   await expect(d.locator("#batch-summary")).toHaveText("完成2 / 2");
@@ -208,6 +207,7 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   });
   await page.goto("/#/items/" + i.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的介绍");
+  await page.locator("details.studio-stock-menu > summary").click();
   await page.getByRole("button", { name: "经营记录", exact: true }).click();
   const d = page.getByRole("dialog");
   await expect(d).toContainText("客户二");
@@ -261,7 +261,7 @@ test("二十件看图选品集中显示两件缺项，维护返回保留标题�
     if (r.request().method() === "POST") packages++;
     return r.continue();
   });
-  await page.getByRole("button", { name: "预检全部商品", exact: true }).click();
+  await page.getByRole("button", { name: "检查当前选择", exact: true }).click();
   await expect(page.locator("[data-collection-error]")).toContainText(
     "部分商品尚未就绪",
   );
@@ -291,7 +291,7 @@ test("二十件看图选品集中显示两件缺项，维护返回保留标题�
 });
 
 test("看图选品真实创建后丢失回执，重试只生成一个合集和资料包", async ({
-  page,
+  page, context,
 }) => {
   const prefix = "选品恢复 " + randomUUID(),
     i = await ready(page, prefix);
@@ -335,6 +335,10 @@ test("看图选品真实创建后丢失回执，重试只生成一个合集和�
       "上次结果待确认",
     );
   }
+  await page.close();
+  page = await context.newPage();
+  await page.goto("/#/collections/new");
+  await expect(page.getByLabel("合集名称", { exact: true })).toHaveValue(prefix + " 改名");
   await api(page, "/channels/" + c.id, {
     version: 1,
     name: prefix,
@@ -492,8 +496,7 @@ test("集中成本批量确认两单，退款单保留待核对且回执丢失�
       return route.fulfill({ response: r });
     },
   );
-  await d.getByRole("button", { name: "核对后进入批量执行" }).click();
-  await d.getByRole("button", { name: "开始执行" }).click();
+  await d.getByRole("button", { name: "确认并执行" }).click();
   await expect(d.locator("#batch-summary")).toHaveText("完成1 / 3");
   await expect(d).toContainText("请逐单确认净支付");
   await d.getByRole("button", { name: "重试未完成项" }).click();
@@ -504,8 +507,7 @@ test("集中成本批量确认两单，退款单保留待核对且回执丢失�
     .getByRole("button", { name: "批量写入TM成本", exact: true })
     .click();
   await d.getByLabel("我已逐单核对本批成本预览和依据").check();
-  await d.getByRole("button", { name: "核对后进入批量执行" }).click();
-  await d.getByRole("button", { name: "开始执行" }).click();
+  await d.getByRole("button", { name: "确认并执行" }).click();
   await expect(d.locator("#batch-summary")).toHaveText("完成2 / 3");
   for (const o of x.orders.slice(0, 2)) {
     expect((await read(page, "/items/" + o.itemId)).currentCostCny).toBe(91000);
@@ -752,4 +754,29 @@ test("待办进入单条询盘后重置仍只显示原记录，返回保留待�
   await expect(page.getByLabel("搜索事项 / 商品", { exact: true })).toHaveValue(
     "待办返回",
   );
+});
+
+test("选品草稿关页恢复时重读商品且只保存账号范围内的必要字段", async ({ page, context }) => {
+  const prefix = "选品草稿 " + randomUUID();
+  const item = await ready(page, prefix);
+  await page.goto("/#/items?q=" + encodeURIComponent(prefix));
+  await page.locator("#select-page").check();
+  await page.locator(".bulk-more > summary").click();
+  await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
+  await page.getByLabel("合集名称", { exact: true }).fill("待继续 " + prefix);
+  const owner = (await read(page, "/auth/me")).user.id;
+  const draft = await page.evaluate(id => JSON.parse(localStorage.getItem("tome:collection-draft:" + id)), owner);
+  expect(draft.itemIds).toEqual([item.id]);
+  expect(Object.keys(draft).sort()).toEqual(["attempt", "channelId", "itemIds", "title", "updatedAt"]);
+  const latest = await read(page, "/items/" + item.id);
+  await api(page, "/items/" + item.id, { version: latest.version, title: prefix + " 已更新" }, "PATCH");
+  await page.close();
+  const resumed = await context.newPage();
+  await resumed.goto("/#/collections/new");
+  await expect(resumed.getByLabel("合集名称", { exact: true })).toHaveValue("待继续 " + prefix);
+  await expect(resumed.locator(".selection-row")).toContainText(prefix + " 已更新");
+  await resumed.getByLabel("我已确认选择的商品，生成本次客户选品快照").check();
+  await resumed.getByRole("button", { name: "生成选品合集", exact: true }).click();
+  await expect(resumed.locator("[data-collection-error]")).toContainText("部分商品尚未就绪");
+  expect((await read(resumed, "/items/" + item.id)).packages).toHaveLength(0);
 });
