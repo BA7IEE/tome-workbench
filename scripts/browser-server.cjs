@@ -22,6 +22,35 @@ async function start() {
   } finally {
     await db.$disconnect();
   }
+  fs.mkdirSync("reports", { recursive: true });
+  fs.writeFileSync(
+    "reports/browser-server.json",
+    JSON.stringify({ pid: process.pid }),
+  );
+  // Test-only transport observations around the unchanged application entrypoint.
+  const bootstrap = require("../dist/bootstrap.js");
+  const createApp = bootstrap.createApp;
+  bootstrap.createApp = async (...args) => {
+    const app = await createApp(...args);
+    app.getHttpServer().prependListener("request", (req, res) => {
+      if (req.method !== "POST" || req.url !== "/api/auth/login") return;
+      const started = Date.now();
+      const write = (event) =>
+        fs.appendFileSync(
+          "reports/browser-login-server.jsonl",
+          JSON.stringify({
+            event,
+            requestAt: new Date(started).toISOString(),
+            elapsedMs: Date.now() - started,
+            status: res.statusCode,
+          }) + "\n",
+        );
+      write("received");
+      res.once("finish", () => write("finished"));
+      res.once("close", () => write("closed"));
+    });
+    return app;
+  };
   require("../dist/main.js");
 }
 start().catch((e) => {
