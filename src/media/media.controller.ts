@@ -20,7 +20,7 @@ import { Fault } from "../common/errors";
 import { safeText, uuid } from "../common/domain";
 import { PrismaService } from "../database/prisma.service";
 import { itemLock } from "../catalog/catalog.service";
-import { assetPath, storeImage } from "./storage";
+import { assetPath, prepareImage, imageCommand } from "./storage";
 import { UploadBudget } from "./upload-budget";
 export { assetPath } from "./storage";
 @ApiTags("素材")
@@ -71,35 +71,37 @@ export class MediaController {
         "AI或参考资料不能声明为实物交易图片",
         400,
       );
-    const stored = await storeImage(file);
-    const { objectKey, ...metadata } = stored;
-    const data = { ...b, ...metadata };
-    const sha256 = stored.sha256;
-    return this.commands.run(
-      r.actor.id,
-      "asset.upload",
-      r.get("Idempotency-Key"),
-      data,
-      async (tx) => {
-        await itemLock(tx, b.itemId);
-        const last = await tx.asset.aggregate({
-          where: { itemId: b.itemId },
-          _max: { position: true },
-        });
-        const asset = await tx.asset.create({
-          data: {
-            ...data,
-            objectKey,
-            position: Math.min(999, (last._max.position ?? -1) + 1),
-          },
-        });
-        await audit(tx, r.actor.id, "ASSET_UPLOADED", b.itemId, {
-          assetId: asset.id,
-          sha256,
-        });
-        await event(tx, b.itemId);
-        return { id: asset.id };
-      },
+    const prepared = await prepareImage(file);
+    const data = { ...b, ...prepared.metadata };
+    const sha256 = prepared.metadata.sha256;
+    return imageCommand(this.db, prepared, (persist) =>
+      this.commands.run(
+        r.actor.id,
+        "asset.upload",
+        r.get("Idempotency-Key"),
+        data,
+        async (tx) => {
+          await itemLock(tx, b.itemId);
+          const last = await tx.asset.aggregate({
+            where: { itemId: b.itemId },
+            _max: { position: true },
+          });
+          const { objectKey } = await persist(tx);
+          const asset = await tx.asset.create({
+            data: {
+              ...data,
+              objectKey,
+              position: Math.min(999, (last._max.position ?? -1) + 1),
+            },
+          });
+          await audit(tx, r.actor.id, "ASSET_UPLOADED", b.itemId, {
+            assetId: asset.id,
+            sha256,
+          });
+          await event(tx, b.itemId);
+          return { id: asset.id };
+        },
+      ),
     );
   }
   @Access("read") @Get(":id/preview") async preview(

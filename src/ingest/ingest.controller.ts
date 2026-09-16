@@ -28,7 +28,7 @@ import {
 import { PrismaService } from "../database/prisma.service";
 import { Fault } from "../common/errors";
 import { safeText, uuid } from "../common/domain";
-import { assetPath, removeStoredImage, storeImage } from "../media/storage";
+import { assetPath, prepareImage } from "../media/storage";
 import { UploadBudget } from "../media/upload-budget";
 import { IngestService } from "./ingest.service";
 import {
@@ -577,21 +577,13 @@ export class IngestMachineController {
   ) {
     const candidateId = uuid.parse(id),
       meta = assetMeta.parse(raw),
-      stored = await storeImage(file);
-    try {
-      const result = await this.service.registerCandidateAsset(
-        r.ingestSession,
-        r.get("Idempotency-Key"),
-        candidateId,
-        stored,
-        meta,
-      );
-      if (result.objectKey !== stored.objectKey)
-        await removeStoredImage(stored.objectKey);
-      return result;
-    } catch (error) {
-      await removeStoredImage(stored.objectKey);
-      throw error;
-    }
+      prepared = await prepareImage(file);
+    return this.service.registerCandidateAsset(
+      r.ingestSession,
+      r.get("Idempotency-Key"),
+      candidateId,
+      prepared,
+      meta,
+    );
   }
 }

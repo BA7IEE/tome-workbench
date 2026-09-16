@@ -19,7 +19,7 @@ import { Commands, audit, event, lock } from "../common/transaction";
 import { itemLock } from "../catalog/catalog.service";
 import { safeText, uuid } from "../common/domain";
 import { Fault } from "../common/errors";
-import { assetPath, storeImage } from "./storage";
+import { assetPath, prepareImage, imageCommand } from "./storage";
 import { UploadBudget } from "./upload-budget";
 @Controller("api/intake")
 @Access("edit")
@@ -94,8 +94,8 @@ export class IntakeController {
     const batch = await this.db.intakeBatch.findUnique({ where: { id } });
     if (!batch || batch.state !== "OPEN")
       throw new Fault("BATCH_CLOSED", "批次不可上传");
-    const stored = await storeImage(file),
-      { objectKey, ...data } = stored;
+    const prepared = await prepareImage(file),
+      data = prepared.metadata;
     const codes = [
       ...new Set(
         [
@@ -105,29 +105,31 @@ export class IntakeController {
         ].map((m) => m[1].toUpperCase()),
       ),
     ];
-    void objectKey;
     const hint = codes.length === 1 ? codes[0] : "";
-    return this.commands.run(
-      r.actor.id,
-      "intake.upload",
-      r.get("Idempotency-Key"),
-      { batchId: id, ...data },
-      async (tx) => {
-        await lock(tx, "intake:" + id);
-        const current = await tx.intakeBatch.findUniqueOrThrow({
-          where: { id },
-        });
-        if (current.state !== "OPEN")
-          throw new Fault("BATCH_CLOSED", "批次已关闭");
-        const row = await tx.intakeFile.create({
-          data: { ...stored, batchId: id, hint, createdBy: r.actor.id },
-        });
-        await audit(tx, r.actor.id, "INTAKE_FILE_ADDED", id, {
-          fileId: row.id,
-          sha256: stored.sha256,
-        });
-        return { id: row.id, hint, automaticBinding: false };
-      },
+    return imageCommand(this.db, prepared, (persist) =>
+      this.commands.run(
+        r.actor.id,
+        "intake.upload",
+        r.get("Idempotency-Key"),
+        { batchId: id, ...data },
+        async (tx) => {
+          await lock(tx, "intake:" + id);
+          const current = await tx.intakeBatch.findUniqueOrThrow({
+            where: { id },
+          });
+          if (current.state !== "OPEN")
+            throw new Fault("BATCH_CLOSED", "批次已关闭");
+          const stored = await persist(tx);
+          const row = await tx.intakeFile.create({
+            data: { ...stored, batchId: id, hint, createdBy: r.actor.id },
+          });
+          await audit(tx, r.actor.id, "INTAKE_FILE_ADDED", id, {
+            fileId: row.id,
+            sha256: stored.sha256,
+          });
+          return { id: row.id, hint, automaticBinding: false };
+        },
+      ),
     );
   }
   @Get("files/:id/preview") async preview(
