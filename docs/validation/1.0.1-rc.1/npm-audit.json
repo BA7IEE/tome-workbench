@@ -1,7 +1,8 @@
 {
-  "command": "npm audit --audit-level=high",
+  "checkedAt": "2026-09-16T03:35:23.740856+00:00",
   "exitCode": 0,
-  "checkedAt": "2026-09-15T15:18:35.154Z",
+  "auditReportVersion": 2,
+  "vulnerabilities": {},
   "metadata": {
     "vulnerabilities": {
       "info": 0,

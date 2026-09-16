@@ -1,4 +1,4 @@
-const { submitLogin } = require("./login.cjs");
+const { submitLogin, fillLogin } = require("./login.cjs");
 const { revealPublishing } = require("./reveal-section.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 // New default product workspace: no force clicks, no page reloads masking stale rendering.
@@ -29,8 +29,7 @@ async function stockMore(page) {
 }
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("登录邮箱").fill(fixture.email);
-  await page.getByLabel("密码", { exact: true }).fill(fixture.password);
+  await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toBeVisible();
 }
