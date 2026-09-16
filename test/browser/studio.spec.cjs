@@ -746,7 +746,7 @@ test("读取发布预览失败可原地重试，已经保存的商品和图片�
 test("发布图片可拖动键盘及手机指定位置，排序只改发布草稿", async ({ page }) => {
   await start(page);
   await basic(page, "发布排序 " + randomUUID());
-  await page.getByLabel("选择商品图片", { exact: true }).setInputFiles([await photograph("order-a.png"), await photograph("order-b.png")]);
+  await page.getByLabel("选择商品图片", { exact: true }).setInputFiles(await photograph("order-b.png"));
   await tradeFacts(page);
   await revealPublishing(page);
   await page.getByRole("button", { name: "保存并准备发布", exact: true }).click();
@@ -762,7 +762,7 @@ test("发布图片可拖动键盘及手机指定位置，排序只改发布草�
   await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
   await expect.poll(() => page.locator(".studio-order-row").first().locator("select").evaluate(el => el === document.activeElement)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator(".studio-order-row").first().locator("select").selectOption("1");
+  await page.locator(".studio-order-row").first().locator("select").selectOption({ value: "1" });
   await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
   const saved = page.waitForResponse(r => r.url().includes("/publishing-draft") && r.request().method() === "POST");
   await page.getByRole("button", { name: "保存草稿", exact: true }).click();

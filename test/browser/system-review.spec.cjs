@@ -758,7 +758,7 @@ test("待办进入单条询盘后重置仍只显示原记录，返回保留待�
 
 test("选品草稿关页恢复时重读商品且只保存账号范围内的必要字段", async ({ page, context }) => {
   const prefix = "选品草稿 " + randomUUID();
-  const item = await ready(page, prefix);
+  const item = await api(page, "/items", { title: prefix });
   await page.goto("/#/items?q=" + encodeURIComponent(prefix));
   await page.locator("#select-page").check();
   await page.locator(".bulk-more > summary").click();

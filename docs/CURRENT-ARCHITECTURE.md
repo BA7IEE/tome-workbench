@@ -40,3 +40,5 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 正式 Release CI 固定 Node 22.22.3、Ubuntu 24.04 与 deploy/images.json 相同 PostgreSQL digest。compatibility.yml 为手工触发的独立非阻断任务，使用 Node 22 / PG16 最新补丁；其结果不替代发布指纹或 release gate。发布汇总同时拒绝双浏览器通过数量不等、flaky、skip 和非零 retry。
 
 2026-09-16 本地 Docker 合成压力验收：两 API 同时共 4 张图片，每张原文件 20MiB / 40M pixels，全部 HTTP 201；超过文件上限为 413，超过像素上限为 400。cgroup memory.peak 分别 281731072 / 313909248 bytes，均低于 768MiB，无 OOM。结果见 reports/upload-budget.json；这只证明该合成负载在本地 ARM 容器的表现，腾讯云实际机型仍需部署前复核，不是全局并发上限或长期吞吐保证。
+
+UX 1.0.2：collection-draft 只负责账号范围的浏览器草稿持久化，collection-builder 继续调用现有预检、Package 和 Collection 命令；studio-image-order 只重排发布选图，studio-publisher 保持真实写入及版本恢复；batch-actions 由上游明确传递已确认状态。未添加服务端草稿表、外部发布或新角色权限。

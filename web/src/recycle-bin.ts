@@ -90,7 +90,7 @@ export function deleteProducts(items: Target[]) {
       );
       return { nextStep: true };
     },
-    "核对所选商品",
+    "确认删除所选商品",
   );
 }
 export function restoreProduct(item: Target) {
