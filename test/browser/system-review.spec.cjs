@@ -779,4 +779,11 @@ test("选品草稿关页恢复时重读商品且只保存账号范围内的必�
   await resumed.getByRole("button", { name: "生成选品合集", exact: true }).click();
   await expect(resumed.locator("[data-collection-error]")).toContainText("部分商品尚未就绪");
   expect((await read(resumed, "/items/" + item.id)).packages).toHaveLength(0);
+  const email = `draft-owner-${randomUUID()}@tome.test`, password = "Synthetic!" + randomUUID();
+  await api(resumed, "/auth/users", { email, password, name: "另一位选品员", role: "OPERATOR" });
+  await resumed.getByRole("button", { name: "退出登录", exact: true }).click();
+  await fillLogin(resumed, email, password);
+  await submitLogin(resumed);
+  await expect(resumed.getByLabel("合集名称", { exact: true })).toHaveValue("");
+  await expect(resumed.locator(".selection-row")).toHaveCount(0);
 });

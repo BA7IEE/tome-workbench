@@ -772,4 +772,5 @@ test("发布图片可拖动键盘及手机指定位置，排序只改发布草�
   const after = await (await page.request.get("/api/items/" + id)).json();
   expect(after.assets.map(a => [a.id, a.sha256, a.position])).toEqual(before.assets.map(a => [a.id, a.sha256, a.position]));
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
+  await page.screenshot({ path: "reports/screenshots/ux102-image-order-mobile.png", fullPage: true });
 });
