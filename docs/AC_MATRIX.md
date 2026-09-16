@@ -287,6 +287,8 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 | 图片处理资源预算 | verify-upload-budget.mjs | 4 并发 20MiB / 40M 像素合成测量，非公网容量承诺 |
 | PushPlus 显式启用 | production-notify.mjs 与 production-tools.test.mjs | 默认预览；真实通知送达未验收 |
 
+媒体丢回执回归说明：新增真实文件数量断言后，发现旧 product-library 用例在 WebKit 的 route.fetch 转发 multipart 失败时仍伪造 201，因此没有证明首次真实写入。现改为原生 XHR 保留真实 multipart，在实际 HTTP 201 后丢弃回执交付；断言首写恰好新增 original/preview 两文件、关页恢复后相同命令键、一个 Asset、原字节 SHA 和文件数量不再增加。不是放宽失败期望。
+
 ## UX 1.0.2 独立增量
 
 - 选品草稿：同账号同浏览器保存商品 ID、名称、渠道、时间；待确认写入只额外保存命令键、包 ID 和原选择 ID，不持久化商品/成本/CSRF。重新打开重读服务器商品。system-review 的关页草稿和真实丢回执用例覆盖恢复及原命令重放。
