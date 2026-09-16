@@ -69,3 +69,7 @@ rc.15–19 的全部原图资料包、导入批次成员和逐件缺项依据、
 - 仅在测试等待原生 focus 的尝试不完整：Chromium 的带 hash 地址不保证原生 autofocus，且 macOS headless 不保证 OS 窗口激活；已废弃该实现。修复改为登录页挂载时同步 focus，并只检查 DOM activeElement。
 - 中途全量验证因上述 focus 断言失败主动中断，不算通过。修正后 ux101 定向 Chromium 5/5、WebKit 5/5，包括实际登录响应延迟 5.5 秒和单次提交。
 - 最新完整本地验证、远端 CI、打包结果待运行后记录。未合并、未部署、认证/权限规则未修改。
+
+补充当前证据：诊断 head a071a68 的远端 run 35068730219 记录 clicks=1、submits=0、invalid=1、passwordValid=false、requestObserved=false、readyStatus=200、serverAlive=true，确认登录根因类别 1。同步焦点修正 head 74b85ba 本地完整验证 exit 0、sourceUnchanged=true、Chromium/WebKit 164/164。
+
+同轮较早的 run 35068342466 暴露独立的保存完成提示问题：文字 PATCH 成功后 adopt 提前显示已保存，图片仍在写入。新增真实上传 HTTP 201 后延迟 XHR 交付的回归，旧实现稳定失败在“不能提前显示已保存”；仅延后总体完成提示后，Chromium/WebKit 定向各 1/1 通过。首个用 route.fetch 转发 multipart 的故障注入会破坏 WebKit 上传字节，已改用原生 XHR 真实响应后延迟事件，不转发或伪造上传响应。当前代码新增后需重新执行完整验证，74b85ba 的旧指纹不用于当前打包。

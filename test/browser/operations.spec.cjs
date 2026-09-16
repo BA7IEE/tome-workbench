@@ -81,7 +81,9 @@ test("手工录一件衣服：同页填写和选图，保存后继续维护而�
   await chooseDictionary(page, "品牌", "SYNTHETIC", "SYNTHETIC");
   await revealSection(page, "dimensions");
 
-  await page.getByLabel("材质成分 / 细节", { exact: true }).fill("合成面料资料");
+  await page
+    .getByLabel("材质成分 / 细节", { exact: true })
+    .fill("合成面料资料");
   await page
     .getByLabel("本批图片来源", { exact: true })
     .selectOption("SUPPLIER");
@@ -160,9 +162,9 @@ test("供应商包袋：接手时复用资料和保管方式，不抄供货价�
     "SUPPLIER",
   );
   await expect(page.getByLabel("品类", { exact: true })).toHaveValue("BAG");
-  await expect(
-    page.getByLabel("实测尺寸", { exact: true }),
-  ).toHaveValue("30×20×10cm");
+  await expect(page.getByLabel("实测尺寸", { exact: true })).toHaveValue(
+    "30×20×10cm",
+  );
   await expect(page.getByLabel("对外报价", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("实物持有", { exact: true })).toHaveValue(
     "SUPPLIER",
@@ -239,16 +241,22 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
   await expect(page.locator(".editing-queue")).toContainText("第 1 / 2 件");
   await revealSection(page, "dimensions");
 
-  await page.getByLabel("材质成分 / 细节", { exact: true }).fill("第一件的合成材质");
+  await page
+    .getByLabel("材质成分 / 细节", { exact: true })
+    .fill("第一件的合成材质");
   await productMore(page);
   await page
     .getByRole("button", { name: "保存并编辑下一件", exact: true })
     .click();
   await expect(page.locator(".editing-queue")).toContainText("第 2 / 2 件");
-  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue(
+    "",
+  );
   await revealSection(page, "dimensions");
 
-  await page.getByLabel("材质成分 / 细节", { exact: true }).fill("第二件的合成材质");
+  await page
+    .getByLabel("材质成分 / 细节", { exact: true })
+    .fill("第二件的合成材质");
   await productMore(page);
   await page.getByRole("button", { name: "保存并返回", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
@@ -272,7 +280,9 @@ test("两人改同一件：显示差异、保留本次输入，确认合并后�
   await page.goto(`/#/items/${item.id}/edit`);
   await revealSection(page, "dimensions");
 
-  await page.getByLabel("材质成分 / 细节", { exact: true }).fill("我录入的材质");
+  await page
+    .getByLabel("材质成分 / 细节", { exact: true })
+    .fill("我录入的材质");
   await page
     .getByLabel("选择商品图片", { exact: true })
     .setInputFiles(await image("conflict-keep.png"));
@@ -296,8 +306,38 @@ test("两人改同一件：显示差异、保留本次输入，确认合并后�
   await expect(
     page.getByLabel("颜色", { exact: true }).locator("option:checked"),
   ).toHaveText("蓝色 · Blue");
-  await page.getByRole("button", { name: "保存商品", exact: true }).click();
-  await expect(page.locator(".entry-save-state")).toContainText("已保存");
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send;
+    window.__conflictUploads = 0;
+    XMLHttpRequest.prototype.send = function (body) {
+      if (body instanceof FormData && body.has("file")) {
+        const loaded = this.onload;
+        this.onload = function (event) {
+          window.__conflictUploadStatus = this.status;
+          window.__conflictUploads++;
+          window.__releaseConflictUpload = () => loaded?.call(this, event);
+        };
+      }
+      return send.call(this, body);
+    };
+  });
+  try {
+    await page.getByRole("button", { name: "保存商品", exact: true }).click();
+    await expect
+      .poll(() => page.evaluate(() => window.__conflictUploadStatus))
+      .toBe(201);
+    await expect(
+      page.getByRole("button", { name: "保存商品", exact: true }),
+    ).toBeDisabled();
+    await expect(page.locator(".entry-save-state")).not.toHaveText("已保存");
+  } finally {
+    await page.evaluate(() => window.__releaseConflictUpload?.());
+  }
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  await expect(
+    page.getByRole("button", { name: "保存商品", exact: true }),
+  ).toBeEnabled();
+  expect(await page.evaluate(() => window.__conflictUploads)).toBe(1);
   const now = await (await page.request.get("/api/items/" + item.id)).json();
   expect(now.facts.material).toBe("我录入的材质");
   expect(now.facts.color).toBe("蓝色");
@@ -381,21 +421,15 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
     .fill("合成测试品相，不涉及真实商品");
   await revealSection(page, "dimensions");
 
-  await page
-    .getByLabel("实测尺寸", { exact: true })
-    .fill("肩宽40cm、胸围90cm");
+  await page.getByLabel("实测尺寸", { exact: true }).fill("肩宽40cm、胸围90cm");
   await revealSection(page, "dimensions");
 
-  await page
-    .getByLabel("尺寸来源", { exact: true })
-    .fill("合成量测资料");
+  await page.getByLabel("尺寸来源", { exact: true }).fill("合成量测资料");
   await page
     .getByLabel("中文介绍", { exact: true })
     .fill("用于完整流程验证的合成中古服装资料");
   await page.getByText("鉴定与资料", { exact: true }).click();
-  await page
-    .getByLabel("真实性复核", { exact: true })
-    .selectOption("PASSED");
+  await page.getByLabel("真实性复核", { exact: true }).selectOption("PASSED");
   await page
     .getByLabel("鉴定 / 复核依据", { exact: true })
     .fill("合成鉴定 / 复核依据，不是真实鉴定");

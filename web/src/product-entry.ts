@@ -289,7 +289,7 @@ export async function productEntry(id?: string) {
       };
       dirty = false;
       flushSync(() => header.current!.update(base));
-      status.textContent = "已保存";
+      status.textContent = files.pending ? "正在保存图片…" : "正在完成保存…";
       replaceUrl();
       el.querySelector(".breadcrumb span:last-child")!.textContent =
         base.code || "商品";
