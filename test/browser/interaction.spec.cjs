@@ -1,4 +1,4 @@
-const { submitLogin } = require("./login.cjs");
+const { submitLogin, fillLogin } = require("./login.cjs");
 const { revealSection } = require("./reveal-section.cjs");
 // Synthetic test records only. Real pointer/keyboard actions; never force clicks.
 const { test, expect } = require("@playwright/test");
@@ -10,8 +10,7 @@ const fixture = JSON.parse(
 test.use({ actionTimeout: 8000 });
 async function login(page) {
   await page.goto("/");
-  await page.getByLabel("登录邮箱").fill(fixture.email);
-  await page.getByLabel("密码", { exact: true }).fill(fixture.password);
+  await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(page.locator(".sidebar-bottom strong")).toContainText(
     "合成ADMIN",

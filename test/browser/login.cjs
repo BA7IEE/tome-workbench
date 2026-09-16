@@ -123,4 +123,22 @@ async function submitLogin(page) {
     );
   }
 }
-module.exports = { submitLogin };
+async function fillLogin(page, email, password) {
+  const emailField = page.getByLabel("登录邮箱");
+  const passwordField = page.getByLabel("密码", { exact: true });
+  // Native autofocus is asynchronous in WebKit. Wait for its initial focus
+  // before fill() moves focus, otherwise the password can enter the email input.
+  await expect(emailField).toBeFocused();
+  await emailField.fill(email);
+  await passwordField.fill(password);
+  // Compare booleans so even assertion failures never print credentials.
+  expect(
+    (await emailField.inputValue()) === email,
+    "邮箱输入落在正确字段",
+  ).toBe(true);
+  expect(
+    (await passwordField.inputValue()) === password,
+    "密码输入落在正确字段",
+  ).toBe(true);
+}
+module.exports = { submitLogin, fillLogin };
