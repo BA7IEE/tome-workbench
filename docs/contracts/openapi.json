@@ -1993,6 +1993,20 @@
         ]
       }
     },
+    "/api/items/approvals/readiness": {
+      "post": {
+        "operationId": "CatalogController_approvalReadiness",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品"
+        ]
+      }
+    },
     "/api/items/{id}/move": {
       "post": {
         "operationId": "CatalogController_move",
@@ -2403,6 +2417,74 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/distribution/readiness": {
+      "post": {
+        "operationId": "PublishingController_bulkReadiness",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/channel-prices": {
+      "get": {
+        "operationId": "PublishingController_channelPrices",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/channel-prices/{channelId}": {
+      "post": {
+        "operationId": "PublishingController_setChannelPrice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -3216,6 +3298,29 @@
         ]
       }
     },
+    "/api/inquiries/{id}/convert": {
+      "post": {
+        "operationId": "TradingController_convertInquiry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
     "/api/observations/{id}/resolve": {
       "post": {
         "operationId": "TradingController_resolve",
@@ -3484,7 +3589,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.1.0-rc.2",
+    "version": "1.1.0-rc.3",
     "contact": {}
   },
   "tags": [],

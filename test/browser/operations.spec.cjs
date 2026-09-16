@@ -493,9 +493,110 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   const attempts = await (
     await page.request.get(`/api/distribution/attempts?itemId=${row.id}`)
   ).json();
-  expect(attempts).toHaveLength(1);
-  expect(attempts[0].state).toBe("SUCCEEDED");
-  expect(attempts[0].remoteId).toBe("");
+  expect(attempts).toHaveLength(2);
+  const publishAttempt = attempts.find((attempt) => attempt.action === "PUBLISH");
+  const delistAttempt = attempts.find((attempt) => attempt.action === "DELIST");
+  expect(publishAttempt.state).toBe("SUCCEEDED");
+  expect(publishAttempt.remoteId).toBe("");
+  expect(delistAttempt.state).toBe("PENDING");
+  await page.goto("/#/distribution");
+  await expect(
+    page.getByRole("heading", { name: "商品分发", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("table")).toContainText(title);
+});
+
+test("询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进", async ({
+  page,
+}) => {
+  const item = await api(page, "/items", {
+    title: "询盘转成交界面 " + randomUUID().slice(0, 8),
+  });
+  const current = await (await page.request.get(`/api/items/${item.id}`)).json();
+  if (current.status !== "AVAILABLE")
+    await api(page, `/items/${item.id}/state`, {
+      state: "AVAILABLE",
+      reason: "仅用于隔离浏览器成交转化验证",
+    });
+  const inquiry = await api(page, "/inquiries", {
+    itemId: item.id,
+    channel: "合成门店",
+    customerRef: "合成客户",
+    notes: "已确认购买意向",
+  });
+  await page.goto(`/#/inquiries?id=${inquiry.id}`);
+  await expect(
+    page.getByRole("button", { name: "确认成交", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "确认成交", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("成交说明", { exact: true })
+    .fill("在本地隔离浏览器流程中确认成交，金额后续补录。");
+  await dialog
+    .getByRole("button", { name: "确认成交并停售", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("table")).toContainText("已转化成交");
+  await expect(
+    page.getByRole("button", { name: "更新跟进", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    (await (await page.request.get(`/api/items/${item.id}`)).json()).status,
+  ).toBe("SOLD");
+});
+
+test("批量渠道价不会用零伪造未知默认报价，必须由操作者明确填写", async ({
+  page,
+}) => {
+  const title = "未知默认价渠道批量 " + randomUUID().slice(0, 8);
+  const created = await api(page, "/items", { title });
+  const item = await (await page.request.get(`/api/items/${created.id}`)).json();
+  expect(item.currentPrice).toBeNull();
+  const channel = await api(page, "/channels", {
+    name: "渠道价界面验证 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  await page.goto(`/#/items?q=${encodeURIComponent(title)}`);
+  await page
+    .getByRole("checkbox", { name: `选择 ${item.code}`, exact: true })
+    .check();
+  await page.getByText("批量操作", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "批量渠道价", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(channel.id);
+  const rows = dialog.getByLabel("渠道价格", { exact: true });
+  await expect(rows).toHaveValue(item.code);
+  await dialog.getByLabel(/我已逐件核对/).check();
+  await dialog
+    .getByRole("button", { name: "确认写入渠道价", exact: true })
+    .click();
+  await expect(dialog.locator(".form-error")).toContainText("尚未填写金额");
+  await rows.fill(`${item.code} 1380`);
+  await dialog
+    .getByRole("button", { name: "确认写入渠道价", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "渠道价格写入结果", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+  const prices = await (
+    await page.request.get(`/api/items/${item.id}/channel-prices`)
+  ).json();
+  expect(prices).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        channelId: channel.id,
+        amount: 138000,
+        currency: "CNY",
+      }),
+    ]),
+  );
 });
 
 test("回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品", async ({

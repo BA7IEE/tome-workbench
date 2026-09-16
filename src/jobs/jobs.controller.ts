@@ -90,6 +90,7 @@ export class JobsController {
   }
   @Access("read") @Get("dashboard") async dashboard(@Req() r: AuthRequest) {
     const canSell = permission(r.actor.role, "sell"),
+      canPublish = permission(r.actor.role, "publish"),
       canFinance = permission(r.actor.role, "finance");
     const [
       items,
@@ -101,6 +102,7 @@ export class JobsController {
       pendingCandidates,
       pendingInquiries,
       pendingSalesFinance,
+      pendingDistribution,
     ] = await Promise.all([
       this.db.item.count({
         where: { deletedAt: null, dataMode: "BUSINESS" },
@@ -139,13 +141,24 @@ export class JobsController {
           ],
         },
       }),
+      this.db.distributionAttempt.count({
+        where: {
+          OR: [
+            { state: { in: ["UNKNOWN", "FAILED"] } },
+            { action: "DELIST", state: { in: ["PENDING", "RUNNING"] } },
+          ],
+          item: { deletedAt: null, dataMode: "BUSINESS" },
+        },
+      }),
     ]);
     const visibleInquiries = canSell ? pendingInquiries : 0,
+      visibleDistribution = canPublish ? pendingDistribution : 0,
       visibleSalesFinance = canFinance ? pendingSalesFinance : 0,
       actionable =
         openTasks +
         unresolved +
         pendingCandidates +
+        visibleDistribution +
         visibleInquiries +
         visibleSalesFinance;
     return {
@@ -156,6 +169,7 @@ export class JobsController {
       unresolved,
       pendingJobs,
       pendingCandidates,
+      pendingDistribution: visibleDistribution,
       pendingInquiries: visibleInquiries,
       pendingSalesFinance: visibleSalesFinance,
       actionable,

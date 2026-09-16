@@ -79,7 +79,7 @@ export class Commands {
       async (tx) => {
         // Order: shared accounting boundary, command receipt, item. No external effects occur here.
         if (
-          /^(settlement\.|sale\.|observation\.|item\.(sold|state|reserve|release|trash|restore|testCleanup)$)/.test(
+          /^(settlement\.|sale\.|observation\.|inquiry\.convert$|item\.(sold|state|reserve|release|trash|restore|testCleanup)$)/.test(
             operation,
           )
         )

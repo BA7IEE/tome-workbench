@@ -16,7 +16,11 @@ import {
 import { itemLock, versionMatch } from "../catalog/catalog.service";
 import { approveRevision } from "../catalog/approve-revision";
 import { Fault } from "../common/errors";
-import { packageContext, purpose } from "./publishing.service";
+import {
+  packageContext,
+  purpose,
+  requiredChannelCurrency,
+} from "./publishing.service";
 import { channelCopy } from "./channel-copy";
 async function reviewBasis(tx: Tx, id: string) {
   const item = await tx.item.findUniqueOrThrow({ where: { id } });
@@ -126,7 +130,9 @@ export class StudioController {
           trade: b.purpose !== "CUSTOMER_CARD",
           offerValid: !!c.validOffer,
           ownership: c.item.ownership,
-          price: c.item.currentPrice,
+          price: c.price.amount,
+          currency: c.price.currency,
+          requiredCurrency: requiredChannelCurrency(c.channel),
           status: c.item.status,
         });
         return {
@@ -134,8 +140,9 @@ export class StudioController {
           digest: plan.digest,
           approvedId: c.item.approvedId,
           approvedValid: c.item.approvedValid,
-          price: c.item.currentPrice,
-          currency: c.item.currency,
+          price: c.price.amount,
+          currency: c.price.currency,
+          priceBasis: c.price,
           channel: c.channel,
           draft,
           preview,
@@ -146,8 +153,10 @@ export class StudioController {
           outdated:
             !!draft &&
             (draft.basisRevisionId !== c.item.approvedId ||
-              draft.basisPrice !== c.item.currentPrice ||
-              draft.basisCurrency !== c.item.currency ||
+              draft.basisPrice !== c.price.amount ||
+              draft.basisCurrency !== c.price.currency ||
+              draft.basisPriceSource !== c.price.source ||
+              draft.basisPriceVersion !== c.price.version ||
               !c.item.approvedValid),
         };
       },

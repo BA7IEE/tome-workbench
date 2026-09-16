@@ -39,7 +39,13 @@ import type { Listing, Sale, Inquiry, Channel, User } from "./types";
 interface WorkQueueRow {
   id: string;
   entityId: string;
-  kind: "CANDIDATE" | "TASK" | "OBSERVATION" | "INQUIRY" | "SALE_FINANCE";
+  kind:
+    | "CANDIDATE"
+    | "TASK"
+    | "OBSERVATION"
+    | "DISTRIBUTION"
+    | "INQUIRY"
+    | "SALE_FINANCE";
   priority: number;
   title: string;
   detail: string;
@@ -58,6 +64,7 @@ interface WorkQueue {
     candidates: number;
     tasks: number;
     observations: number;
+    distribution: number;
     inquiries: number;
     saleFinance: number;
   };
@@ -67,6 +74,7 @@ const workKindNames: Record<WorkQueueRow["kind"], string> = {
   CANDIDATE: "商品待确认",
   TASK: "商品任务",
   OBSERVATION: "事实核对",
+  DISTRIBUTION: "分发执行",
   INQUIRY: "客户跟进",
   SALE_FINANCE: "成交补账",
 };
@@ -118,6 +126,7 @@ export async function tasksPage() {
   const metrics = [
     ["全部待处理", s.total, "按业务风险和时效统一排序"],
     ["商品待确认", s.candidates, "Agent采集后等待人工生成TM"],
+    ["分发异常", s.distribution, "结果未知优先按 TM 核对，再处理明确失败"],
     ["客户跟进", s.inquiries, "新询盘与跟进中询盘"],
     ["成交补账", s.saleFinance, "缺成交额、成本、费用或到账确认"],
     ["事实冲突", s.observations, "库存或经营事实需要人工核对"],
@@ -144,6 +153,7 @@ export async function tasksPage() {
     ALL: "全部事项",
     TASK: "商品任务",
     CANDIDATE: "待确认商品",
+    DISTRIBUTION: "分发异常",
     INQUIRY: "客户跟进",
     SALE_FINANCE: "成交补账",
     OBSERVATION: "事实核对",
@@ -408,7 +418,7 @@ export async function inquiriesPage() {
     section(
       "询盘与跟进",
       note(
-        "在商品工作区点击“记录询盘”即可登记。跟进标记为已转化后，实际成交仍需登记售出。",
+        "在商品工作区点击“记录询盘”即可登记。确认成交会原子写入 Sale、停售商品并生成已分发渠道的下架执行记录；不是单纯改一个状态。",
       ) +
         context +
         table(
@@ -419,7 +429,12 @@ export async function inquiriesPage() {
             money(i.quote, i.currency),
             esc(i.notes) + button("沟通历史", () => inquiryHistory(i.id)),
             esc(states[i.state] || i.state),
-            button("更新跟进", () => followInquiry(i)),
+            i.state === "WON"
+              ? "已转化成交"
+              : button("更新跟进", () => followInquiry(i)) +
+                (i.state === "LOST"
+                  ? ""
+                  : button("确认成交", () => convertInquiry(i), "primary")),
           ]),
         ),
     ) +
@@ -459,7 +474,7 @@ async function followInquiry(i: Inquiry) {
     select(
       "state",
       "进度",
-      { OPEN: "待跟进", FOLLOWUP: "跟进中", WON: "已转化", LOST: "未成交" },
+      { OPEN: "待跟进", FOLLOWUP: "跟进中", LOST: "未成交" },
       i.state,
     ) +
       note("每次跟进独立保留，下面填写本次新增内容。") +
@@ -487,6 +502,30 @@ async function followInquiry(i: Inquiry) {
       }
     },
     "保存",
+  );
+}
+function convertInquiry(i: Inquiry) {
+  form(
+    "确认询盘成交",
+    note(
+      "将锁定商品、创建成交记录、把商品停售并将本询盘标为已转化。成交金额、成本和费用仍按既有成交记录补充；此操作不会收款。",
+    ) +
+      field("externalKey", "外部订单唯一键（可留空）") +
+      area("note", "成交说明", "", 3),
+    (d, key) =>
+      request(
+        `/inquiries/${i.id}/convert`,
+        "POST",
+        {
+          version: i.version,
+          ...(text(d, "externalKey")
+            ? { externalKey: text(d, "externalKey") }
+            : {}),
+          note: text(d, "note"),
+        },
+        key,
+      ),
+    "确认成交并停售",
   );
 }
 const roleLabels: Record<string, string> = {

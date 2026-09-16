@@ -132,6 +132,8 @@ export function requirements(input: {
   offerValid: boolean;
   ownership: string;
   price: number | null;
+  currency: string;
+  requiredCurrency?: string | null;
   status: string;
 }) {
   const r: Requirement[] = [];
@@ -160,6 +162,15 @@ export function requirements(input: {
       "逐件真实性复核及依据",
     );
     need(input.price !== null, "price", "补充当前对外报价");
+    need(
+      input.price === null ||
+        !input.requiredCurrency ||
+        input.currency === input.requiredCurrency,
+      "price_currency",
+      input.requiredCurrency
+        ? `该渠道须使用 ${input.requiredCurrency} 报价`
+        : "核对渠道报价币种",
+    );
     need(
       input.ownership === "OWN" || input.offerValid,
       "supply",

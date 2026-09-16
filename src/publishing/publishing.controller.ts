@@ -26,13 +26,32 @@ import { PublishingService, purpose } from "./publishing.service";
 import { DistributionService } from "../distribution/distribution.service";
 
 const endpointUrl = z.union([z.literal(""), z.string().url().max(2000)]);
+const bulkReadinessInput = z
+  .object({
+    channelId: uuid,
+    itemIds: z.array(uuid).min(1).max(100),
+    purpose: purpose.default("TRADE"),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (new Set(value.itemIds).size !== value.itemIds.length)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["itemIds"],
+        message: "商品不能重复",
+      });
+  });
 function safeEndpoint(value: string) {
   if (!value) return value;
   const url = new URL(value);
   if (url.protocol !== "http:" && url.protocol !== "https:")
     throw new Fault("INVALID_URL", "仅允许HTTP/HTTPS站点地址", 400);
   if (url.username || url.password)
-    throw new Fault("SENSITIVE_ENDPOINT_DENIED", "站点地址不得包含登录信息", 400);
+    throw new Fault(
+      "SENSITIVE_ENDPOINT_DENIED",
+      "站点地址不得包含登录信息",
+      400,
+    );
   if (
     [...url.searchParams.keys()].some((key) =>
       /(?:token|secret|signature|password|api[_-]?key|access[_-]?(?:token|key)|credential|cookie|session|auth)/i.test(
@@ -43,7 +62,11 @@ function safeEndpoint(value: string) {
       url.hash,
     )
   )
-    throw new Fault("SENSITIVE_ENDPOINT_DENIED", "站点地址不得包含访问凭据", 400);
+    throw new Fault(
+      "SENSITIVE_ENDPOINT_DENIED",
+      "站点地址不得包含访问凭据",
+      400,
+    );
   return value;
 }
 @ApiTags("使用与分发")
@@ -171,6 +194,43 @@ export class PublishingController {
       uuid.parse(id),
       uuid.parse(c),
       purpose.parse(p),
+    );
+  }
+  @Access("read") @Post("distribution/readiness") bulkReadiness(
+    @Body() raw: unknown,
+  ) {
+    const input = bulkReadinessInput.parse(raw);
+    return this.service.readinessMany(
+      input.itemIds,
+      input.channelId,
+      input.purpose,
+    );
+  }
+  @Access("read") @Get("items/:id/channel-prices") channelPrices(
+    @Param("id") id: string,
+  ) {
+    return this.db.channelPrice.findMany({
+      where: { itemId: uuid.parse(id), active: true },
+      include: {
+        channel: {
+          select: { id: true, name: true, platform: true, locale: true },
+        },
+      },
+      orderBy: [{ channel: { createdAt: "asc" } }, { id: "asc" }],
+    });
+  }
+  @Access("edit") @Post("items/:id/channel-prices/:channelId") setChannelPrice(
+    @Param("id") id: string,
+    @Param("channelId") channelId: string,
+    @Body() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return this.service.setChannelPrice(
+      r.actor,
+      uuid.parse(id),
+      uuid.parse(channelId),
+      r.get("Idempotency-Key"),
+      raw,
     );
   }
   @Access("edit") @Post("items/:id/prepare") prepare(

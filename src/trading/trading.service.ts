@@ -6,6 +6,7 @@ import { Commands, Tx, audit, event, json } from "../common/transaction";
 import { Fault } from "../common/errors";
 import { amount, currency, expectedVersion, safeText } from "../common/domain";
 import { itemLock, versionMatch } from "../catalog/catalog.service";
+import { planDelistsAfterSale } from "../distribution/distribution.service";
 async function stop(
   tx: Tx,
   itemId: string,
@@ -405,12 +406,169 @@ export class TradingService {
           data: { status: "CONSUMED" },
         });
         await stop(tx, itemId, "SOLD", actor.id, "我方已售出，财务待补");
+        const delistAttemptIds = await planDelistsAfterSale(
+          tx,
+          actor.id,
+          itemId,
+          item.cycle,
+        );
         await audit(tx, actor.id, "SALE_RECORDED", itemId, {
           saleId: sale.id,
           cooperation,
           costSnapshot,
+          delistAttemptIds,
         });
-        return { id: sale.id };
+        return { id: sale.id, delistAttemptIds };
+      },
+    );
+  }
+  convertInquiry(actor: Actor, inquiryId: string, key: unknown, raw: unknown) {
+    const b = z
+      .object({
+        version: expectedVersion,
+        externalKey: safeText(300).optional(),
+        note: safeText(3000).default(""),
+      })
+      .strict()
+      .parse(raw);
+    return this.commands.run(
+      actor.id,
+      "inquiry.convert",
+      key,
+      { inquiryId, ...b },
+      async (tx) => {
+        const found = await tx.inquiry.findUniqueOrThrow({
+          where: { id: inquiryId },
+        });
+        const item = await itemLock(tx, found.itemId);
+        await expireReservations(tx, item.id);
+        const inquiry = await tx.inquiry.findUniqueOrThrow({
+          where: { id: inquiryId },
+        });
+        if (inquiry.version !== b.version)
+          throw new Fault(
+            "VERSION_CONFLICT",
+            "这条询盘刚被更新。请核对最新沟通记录后再确认成交。",
+            409,
+          );
+        if (!["OPEN", "FOLLOWUP"].includes(inquiry.state))
+          throw new Fault(
+            "INQUIRY_NOT_CONVERTIBLE",
+            "只有待跟进或跟进中的询盘可以确认成交",
+            409,
+          );
+        const priorInquirySale = await tx.sale.findUnique({
+          where: { inquiryId },
+        });
+        if (priorInquirySale)
+          throw new Fault(
+            "INQUIRY_ALREADY_CONVERTED",
+            "该询盘已经转化为成交，不能重复确认",
+            409,
+          );
+        if (!["AVAILABLE", "RESERVED"].includes(item.status))
+          throw new Fault(
+            "ITEM_NOT_AVAILABLE",
+            "商品已不在可成交状态，不能将此询盘转为成交",
+            409,
+          );
+        const priorSale = await tx.sale.findFirst({
+          where: { itemId: item.id, cycleNumber: item.cycle, returned: false },
+        });
+        if (priorSale)
+          throw new Fault(
+            "ITEM_ALREADY_SOLD",
+            "该实物当前周期已有成交记录，不能重复转化询盘",
+            409,
+          );
+        const reservation = await tx.reservation.findFirst({
+          where: { itemId: item.id, status: "ACTIVE" },
+        });
+        if (
+          (item.status === "RESERVED" && !reservation) ||
+          (reservation &&
+            (reservation.ownerId !== actor.id ||
+              reservation.customerRef !== inquiry.customerRef))
+        )
+          throw new Fault(
+            "RESERVATION_CONFLICT",
+            "该商品的有效预留与当前询盘不一致，请先由预留负责人核对",
+            409,
+          );
+        if (b.externalKey) {
+          const old = await tx.sale.findUnique({
+            where: { externalKey: b.externalKey },
+          });
+          if (old)
+            throw new Fault(
+              "EXTERNAL_KEY_CONFLICT",
+              "外部订单唯一键已经关联成交，不能重复转化",
+              409,
+            );
+        }
+        const activeCost =
+          item.currency === "CNY"
+            ? await tx.costEntry.aggregate({
+                where: {
+                  itemId: item.id,
+                  cycleNumber: item.cycle,
+                  status: "ACTIVE",
+                  confirmed: true,
+                  currency: "CNY",
+                },
+                _sum: { amount: true },
+              })
+            : null;
+        const costSnapshot = activeCost?._sum.amount ?? null;
+        const sale = await tx.sale.create({
+          data: {
+            itemId: item.id,
+            cycleNumber: item.cycle,
+            channel: inquiry.channel,
+            channelId: inquiry.channelId,
+            inquiryId,
+            customerRef: inquiry.customerRef,
+            externalKey: b.externalKey || null,
+            cooperation: "INCLUDED",
+            note: b.note,
+            currency: item.currency,
+            cost: costSnapshot,
+            createdBy: actor.id,
+          },
+        });
+        await tx.reservation.updateMany({
+          where: { itemId: item.id, status: "ACTIVE" },
+          data: { status: "CONSUMED" },
+        });
+        await stop(tx, item.id, "SOLD", actor.id, "询盘确认成交，财务待补");
+        const converted = await tx.inquiry.update({
+          where: { id: inquiryId },
+          data: { state: "WON", version: { increment: 1 } },
+        });
+        const delistAttemptIds = await planDelistsAfterSale(
+          tx,
+          actor.id,
+          item.id,
+          item.cycle,
+        );
+        await audit(tx, actor.id, "SALE_RECORDED", item.id, {
+          saleId: sale.id,
+          inquiryId,
+          cooperation: "INCLUDED",
+          costSnapshot,
+          delistAttemptIds,
+        });
+        await audit(tx, actor.id, "INQUIRY_CONVERTED", item.id, {
+          inquiryId,
+          saleId: sale.id,
+          version: converted.version,
+        });
+        return {
+          id: sale.id,
+          inquiryId,
+          inquiryVersion: converted.version,
+          delistAttemptIds,
+        };
       },
     );
   }

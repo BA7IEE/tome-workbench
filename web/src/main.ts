@@ -8,6 +8,7 @@ declare const __APP_VERSION__: string;
 import { navigation, pageNames, extraNavigation } from "./admin-navigation";
 import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
+import { distributionCenter } from "./distribution-center";
 import { sourcesScreen } from "./sources-screen";
 import { dailyWork } from "./daily-work";
 import { salesFactsPage } from "./sales-facts-page";
@@ -132,6 +133,8 @@ async function render() {
     else if (page === "operations" && can("users"))
       html = await operationsPage();
     else if (page === "tasks") html = await tasksPage();
+    else if (page === "distribution" && can("publish"))
+      html = await distributionCenter();
     else if (page === "listings") html = await listingsPage();
     else if (page === "sales" && can("sell"))
       html = can("finance") ? await salesPage() : await salesFactsPage();

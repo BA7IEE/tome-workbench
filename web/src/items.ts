@@ -99,6 +99,86 @@ async function readiness(i: Item, channels: Channel[]) {
     "检查并生成缺项任务",
   );
 }
+async function channelPricePanel(i: Item, channels: Channel[]) {
+  const rows = await request<
+    {
+      channelId: string;
+      amount: number;
+      currency: string;
+      version: number;
+      channel: { id: string; name: string; platform: string; locale: string };
+    }[]
+  >(`/items/${i.id}/channel-prices`);
+  const overrides = new Map(rows.map((row) => [row.channelId, row]));
+  return section(
+    "各渠道报价",
+    note(
+      "当前商品报价是未设置渠道价时的 fallback。渠道价只影响该账号的 Readiness、草稿与冻结使用包；不会自动换汇或覆盖其他渠道。",
+    ) +
+      table(
+        ["渠道账号", "有效报价", "来源", "操作"],
+        channels.map((channel) => {
+          const override = overrides.get(channel.id);
+          const amount = override?.amount ?? i.currentPrice;
+          const currency = override?.currency ?? i.currency;
+          return [
+            `${esc(channel.name)}<small>${esc(channel.platform)}</small>`,
+            money(amount, currency),
+            override ? `渠道价 v${override.version}` : "商品默认报价",
+            can("edit")
+              ? button("设置", () =>
+                  form(
+                    `${channel.name} 渠道价`,
+                    field(
+                      "amount",
+                      "明确金额",
+                      amount === null ? "" : amount / 100,
+                      "text",
+                      true,
+                      'inputmode="decimal"',
+                    ) +
+                      select("currency", "币种", currencies, currency) +
+                      check("confirmed", "我已核对该渠道的实际报价"),
+                    (d, key) => {
+                      if (!d.has("confirmed")) throw new Error("请先核对报价");
+                      const value = cents(d.get("amount"));
+                      if (value === null) throw new Error("请填写明确金额");
+                      return request(
+                        `/items/${i.id}/channel-prices/${channel.id}`,
+                        "POST",
+                        { amount: value, currency: text(d, "currency") },
+                        key,
+                      );
+                    },
+                    "保存渠道价",
+                  ),
+                ) +
+                (override
+                  ? button("改用默认报价", () =>
+                      form(
+                        `${channel.name} 改用商品默认报价`,
+                        note(
+                          "这会移除本渠道的价格覆盖；已有使用包会在下次使用时重新校验。",
+                        ) + check("confirmed", "确认改用商品默认报价"),
+                        (d, key) => {
+                          if (!d.has("confirmed")) throw new Error("请先确认");
+                          return request(
+                            `/items/${i.id}/channel-prices/${channel.id}`,
+                            "POST",
+                            { amount: null },
+                            key,
+                          );
+                        },
+                        "确认改用默认报价",
+                      ),
+                    )
+                  : "")
+              : "",
+          ];
+        }),
+      ),
+  );
+}
 function stockAction(i: Item, state: string) {
   form(
     states[state] || state,
@@ -287,7 +367,9 @@ export async function detailPage(id: string) {
   }
   if (tab === "assets") content = mediaPanel(i);
   if (tab === "use") {
-    content = await publishingWorkspace(i, channels);
+    content =
+      (await channelPricePanel(i, channels)) +
+      (await publishingWorkspace(i, channels));
     content += section(
       "各渠道的发布与停售记录",
       table(

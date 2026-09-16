@@ -1,9 +1,21 @@
 import { exportMaterials } from "./materials";
 import { beginCollection } from "./collection-builder";
 import { bulkPrices } from "./bulk-prices";
+import { bulkChannelPrices } from "./bulk-channel-prices";
+import { bulkDistributionPlan } from "./bulk-distribution";
 import { bulkDictionaries } from "./bulk-dictionaries";
 import { deleteProducts } from "./recycle-bin";
-import { request, can, area, field, select, form, note } from "./core";
+import {
+  request,
+  can,
+  area,
+  field,
+  select,
+  form,
+  note,
+  check,
+  esc,
+} from "./core";
 import { beginEditQueue, saveListScroll } from "./catalog-context";
 import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Item, Channel } from "./types";
@@ -57,6 +69,66 @@ function downloadCsv(rows: Item[]) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+async function bulkApprove(items: Item[]) {
+  const result = await request<{
+    rows: {
+      id: string;
+      version?: number;
+      ready: boolean;
+      missing: { code: string; title: string }[];
+    }[];
+    ready: number;
+    blocked: number;
+  }>("/items/approvals/readiness", "POST", {
+    items: items.map((item) => ({ id: item.id, version: item.version })),
+  });
+  const ready = result.rows.filter(
+    (row): row is typeof row & { version: number } =>
+      row.ready && typeof row.version === "number",
+  );
+  if (!ready.length)
+    throw new Error("所选商品当前都不能批准，请先处理预检阻断项");
+  const names = new Map(items.map((item) => [item.id, item]));
+  form(
+    "批量确认当前资料",
+    note(
+      `已选 ${items.length} 件：${ready.length} 件可批准，${result.blocked} 件被阻断。每件仍会调用原有批准命令并保留锁、版本、审计与幂等保护。`,
+    ) +
+      `<ul>${result.rows
+        .filter((row) => !row.ready)
+        .map((row) => {
+          const item = names.get(row.id);
+          return `<li>${esc(item ? `${item.code} ${item.title}` : row.id)}：${esc(row.missing.map((missing) => missing.title).join("；"))}</li>`;
+        })
+        .join("")}</ul>` +
+      check("confirmed", `我已核对并确认批准这 ${ready.length} 件商品`),
+    async (data) => {
+      if (!data.has("confirmed")) throw new Error("请先确认预检结果");
+      setTimeout(
+        () =>
+          batchActions(
+            "批量批准结果",
+            ready.map((row) => {
+              const item = names.get(row.id)!;
+              return {
+                label: `${item.code} ${item.title}`,
+                run: (key: string) =>
+                  request(
+                    `/items/${item.id}/approve`,
+                    "POST",
+                    { version: row.version },
+                    key,
+                  ),
+              };
+            }),
+          ),
+        0,
+      );
+      return { nextStep: true };
+    },
+    `确认批准 ${ready.length} 件`,
+  );
+}
 export function catalogActions(chosen: () => Item[]): CatalogAction[] {
   const actions: CatalogAction[] = [
     {
@@ -78,6 +150,7 @@ export function catalogActions(chosen: () => Item[]): CatalogAction[] {
         },
       },
       { label: "批量定价", run: () => bulkPrices(chosen()) },
+      { label: "批量渠道价", run: () => bulkChannelPrices(chosen()) },
       { label: "批量修改属性", run: () => bulkDictionaries(chosen()) },
       {
         label: "批量修改位置",
@@ -155,9 +228,20 @@ export function catalogActions(chosen: () => Item[]): CatalogAction[] {
       },
     );
   if (can("publish"))
+    actions.push(
+      {
+        label: "创建客户选品",
+        run: () => beginCollection(chosen()),
+      },
+      {
+        label: "批量生成分发计划",
+        run: () => bulkDistributionPlan(chosen()),
+      },
+    );
+  if (can("review"))
     actions.push({
-      label: "创建客户选品",
-      run: () => beginCollection(chosen()),
+      label: "批量确认当前资料",
+      run: () => bulkApprove(chosen()),
     });
   if (can("sell"))
     actions.push({

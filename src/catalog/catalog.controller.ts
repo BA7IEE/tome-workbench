@@ -54,6 +54,11 @@ export class CatalogController {
       b,
     );
   }
+  @Access("review") @Post("approvals/readiness") approvalReadiness(
+    @Body() b: unknown,
+  ) {
+    return this.service.approvalReadiness(b);
+  }
   @Access("edit") @Post(":id/move") move(
     @Param("id") id: string,
     @Body() b: unknown,

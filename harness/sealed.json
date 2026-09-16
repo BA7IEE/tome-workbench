@@ -12,6 +12,8 @@
     "prisma/migrations/202609130009_item_centric_v1/migration.sql": "cf985880a9f438ee5796ae162a650ba67c60a46b75af1b4af2f0a61ac0bc4722",
     "prisma/migrations/202609140001_operating_record_versions/migration.sql": "ea1bbd83bc4678ecb04d7488749cef599aa53dcaae72af002d31ac3a7e709e84",
     "prisma/migrations/202609150011_product_materials/migration.sql": "b4137a0f15e1c4a1823a324dc10f93ce10696872e83b4d6c528c8687f98aed64",
-    "prisma/migrations/202609170012_distribution_foundation/migration.sql": "f68f26d44f968a17a355abff51587deb27beedc0972fed7a366423d80db7d98e"
+    "prisma/migrations/202609170012_distribution_foundation/migration.sql": "f68f26d44f968a17a355abff51587deb27beedc0972fed7a366423d80db7d98e",
+    "prisma/migrations/202609170013_real_operations_price_basis/migration.sql": "131f269f8493315f28ac00d2c908d6ccaa92c2f02ec0ebe8223757304989085f",
+    "prisma/migrations/202609170014_channel_price_revision_continuity/migration.sql": "a38e6b08cb3fa74a918af8efcb85b0b24cb39521b98ca5fd9b5d2f0042db1ed1"
   }
 }

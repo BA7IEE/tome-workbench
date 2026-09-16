@@ -10,6 +10,7 @@ import {
   packageContext,
   PublishingService,
   purpose,
+  resolveChannelPrice,
 } from "./publishing.service";
 import { channelCopy } from "./channel-copy";
 @Controller("api")
@@ -73,8 +74,9 @@ export class PublishingDraftsController {
           version: c.item.version,
           approvedId: c.item.approvedId,
           approvedValid: c.item.approvedValid,
-          price: c.item.currentPrice,
-          currency: c.item.currency,
+          price: c.price.amount,
+          currency: c.price.currency,
+          priceBasis: c.price,
         },
         channel: c.channel,
         draft,
@@ -89,8 +91,10 @@ export class PublishingDraftsController {
           !!draft &&
           (!usable ||
             draft.basisRevisionId !== c.item.approvedId ||
-            draft.basisPrice !== c.item.currentPrice ||
-            draft.basisCurrency !== c.item.currency),
+            draft.basisPrice !== c.price.amount ||
+            draft.basisCurrency !== c.price.currency ||
+            draft.basisPriceSource !== c.price.source ||
+            draft.basisPriceVersion !== c.price.version),
       };
     });
   }
@@ -121,12 +125,19 @@ export class PublishingDraftsController {
       r.get("Idempotency-Key"),
       { id: uuid.parse(id), ...b },
       async (tx) => {
-        await itemLock(tx, id);
+        const item = await itemLock(tx, id);
         const channel = await tx.channel.findUnique({
           where: { id: b.channelId },
         });
         if (!channel?.active)
           throw new Fault("CHANNEL_UNAVAILABLE", "渠道尚未启用");
+        const price = await resolveChannelPrice(tx, item, b.channelId);
+        if (b.basisPrice !== price.amount || b.basisCurrency !== price.currency)
+          throw new Fault(
+            "DRAFT_PRICE_STALE",
+            "渠道有效报价刚变化，请重新读取后保存草稿",
+            409,
+          );
         const found = await tx.asset.count({
           where: {
             itemId: id,
@@ -158,8 +169,10 @@ export class PublishingDraftsController {
           body: b.body,
           assetIds: json(b.assetIds),
           basisRevisionId: b.basisRevisionId,
-          basisPrice: b.basisPrice,
-          basisCurrency: b.basisCurrency,
+          basisPrice: price.amount,
+          basisCurrency: price.currency,
+          basisPriceSource: price.source,
+          basisPriceVersion: price.version,
           updatedBy: r.actor.id,
         };
         const row = prior

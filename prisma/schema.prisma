@@ -449,7 +449,7 @@ model Channel {
   titleLimit           Int                   @default(80)
   active               Boolean               @default(true)
   defaultCurrency      String                @default("CNY")
-  distributionMode    String                @default("MANUAL")
+  distributionMode     String                @default("MANUAL")
   endpointUrl          String                @default("")
   packages             UsePackage[]
   listings             Listing[]
@@ -463,21 +463,21 @@ model Channel {
 }
 
 model UsePackage {
-  id                String            @id @default(uuid()) @db.Uuid
-  itemId            String            @db.Uuid
-  item              Item              @relation(fields: [itemId], references: [id])
-  revisionId        String            @db.Uuid
-  revision          ItemRevision      @relation(fields: [revisionId, itemId], references: [id, itemId])
-  channelId         String            @db.Uuid
-  channel           Channel           @relation(fields: [channelId], references: [id])
-  cycle             Int
-  purpose           String
-  snapshot          Json
-  createdBy         String            @db.Uuid
-  validUntil        DateTime
-  createdAt         DateTime          @default(now())
-  listings          Listing[]
-  collectionEntries CollectionEntry[]
+  id                   String                @id @default(uuid()) @db.Uuid
+  itemId               String                @db.Uuid
+  item                 Item                  @relation(fields: [itemId], references: [id])
+  revisionId           String                @db.Uuid
+  revision             ItemRevision          @relation(fields: [revisionId, itemId], references: [id, itemId])
+  channelId            String                @db.Uuid
+  channel              Channel               @relation(fields: [channelId], references: [id])
+  cycle                Int
+  purpose              String
+  snapshot             Json
+  createdBy            String                @db.Uuid
+  validUntil           DateTime
+  createdAt            DateTime              @default(now())
+  listings             Listing[]
+  collectionEntries    CollectionEntry[]
   distributionAttempts DistributionAttempt[]
 
   @@unique([id, itemId, channelId])
@@ -512,6 +512,9 @@ model ChannelPrice {
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   amount    Int
   currency  String
+  // A disabled row is semantically absent, but preserves the revision sequence.
+  // Otherwise clearing and recreating the same price could revive an old package.
+  active    Boolean  @default(true)
   version   Int      @default(1)
   updatedBy String   @db.Uuid
   createdAt DateTime @default(now())
@@ -524,18 +527,18 @@ model ChannelPrice {
 // An opaque, revocable machine credential scoped to exactly one concrete Channel account.
 // Only tokenHash is stored; plaintext tokens are returned once when created.
 model DistributionSession {
-  id         String                  @id @default(uuid()) @db.Uuid
-  channelId  String                  @db.Uuid
-  channel    Channel                 @relation(fields: [channelId], references: [id], onDelete: Restrict)
-  tokenHash  String                  @unique
+  id         String                @id @default(uuid()) @db.Uuid
+  channelId  String                @db.Uuid
+  channel    Channel               @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  tokenHash  String                @unique
   label      String
-  agentName  String                  @default("")
+  agentName  String                @default("")
   expiresAt  DateTime
   revokedAt  DateTime?
   lastUsedAt DateTime?
-  createdBy  String                  @db.Uuid
-  createdAt  DateTime                @default(now())
-  attempts   DistributionAttempt[]   @relation("DistributionClaim")
+  createdBy  String                @db.Uuid
+  createdAt  DateTime              @default(now())
+  attempts   DistributionAttempt[] @relation("DistributionClaim")
 
   @@index([channelId, expiresAt])
 }
@@ -671,21 +674,21 @@ model Observation {
 }
 
 model Inquiry {
-  version     Int      @default(1)
-  id          String   @id @default(uuid()) @db.Uuid
-  itemId      String   @db.Uuid
-  item        Item     @relation(fields: [itemId], references: [id])
-  channel     String
-  channelId   String?  @db.Uuid
+  version        Int      @default(1)
+  id             String   @id @default(uuid()) @db.Uuid
+  itemId         String   @db.Uuid
+  item           Item     @relation(fields: [itemId], references: [id])
+  channel        String
+  channelId      String?  @db.Uuid
   channelAccount Channel? @relation("InquiryChannel", fields: [channelId], references: [id], onDelete: SetNull)
-  sale        Sale?    @relation("InquirySale")
-  customerRef String
-  notes       String   @default("")
-  quote       Int?
-  currency    String   @default("CNY")
-  state       String   @default("OPEN")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sale           Sale?    @relation("InquirySale")
+  customerRef    String
+  notes          String   @default("")
+  quote          Int?
+  currency       String   @default("CNY")
+  state          String   @default("OPEN")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Suggestion {
@@ -914,23 +917,27 @@ model SettlementLine {
 
 // Editable channel-specific working copy, independent from immutable UsePackage.
 model PublishingDraft {
-  id              String        @id @default(uuid()) @db.Uuid
-  itemId          String        @db.Uuid
-  item            Item          @relation(fields: [itemId], references: [id])
-  channelId       String        @db.Uuid
-  channel         Channel       @relation(fields: [channelId], references: [id])
-  purpose         String
-  title           String        @default("")
-  body            String        @default("")
-  assetIds        Json          @default("[]")
-  basisRevisionId String?       @db.Uuid
-  basisRevision   ItemRevision? @relation(fields: [basisRevisionId, itemId], references: [id, itemId])
-  basisPrice      Int?
-  basisCurrency   String
-  version         Int           @default(1)
-  updatedBy       String        @db.Uuid
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                String        @id @default(uuid()) @db.Uuid
+  itemId            String        @db.Uuid
+  item              Item          @relation(fields: [itemId], references: [id])
+  channelId         String        @db.Uuid
+  channel           Channel       @relation(fields: [channelId], references: [id])
+  purpose           String
+  title             String        @default("")
+  body              String        @default("")
+  assetIds          Json          @default("[]")
+  basisRevisionId   String?       @db.Uuid
+  basisRevision     ItemRevision? @relation(fields: [basisRevisionId, itemId], references: [id, itemId])
+  basisPrice        Int?
+  basisCurrency     String
+  // The source/version makes a same-amount ChannelPrice confirmation invalidate
+  // an old working draft instead of silently reusing it.
+  basisPriceSource  String        @default("ITEM")
+  basisPriceVersion Int?
+  version           Int           @default(1)
+  updatedBy         String        @db.Uuid
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@unique([itemId, channelId, purpose])
 }
