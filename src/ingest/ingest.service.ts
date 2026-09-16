@@ -1,3 +1,4 @@
+import { imageCommand, type PreparedImage } from "../media/storage";
 import sharp from "sharp";
 import { assetPath } from "../media/storage";
 import {
@@ -1238,88 +1239,88 @@ export class IngestService {
     session: MachineSession,
     key: unknown,
     candidateId: string,
-    stored: {
-      objectKey: string;
-      originalName: string;
-      sha256: string;
-      mime: string;
-      size: number;
-    },
+    prepared: PreparedImage,
     meta: { sourceUrl: string; roleHint: string },
   ) {
-    return this.machineRun(
-      session,
-      "candidate.asset",
-      key,
-      {
-        candidateId,
-        sha256: stored.sha256,
-        sourceUrl: meta.sourceUrl,
-        roleHint: meta.roleHint,
-      },
-      async (tx) => {
-        const initial = await tx.ingestCandidate.findUnique({
-          where: { id: candidateId },
-        });
-        if (initial) await lock(tx, "ingest-batch:" + initial.batchId);
-        await lock(tx, "ingest-candidate:" + candidateId);
-        const candidate = await tx.ingestCandidate.findUnique({
-          where: { id: candidateId },
-          include: { batch: true },
-        });
-        if (
-          !candidate ||
-          candidate.procurementSourceId !== session.procurementSourceId
-        )
-          throw new Fault(
-            "INGEST_CANDIDATE_NOT_FOUND",
-            "候选不存在或不属于此来源",
-            404,
-          );
-        if (initial?.batchId !== candidate.batchId)
-          throw new Fault(
-            "VERSION_CONFLICT",
-            "候选所属批次已变化，请重新读取",
-            409,
-          );
-        if (candidate.batch.status !== "OPEN")
-          throw new Fault(
-            "INGEST_BATCH_SEALED",
-            "批次已封存，不能继续上传图片",
-            409,
-          );
-        if (!["PENDING", "CONFIRMED"].includes(candidate.decision))
-          throw new Fault(
-            "INGEST_CANDIDATE_CLOSED",
-            "候选已排除，不能继续上传图片",
-            409,
-          );
-        const old = await tx.ingestCandidateAsset.findUnique({
-          where: { candidateId_sha256: { candidateId, sha256: stored.sha256 } },
-        });
-        if (old)
-          return { id: old.id, existing: true, objectKey: old.objectKey };
-        const row = await tx.ingestCandidateAsset.create({
-          data: {
-            candidateId,
-            objectKey: stored.objectKey,
-            originalName: stored.originalName,
-            sha256: stored.sha256,
-            mime: stored.mime,
-            size: stored.size,
-            sourceUrl: meta.sourceUrl,
-            roleHint: meta.roleHint,
-          },
-        });
-        await audit(
-          tx,
-          session.createdBy,
-          "INGEST_CANDIDATE_ASSET_ADDED",
+    const stored = prepared.metadata;
+    return imageCommand(this.db, prepared, (persist) =>
+      this.machineRun(
+        session,
+        "candidate.asset",
+        key,
+        {
           candidateId,
-          { assetId: row.id, sha256: row.sha256, agentSessionId: session.id },
-        );
-        return { id: row.id, existing: false, objectKey: row.objectKey };
-      },
+          sha256: stored.sha256,
+          sourceUrl: meta.sourceUrl,
+          roleHint: meta.roleHint,
+        },
+        async (tx) => {
+          const initial = await tx.ingestCandidate.findUnique({
+            where: { id: candidateId },
+          });
+          if (initial) await lock(tx, "ingest-batch:" + initial.batchId);
+          await lock(tx, "ingest-candidate:" + candidateId);
+          const candidate = await tx.ingestCandidate.findUnique({
+            where: { id: candidateId },
+            include: { batch: true },
+          });
+          if (
+            !candidate ||
+            candidate.procurementSourceId !== session.procurementSourceId
+          )
+            throw new Fault(
+              "INGEST_CANDIDATE_NOT_FOUND",
+              "候选不存在或不属于此来源",
+              404,
+            );
+          if (initial?.batchId !== candidate.batchId)
+            throw new Fault(
+              "VERSION_CONFLICT",
+              "候选所属批次已变化，请重新读取",
+              409,
+            );
+          if (candidate.batch.status !== "OPEN")
+            throw new Fault(
+              "INGEST_BATCH_SEALED",
+              "批次已封存，不能继续上传图片",
+              409,
+            );
+          if (!["PENDING", "CONFIRMED"].includes(candidate.decision))
+            throw new Fault(
+              "INGEST_CANDIDATE_CLOSED",
+              "候选已排除，不能继续上传图片",
+              409,
+            );
+          const old = await tx.ingestCandidateAsset.findUnique({
+            where: {
+              candidateId_sha256: { candidateId, sha256: stored.sha256 },
+            },
+          });
+          if (old)
+            return { id: old.id, existing: true, objectKey: old.objectKey };
+          const { objectKey } = await persist(tx);
+          const row = await tx.ingestCandidateAsset.create({
+            data: {
+              candidateId,
+              objectKey,
+              originalName: stored.originalName,
+              sha256: stored.sha256,
+              mime: stored.mime,
+              size: stored.size,
+              sourceUrl: meta.sourceUrl,
+              roleHint: meta.roleHint,
+            },
+          });
+          await audit(
+            tx,
+            session.createdBy,
+            "INGEST_CANDIDATE_ASSET_ADDED",
+            candidateId,
+            { assetId: row.id, sha256: row.sha256, agentSessionId: session.id },
+          );
+          return { id: row.id, existing: false, objectKey: row.objectKey };
+        },
+      ),
     );
   }
 

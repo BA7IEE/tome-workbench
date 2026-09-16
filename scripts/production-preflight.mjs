@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { pendingApprovals } from "./operations-evidence.mjs";
+import { releaseVersion, versionChecks } from "./release-version.mjs";
 import path from "node:path";
 import https from "node:https";
 import { execFileSync } from "node:child_process";
@@ -20,6 +22,10 @@ const compose = [
   "--env-file",
   path.join(dir, "compose.env"),
 ];
+const expectedVersion = releaseVersion();
+const composeEnv = fs.readFileSync(path.join(dir, "compose.env"), "utf8");
+const configuredTag = composeEnv.match(/^TOME_IMAGE_TAG=(.+)$/m)?.[1]?.trim();
+const versions = {};
 const checks = [];
 const check = (id, pass, detail) =>
   checks.push({ id, pass: !!pass, ...(detail ? { detail } : {}) });
@@ -49,13 +55,39 @@ for (const name of services) {
     x.State.Running &&
       (name === "proxy" || x.State.Health?.Status === "healthy"),
   );
-  if (name.startsWith("api") || name.startsWith("worker"))
+  if (name.startsWith("api") || name.startsWith("worker")) {
+    versions[name + "-image-version"] =
+      x.Config.Labels?.["org.opencontainers.image.version"];
+    if (name.startsWith("api")) {
+      try {
+        versions[name + "-runtime-version"] = execFileSync(
+          "docker",
+          [
+            ...compose,
+            "exec",
+            "-T",
+            name,
+            "node",
+            "-e",
+            'fetch("http://127.0.0.1:4318/api/system/health", {signal: AbortSignal.timeout(3000)}).then(async r => {if(!r.ok) process.exit(1);const b=await r.json();process.stdout.write(String(b.version));}).catch(() => process.exit(1))',
+          ],
+          {
+            encoding: "utf8",
+            timeout: 5000,
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        ).trim();
+      } catch {
+        versions[name + "-runtime-version"] = null;
+      }
+    }
     check(
       name + "-hardened",
       x.Config.User === "node" &&
         x.HostConfig.ReadonlyRootfs &&
         x.HostConfig.CapDrop?.includes("ALL"),
     );
+  }
   if (name !== "proxy")
     check(
       name + "-not-public",
@@ -76,25 +108,44 @@ const status = await new Promise((resolve) => {
   r.on("timeout", () => r.destroy());
 });
 check("tls-and-live-readiness", status === 200);
+versions["public-api-version"] = await new Promise((resolve) => {
+  const r = https.get(
+    cfg.origin + "/api/system/health",
+    { ...(ca ? { ca: fs.readFileSync(ca) } : {}), timeout: 5000 },
+    (res) => {
+      let body = "";
+      res.on("data", (chunk) => {
+        body += chunk;
+        if (body.length > 4096) r.destroy();
+      });
+      res.on("end", () => {
+        try {
+          resolve(res.statusCode === 200 ? JSON.parse(body).version : null);
+        } catch {
+          resolve(null);
+        }
+      });
+    },
+  );
+  r.on("error", () => resolve(null));
+  r.on("timeout", () => r.destroy());
+});
+checks.push(
+  ...versionChecks(expectedVersion, cfg.appVersion, configuredTag, versions),
+);
 const softwareReady = checks.every((c) => c.pass);
 let approval = {};
 if (fs.existsSync(path.join(dir, "operations-approval.json")))
   approval = JSON.parse(
     fs.readFileSync(path.join(dir, "operations-approval.json"), "utf8"),
   );
-const humanChecks = [
-  "businessUat",
-  "offHostBackupVerified",
-  "recoveryDrillReviewed",
-  "domainAndFirewallReviewed",
-  "alertRecipientConfirmed",
-];
-const pending = humanChecks.filter((k) => approval[k] !== true);
+const pending = pendingApprovals(dir, approval);
 const publicReady =
   softwareReady && !cfg.rehearsal && cfg.publicBind && pending.length === 0;
 const report = {
   at: new Date().toISOString(),
   project,
+  expectedVersion,
   softwareReady,
   publicReady,
   rehearsal: cfg.rehearsal,

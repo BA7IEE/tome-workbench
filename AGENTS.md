@@ -1,110 +1,30 @@
-# ToMeBoutique coding contract
-Read README.md, docs/ARCHITECTURE.md, docs/AC_MATRIX.md and relevant module before changes.
+# ToMeBoutique 开发契约
 
-## Authority and red zones
-The v1.1.1 business blueprint describes a long-term goal, not implemented features. This release's implemented boundary is docs/AC_MATRIX.md. Never mark a planned/untested feature as passed.
-Never connect to SRVF, production, or another app's database/bucket/keys. No personal/production fixtures. `tome_test` is the only resettable automated-test database.
-Never silently enable external effects, live AI, messaging, payment, scraping, autopublish or payout. No real credentials in source, logs, tests or release. Use synthetic data.
-Applied migrations and frozen publishing records are immutable. Add forward migrations, don't modify a deployed migration. Seal changes require reviewed acknowledgement, not deleting the gate.
-Inventory changes must use item-scoped transaction lock and DB constraints. Write audit and durable event with the transaction. Auth is rechecked BEFORE replaying an idempotency response. API success is not third-party success.
-Manual stock observations cannot fabricate revenue; financial incompleteness must not block fast sold/stop. Unknown money is NULL, not zero. No cross-currency sum or unapproved agreement interpretation.
+修改前阅读 README.md、docs/CURRENT-RELEASE.md、docs/CURRENT-ARCHITECTURE.md、docs/CURRENT-BUSINESS-RULES.md、docs/ARCHITECTURE.md、docs/AC_MATRIX.md 及相关模块。部署工具修改另读 docs/PRODUCTION.md。历史仅查 docs/releases/ 和 docs/archive/，不把历史阶段状态当当前指令。
 
-## Change loop / Harness
-1. State goal, impacted modules, invariant and smallest acceptance test.
-2. Implement one vertical slice, no unrelated refactor or dependency upgrades.
-3. `npm run typecheck && npm run lint && npm run build`.
-4. Unit + real isolated PostgreSQL integration + Chromium browser tests. `node scripts/prepare-test.mjs` first.
-5. `npm run harness:selftest && npm run harness:check`; report command exit and failures honestly.
-6. Refresh contract, AC map, runbook and release report. No skipped tests or mocks substituted for runtime evidence.
-7. `npm run pack`; check no `.env`, `data`, `node_modules`, sessions, credentials or backups in ZIP.
+## 不可违反的边界
 
-Do not edit tests to merely accept a wrong implementation. A test change must explain why the former expectation was wrong. Do not rename tests without updating AC mapping.
+- TM Item 是经营事实中心，平台/采购/Agent 是来源证据；机器身份仅走通用 ingest。人工确认才能建 TM，多来源走 ItemSourceLink。来源状态、成色和金额不得自动变成本地库存、标准字典或成本。
+- 不连接 SRVF、生产或其他应用的库、Bucket、Key，不用真实经营数据做夹具。自动测试仅可重置独立 tome_test。localhost Compose 合成演练独立隔离，不是公网部署或真实 UAT。
+- 已发布 migration、冻结发布/素材/账期快照不可改。仅新增 forward migration；不可删除封印或自行重封历史来过门禁。
+- 库存和财务保留 item lock、financial-journal 锁、DB 约束和版本检查。业务、审计、Receipt、Outbox 同事务。重放前重验角色/Session；同 key 不同载荷冲突。
+- 未知金额 NULL，不能用 0 补空、跨币种合计、反改成交成本快照或自行解释真实协议。财务缺项不阻断快速停售；库存观察不制造收入。
+- 原图不覆盖，授权/用途/复核独立。来源图不自动有 PUBLIC 权利；下载资料不等于第三方发布。TEST/删除隔离和当前依赖摘要不能放松。
+- 外部副作用、真实支付/退款/分账、抓取、消息、联网 AI、自动发布默认 OFF。源码、日志、测试、ZIP 不含真实凭据、会话和个人资料。
+- UI 继续保留 rc.15–19 与 UX 1.0.1 当前行为及领域控制器。ui08.css 是唯一样式入口；不恢复六份退役 CSS。React 表示层不能绕过权限、版本、恢复和证据。
 
-## Release candidate 0.2.0-rc.2
-Read docs/PRODUCTION.md before any deployment change. Local dev, tome_test and the guarded localhost Compose rehearsal are different targets. Never count a production-mode synthetic rehearsal as public deployment or activate real agreement terms. Never bypass Docker privileges or the migration-maintenance gate to make a test pass. New worker probes must match database column types. Local installer and all executable scripts are syntax-checked. Package only a source fingerprint that matches actual validation.
+## 一次一个垂直切片
 
-## Interaction gate
-Keep the real-click and touch regressions in test/browser/interaction.spec.cjs. Both Chromium and WebKit are required in the full harness. Do not force-click disabled controls or refresh the page inside tests to hide stale rendering. Test response loss after a real write and retry without duplication.
+先说明目标、模块、不变量、最小验收；不混入无关重构或依赖升级。变更测试必须解释旧期望为何不再正确，不能为了错误实现改断言；重命名同步 AC 映射。
 
-## Dictionary contract (0.5)
-Keep dictionary IDs and snapshotted wording separate. Unknown brand/color text is not automatically a new dictionary entry. Preserve name/alias uniqueness, category constraints, permission checks, version conflicts and disabled-entry safety. Initializer only inserts missing built-ins; never rewrites user products. Condition vocabulary is VC five-level, not a claimed universal standard. Both browsers must execute dictionaries.spec.cjs; do not replace selection and error-recovery tests with static option checks.
+1. `node scripts/prepare-test.mjs`（只读配置，不输出连接凭据；不要并发重置同一库）。
+2. `npm run typecheck && npm run lint && npm run build`。
+3. `npm run verify:release`：脚本语法、单元、真实 PostgreSQL 集成、Chromium、WebKit、HA、恢复、Harness selftest/check 全部通过，源码指纹不变。
+4. `npm audit --audit-level=high`，更新当前文档、AC、runbook、验证报告。
+5. `npm run pack`，核对 ZIP 不含 .env、data、node_modules、凭据、sessions 或备份。
 
-## Test data separation
-Only administrators can create explicit TEST items or classify old simulated records through test-cleanup previews. Do not relax ordinary deletion protections. Keep financial-journal and item locks, original transaction amounts, refunds, assets, observations and statement snapshots. Public showroom and business statistics must exclude TEST. Restoring a test item must never promote it to BUSINESS. Add a current-state digest check for new cleanup dependencies.
+两浏览器范围和用例数相同，所有既有领域套件保留；retries=0、skipped=0、flaky=0。禁止跳 UI 登录、注入 Cookie、force-click 禁用控件、刷新掩盖旧渲染、扩大整例超时或模拟成功响应替代真实服务。登录前置等待真实响应并断言；诊断不得记录输入/正文/Cookie/CSRF。保留真实写入后丢回执和同键恢复、原文件字节、并发编辑、手机/键盘测试。
 
-## Product-workspace UX gate (0.8)
-Keep studio.spec.cjs and ux2.spec.cjs in both browser suites. Primary entry must allow a title-only save and an in-place path from item/media to usable channel package. Do not force users through unrelated screens to correct a missing field.
-Do not remove role/evidence/media-rights checks to make the short path pass. Shared approveRevision is the sole review rule implementation. Pending input is captured before controls are locked, or from explicit values; FormData from disabled controls must not erase drafts.
-Maintain loss-of-response, concurrent-channel-edit, real file chooser, original-media, in-place sale/receipt and save-return draft-preservation cases. Report synthetic interaction evidence separately from human-time or public-production claims.
+如实区分源码检查、合成运行、人工 UAT 和公网部署；失败或未做不得写成通过。源码变化后不得复用旧验证指纹。合并 main 和部署仍需报告已验证 PR head 后取得用户最终确认。
 
-## Visual-system gate (0.8)
-`web/src/ui08.css` is the final visual owner. Do not re-import usability.css, admin-flow.css, studio.css or ux2.css into main.ts. Visual changes must keep `test/browser/ui08.spec.cjs` in both browser suites. Mobile must retain access to 商品、待办、销售、资源、系统 and preserve the business-order product layout.
-
-## Operator-control gate (0.9)
-Do not reintroduce a select plus separate search box for the same dictionary value. BRAND is the searchable combobox; CONDITION, COLOR and MATERIAL are native selects. Stable IDs are persisted; visible labels are for operators.
-
-Typed-but-unselected brand text must block save/filter rather than silently disappear. Explicit selection must cancel stale async searches. Blank optional dictionaries must not block sparse save only because their option request is unavailable. Keep ux09.spec.cjs and ux09-audit.spec.cjs in Chromium and WebKit.
-
-Operator pages use business-language labels. Technical enum codes and API identifiers belong in collapsed diagnostics or API output, not the primary view. Simplifying the UI must never relax permissions, version checks, image rights, inventory, finance or idempotency rules.
-
-## High-frequency operator gate (0.10)
-The catalog's primary creation action is QuickIntake. Keep first-touch capture limited to images, title, brand, category, price/currency, condition and image origin. Do not move measurements, material details, review evidence or publishing fields back into that dialog.
-QuickIntake must retain item/upload idempotency, original media, supplier-image origin and explicit full-editor escape. Continuous entry must reset prior data and show the last saved TM identity. Keep its mobile dialog inside the viewport with independently scrolling content.
-QuickEdit may only patch common merchandising fields and must keep version conflict blocking. Full ProductEntry regressions must continue to use the complete `/items/new` route; never replace domain coverage with the compact paths.
-Keep `ux10.spec.cjs` in Chromium and WebKit release suites.
-
-## Procurement facts gate (0.11)
-采购来源状态永远不是库存状态：Shipped / Sold / Canceled / RMA等只能保存在采购来源层，禁止直接调用库存状态命令。来源平台成色不得自动映射成本地成色。
-订单行金额、平台当前价、估计零售价和人民币取得成本是不同概念，不得复用字段或自动覆盖。没有明确人工依据时不得生成人民币成本或汇率分摊。
-采购订单更新必须保留人工的businessDecision/possession和TM关联；来源数据变化只能更新来源字段并增加修订。来源图片URL不授予PUBLIC素材权利。
-采购候选只有在`INCLUDE + IN_HAND`后才能生成普通Source；最终TM建档仍使用现有商品校验。新增采购迁移必须是加法迁移，不能删除现有库存、账务或Outbox保护约束。
-## v1.0 item-center architecture gate
-TM Item is the operational source of truth. External marketplaces, purchase orders, shipments, RMA records and desktop agents are provenance/evidence, never competing inventory masters.
-All automated collection products (Codex, WorkBuddy, future agents) must use the generic ingest session/batch/candidate protocol. Do not give machine tokens normal user permissions or let an adapter write Item/Sale/Inventory/Cost directly.
-Incoming `Sold`, `Shipped`, source condition, color, size or prices remain source facts. Candidate confirmation is the explicit boundary that can create a TM. Unknown standardization may remain incomplete; it must not force fake values.
-Do not replace `ItemSourceLink` with a platform-specific one-to-one relation. `Item.sourceId` is compatibility only. New sources attach through the multi-source relation.
-TRR cost policy is source configuration plus per-order confirmed payment/fx evidence. RMA/returns/excluded lines require an explicit final economic-payment override. Sale cost is a historical snapshot and must never be recalculated retroactively.
-The primary operator path is Items -> Candidates -> Tasks. Purchase history is secondary evidence. Keep the 100-row candidate browser gate and both Chromium/WebKit coverage in the release harness.
-## Operating action projection gate (1.0.0-rc.2)
-经营待办是只读投影，不是第二套Task事实源。候选、Task、Observation、Inquiry、Sale仍由各自模块拥有，完成动作必须回原模块执行。
-新增行动类型必须同时定义：来源真相、角色可见性、BUSINESS/删除隔离、明确跳转入口和排序依据。禁止为了“统一待办”复制成交金额、库存状态或候选决定到新的可写表。
-经营待办与工作总览必须共用同一`/api/work-queue`投影。成交补账仅对finance角色显示，询盘仅对sell角色显示；不可通过首页泄漏更高权限数据。
-
-
-## v1.0.0-rc.3 candidate identity gate
-Exact image matches are warnings/evidence, never automatic identity decisions. A candidate with an exact existing-image match must not silently create another TM through bulk confirmation. Linking to an existing TM must keep Item status, maintained facts, price and approval untouched; only provenance/purchase relations and internal reference evidence may be added.
-A same-image/different-physical-item case requires explicit per-candidate override and audit. Do not weaken this gate to make bulk import tests pass. Perceptual similarity is not implemented and must not be claimed.
-
-
-## Product-library MVP gate (1.0.0-rc.15)
-The user-approved MVP has three primary entries: 商品库 / 导入记录 / 设置. This supersedes only the earlier five-primary-navigation and primary publishing-action presentation requirements. Preserve access to existing operations, sales, resources and system tools through Settings, with existing role checks. Item editing offers 保存并下载资料; approved publishing remains available under More with all existing checks.
-Keep product-library.spec.cjs in Chromium and WebKit. Test real writes with lost responses followed by closing/reopening the page; verify exact original file bytes and unchanged command keys. Browser/account-local recovery is not cross-device draft sync. Keep existing full-entry, channel, dictionary, stock, finance, media rights and version-conflict regression coverage.
-MaterialExport is an immutable internal reference snapshot, never a publishing receipt, inventory master or public feed. Default exports omit internal notes, cost and private documents. Finance permission must be checked again before replaying an INTERNAL export. Compare image metadata as well as item facts before downloading old bundles. IngestBatchMember is append-only membership evidence; do not infer lost old membership. Explicitly accepted source gaps must remain per-candidate and version-bound; completeness and identity blockers cannot be bulk waived.
-
-## Arco product presentation gate (1.0.0-rc.16)
-React owns catalog and product fields; existing domain controllers keep writes, recovery and evidence. Keep DOM ownership explicit with lifecycle-bound roots and stable ControllerSlot input. Selection-only renders must preserve filter text and dictionary selection. Conflict rebases must retain file objects, upload keys, source/review state and explicit subsequent save.
-ui08.css is the only stylesheet imported by main.ts, using ordered arco-base/workbench/arco/product layers declared before other rules. The legacy layer and six retired style sheets were removed in rc.18; their active accessibility and recovery rules now live in ui08.css. Arco's global reset must precede business layout, and native control selectors must exclude Arco internals. Theme aliases live on body, where Arco defines its variables. Keep the native condition/color/material and searchable-brand semantics; adopting Arco cannot bypass any domain checks. Row dropdowns must escape table clipping and support outside close and Escape focus return. Keep arco-workspace.spec.cjs and all prior domain suites in both browsers.
-
-## Catalog control gate (1.0.0-rc.17)
-Keep search, ordering and pagination in distinct operator positions with mobile access. Result changes validate visible filter input, never silently discard it. Canonical selection scope must ignore presentation options and normalize equivalent default/empty query values; changing actual filters still clears selection. Keep the real 31-item ordering/page-size and cross-page editing cases in both browsers.
-
-## Shared UI cleanup gate (1.0.0-rc.18)
-Do not restore style.css, interaction.css, usability.css, admin-flow.css, studio.css or ux2.css. Keep the single-visual-owner harness guard and the 1440px/390px whole-system checks in both browsers. Native fields retain visible keyboard focus; filters align controls and mobile headings keep actions below readable text. Native record tables scroll inside their container rather than crushing Chinese labels or widening the page. Removing obsolete presentation code must preserve the existing domain controllers and their real-write, recovery, permissions and original-media tests.
-
-
-## Product browsing and maintenance gate (1.0.0-rc.19)
-Catalog images/titles and links labelled 查看 open the read-only product overview. Editing permission must never choose edit mode implicitly. Overview -> explicit edit -> Save/Cancel returns to the same product and preserves the originating catalog or batch context. Intentional full-entry, publishing and sequential-edit routes retain their full controller/recovery paths.
-Viewing images must not write metadata; original viewing/download uses the authenticated original endpoint. Image navigation retains keyboard focus, handles failed original reads, and cannot render a stale original after changing images. Existing-image actions state that they save immediately and are separate from unsaved text.
-Material creation continues directly to download with retry of the existing snapshot; permission, freshness, original bytes, and response-loss recovery stay enforced. Single intake can finish; continuous intake remains explicit. Completed batch links and filter reset must retain batch identity and return context. Keep the rc.19 journeys in product-library.spec.cjs in both browsers; older default-edit or manual-download-step expectations are superseded only for the changed navigation.
-
-
-## UX 1.0.1 on rc.19 integration gate
-Retain rc.15–19 as the feature baseline, including Arco, read-only overview, original MaterialExport bytes, batch membership, durable recovery and migration history. The authorized UX integration makes dashboard the default and exposes 工作台 / 商品库 / 导入记录 / 销售 / 设置 with sales permission checks; this supersedes only rc.15's primary-navigation count and default landing presentation. Keep the catalog entry and advanced tools reachable.
-Candidate sale readiness defaults to PAUSED in new UI and bulk API; explicit AVAILABLE remains supported. Bulk recovery must retain the original status, version-bound source-gap acknowledgements and command keys. QuickIntake validates files before TM creation while preserving account-scoped original-file recovery, ApiError authentication handling and explicit close/next/edit choices. Direct stock actions use existing permission/transaction/idempotency rules. Sale facts for sell users must exclude finance fields and TEST/deleted products; finance history is unchanged.
-Keep ux101.spec.cjs and every browser suite in both Chromium and WebKit. Harness rejects unequal browser scope and skipped UX tests. This integration does not authorize merging main or deploying; obtain the user's final confirmation after reporting the verified PR head.
-
-Browser login setup must await and assert the real login response before the existing UI assertions. Do not bypass UI login, automatically retry, raise the whole-test timeout, or weaken business assertions to hide CI failures. Keep latency diagnostics free of credentials and retain the delayed real-response login journey in both browsers.
-
-Product-save browser journeys must wait for visible save completion and enabled controls before leaving. A successful database poll alone is insufficient. Keep the real post-commit receipt gate in the source-condition journey, checking the busy leave guard and a single PATCH without weakening saved-field assertions.
-
-Login fields must receive initial focus synchronously on mount, not via delayed native autofocus. Browser setup checks DOM focus and field equality as booleans, never prints credentials, and still performs exactly one real click/HTTP login. OS foreground-window focus is not a headless test precondition.
+登录页在挂载时同步设置初始焦点，不用延迟原生 autofocus；测试以 DOM 焦点和字段相等布尔值核对，不输出凭据。商品文字与待上传图片全部完成后才显示总体已保存。

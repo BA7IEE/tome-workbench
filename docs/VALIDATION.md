@@ -1,75 +1,39 @@
-# 成色列表 CI 回归修复验证 · 2026-09-16
+# 当前验证记录 — 1.0.1-rc.2
 
-基于已合并 main `314b5cecb8e8ea7f57173ea0d56e7f49b6188469`。失败运行 34993818717 的真实成色写入已经成功，但测试在页面尚未收到保存回执时跳转，被正常的保存中离开保护阻止。
+本地验证完成：2026-09-16T08:43:20.650Z。源码提交 `ee4acb25dfab63f6d0ad64a83a19e25aca4b3d47`；完整源码指纹 `ff15bc1b2a0fe42d0599b60b530770e60a535006a689c0bca4b5f316b4e1c180`。后续仅提交本报告不改变运行源码指纹，远端最终 head 的 CI 仍须独立核验。
 
-本次仅修正浏览器测试及契约记录。以真实 PATCH 回执控制复现该时序，验证保存中不能离开且只写一次；释放回执后等待“已保存”和保存按钮恢复，再检查列表及重新打开后的成色。原有业务断言全部保留，无 skip、重试、加长超时或刷新。
-
-先执行 prepare-test，再执行完整 `npm run verify:release`，退出 0，源码在验证期间未变化。syntax、typecheck、lint、build 全通过；Unit 20、Harness 自测 12、integration 122、Chromium 164、WebKit 164、HA 8 全通过。双浏览器均无失败、跳过或 flaky，范围一致。Recovery 65 个模型和 2286 个素材文件校验通过，静态守卫 136 项通过；npm audit 所有级别 0 漏洞。
-
-源码指纹：`d1322a0e63aba7e7620ceeb6ec3383a7ed68775c3145c504cd1fae5f3dbed2d6`。
-
-[完整摘要](validation/1.0.1-rc.1/summary.json) · [完整日志](validation/1.0.1-rc.1/verification.log) · [浏览器范围](validation/1.0.1-rc.1/browser-scope.json) · [audit](validation/1.0.1-rc.1/npm-audit.json)。当前这些文件记录本轮验证，下面保留整合背景；原整合验证产物可从 main 基线提交读取。
-
-src、web、Prisma Schema、历史迁移、依赖和版本均未改动。未合并本次修复，未部署，未触碰真实商品库。
-
----
-
-# 实际验证记录 · 1.0.1-rc.1
-
-2026-09-15 完成本地整合验证。以 rc.19 `bfffa5cd8cb997db440c9b06ef6dd067e722e281` 为第一父提交，整合 UX `1783947288266a2846ae008c1c01d76227b6ef2d`；采用保留两条提交链的 merge，不重写 UX 分支历史。保护分支 `codex/backup-rc19-bfffa5c`、`codex/backup-ux101-1783947` 均已推至 origin。具体冲突决策与测试映射见 [UX-1.0.1-REWORK](UX-1.0.1-REWORK.md)。
-
-## 最终完整运行
-
-已先执行 `node scripts/prepare-test.mjs`，随后 `npm run verify:release` 完整退出 0。`passed=true`、`sourceUnchanged=true`，源码指纹 `289bc6599bde53466aa33a58273cf92ba4ef0cf9d7c1fd6bd21bb9a54b683d1d`。所有检查在同一次最终运行中完成，无跳过、失败或 flaky；不复用旧分支测试结果。
-
-| 检查 | 结果 |
+| 检查 | 实际结果 |
 | --- | --- |
-| syntax / typecheck / lint / build | 全部退出 0 |
-| Unit | 20 / 20 |
-| Harness 自测 | 12 / 12 |
-| 实际 PostgreSQL integration | 122 / 122 |
-| Chromium | 164 / 164 |
-| WebKit | 164 / 164 |
-| HA 进程故障 | 8 / 8 |
-| Recovery 离线恢复 | 65 个模型、1824 个素材文件哈希一致；TM 序列和维护锁通过 |
-| Harness 静态守卫 | 136 / 136 |
-| npm audit --audit-level=high | 退出 0，所有级别共 0 漏洞 |
+| syntax / typecheck / lint / build | verify:release 中全部通过 |
+| 完整 Harness | exit 0，sourceUnchanged=true |
+| Node 测试组（unit / selftest / integration / HA） | 24/24, 17/17, 126/126, 8/8 |
+| Chromium | 165 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 165 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| HA / Recovery | passed=true；恢复核对全部当前模型和原图 |
+| 静态 Harness | 142 项通过 |
+| npm audit | 0 vulnerabilities（独立 npm audit 命令 exit 0） |
+| 打包 | 仅对上述已验证指纹执行 npm run pack，产物在 release/ |
 
-[完整摘要](validation/1.0.1-rc.1/summary.json)；[完整日志](validation/1.0.1-rc.1/verification.log)；[双浏览器逐用例范围比较](validation/1.0.1-rc.1/browser-scope.json)；[audit](validation/1.0.1-rc.1/npm-audit.json)。两种浏览器均执行相同的 16 个文件、164 个用例；包括原 UX 三项、预留/解除恢复组合回归和新增登录真实回执延迟回归。
+完整摘要和日志：[summary.json](validation/1.0.1-rc.2/summary.json)、[verification.log](validation/1.0.1-rc.2/verification.log)。当前 main、PR head、CI 不使用历史快照代替：[PR #2](https://github.com/BA7IEE/tome-workbench/pull/2)、[PR #3](https://github.com/BA7IEE/tome-workbench/pull/3)、[PR #4](https://github.com/BA7IEE/tome-workbench/pull/4)。
 
-## 功能保留与数据库
+## 本轮发现并修复
 
-rc.15–19 的全部原图资料包、导入批次成员和逐件缺项依据、账户隔离文件队列、关页恢复、Arco 筛选/排序/分页、原图查看字节与元数据保护、只读详情和明确编辑返回路径继续执行。原发布、字典、库存锁、权限、财务和并发回归均保留。新增 UX 的默认工作台、直接经营操作、候选售前状态选择、已有 TM 点选、上传前校验和进度、非财务成交事实与以上路径一起通过。
+登录的真实根因是原生 autofocus 焦点竞争导致密码为空，原生校验未触发 submit；保持原超时、真实 UI 登录和零重试。商品文字 PATCH 之后、图片仍保存时的总体成功提示已修正。
 
-11 个 migration、Prisma Schema 和 `harness/sealed.json` 与 rc.19 逐字节相同，见 [migration 保留清单](validation/1.0.1-rc.1/migration-preservation.json)。本次整合新增 migration 为 0。相对 main 的数据库差异仅包含 rc.15 已交付的 `202609150011_product_materials` 加法迁移与相应模型；未改、删除或重编号历史迁移。测试库迁移已全部应用，没有待应用项。依赖版本仍为 rc.19 锁定值，仅包版本改为 1.0.1-rc.1。
+新增文件数量断言揭示旧 WebKit 丢回执用例的 route.fetch multipart 转发并未完成首写，却伪造了 201。改为原生 XHR 在实际 HTTP 201 后丢弃交付，验证原命令重放、首写恰好两个文件、恢复不增文件及原图 SHA。早先失败轮次不计入本次通过证据。
 
-## 排查与修正记录
+## 生产与业务边界
 
-新工作区首次单独启动浏览器检查时尚未生成测试夹具；按项目顺序先执行完整 integration 生成合成夹具后继续，没有复制真实资料。新增预留回归曾误把商品 API 的有效预留列表当作全部历史，修正为预留后 1 条、解除后 0 条有效预留；仍验证真实写入、同一幂等键、PAUSED 及显式恢复。
+未部署腾讯云，未修改真实商品库，未启用外部消息/支付/AI/发布。自动化仅使用隔离 tome_test 与显式 localhost 合成 Compose。
 
-首轮完整 Chromium 为 162 通过、1 失败，原因是旧手机测试用文本“销售”同时匹配新增主导航和设置分组。定位限定到原设置工具分组，保留实际点击与发布记录可达断言，单独复测通过；随后重新执行上表整轮完整验证。没有删减、skip、强制点击、放宽领域检查或刷新掩盖渲染问题。
+备份工具支持受控维护窗口下数据库和原图的一致性备份、完整 SHA、迁移/模型/TM 序列核验，以及新目标恢复，拒绝覆盖已有数据库。独立演练只验证恢复数据和只读 SQL 核对，没有启动真实业务应用或执行人工 UAT。
 
-整合提交 `de6e34c` 的首次两条 Linux CI 均未通过：Chromium 163/163，WebKit 分别 161/163 和 162/163；失败点分散在三个不同用例的登录前置页面断言，业务操作尚未执行，npm audit 因此前失败未运行。上述远端运行不能作为最终通过证据。
+PushPlus 默认只预览；没有 Token 和接收人实际送达证据，alertRecipientConfirmed 保持未完成。1Panel 同机备份不能代替服务器之外的副本，COS 下载恢复、域名/防火墙、实际机型容量和经营 UAT 尚未完成。operations-approval 不因源码或合成测试通过而自动批准。
 
-统一登录前置为实际点击后等待真实 HTTP 201 和会话响应结构，再执行原页面断言；新增真实后端已写入、回执延迟 5.5 秒的测试，检查禁用重复提交、会话及工作台可用、只发送一次登录。保留整例 45 秒、原页面断言期限及 retries=0。CI 增加不含凭据的登录诊断与合成失败截图/DOM 上下文，以便查明后续失败。未修改生产认证实现。
+## 独立合成运行证据
 
-后续本地全跑 Chromium 164/164、WebKit 163/164，发现布局用例在异步登录态读取完成前直接测量尚未挂载的侧栏。补齐商品标题和侧栏可见的前置条件后，原尺寸和间距断言单独通过；随后再次完整运行，最终为上表双浏览器各 164/164，全部其他检查同时通过。最新远端 CI 需在推送最终提交后另行核对。
+- [生产格式备份/恢复演练](validation/1.0.1-rc.2/production-tools.json)
+- [恢复模型、迁移、序列与媒体核验](validation/1.0.1-rc.2/production-recovery.json)
+- [4 并发、20MiB / 40M 像素上传](validation/1.0.1-rc.2/upload-budget.json)
 
-## 交付边界
-
-以上全部自动化使用本项目 `tome_test` 合成数据及全新隔离恢复目标。实际查看本轮生成的手机商品库和只读详情截图，Arco 外观、原图入口、直接经营操作与导航保持可用。此证据不代表真实经营、长期人效、跨设备草稿或公网生产验收。
-
-原 rc.19 工作区与本机 4318 经营实例没有切换，真实商品、图片、库存、成本及历史订单没有写入。main 仍保持 `28158fb18df4239933a781e9793e2be40d700cba`；当前交付是待用户确认的 PR，不执行 Squash Merge、下一阶段开发或部署。GitHub 对最终提交的 CI 状态以 PR #1 为准。
-
-源码包使用 `npm run pack` 的已验证指纹门禁；包内排除真实 .env、data、node_modules、会话、密钥与备份，仅允许合成测试源码和公开配置示例。
-
-## 2026-09-16 登录稳定化最终本地证据
-
-- 旧失败 run 35052422246 的表单现场显示邮箱混入密码输入、密码字段为空，无服务器错误提示。根因类别 1：原生 autofocus 与快速填写发生焦点竞争，浏览器必填校验阻止 submit；不是增加响应超时能解决的问题。诊断补充 request/response/requestfailed、form submit/invalid、服务端收发、ready/SELECT 1 与进程存活，均不记录凭据。
-- 仅在测试等待原生 focus 的尝试不完整：Chromium 的带 hash 地址不保证原生 autofocus，且 macOS headless 不保证 OS 窗口激活；已废弃该实现。修复改为登录页挂载时同步 focus，并只检查 DOM activeElement。
-- 中途全量验证因上述 focus 断言失败主动中断，不算通过。修正后 ux101 定向 Chromium 5/5、WebKit 5/5，包括实际登录响应延迟 5.5 秒和单次提交。
-- 最新源码 c86d67366f870462bab123112028dc89d3c136da 完整本地 verify:release exit 0：Chromium 164/164、WebKit 164/164、Integration 122/122，HA/Recovery/Harness 全过，源码指纹未变。npm audit 0 vulnerabilities；npm run pack exit 0。远端最新 head 仍以 GitHub 实时结果为准。未合并、未部署、认证/权限规则未修改。
-
-补充当前证据：诊断 head a071a68 的远端 run 35068730219 记录 clicks=1、submits=0、invalid=1、passwordValid=false、requestObserved=false、readyStatus=200、serverAlive=true，确认登录根因类别 1。同步焦点修正 head 74b85ba 本地完整验证 exit 0、sourceUnchanged=true、Chromium/WebKit 164/164。
-
-同轮较早的 run 35068342466 暴露独立的保存完成提示问题：文字 PATCH 成功后 adopt 提前显示已保存，图片仍在写入。新增真实上传 HTTP 201 后延迟 XHR 交付的回归，旧实现稳定失败在“不能提前显示已保存”；仅延后总体完成提示后，Chromium/WebKit 定向各 1/1 通过。首个用 route.fetch 转发 multipart 的故障注入会破坏 WebKit 上传字节，已改用原生 XHR 真实响应后延迟事件，不转发或伪造上传响应。c86d673 已重新完整验证并按其新指纹打包，未复用 74b85ba 旧指纹。
+镜像/config/API/worker 版本一致；两 API 内存峰值均小于 768MiB，无 OOM；超大小/像素请求被拒绝。演练是单机进程冗余，不是基础设施 HA，不能冒充公网 GO。实验创建的 Compose 已停止，保留验证数据以供复查。

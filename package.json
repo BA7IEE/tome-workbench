@@ -1,6 +1,6 @@
 {
   "name": "tome-workbench",
-  "version": "1.0.1-rc.1",
+  "version": "1.0.1-rc.2",
   "private": true,
   "license": "UNLICENSED",
   "description": "兔泥巴商品资料库：永久TM、批量导入、原图维护与运营资料交接",
@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
     "lint": "eslint src web/src test scripts --max-warnings 0",
     "format": "prettier --write src web/src test scripts prisma/schema.prisma README.md --ignore-unknown",
-    "test:unit": "node --test test/unit.test.cjs",
+    "test:unit": "node --test test/unit.test.cjs test/production-tools.test.mjs",
     "test:integration": "node --test --test-concurrency=1 test/integration.test.cjs",
     "test:browser": "playwright test",
     "harness:check": "node scripts/harness.mjs",

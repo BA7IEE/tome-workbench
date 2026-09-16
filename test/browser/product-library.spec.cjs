@@ -355,20 +355,38 @@ test("原图实际上传后断线，关闭页面再进入可恢复文件和原�
       title: "MVP上传恢复 " + randomUUID().slice(0, 8),
     }),
     p = await photo("恢复原图.png");
+  const filesBefore = fs.readdirSync("data/test-media").sort();
   await page.goto(`/#/items/${i.id}/edit`);
   await page.getByLabel("选择商品图片", { exact: true }).setInputFiles(p);
-  await page.route("**/api/assets/upload", async (route) => {
-    await route.fetch();
-    await route.fulfill({
-      status: 201,
-      contentType: "application/json",
-      body: "{",
-    });
+  const keys = [];
+  const observe = request => {
+    if (request.url().endsWith("/api/assets/upload") && request.method() === "POST") keys.push(request.headers()["idempotency-key"]);
+  };
+  page.on("request", observe);
+  // Keep WebKit's native multipart bytes; lose delivery only after the real write succeeds.
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (body) {
+      if (body instanceof FormData && body.has("file")) {
+        const loaded = this.onload;
+        this.onload = function (event) {
+          window.__committedUploadStatus = this.status;
+          if (this.status === 201) this.onerror?.call(this, new ProgressEvent("error"));
+          else loaded?.call(this, event);
+        };
+        XMLHttpRequest.prototype.send = send;
+      }
+      return send.call(this, body);
+    };
   });
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-file-list")).toContainText("结果待确认");
+  expect(await page.evaluate(() => window.__committedUploadStatus)).toBe(201);
+  const filesCommitted = fs.readdirSync("data/test-media").sort();
+  expect(filesCommitted.length - filesBefore.length).toBe(2);
   await page.close();
   const resumed = await context.newPage();
+  resumed.on("request", observe);
   await resumed.goto(`/#/items/${i.id}/edit`);
   await expect(resumed.locator(".entry-file-list")).toContainText(
     "恢复原图.png",
@@ -380,6 +398,9 @@ test("原图实际上传后断线，关闭页面再进入可恢复文件和原�
   expect(result.assets[0].sha256).toBe(
     createHash("sha256").update(p.buffer).digest("hex"),
   );
+  expect(fs.readdirSync("data/test-media").sort()).toEqual(filesCommitted);
+  expect(keys).toHaveLength(2);
+  expect(keys[1]).toBe(keys[0]);
 });
 
 test("商品页保存后直接整理资料，真实回执丢失并关页后仍只产生一份记录", async ({

@@ -1,0 +1,33 @@
+{
+  "at": "2026-09-16T08:25:36.314Z",
+  "passed": true,
+  "synthetic": true,
+  "pixels": 40000000,
+  "bytes": 20971520,
+  "concurrent": 4,
+  "requests": {
+    "statuses": [
+      201,
+      201,
+      201,
+      201
+    ],
+    "oversized": 413,
+    "overpixels": 400,
+    "elapsedMs": 884
+  },
+  "samples": [
+    {
+      "service": "api-a",
+      "peakBytes": 240529408,
+      "limitBytes": 805306368,
+      "oomKilled": false
+    },
+    {
+      "service": "api-b",
+      "peakBytes": 260296704,
+      "limitBytes": 805306368,
+      "oomKilled": false
+    }
+  ]
+}

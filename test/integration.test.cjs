@@ -3229,3 +3229,105 @@ test('商品资料库：内部导出重放重新核验财务权限，测试范�
  assert.equal((await api(`/material-exports/${own.id}`,'GET',undefined,who)).status,403);
  assert.equal((await api(`/material-exports/${saved.id}`,'GET',undefined,who)).status,403);
 });
+
+test("图片重试只持久化一次，相同命令不同图片冲突且没有新文件", async () => {
+  const fs = require("node:fs/promises");
+  const item = await sparse();
+  const key = randomUUID();
+  const image = await sharp({ create: { width: 32, height: 32, channels: 3, background: "red" } }).png().toBuffer();
+  const payload = (buffer) => {
+    const fd = new FormData(); fd.set("file", new Blob([buffer]), "replay.png"); fd.set("itemId", item.id); return fd;
+  };
+  const before = (await fs.readdir(process.env.MEDIA_DIR)).sort();
+  const first = await ok("/assets/upload", "POST", payload(image), admin, key);
+  const committed = (await fs.readdir(process.env.MEDIA_DIR)).sort();
+  assert.equal(committed.length - before.length, 2);
+  const replay = await ok("/assets/upload", "POST", payload(image), admin, key);
+  assert.deepEqual(replay, first);
+  assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), committed);
+  const different = await sharp(image).negate().png().toBuffer();
+  assert.equal((await api("/assets/upload", "POST", payload(different), admin, key)).data.error.code, "IDEMPOTENCY_CONFLICT");
+  assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), committed);
+});
+
+test("图片数据库回滚及预览写盘失败均不留下半套文件", async () => {
+  const fs = require("node:fs/promises");
+  const before = (await fs.readdir(process.env.MEDIA_DIR)).sort();
+  const item = await sparse();
+  await db.$executeRawUnsafe(`CREATE FUNCTION tome_test_reject_asset() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic asset failure'; END $$`);
+  await db.$executeRawUnsafe(`CREATE TRIGGER tome_test_reject_asset BEFORE INSERT ON "Asset" FOR EACH ROW EXECUTE FUNCTION tome_test_reject_asset()`);
+  try {
+    await assert.rejects(() => upload(item.id));
+    assert.equal(await db.asset.count({ where: { itemId: item.id } }), 0);
+    assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), before);
+  } finally {
+    await db.$executeRawUnsafe('DROP TRIGGER tome_test_reject_asset ON "Asset"');
+    await db.$executeRawUnsafe('DROP FUNCTION tome_test_reject_asset()');
+  }
+  const open = fs.open;
+  let injected = false;
+  fs.open = async (name, ...args) => {
+    const handle = await open(name, ...args);
+    if (String(name).endsWith(".original.webp")) handle.writeFile = async () => {
+      injected = true; throw Object.assign(new Error("Synthetic preview I/O failure"), { code: "EIO" });
+    };
+    return handle;
+  };
+  try {
+    await assert.rejects(() => upload(item.id));
+    assert.equal(injected, true);
+    assert.equal(await db.asset.count({ where: { itemId: item.id } }), 0);
+    assert.deepEqual((await fs.readdir(process.env.MEDIA_DIR)).sort(), before);
+  } finally { fs.open = open; }
+});
+
+test("孤儿扫描默认只读，保留 Asset/Intake/Candidate 引用及年轻文件", async () => {
+  const fs = require("node:fs/promises");
+  const path = require("node:path");
+  const { scanMedia } = await import("../scripts/scan-orphan-media.mjs");
+  const directory = await fs.mkdtemp(path.resolve("data/scanner-test-"));
+  const refs = (await Promise.all([db.asset.findMany(), db.intakeFile.findMany(), db.ingestCandidateAsset.findMany()])).flat();
+  for (const row of refs) {
+    await fs.writeFile(path.join(directory, row.objectKey), "synthetic referenced original");
+    await fs.writeFile(path.join(directory, row.objectKey + ".webp"), "synthetic referenced preview");
+  }
+  const key = randomUUID() + ".original", young = randomUUID() + ".original";
+  const names = [key, key + ".webp", young];
+  for (const name of names) await fs.writeFile(path.join(directory, name), "synthetic orphan");
+  const old = new Date(Date.now() - 2 * 86400000);
+  for (const name of names.slice(0, 2)) await fs.utimes(path.join(directory, name), old, old);
+  try {
+    const before = await scanMedia(db, directory);
+    assert.ok(before.orphanOriginals.includes(key));
+    assert.equal(before.deleted.length, 0);
+    // Offline maintenance is tested through the CLI separately; this operation is
+    // isolated to the synthetic files created here by setting a fresh directory.
+    for (const row of refs) assert.ok(!before.orphanOriginals.includes(row.objectKey));
+    const applied = await scanMedia(db, directory, { apply: true });
+    assert.ok(applied.deleted.includes(key));
+    assert.ok(applied.deleted.includes(key + ".webp"));
+    assert.ok(!applied.deleted.includes(young));
+    for (const row of refs) assert.ok(!applied.deleted.includes(row.objectKey));
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("登录和当前会话能力来自后端权限，角色变化撤销旧会话", async () => {
+  const { capabilitiesFor, permission } = require("../dist/auth/auth");
+  const roles = ["ADMIN", "REVIEWER", "OPERATOR", "FINANCE", "VIEWER"];
+  const actions = capabilitiesFor("ADMIN");
+  for (const role of roles) {
+    const email = `cap-${randomUUID()}@tome.test`, password = "Synthetic!" + randomUUID();
+    const user = await ok("/auth/users", "POST", { email, password, name: "合成权限核对", role });
+    const auth = await api("/auth/login", "POST", { email, password }, null);
+    assert.equal(auth.status, 201);
+    assert.deepEqual([...auth.data.capabilities].sort(), actions.filter((a) => permission(role, a)).sort());
+    const session = { ...auth.data.user, csrf: auth.data.csrf, cookie: auth.headers.get("set-cookie").split(";")[0] };
+    const me = await ok("/auth/me", "GET", undefined, session);
+    assert.deepEqual(me.capabilities, auth.data.capabilities);
+    assert.equal((await api("/auth/users", "GET", undefined, session)).status, permission(role, "users") ? 200 : 403);
+    await ok("/auth/user-access", "POST", { id: user.id, active: true, role: role === "VIEWER" ? "OPERATOR" : "VIEWER" });
+    assert.equal((await api("/auth/me", "GET", undefined, session)).status, 401);
+  }
+});

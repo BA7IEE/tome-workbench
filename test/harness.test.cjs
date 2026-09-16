@@ -12,6 +12,36 @@ test("harness baseline passes", async () =>
   assert.ok((await run("", (s) => s)).every((x) => x.pass)));
 for (const [name, p, fn, id] of [
   [
+    "stale current version",
+    "docs/CURRENT-RELEASE.md",
+    (s) => s.replace(/"version": "[^"]+"/, '\"version\": \"0.0.0\"'),
+    "current-release-version",
+  ],
+  [
+    "stale production title",
+    "docs/PRODUCTION.md",
+    (s) => s.replace(/^.*\n/, "# old production\n"),
+    "current-production-version",
+  ],
+  [
+    "one-off agent PR state",
+    "AGENTS.md",
+    (s) => s + "\nPR #999 尚未合并",
+    "current-agent-contract",
+  ],
+  [
+    "hardcoded release tag",
+    "scripts/production-config.mjs",
+    (s) => s + "\n// TOME_IMAGE_TAG=0.0.1",
+    "release-version-source",
+  ],
+  [
+    "silent release default",
+    "compose.production.yaml",
+    (s) => s.replace("TOME_IMAGE_TAG:?", "TOME_IMAGE_TAG:-"),
+    "release-version-source",
+  ],
+  [
     "external default",
     ".env.example",
     (s) =>

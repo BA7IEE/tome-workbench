@@ -65,6 +65,11 @@ try {
     !ha.passed ||
     !recovery.passed ||
     guards.results.some((row) => !row.pass) ||
+    browser.stats.flaky ||
+    webkit.stats.flaky ||
+    browser.stats.expected !== webkit.stats.expected ||
+    browser.config.projects.some((p) => p.retries !== 0) ||
+    webkit.config.projects.some((p) => p.retries !== 0) ||
     browser.stats.unexpected ||
     browser.stats.skipped ||
     webkit.stats.unexpected ||

@@ -1,5 +1,5 @@
 import { bindFormValidation, lockControls } from "./form-support";
-import type { User, Obj } from "./types";
+import type { User, Obj, SessionResponse } from "./types";
 export let me: User | null = null;
 let csrf = "";
 let lastUser: User | null = null;
@@ -26,33 +26,18 @@ export const actions = new Map<string, () => void | Promise<void>>();
 let refresh: () => Promise<void> = async () => {};
 export const setRefresh = (f: () => Promise<void>) => (refresh = f);
 export const reload = () => refresh();
-export function setSession(u: User, c: string) {
-  me = u;
-  lastUser = u;
+export function setSession(u: User, c: string, capabilities: string[]) {
+  me = {
+    ...u,
+    capabilities: Array.isArray(capabilities)
+      ? capabilities.filter((v) => typeof v === "string")
+      : [],
+  };
+  lastUser = me;
   csrf = c;
 }
 export function can(action: string) {
-  const grants: Record<string, string[]> = {
-    ADMIN: [
-      "dictionary",
-      "read",
-      "edit",
-      "delete",
-      "review",
-      "publish",
-      "sell",
-      "finance",
-      "supply",
-      "users",
-      "audit",
-      "export",
-    ],
-    REVIEWER: ["read", "edit", "delete", "review", "publish", "sell"],
-    OPERATOR: ["read", "edit", "delete", "publish", "sell"],
-    FINANCE: ["read", "finance", "supply", "sell", "audit", "export"],
-    VIEWER: ["read"],
-  };
-  return !!me && grants[me.role]?.includes(action);
+  return me?.capabilities?.includes(action) === true;
 }
 export function esc(s: unknown) {
   return String(s ?? "").replace(
@@ -558,17 +543,13 @@ export function reauthenticate(): Promise<void> {
       const data = new FormData(event.currentTarget as HTMLFormElement),
         unlock = lockControls(modal);
       try {
-        const result = await request<{ user: User; csrf: string }>(
-          "/auth/login",
-          "POST",
-          {
-            email: expected.email,
-            password: String(data.get("password") || ""),
-          },
-        );
+        const result = await request<SessionResponse>("/auth/login", "POST", {
+          email: expected.email,
+          password: String(data.get("password") || ""),
+        });
         if (result.user.id !== expected.id)
           throw new Error("账号不一致，未提交编辑内容");
-        setSession(result.user, result.csrf);
+        setSession(result.user, result.csrf, result.capabilities);
         complete = true;
         resolve();
         modal.close();

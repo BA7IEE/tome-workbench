@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { currentDocsChecks } from "./check-current-docs.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -217,6 +218,20 @@ export function checks(
     const p = JSON.parse(read("package.json"));
     return Object.values({ ...p.dependencies, ...p.devDependencies }).every(
       (v) => /^\d+\.\d+\.\d+$/.test(v),
+    );
+  });
+  for (const row of currentDocsChecks(read)) check(row.id, () => row.pass);
+  check("release-version-source", () => {
+    const generator = read("scripts/production-config.mjs");
+    const compose = read("compose.production.yaml");
+    return (
+      generator.includes("releaseVersion()") &&
+      !/TOME_IMAGE_TAG=\d+\.\d+\.\d+/.test(generator) &&
+      !/TOME_IMAGE_TAG:-/.test(compose) &&
+      compose.includes("TOME_IMAGE_TAG:?") &&
+      read("Dockerfile").includes(
+        "org.opencontainers.image.version=$APP_VERSION",
+      )
     );
   });
   check("sealed-migrations", () =>
