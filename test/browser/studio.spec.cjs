@@ -766,6 +766,7 @@ test("发布图片可拖动键盘及手机指定位置，排序只改发布草�
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".studio-order-row").first().locator("select").selectOption({ value: "1" });
   await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
+  expect((await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).boundingBox()).height).toBeGreaterThanOrEqual(44);
   await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).tap();
   await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
   await page.locator(".studio-order-row").last().getByRole("button", { name: /^上移/ }).tap();
