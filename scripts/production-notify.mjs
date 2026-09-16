@@ -96,7 +96,7 @@ async function main() {
     if (
       (!previous && message.signature === "healthy") ||
       (previous?.signature === message.signature &&
-        Date.now() - previous.at < 1800000)
+        (message.signature === "healthy" || Date.now() - previous.at < 1800000))
     ) {
       console.log(JSON.stringify({ suppressed: true, delivered: false }));
       return;
