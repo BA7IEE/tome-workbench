@@ -387,6 +387,9 @@ export async function detailPage(id: string) {
   if (tab === "supply") {
     const stockButtons = can("sell")
       ? button("暂停推广", () => stockAction(i, "PAUSED")) +
+        (i.status === "AVAILABLE"
+          ? button("隔离待复检", () => stockAction(i, "QUARANTINED"))
+          : "") +
         (["PAUSED", "QUARANTINED"].includes(i.status) && can("review")
           ? button("复检后恢复可售", () => stockAction(i, "AVAILABLE"))
           : "") +

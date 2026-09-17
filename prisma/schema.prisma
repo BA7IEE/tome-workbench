@@ -546,33 +546,37 @@ model DistributionSession {
 // Execution fact for a publish/update/delist/verify operation. A Listing exists only
 // when a stable remoteId is actually known; a successful APP execution may have none.
 model DistributionAttempt {
-  id                 String               @id @default(uuid()) @db.Uuid
-  itemId             String               @db.Uuid
-  item               Item                 @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  channelId          String               @db.Uuid
-  channel            Channel              @relation(fields: [channelId], references: [id], onDelete: Restrict)
-  packageId          String?              @db.Uuid
-  package            UsePackage?          @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  id                 String                @id @default(uuid()) @db.Uuid
+  itemId             String                @db.Uuid
+  item               Item                  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  channelId          String                @db.Uuid
+  channel            Channel               @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  packageId          String?               @db.Uuid
+  package            UsePackage?           @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  sourceAttemptId    String?               @db.Uuid
+  sourceAttempt      DistributionAttempt?  @relation("DistributionSource", fields: [sourceAttemptId], references: [id], onDelete: SetNull)
+  stopAttempts       DistributionAttempt[] @relation("DistributionSource")
   action             String
-  state              String               @default("PENDING")
-  dedupeKey          String               @unique
-  remoteId           String               @default("")
-  remoteUrl          String               @default("")
-  evidence           Json                 @default("{}")
-  errorCode          String               @default("")
-  errorMessage       String               @default("")
-  attemptCount       Int                  @default(0)
-  claimedBySessionId String?              @db.Uuid
-  claimedBySession   DistributionSession? @relation("DistributionClaim", fields: [claimedBySessionId], references: [id], onDelete: SetNull)
+  state              String                @default("PENDING")
+  dedupeKey          String                @unique
+  remoteId           String                @default("")
+  remoteUrl          String                @default("")
+  evidence           Json                  @default("{}")
+  errorCode          String                @default("")
+  errorMessage       String                @default("")
+  attemptCount       Int                   @default(0)
+  claimedBySessionId String?               @db.Uuid
+  claimedBySession   DistributionSession?  @relation("DistributionClaim", fields: [claimedBySessionId], references: [id], onDelete: SetNull)
   leaseUntil         DateTime?
-  createdBy          String?              @db.Uuid
-  createdAt          DateTime             @default(now())
+  createdBy          String?               @db.Uuid
+  createdAt          DateTime              @default(now())
   startedAt          DateTime?
   finishedAt         DateTime?
-  updatedAt          DateTime             @updatedAt
+  updatedAt          DateTime              @updatedAt
 
   @@index([channelId, state, createdAt])
   @@index([itemId, channelId, createdAt])
+  @@index([sourceAttemptId])
 }
 
 model Task {

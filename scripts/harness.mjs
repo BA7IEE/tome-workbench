@@ -360,12 +360,17 @@ export function checks(
       ) &&
       read("src/trading/trading.service.ts").includes("convertInquiry") &&
       read("src/distribution/distribution.service.ts").includes(
-        "planDelistsAfterSale",
+        "planStopDistribution",
+      ) &&
+      read("prisma/schema.prisma").includes("sourceAttemptId") &&
+      read("prisma/migrations/202609170015_distribution_source_attempt/migration.sql").includes(
+        'ADD COLUMN "sourceAttemptId" UUID',
       ) &&
       read("src/jobs/work-queue.ts").includes(
         "商品已不宜继续出售，渠道仍待停售",
       ) &&
       read("test/integration.test.cjs").includes("Real Operations：") &&
+      read("test/integration.test.cjs").includes("Distribution stop records：") &&
       read("test/browser/operations.spec.cjs").includes(
         "询盘确认成交通过原子动作停售",
       ) &&

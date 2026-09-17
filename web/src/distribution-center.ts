@@ -17,6 +17,7 @@ type Attempt = {
   id: string;
   itemId: string;
   channelId: string;
+  sourceAttemptId: string | null;
   action: string;
   state: string;
   remoteId: string;
@@ -161,7 +162,7 @@ export async function distributionCenter() {
         ["商品 / 渠道", "资料动作", "经营状态", "回传结果", "操作"],
         visible.map((attempt) => [
           `<a href="#/items/${attempt.item.id}?tab=use">TM${String(attempt.item.serial).padStart(6, "0")} ${esc(attempt.item.title)}</a><small>${esc(attempt.channel.name)}</small>`,
-          esc(actionLabels[attempt.action] || attempt.action),
+          `${esc(actionLabels[attempt.action] || attempt.action)}${attempt.action === "DELIST" && attempt.sourceAttemptId ? "<small>对应已确认的发布资料</small>" : ""}`,
           `${esc(handoffStates[attempt.state] || attempt.state)}<small>${when(attempt.finishedAt || attempt.createdAt)}</small>`,
           attempt.remoteId
             ? `${esc(attempt.remoteId)}${attempt.remoteUrl ? `<small>${esc(attempt.remoteUrl)}</small>` : ""}`

@@ -210,6 +210,27 @@ export function studioStock(
                       refresh,
                     ),
                   )
+                : "") +
+              (i.status === "AVAILABLE"
+                ? button("隔离待复检", () =>
+                    form(
+                      "隔离待复检",
+                      `<p>确认将 ${esc(i.code)} 标记为待复检？已发布渠道会新增需要停售的记录，恢复可售不会自动重新发布。</p>` +
+                        area("reason", "隔离依据", "实物状态待复核", 2),
+                      (d, k) =>
+                        request(
+                          `/items/${i.id}/state`,
+                          "POST",
+                          {
+                            state: "QUARANTINED",
+                            reason: text(d, "reason"),
+                          },
+                          k,
+                        ),
+                      "确认隔离",
+                      refresh,
+                    ),
+                  )
                 : "")
             : "") +
           `<a href="#/items/${i.id}?tab=supply&returnTo=${encodeURIComponent(location.hash)}">其他库存与交接操作</a></div></details>`

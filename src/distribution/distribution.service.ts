@@ -208,13 +208,14 @@ function sameResult(
 }
 
 // A successful APP publish can have no Listing because it has no stable remote
-// identity. Sale safety must therefore look at execution facts, not Listings.
-// The caller already holds the item lock and runs inside the Sale transaction.
-export async function planDelistsAfterSale(
+// identity. Stop safety must therefore look at handoff facts, not Listings.
+// The caller already holds the item lock and runs inside the inventory command.
+export async function planStopDistribution(
   tx: Tx,
   actorId: string,
   itemId: string,
   cycle: number,
+  reason: string,
 ) {
   const published = await tx.distributionAttempt.findMany({
     where: {
@@ -223,22 +224,42 @@ export async function planDelistsAfterSale(
       state: "SUCCEEDED",
       package: { is: { cycle } },
     },
-    select: { channelId: true },
-    distinct: ["channelId"],
+    select: { id: true, channelId: true, createdAt: true, finishedAt: true },
+    orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
   });
+  const latestByChannel = new Map<string, (typeof published)[number]>();
+  for (const row of published)
+    if (!latestByChannel.has(row.channelId))
+      latestByChannel.set(row.channelId, row);
   const planned: string[] = [];
-  for (const row of published) {
-    const dedupeKey = `delist:${itemId}:${row.channelId}:${cycle}`;
+  for (const source of latestByChannel.values()) {
+    const dedupeKey = `delist:${source.id}`;
     const current = await tx.distributionAttempt.findUnique({
       where: { dedupeKey },
     });
     if (current) continue;
+    // A pre-migration record cannot be given a source link retroactively. It
+    // remains the authoritative stop fact when it was created after this
+    // generation completed, so a forward migration does not resend a stop.
+    const legacy = await tx.distributionAttempt.findFirst({
+      where: {
+        itemId,
+        channelId: source.channelId,
+        action: "DELIST",
+        sourceAttemptId: null,
+        state: { in: ["PENDING", "RUNNING", "UNKNOWN", "FAILED", "SUCCEEDED"] },
+        createdAt: { gte: source.finishedAt || source.createdAt },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    if (legacy) continue;
     const attempt = await tx.distributionAttempt.create({
       data: {
         itemId,
-        channelId: row.channelId,
+        channelId: source.channelId,
         action: "DELIST",
         dedupeKey,
+        sourceAttemptId: source.id,
         createdBy: actorId,
       },
     });
@@ -247,13 +268,15 @@ export async function planDelistsAfterSale(
       attemptId: attempt.id,
       action: attempt.action,
       channelId: attempt.channelId,
-      reason: "ITEM_SOLD",
+      sourceAttemptId: source.id,
+      reason,
     });
     await event(tx, itemId, "DISTRIBUTION_ATTEMPT_PLANNED", {
       attemptId: attempt.id,
       action: attempt.action,
       channelId: attempt.channelId,
-      reason: "ITEM_SOLD",
+      sourceAttemptId: source.id,
+      reason,
     });
   }
   return planned;
@@ -471,15 +494,31 @@ export class DistributionService {
         channelId: p.channelId,
         action: "DELIST",
         state: "SUCCEEDED",
+        ...(published
+          ? {
+              OR: [
+                { sourceAttemptId: published.id },
+                // Pre-migration stop records had no source relation. Their
+                // timestamp remains the only safe compatibility signal.
+                { sourceAttemptId: null },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     });
     const publishedAt = published?.finishedAt || published?.createdAt || null;
+    // A source-linked stop is authoritative regardless of timestamp precision.
+    // For an old row that predates this relation, retain the former chronology
+    // check so history stays interpretable without rewriting it.
     const delistedAfterPublish =
+      !!published &&
       !!completedDelist &&
-      (!publishedAt ||
-        (completedDelist.finishedAt || completedDelist.createdAt) >
-          publishedAt);
+      (completedDelist.sourceAttemptId === published.id ||
+        (completedDelist.sourceAttemptId === null &&
+          !!publishedAt &&
+          (completedDelist.finishedAt || completedDelist.createdAt) >
+            publishedAt));
 
     if (
       published?.package?.snapshot &&
@@ -649,6 +688,7 @@ export class DistributionService {
         itemId: true,
         channelId: true,
         packageId: true,
+        sourceAttemptId: true,
         action: true,
         state: true,
         remoteId: true,
@@ -924,14 +964,20 @@ export class DistributionService {
         finishedAt: new Date(),
       },
     });
-    // A sale can commit while an Agent still holds a publish lease. Once that
-    // in-flight PUBLISH/UPDATE reports success, create the same deduped delist
-    // fact the sale command would have created had the success arrived earlier.
+    // An item can stop being saleable while an external handoff is still in
+    // flight. A late successful PUBLISH/UPDATE must therefore create the same
+    // source-linked stop fact as the inventory transition would have created.
     const delistAttemptIds =
       result.state === "SUCCEEDED" &&
       ["PUBLISH", "UPDATE"].includes(row.action) &&
-      item.status === "SOLD"
-        ? await planDelistsAfterSale(tx, actorId, row.itemId, item.cycle)
+      item.status !== "AVAILABLE"
+        ? await planStopDistribution(
+            tx,
+            actorId,
+            row.itemId,
+            item.cycle,
+            `LATE_HANDOFF_AFTER_${item.status}`,
+          )
         : [];
     await audit(
       tx,

@@ -544,6 +544,7 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   expect(publishAttempt.state).toBe("SUCCEEDED");
   expect(publishAttempt.remoteId).toBe("");
   expect(delistAttempt.state).toBe("PENDING");
+  expect(delistAttempt.sourceAttemptId).toBe(publishAttempt.id);
   await page.goto("/#/distribution");
   await expect(
     page.getByRole("heading", { name: "商品分发", exact: true }),

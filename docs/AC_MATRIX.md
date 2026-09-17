@@ -311,6 +311,12 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 
 ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基础上由后续 Real Operations 接入；本节只证明资料交付记录与受限高级接口。历史 migration 保持封印，新 migration 单独校验。
 
+## v1.1 来源关联的停售记录
+
+`202609170015_distribution_source_attempt` 只新增可空自关联 `sourceAttemptId` 和索引，不改写历史 Attempt 或 migration。`planStopDistribution` 在既有 Item 锁、Receipt、Audit、Outbox 事务内覆盖 AVAILABLE 到 RESERVED、PAUSED、SOLD、GIFTED、SELF_USE、SUPPLIER_SOLD、QUARANTINED；对每个当前周期已确认发布的渠道，用 `delist:<sourceAttemptId>` 建立一条需要停售记录。历史无关联 DELIST 保持原事实并防重；恢复 AVAILABLE 不产生 PUBLISH/UPDATE，迟到成功回执在商品已不可售时补建同一来源关联记录。
+
+`test/integration.test.cjs` 的 `Distribution stop records` 场景逐项覆盖七种不可售状态、双渠道、历史无关联记录兼容、恢复不自动重新交付及再次发布后的独立停售；`test/browser/operations.spec.cjs` 在真实登录、图片上传、资料交付、售出点击链中核对 DELIST 指向对应 PUBLISH。它们只验证隔离 `tome_test` 的经营记录与 UI 行为，不证明任何外部平台已经停售。
+
 ## v1.1 Real Operations
 
 本增量把渠道报价、询盘成交和下架计划接入已有领域命令，不重写 Item、Sale、成本、库存、UsePackage、图片权利或 Agent 边界。`202609170013_real_operations_price_basis` 只给草稿增加有效价来源/版本；`202609170014_channel_price_revision_continuity` 以禁用覆盖保留版本连续性，避免清除再恢复相同金额时误复用旧使用包。两项都是独立前向 migration。
