@@ -12,7 +12,7 @@ import {
   INGEST_SKILL_ID,
   INGEST_SKILL_NAME,
   INGEST_SKILL_VERSION,
-  assertStandardManifest,
+  assertNewMachineBatchManifest,
   effectiveRequiredFields,
   profileForSourceCode,
   readProfileDocument,
@@ -1186,10 +1186,6 @@ export class IngestService {
       });
       if (!source)
         throw new Fault("INGEST_SOURCE_UNAVAILABLE", "导入来源不存在", 404);
-      assertStandardManifest(
-        input.rawManifest,
-        profileForSourceCode(source.code),
-      );
       const old = await tx.ingestBatch.findUnique({
         where: {
           procurementSourceId_externalBatchKey: {
@@ -1207,6 +1203,10 @@ export class IngestService {
           );
         return { id: old.id, status: old.status, existing: true };
       }
+      assertNewMachineBatchManifest(
+        input.rawManifest,
+        profileForSourceCode(source.code),
+      );
       const row = await tx.ingestBatch.create({
         data: {
           sessionId: session.id,

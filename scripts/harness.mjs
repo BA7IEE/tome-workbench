@@ -446,6 +446,27 @@ export function checks(
       read("docs/REAL-OPERATIONS.md").includes("Channel.defaultCurrency"),
   );
   check(
+    "v11-ingest-v12-required",
+    () =>
+      read("src/ingest/ingest-standard.ts").includes(
+        "assertNewMachineBatchManifest",
+      ) &&
+      read("src/ingest/ingest-standard.ts").includes(
+        "INGEST_STANDARD_MANIFEST_REQUIRED",
+      ) &&
+      read("src/ingest/ingest.service.ts").includes(
+        "assertNewMachineBatchManifest",
+      ) &&
+      read("src/auth/auth.ts").includes('req.get("Authorization")') &&
+      read("test/integration.test.cjs").includes(
+        "INGEST_STANDARD_MANIFEST_REQUIRED",
+      ) &&
+      read("test/integration.test.cjs").includes("mcpBearerApi") &&
+      read("docs/AGENT-INGEST-PROTOCOL.md").includes(
+        "新机器批次缺少三项标准元数据",
+      ),
+  );
+  check(
     "v11-anqicms-spike",
     () =>
       read("src/distribution/anqicms-spike.ts").includes(

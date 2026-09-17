@@ -36,6 +36,25 @@ async function machine(page, path, token, body) {
   expect(r.ok(), await r.text()).toBeTruthy();
   return r.json();
 }
+function standardManifest(extra = {}) {
+  return {
+    ...extra,
+    protocolVersion: "1.2",
+    skillVersion: "tome-ingest/1.0",
+    profile: "GENERIC_MARKETPLACE/1.0",
+  };
+}
+const genericProfileFields = [
+  ["titleRaw", "商品名称"],
+  ["sourceItemKey", "来源货号"],
+  ["brandRaw", "来源品牌"],
+  ["categoryRaw", "来源品类"],
+  ["conditionRaw", "来源成色"],
+  ["sourceFacts.sizeLabel", "标签尺码"],
+  ["sourceFacts.productUrl", "来源页面"],
+  ["sourceFacts.description", "来源描述"],
+  ["sourceCurrentPrice", "来源当前价"],
+];
 async function makeBatch(page, count, gaps = false) {
   const suffix = randomUUID().slice(0, 8),
     source = await api(page, "/procurement/sources", {
@@ -53,40 +72,121 @@ async function makeBatch(page, count, gaps = false) {
     externalBatchKey: "MVP批次 " + suffix,
     agentName: "Synthetic",
     kind: "OFFLINE_IMPORT",
+    rawManifest: standardManifest({ synthetic: true }),
   });
-  const candidates = Array.from({ length: count }, (_, n) => ({
-    externalKey: suffix + ":" + n,
-    titleRaw: "MVP合成外套 " + suffix + " " + n,
-    sourceFacts: gaps
-      ? {
-          capture: {
-            fileEvidence: {
-              name: "合成表.csv",
-              sha256: "a".repeat(64),
-              row: "第" + (n + 1) + "行",
-            },
-            capturedAt: new Date().toISOString(),
-            fields: [
-              { path: "titleRaw", label: "名称", status: "CAPTURED" },
-              {
-                path: "sourceFacts.measurements",
-                label: "尺寸",
-                status: "UNAVAILABLE",
-                reason: "原记录未提供",
-              },
-            ],
-            images: [],
-          },
-        }
-      : {},
-    rawPayload: { synthetic: true },
-  }));
+  const images = gaps
+    ? []
+    : await Promise.all(
+        Array.from({ length: count }, async (_, n) => {
+          const buffer = await sharp(
+            Buffer.from(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2000"><rect width="1500" height="2000" fill="#71896c"/><text x="40" y="100" font-size="36">${suffix}-${n}</text></svg>`,
+            ),
+          )
+            .png()
+            .toBuffer();
+          return {
+            buffer,
+            sourceUrl: `https://example.invalid/mvp/${suffix}/${n}.png`,
+            sha256: createHash("sha256").update(buffer).digest("hex"),
+            width: 1500,
+            height: 2000,
+          };
+        }),
+      );
+  const candidates = Array.from({ length: count }, (_, n) => {
+    const sourceUrl = `https://example.invalid/mvp/${suffix}/${n}`;
+    return {
+      externalKey: suffix + ":" + n,
+      sourceItemKey: `MVP-${suffix}-${n}`,
+      titleRaw: "MVP合成外套 " + suffix + " " + n,
+      brandRaw: "MVP合成品牌",
+      categoryRaw: "Outerwear",
+      conditionRaw: "Synthetic checked",
+      sourceCurrentPrice: 10000 + n,
+      sourceFacts: {
+        sizeLabel: "M",
+        productUrl: sourceUrl,
+        description: "合成来源完整说明 " + n,
+        capture: {
+          ...(gaps
+            ? {
+                fileEvidence: {
+                  name: "合成表.csv",
+                  sha256: "a".repeat(64),
+                  row: "第" + (n + 1) + "行",
+                },
+              }
+            : { pageUrl: sourceUrl }),
+          capturedAt: new Date().toISOString(),
+          fields: [
+            ...genericProfileFields.map(([path, label]) => ({
+              path,
+              label,
+              status: "CAPTURED",
+            })),
+            ...(gaps
+              ? [
+                  {
+                    path: "sourceFacts.measurements",
+                    label: "尺寸",
+                    status: "UNAVAILABLE",
+                    reason: "原记录未提供",
+                  },
+                ]
+              : []),
+          ],
+          images: gaps
+            ? [
+                {
+                  sourceFile: `MVP无图记录-${n}.txt`,
+                  quality: "UNAVAILABLE",
+                  reason: "合成来源未提供图片",
+                },
+              ]
+            : [
+                {
+                  sourceUrl: images[n].sourceUrl,
+                  sha256: images[n].sha256,
+                  width: images[n].width,
+                  height: images[n].height,
+                  quality: "ORIGINAL",
+                },
+              ],
+        },
+      },
+      rawPayload: { synthetic: true },
+    };
+  });
   const rows = await machine(
     page,
     `/agent-ingest/batches/${batch.id}/candidates`,
     session.token,
     { candidates },
   );
+  for (const [n, row] of rows.rows.entries())
+    if (!gaps) {
+      const image = images[n],
+        uploaded = await page.request.post(
+          `/api/agent-ingest/candidates/${row.id}/assets`,
+          {
+            headers: {
+              "X-Ingest-Token": session.token,
+              "Idempotency-Key": randomUUID(),
+            },
+            multipart: {
+              sourceUrl: image.sourceUrl,
+              roleHint: "PRODUCT",
+              file: {
+                name: `mvp-${n}.png`,
+                mimeType: "image/png",
+                buffer: image.buffer,
+              },
+            },
+          },
+        );
+      expect(uploaded.ok(), await uploaded.text()).toBeTruthy();
+    }
   await machine(
     page,
     `/agent-ingest/batches/${batch.id}/seal`,

@@ -6,7 +6,7 @@
 
 功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 销售 / 设置五入口；销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
 
-本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。标准 Profile 的服务端必查字段会与 Agent 自报字段合并，旧批次合同保持兼容；机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。
+本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。所有新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；只对已存在、同键同清单的历史 Batch 保持旧合同兼容，不能以漏 metadata 绕过 Profile 必查项。标准 Profile 的服务端必查字段会与 Agent 自报字段合并；MCP 支持同一短期 Token 的 X 头或 Bearer 头，机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。
 
 本版将 Distribution Foundation 收敛为标准资料交付与轻量分发记录：已发布的 `DistributionSession`/`DistributionAttempt` 表及历史 migration 原样保留，但默认 UI 不再把它描述为平台执行 Runtime。`PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN/CANCELLED` 分别显示为待交付、已交付、已确认完成、需要处理、需要核对、已取消；`UNKNOWN` 只能在原记录填写依据后人工核对为成功或失败，并另记审计。系统比较冻结资料内容和历史记录，自动选择 PUBLISH、UPDATE 或 NOOP；未处理的交付会回到原记录，不能靠新 UsePackage 重复发布。标准 `tome-distribution/1.0` Skill 及 `/api/mcp/distribution` 只提供列出交付、取得冻结包、确认目标操作完成、报告待人工处理四项能力；取包才将记录记为“已交付”，并按 Channel、会话、当前创建者发布权限、图片权利和 UsePackage 重验。它不暴露领取、心跳、租约、浏览器步骤或任何平台动作。前向 migration `202609170015_distribution_source_attempt` 让 DELIST 用 `sourceAttemptId` 绑定具体成功资料代际；从 AVAILABLE 转为任何不可售状态时，每个已发布渠道都有一条去重的需要停售记录，恢复 AVAILABLE 不自动重新交付。只有取得稳定 `remoteId` 才创建 Listing；APP 渠道没有远端 ID 时按标题永久 TM 复核，禁止用 `MANUAL:TM...` 伪造身份。受限 Token、领取和租约仍是兼容的高级接口，默认操作路径不依赖它们；没有真实第三方连接或外部副作用。
 

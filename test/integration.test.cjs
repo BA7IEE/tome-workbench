@@ -2659,6 +2659,10 @@ async function mcpApi(token, body, extra={}){
   const r=await fetch(origin+'/api/mcp/ingest',{method:'POST',headers:{'X-Ingest-Token':token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
   return {status:r.status,data:await r.json().catch(()=>null)};
 }
+async function mcpBearerApi(token, body, extra={}){
+  const r=await fetch(origin+'/api/mcp/ingest',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null)};
+}
 async function mcpTool(token,name,args={},id=randomUUID()){
   const r=await mcpApi(token,{jsonrpc:'2.0',id,method:'tools/call',params:{name,arguments:args}});
   assert.equal(r.status,200,JSON.stringify(r.data));
@@ -2678,6 +2682,32 @@ async function distributionMcpTool(token,name,args={},id=randomUUID()){
 function goldenIngestFixture(){
   return JSON.parse(readFileSync('test/fixtures/tome-ingest/trr-v1.2-golden.json','utf8'));
 }
+function standardManifest(profile='GENERIC_MARKETPLACE/1.0', extra={}){
+  return {...extra,protocolVersion:'1.2',skillVersion:'tome-ingest/1.0',profile};
+}
+const genericProfileFields=[
+  ['titleRaw','商品名称'],['sourceItemKey','来源货号'],['brandRaw','来源品牌'],['categoryRaw','来源品类'],['conditionRaw','来源成色'],['sourceFacts.sizeLabel','标签尺码'],['sourceFacts.productUrl','来源页面'],['sourceFacts.description','来源描述'],['sourceCurrentPrice','来源当前价'],
+];
+function readCandidatePath(candidate,path){
+  return path.split('.').reduce((value,key)=>value&&typeof value==='object'?value[key]:undefined,candidate);
+}
+function hasCandidateValue(value){
+  return value!==null&&value!==undefined&&value!==''&&(!Array.isArray(value)||value.length>0)&&(typeof value!=='object'||Array.isArray(value)||Object.keys(value).length>0);
+}
+function standardizeGenericCandidate(candidate,key=candidate.externalKey){
+  const sourceFacts=candidate.sourceFacts&&typeof candidate.sourceFacts==='object'?candidate.sourceFacts:{}, existing=sourceFacts.capture&&typeof sourceFacts.capture==='object'?sourceFacts.capture:{}, fields=Array.isArray(existing.fields)?[...existing.fields]:[];
+  for(const [path,label] of genericProfileFields) if(!fields.some(field=>field.path===path)){
+    const value=readCandidatePath(candidate,path);
+    fields.push(hasCandidateValue(value)?{path,label,status:'CAPTURED'}:{path,label,status:'UNAVAILABLE',reason:'合成来源未提供该字段'});
+  }
+  const capture={...existing,capturedAt:existing.capturedAt||'2026-09-17T00:00:00.000Z',fields,images:Array.isArray(existing.images)?existing.images:[]};
+  if(!capture.pageUrl&&!capture.fileEvidence) capture.pageUrl='https://example.invalid/ingest/'+encodeURIComponent(String(key));
+  candidate.sourceFacts={...sourceFacts,capture};
+  return candidate;
+}
+function incompleteAcknowledgements(rows,note){
+  return Object.fromEntries(rows.map(row=>[row.id,note]));
+}
 function runCli(args,cwd,env){
   return new Promise((done,reject)=>{
     const child=spawn(process.execPath,[resolve('tools/tome-ingest/cli.mjs'),...args],{cwd,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
@@ -2696,7 +2726,7 @@ async function setupAgentTrr(label='Agent TRR'){
   const source=await ok('/procurement/sources','POST',{code,name:label,kind:'MARKETPLACE',defaultCurrency:'USD',notes:'合成Agent来源'});
   const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'合成桌面Agent',ttlMinutes:60});
   const orderInput=trrSample(source.id),order=await machineOk('/agent-ingest/orders',session.token,'POST',orderInput);
-  const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'history-'+randomUUID(),agentName:'Synthetic Desktop Agent',agentVersion:'1.0',kind:'ORDER_HISTORY',rawManifest:{synthetic:true}});
+  const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'history-'+randomUUID(),agentName:'Synthetic Desktop Agent',agentVersion:'1.0',kind:'ORDER_HISTORY',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{synthetic:true})});
   const byKey=new Map(order.lines.map(x=>[x.lineKey,x]));
   const candidates=orderInput.lines.map(line=>({
     externalKey:`TRR:${orderInput.externalOrderNo}:${line.lineKey}`,sourceItemKey:line.sourceSku,purchaseLineId:byKey.get(line.lineKey).id,
@@ -2704,8 +2734,21 @@ async function setupAgentTrr(label='Agent TRR'){
     sourceLineAmount:line.lineAmount,sourceCurrentPrice:line.sourceCurrentPrice,sourceEstimatedRetail:line.sourceEstimatedRetail,
     sourceFacts:{sizeLabel:line.sizeLabelRaw,color:line.colorRaw,material:line.materialRaw,measurements:line.measurements,descriptionRaw:line.descriptionRaw},rawPayload:{synthetic:true,sku:line.sourceSku},
   }));
+  candidates.forEach(standardizeGenericCandidate);
   const imported=await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates});
   return {source,session,orderInput,order,batch,candidates,imported};
+}
+async function sealAgentBatch(x){
+  return machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
+}
+function acknowledgedAgentBulkConfirm(x,status='AVAILABLE'){
+  return {
+    ids:x.imported.rows.map(row=>row.id),
+    versions:Object.fromEntries(x.imported.rows.map(row=>[row.id,row.version])),
+    possession:'IN_HAND',
+    status,
+    incompleteAcknowledgements:incompleteAcknowledgements(x.imported.rows,'已核对合成来源缺项'),
+  };
 }
 test('v1.1 标准 Agent 协议校验 Skill/Profile，且服务端 Profile 必查项不能被 Manifest 降低',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase(), before=await db.item.count();
@@ -2721,6 +2764,16 @@ test('v1.1 标准 Agent 协议校验 Skill/Profile，且服务端 Profile 必查
   assert.equal(incompatible.status,400);assert.equal(incompatible.data.error.code,'INGEST_PROTOCOL_INCOMPATIBLE');
   const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/2.0',profile:'TRR/1.0'}});
   assert.equal(skillMismatch.status,400);assert.equal(skillMismatch.data.error.code,'INGEST_SKILL_INCOMPATIBLE');
+  const missingMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'missing-'+suffix,agentName:'legacy-shaped new agent',rawManifest:{expectedCandidateKeys:['MISSING-'+suffix]}});
+  assert.equal(missingMetadata.status,400);assert.equal(missingMetadata.data.error.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
+  const partialMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'partial-'+suffix,agentName:'partially standard agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/1.0'}});
+  assert.equal(partialMetadata.status,400);assert.equal(partialMetadata.data.error.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
+  const legacyManifest={importedBeforeStandard:true,externalReference:'legacy-'+suffix};
+  const legacy=await db.ingestBatch.create({data:{sessionId:session.id,procurementSourceId:source.id,externalBatchKey:'legacy-'+suffix,agentName:'Historical adapter',agentVersion:'0.9',kind:'ORDER_HISTORY',rawManifest:legacyManifest}});
+  const legacyRead=await machineOk(`/agent-ingest/batches/${legacy.id}`,session.token);
+  assert.equal(legacyRead.id,legacy.id);
+  const legacyRetry=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'legacy-'+suffix,agentName:'Historical adapter',agentVersion:'0.9',kind:'ORDER_HISTORY',rawManifest:legacyManifest});
+  assert.equal(legacyRetry.id,legacy.id);assert.equal(legacyRetry.existing,true);
   const fixture=goldenIngestFixture();fixture.batch.externalBatchKey+='-'+suffix;
   const batch=await machineOk('/agent-ingest/batches',session.token,'POST',fixture.batch);
   await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:fixture.candidates});
@@ -2738,12 +2791,15 @@ test('v1.1 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',
   const suffix=randomUUID().slice(0,8).toUpperCase();
   const httpSource=await ok('/procurement/sources','POST',{code:'TRR-H-'+suffix,name:'HTTP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),mcpSource=await ok('/procurement/sources','POST',{code:'TRR-M-'+suffix,name:'MCP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
   const httpSession=await ok('/ingest/sessions','POST',{procurementSourceId:httpSource.id,label:'HTTP Golden',ttlMinutes:60}),mcpSession=await ok('/ingest/sessions','POST',{procurementSourceId:mcpSource.id,label:'MCP Golden',ttlMinutes:60});
-  const init=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-03-26',capabilities:{},clientInfo:{name:'integration-test',version:'1.0'}}});assert.equal(init.status,200);assert.equal(init.data.result.serverInfo.name,'tome-ingest');assert.equal(init.data.result.protocolVersion,'2025-03-26');
+  const init=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-03-26',capabilities:{},clientInfo:{name:'Codex desktop X-header compatibility fixture',version:'1.0'}}});assert.equal(init.status,200);assert.equal(init.data.result.serverInfo.name,'tome-ingest');assert.equal(init.data.result.protocolVersion,'2025-03-26');
+  const bearerInit=await mcpBearerApi(mcpSession.token,{jsonrpc:'2.0',id:11,method:'initialize',params:{protocolVersion:'2025-03-26',capabilities:{},clientInfo:{name:'WorkBuddy desktop Bearer compatibility fixture',version:'1.0'}}});assert.equal(bearerInit.status,200);assert.equal(bearerInit.data.result.serverInfo.name,'tome-ingest');
   const initialized=await mcpApi(mcpSession.token,{jsonrpc:'2.0',method:'notifications/initialized'});assert.equal(initialized.status,202);assert.equal(initialized.data,null);
   const listed=await mcpApi(mcpSession.token,[{jsonrpc:'2.0',id:2,method:'tools/list',params:{}},{jsonrpc:'2.0',method:'notifications/initialized'}]);assert.equal(listed.status,200);assert.equal(listed.data.length,1);const names=listed.data[0].result.tools.map(x=>x.name).sort();assert.deepEqual(names,['tome_ingest_create_batch','tome_ingest_get_batch_status','tome_ingest_get_protocol','tome_ingest_import_order','tome_ingest_seal_batch','tome_ingest_upsert_candidates']);assert.ok(!names.some(x=>/confirm|item|stock|sale|cost|publish/i.test(x)));
+  const bearerListed=await mcpBearerApi(mcpSession.token,{jsonrpc:'2.0',id:12,method:'tools/list',params:{}});assert.equal(bearerListed.status,200);assert.deepEqual(bearerListed.data.result.tools.map(x=>x.name).sort(),names);
   const noStream=await fetch(origin+'/api/mcp/ingest',{headers:{'X-Ingest-Token':mcpSession.token}});assert.equal(noStream.status,405);assert.equal(noStream.headers.get('allow'),'POST');
   const foreignOrigin=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:3,method:'tools/list',params:{}},{Origin:'https://example.invalid'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.error.code,'MCP_ORIGIN_DENIED');
   const mcpProtocol=await mcpTool(mcpSession.token,'tome_ingest_get_protocol');assert.equal(mcpProtocol.isError,false);assert.equal(mcpProtocol.value.profile.id,'TRR/1.0');
+  const mcpMissingMetadata=await mcpTool(mcpSession.token,'tome_ingest_create_batch',{idempotencyKey:'mcp-missing-'+suffix,batch:{externalBatchKey:'mcp-missing-'+suffix,agentName:'metadata-less agent',rawManifest:{synthetic:true}}});assert.equal(mcpMissingMetadata.isError,true);assert.equal(mcpMissingMetadata.value.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
   const fixture=goldenIngestFixture(), httpBatchInput=structuredClone(fixture.batch), mcpBatchInput=structuredClone(fixture.batch);
   httpBatchInput.externalBatchKey+='-http-'+suffix;mcpBatchInput.externalBatchKey+='-mcp-'+suffix;
   const httpBatch=await machineOk('/agent-ingest/batches',httpSession.token,'POST',httpBatchInput);
@@ -2795,7 +2851,8 @@ test('v1 批量确认把候选一次生成TM，来源Sold/Excellent/颜色不污
   const before=await db.item.count(),x=await setupAgentTrr('Agent confirm source'),first=x.imported.rows[0];
   const fd=new FormData(),image=await syntheticImage('candidate.png');fd.set('sourceUrl','https://example.invalid/trr-1.jpg');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([image],{type:'image/png'}),'candidate.png');
   await machineOk(`/agent-ingest/candidates/${first.id}/assets`,x.session.token,'POST',fd);
-  const result=await ok('/ingest/candidates/bulk-confirm','POST',{ids:x.imported.rows.map(r=>r.id),possession:'IN_HAND',status:'AVAILABLE'});
+  await sealAgentBatch(x);
+  const result=await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));
   assert.equal(result.ok,7);assert.equal(result.failed,0);assert.equal(await db.item.count(),before+7);
   const confirmed=await db.ingestCandidate.findUniqueOrThrow({where:{id:first.id},include:{item:true,assets:{include:{asset:true}}}});
   assert.equal(confirmed.decision,'CONFIRMED');assert.equal(confirmed.item.status,'AVAILABLE');assert.equal(confirmed.item.currency,'CNY');
@@ -2807,12 +2864,13 @@ test('v1 未识别品牌不会阻断生成TM，标准品牌留空而原始品牌
   const x=await setupAgentTrr('Agent unknown brand source'),candidate=x.imported.rows[1],changed={...x.candidates[1],brandRaw:'UNKNOWN ARCHIVE BRAND 2099'};
   const up=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[changed]});
   const row=await db.ingestCandidate.findUniqueOrThrow({where:{id:up.rows[0].id}});assert.ok(row.warnings.some(w=>w.includes('尚未标准化')));
-  const result=await ok(`/ingest/candidates/${row.id}/confirm`,'POST',{version:row.version,possession:'IN_HAND',status:'AVAILABLE',note:'确认实物并先入库，品牌以后标准化'});
+  await sealAgentBatch(x);
+  const result=await ok(`/ingest/candidates/${row.id}/confirm`,'POST',{version:row.version,possession:'IN_HAND',status:'AVAILABLE',acceptIncomplete:true,note:'确认实物并先入库，品牌以后标准化'});
   const itemRow=await item(result.itemId);assert.equal(itemRow.brand,'');assert.equal(itemRow.status,'AVAILABLE');
   const source=await db.source.findUniqueOrThrow({where:{id:itemRow.sourceId}});assert.equal(source.payload.brandRaw,'UNKNOWN ARCHIVE BRAND 2099');
 });
 test('v1 TRR成本按原价比例分摊经济支付价值并均摊每单¥200，最终人民币成本严格闭合',async()=>{
-  const x=await setupAgentTrr('TRR costing source');await ok('/ingest/candidates/bulk-confirm','POST',{ids:x.imported.rows.map(r=>r.id),possession:'IN_HAND',status:'AVAILABLE'});
+  const x=await setupAgentTrr('TRR costing source');await sealAgentBatch(x);await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));
   const source=await db.procurementSource.findUniqueOrThrow({where:{id:x.source.id}});
   await ok(`/costing/sources/${source.id}/policy`,'POST',{version:source.version,orderOverheadCny:20000,costAllocationMethod:'PROPORTIONAL_LINE_AMOUNT',storeCreditAsPayment:true,note:'TRR确认规则：每单200元平均附加成本'});
   const basis=await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:505440,fxMicros:null,foreignEconomicTotalOverride:null,overheadCny:20000,note:'合成测试：$702实际扣款人民币5054.40',confirmed:true});
@@ -2824,7 +2882,7 @@ test('v1 TRR成本按原价比例分摊经济支付价值并均摊每单¥200，
   const active=await db.costEntry.findMany({where:{sourceType:'PROCUREMENT_ORDER',sourceRef:{startsWith:x.order.id+':'},status:'ACTIVE'}});assert.equal(active.length,7);assert.equal(active.reduce((n,r)=>n+r.amount,0),579440);
 });
 test('v1 RMA或排除商品时自动成本被阻断，必须人工确认本单最终经济支付金额',async()=>{
-  const x=await setupAgentTrr('TRR RMA costing');await ok('/ingest/candidates/bulk-confirm','POST',{ids:x.imported.rows.map(r=>r.id),possession:'IN_HAND',status:'AVAILABLE'});
+  const x=await setupAgentTrr('TRR RMA costing');await sealAgentBatch(x);await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));
   const source=await db.procurementSource.findUniqueOrThrow({where:{id:x.source.id}});await ok(`/costing/sources/${source.id}/policy`,'POST',{version:source.version,orderOverheadCny:20000,costAllocationMethod:'PROPORTIONAL_LINE_AMOUNT',storeCreditAsPayment:true,note:'合成TRR规则'});
   const changed=structuredClone(x.orderInput);changed.returns=[{returnKey:'RMA-SYN-V1',externalReturnRef:'RMA-SYN-V1',statusRaw:'Opened',openedAt:'2026-07-06T12:00:00.000Z',lineKeys:['WDI571039'],rawPayload:{synthetic:true}}];
   await machineOk('/agent-ingest/orders',x.session.token,'POST',changed);
@@ -2834,7 +2892,7 @@ test('v1 RMA或排除商品时自动成本被阻断，必须人工确认本单�
   preview=await ok(`/costing/orders/${x.order.id}/preview`);assert.equal(preview.ready,true);assert.equal(preview.foreignEconomicTotal,60000);assert.equal(preview.totalCny,452000);
 });
 test('v1 售出自动冻结当时人民币成本，后续采购成本重算不反改历史成交',async()=>{
-  const x=await setupAgentTrr('TRR sale snapshot');await ok('/ingest/candidates/bulk-confirm','POST',{ids:x.imported.rows.map(r=>r.id),possession:'IN_HAND',status:'AVAILABLE'});
+  const x=await setupAgentTrr('TRR sale snapshot');await sealAgentBatch(x);await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));
   const source=await db.procurementSource.findUniqueOrThrow({where:{id:x.source.id}});await ok(`/costing/sources/${source.id}/policy`,'POST',{version:source.version,orderOverheadCny:20000,costAllocationMethod:'PROPORTIONAL_LINE_AMOUNT',storeCreditAsPayment:true,note:'合成TRR规则'});
   let basis=await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:505440,fxMicros:null,foreignEconomicTotalOverride:null,overheadCny:20000,note:'首次成本确认',confirmed:true});
   const committed=await ok(`/costing/orders/${x.order.id}/commit`,'POST',{basisVersion:basis.version,confirmed:true}),first=committed.rows[0];
@@ -2848,7 +2906,8 @@ test('v1 售出自动冻结当时人民币成本，后续采购成本重算不�
 
 test('Credit退款无RMA仍须核对，净支付只扣一次且不反改售出快照', async () => {
   const x = await setupAgentTrr('Credit refund synthetic source');
-  await ok('/ingest/candidates/bulk-confirm', 'POST', { ids: x.imported.rows.map(r => r.id), possession: 'IN_HAND', status: 'AVAILABLE' });
+  await sealAgentBatch(x);
+  await ok('/ingest/candidates/bulk-confirm', 'POST', acknowledgedAgentBulkConfirm(x));
   const changed = structuredClone(x.orderInput);
   changed.paymentAmount = 30000;
   // Updates retain stable adjustment keys; a new key would intentionally add
@@ -2919,7 +2978,8 @@ test('Credit退款无RMA仍须核对，净支付只扣一次且不反改售出�
 
 test('成本的现金与确认汇率模式遵守同一Credit规则，混币种拒绝合计', async () => {
   const x = await setupAgentTrr('Credit policy parity synthetic');
-  await ok('/ingest/candidates/bulk-confirm', 'POST', { ids: x.imported.rows.map(r => r.id), possession: 'IN_HAND', status: 'AVAILABLE' });
+  await sealAgentBatch(x);
+  await ok('/ingest/candidates/bulk-confirm', 'POST', acknowledgedAgentBulkConfirm(x));
   const source = await db.procurementSource.findUniqueOrThrow({ where: { id: x.source.id } });
   await ok(`/costing/sources/${source.id}/policy`, 'POST', { version: source.version, orderOverheadCny: 20000, costAllocationMethod: 'PROPORTIONAL_LINE_AMOUNT', storeCreditAsPayment: false, note: '合成其他渠道不计Credit规则' });
   const input = { version: 0, mode: 'ACTUAL_CASH_CNY', cashPaidCny: 505440, fxMicros: null, foreignEconomicTotalOverride: null, overheadCny: 20000, note: '合成实际扣款模式一致性', confirmed: true };
@@ -2972,18 +3032,20 @@ test('v1.0.0-rc.3 同图候选阻止静默重复建TM，可人工关联已有TM�
   const image=await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="79" height="101"><rect width="79" height="101" fill="#d8d4cc"/><text x="4" y="54" font-size="5">${marker}</text></svg>`)).png().toBuffer();
   let fd=new FormData();fd.set('sourceUrl','https://example.invalid/same-a.jpg');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([image],{type:'image/png'}),'same-a.png');
   await machineOk(`/agent-ingest/candidates/${firstCandidate.id}/assets`,first.session.token,'POST',fd);
-  const created=await ok(`/ingest/candidates/${firstCandidate.id}/confirm`,'POST',{version:firstCandidate.version,possession:'IN_HAND',status:'AVAILABLE',duplicateOverride:false,note:'第一来源确认建档'});
+  await sealAgentBatch(first);
+  const created=await ok(`/ingest/candidates/${firstCandidate.id}/confirm`,'POST',{version:firstCandidate.version,possession:'IN_HAND',status:'AVAILABLE',duplicateOverride:false,acceptIncomplete:true,note:'第一来源确认建档'});
   const firstItem=await item(created.itemId),itemCount=await db.item.count();
 
   const second=await setupAgentTrr('Duplicate source B'),secondCandidate=second.imported.rows[0];
   fd=new FormData();fd.set('sourceUrl','https://example.invalid/same-b.jpg');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([image],{type:'image/png'}),'same-b.png');
   await machineOk(`/agent-ingest/candidates/${secondCandidate.id}/assets`,second.session.token,'POST',fd);
+  await sealAgentBatch(second);
   const listed=await ok(`/ingest/candidates?sourceId=${second.source.id}&decision=PENDING&size=100`),listedRow=listed.rows.find(r=>r.id===secondCandidate.id);
   assert.equal(listedRow.possibleDuplicateCount,1);
   const matches=await ok(`/ingest/candidates/${secondCandidate.id}/matches`);
   assert.ok(matches.some(m=>m.id===firstItem.id&&m.reasons.some(reason=>reason.includes('图片'))));
 
-  const bulk=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[secondCandidate.id],possession:'IN_HAND',status:'AVAILABLE'});
+  const bulk=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[secondCandidate.id],versions:{[secondCandidate.id]:secondCandidate.version},possession:'IN_HAND',status:'AVAILABLE',incompleteAcknowledgements:{[secondCandidate.id]:'已核对合成来源缺项'}});
   assert.equal(bulk.ok,0);assert.equal(bulk.failed,1);assert.match(bulk.rows[0].error,/关联已有TM|另一件实物/);
   assert.equal(await db.item.count(),itemCount);
   const freshSecond=await db.ingestCandidate.findUniqueOrThrow({where:{id:secondCandidate.id}});
@@ -2998,7 +3060,8 @@ test('v1.0.0-rc.3 同图候选阻止静默重复建TM，可人工关联已有TM�
   const third=await setupAgentTrr('Duplicate source C'),thirdCandidate=third.imported.rows[0];
   fd=new FormData();fd.set('sourceUrl','https://example.invalid/same-c.jpg');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([image],{type:'image/png'}),'same-c.png');
   await machineOk(`/agent-ingest/candidates/${thirdCandidate.id}/assets`,third.session.token,'POST',fd);
-  const overridden=await ok(`/ingest/candidates/${thirdCandidate.id}/confirm`,'POST',{version:thirdCandidate.version,possession:'IN_HAND',status:'AVAILABLE',duplicateOverride:true,note:'人工核对：同图但确为另一件独立实物'});
+  await sealAgentBatch(third);
+  const overridden=await ok(`/ingest/candidates/${thirdCandidate.id}/confirm`,'POST',{version:thirdCandidate.version,possession:'IN_HAND',status:'AVAILABLE',duplicateOverride:true,acceptIncomplete:true,note:'人工核对：同图但确为另一件独立实物'});
   assert.notEqual(overridden.itemId,firstItem.id);assert.equal(await db.item.count(),itemCount+1);
 });
 
@@ -3006,11 +3069,11 @@ test('导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且�
   const {createHash}=require('node:crypto'), suffix=randomUUID().slice(0,8);
   const source=await ok('/procurement/sources','POST',{code:'IC'+suffix.toUpperCase(),name:'合成完整性来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
   const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'完整性测试',ttlMinutes:60});
-  const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'integrity-'+suffix,agentName:'Synthetic',rawManifest:{expectedCandidateKeys:['ONE','TWO'],requiredFields:['titleRaw','sourceFacts.description']}});
+  const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'integrity-'+suffix,agentName:'Synthetic',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{expectedCandidateKeys:['ONE','TWO'],requiredFields:['titleRaw','sourceFacts.description']})});
   const png=await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2000"><rect width="1500" height="2000" fill="#988"/><text x="20" y="200">${suffix}</text></svg>`)).png().toBuffer();
   const sha=createHash('sha256').update(png).digest('hex');
   const capture={pageUrl:'https://example.invalid/one',capturedAt:'2026-09-14T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'原文介绍',status:'CAPTURED'}],images:[{sourceUrl:'https://example.invalid/full.png',sha256:sha,width:500,height:700,quality:'ORIGINAL'}]};
-  const first={externalKey:'ONE',titleRaw:'完整的合成衣服',currency:'USD',sourceFacts:{description:'完整原文介绍',sizeLabel:'XL',capture},rawPayload:{synthetic:true}};
+  const first=standardizeGenericCandidate({externalKey:'ONE',titleRaw:'完整的合成衣服',currency:'USD',sourceFacts:{description:'完整原文介绍',sizeLabel:'XL',capture},rawPayload:{synthetic:true}});
   const one=(await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:[first]})).rows[0];
   let report=(await machineOk(`/agent-ingest/batches/${batch.id}`,session.token)).integrity;
   assert.ok(report.blockers.some(x=>x.includes('缺少商品：TWO')));assert.ok(report.blockers.some(x=>x.includes('原文件尚未保存')));
@@ -3020,7 +3083,7 @@ test('导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且�
   report=(await machineOk(`/agent-ingest/batches/${batch.id}`,session.token)).integrity;
   assert.ok(report.blockers.some(x=>x.includes('实际尺寸')));
   capture.images[0].width=1500;capture.images[0].height=2000;
-  const second={externalKey:'TWO',titleRaw:'来源缺资料的合成衣服',sourceFacts:{capture:{...capture,pageUrl:'https://example.invalid/two',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'原文介绍',status:'UNAVAILABLE',reason:'来源旧页面已下架'}],images:[{sourceUrl:'https://example.invalid/missing.png',quality:'UNAVAILABLE',reason:'来源图片已失效'}]}},rawPayload:{synthetic:true}};
+  const second=standardizeGenericCandidate({externalKey:'TWO',titleRaw:'来源缺资料的合成衣服',sourceFacts:{capture:{...capture,pageUrl:'https://example.invalid/two',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'原文介绍',status:'UNAVAILABLE',reason:'来源旧页面已下架'}],images:[{sourceUrl:'https://example.invalid/missing.png',quality:'UNAVAILABLE',reason:'来源图片已失效'}]}},rawPayload:{synthetic:true}});
   const up=await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:[first,second]});
   assert.equal((await api(`/ingest/candidates/${one.id}/confirm`,'POST',{version:up.rows[0].version,possession:'IN_HAND',note:'合成提前确认'})).status,409);
   const sealed=await machineOk(`/agent-ingest/batches/${batch.id}/seal`,session.token,'POST',{});
@@ -3028,7 +3091,7 @@ test('导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且�
   const raw=await fetch(origin+`/api/ingest/candidate-assets/${upload.id}/original`,{headers:{Cookie:admin.cookie}});
   assert.equal(raw.status,200);assert.deepEqual(Buffer.from(await raw.arrayBuffer()),png);assert.match(raw.headers.get('cache-control'),/private/);
   assert.equal((await fetch(origin+`/api/ingest/candidate-assets/${upload.id}/original`)).status,401);
-  const key=randomUUID(),body={ids:up.rows.map(x=>x.id),versions:Object.fromEntries(up.rows.map(x=>[x.id,x.version])),possession:'IN_HAND',status:'AVAILABLE'};
+  const key=randomUUID(),body={ids:up.rows.map(x=>x.id),versions:Object.fromEntries(up.rows.map(x=>[x.id,x.version])),possession:'IN_HAND',status:'AVAILABLE',incompleteAcknowledgements:{[up.rows[0].id]:'已核对首件的合成来源缺项'}};
   const confirmed=await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key);
   assert.equal(confirmed.ok,1);assert.equal(confirmed.failed,1);assert.match(confirmed.rows[1].error,/缺失/);
   assert.deepEqual(await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key),confirmed);
@@ -3054,15 +3117,15 @@ test('再次稀疏导入保留已采集来源和人工建议，批量确认拒�
   assert.equal(current.proposal.title,'人工维护的商品名');assert.equal(current.proposal.category,'BAG');
   assert.equal(current.currency,'USD');assert.equal(current.purchaseLineId,x.candidates[0].purchaseLineId);
   assert.equal(current.sourceFacts.sizeLabel,x.candidates[0].sourceFacts.sizeLabel);assert.equal(current.sourceFacts.designer,'合成设计师');
+  await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
   const blocked=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[c.id],versions:{[c.id]:c.version},possession:'IN_HAND',status:'AVAILABLE'});
   assert.equal(blocked.failed,1);assert.match(blocked.rows[0].error,/修改/);
-  const newer=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[c.id],versions:{[c.id]:update.rows[0].version},possession:'IN_HAND',status:'AVAILABLE'});
+  const newer=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[c.id],versions:{[c.id]:update.rows[0].version},possession:'IN_HAND',status:'AVAILABLE',incompleteAcknowledgements:{[c.id]:'已核对合成来源缺项'}});
   assert.equal(newer.ok,1);
   const i=await item(newer.rows[0].itemId);assert.equal(i.title,'人工维护的商品名');assert.equal(i.category,'BAG');
   const originalAssets=i.assets.length, originalFacts=i.facts;
-  await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
-  const nextBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'enrich-'+randomUUID(),agentName:'Synthetic enrich',rawManifest:{synthetic:true}});
-  await machineOk(`/agent-ingest/batches/${nextBatch.id}/candidates`,x.session.token,'POST',{candidates:[{externalKey:x.candidates[0].externalKey,titleRaw:'再次采集名称',sourceFacts:{measurements:{newDetail:'新增来源尺寸'}}}]});
+  const nextBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'enrich-'+randomUUID(),agentName:'Synthetic enrich',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{synthetic:true})});
+  await machineOk(`/agent-ingest/batches/${nextBatch.id}/candidates`,x.session.token,'POST',{candidates:[standardizeGenericCandidate({externalKey:x.candidates[0].externalKey,titleRaw:'再次采集名称',sourceFacts:{measurements:{newDetail:'新增来源尺寸'}}})]});
   const sourceAgain=await ok(`/ingest/candidates/${c.id}`);
   assert.equal(sourceAgain.sourceFacts.measurements.Bust,x.candidates[0].sourceFacts.measurements.Bust);
   assert.equal(sourceAgain.sourceFacts.measurements.newDetail,'新增来源尺寸');
@@ -3078,9 +3141,10 @@ test('多平台异构字段与无订单门店来源共用协议，来源身份�
   for (const kind of ['MARKETPLACE','OFFLINE']) {
     const source=await ok('/procurement/sources','POST',{code:'MS'+randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),name:'合成异构来源 '+kind,kind,defaultCurrency:kind==='MARKETPLACE'?'EUR':'CNY'});
     const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'合成独立接入器',ttlMinutes:60});
-    const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'same-batch-key',agentName:'Synthetic Adapter',agentVersion:'2.0',kind:kind==='OFFLINE'?'OFFLINE_IMPORT':'ITEM_BATCH',rawManifest:{adapter:{name:kind,version:'2.0',sourceSchemaVersion:'supplier-v9',mappingVersion:'reviewed-1'}}});
+    const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'same-batch-key',agentName:'Synthetic Adapter',agentVersion:'2.0',kind:kind==='OFFLINE'?'OFFLINE_IMPORT':'ITEM_BATCH',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{adapter:{name:kind,version:'2.0',sourceSchemaVersion:'supplier-v9',mappingVersion:'reviewed-1'}})});
     const raw=kind==='MARKETPLACE'?{synthetic:true,designer:{label:'合成小众品牌'},wear:{grade:'A+',notes:['袖口轻微使用痕迹']},fabric:{panels:[{part:'body',fiber:'wool',percent:85},{part:'lining',fiber:'cotton',percent:100}]}}:{synthetic:true,品牌名称:'合成门店品牌',品相记录:{等级:'店检二级',瑕疵:'扣子缺失'},吊牌尺码:'44',票据:{编号:'SYN-PAPER-01',备注:['店内采购','无网页订单']}};
     const input={externalKey:'same-item-key',sourceItemKey:'same-sku',titleRaw:'合成无订单商品',brandRaw:kind==='MARKETPLACE'?raw.designer.label:raw.品牌名称,conditionRaw:kind==='MARKETPLACE'?raw.wear.grade:raw.品相记录.等级,statusRaw:'Sold',sourceFacts:{sizeLabel:kind==='MARKETPLACE'?'M':raw.吊牌尺码,conditionDescription:kind==='MARKETPLACE'?raw.wear.notes.join('；'):raw.品相记录.瑕疵,providerFields:raw,mappingEvidence:{brandRaw:{sourcePath:kind==='MARKETPLACE'?'designer.label':'品牌名称',rule:'直接保留原文'}}},rawPayload:raw};
+    standardizeGenericCandidate(input);
     const imported=await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:[input]});
     const row=await ok('/ingest/candidates/'+imported.rows[0].id);
     assert.equal(row.purchaseLineId,null);assert.equal(row.currency,kind==='MARKETPLACE'?'EUR':'CNY');assert.deepEqual(row.rawPayload,raw);assert.deepEqual(row.sourceFacts.providerFields,raw);
@@ -3091,7 +3155,8 @@ test('多平台异构字段与无订单门店来源共用协议，来源身份�
   const [a,b]=sources;
   assert.notEqual(a.row.id,b.row.id);
   assert.equal((await machineApi('/agent-ingest/batches/'+a.batch.id,b.session.token)).status,404);
-  const confirmed=await ok('/ingest/candidates/'+a.row.id+'/confirm','POST',{version:a.row.version,possession:'IN_HAND',note:'人工确认合成实物'});
+  await machineOk(`/agent-ingest/batches/${a.batch.id}/seal`,a.session.token,'POST',{});
+  const confirmed=await ok('/ingest/candidates/'+a.row.id+'/confirm','POST',{version:a.row.version,possession:'IN_HAND',acceptIncomplete:true,note:'人工确认合成实物'});
   const first=await item(confirmed.itemId);
   await ok('/items/'+first.id,'PATCH',{version:first.version,title:'合成人工长期维护标题',facts:{condition:'合成人工验货说明'}});
   const maintained=await item(first.id);
@@ -3108,8 +3173,9 @@ test('多平台异构字段与无订单门店来源共用协议，来源身份�
   assert.deepEqual((await item(first.id)).facts,maintained.facts);
   const referenceLink=await db.itemSourceLink.findFirstOrThrow({where:{itemId:first.id,kind:'REFERENCE'}});
   assert.ok(referenceLink.sourceId);
-  await machineOk(`/agent-ingest/batches/${a.batch.id}/candidates`,a.session.token,'POST',{candidates:[{...a.input,currency:'GBP'}]});
-  await machineOk(`/agent-ingest/batches/${a.batch.id}/candidates`,a.session.token,'POST',{candidates:[a.input]});
+  const aNext=await machineOk('/agent-ingest/batches',a.session.token,'POST',{externalBatchKey:'same-batch-key-enrich',agentName:'Synthetic Adapter enrich',agentVersion:'2.0',kind:'ITEM_BATCH',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{adapter:{name:'MARKETPLACE',version:'2.0',sourceSchemaVersion:'supplier-v9',mappingVersion:'reviewed-1'}})});
+  await machineOk(`/agent-ingest/batches/${aNext.id}/candidates`,a.session.token,'POST',{candidates:[{...a.input,currency:'GBP'}]});
+  await machineOk(`/agent-ingest/batches/${aNext.id}/candidates`,a.session.token,'POST',{candidates:[a.input]});
   assert.equal((await ok('/ingest/candidates/'+a.row.id)).currency,'GBP');
   assert.equal(await db.purchaseOrder.count({where:{procurementSourceId:{in:sources.map(x=>x.source.id)}}}),0);
 });
@@ -3219,7 +3285,7 @@ test('归档原图保留原文件哈希，归入内部凭证后原图和预览�
 });
 
 test('货源池用来源名称和原货号找到已关联TM，不把多来源关系误判为待建档',async()=>{
- const label='来源检索-'+randomUUID(),x=await setupAgentTrr(label),candidate=x.imported.rows[0],confirmed=await ok('/ingest/candidates/'+candidate.id+'/confirm','POST',{version:candidate.version,possession:'IN_HAND',note:'合成来源检索确认'});
+ const label='来源检索-'+randomUUID(),x=await setupAgentTrr(label),candidate=x.imported.rows[0];await sealAgentBatch(x);const confirmed=await ok('/ingest/candidates/'+candidate.id+'/confirm','POST',{version:candidate.version,possession:'IN_HAND',acceptIncomplete:true,note:'合成来源检索确认'});
  const byName=await ok('/supply/sources?page=1&q='+encodeURIComponent(label)+'&stage=adopted');assert.equal(byName.total,1);assert.equal(byName.rows[0].sourceLabel,label);assert.ok(byName.rows[0].items.some(i=>i.id===confirmed.itemId));
  const sku=x.candidates[0].sourceItemKey,bySku=await ok('/supply/sources?page=1&q='+sku+'&stage=adopted');assert.ok(bySku.rows.some(r=>r.items.some(i=>i.id===confirmed.itemId)&&r.originalKey===sku));
  assert.equal((await ok('/supply/sources?page=1&q='+encodeURIComponent(label)+'&stage=pending')).total,0);
@@ -3244,7 +3310,7 @@ test('商品资料库：零成本与未知分开，尺码位置来源及缺项�
 test('商品资料库：批量逐件缺项依据绑定版本且不绕过漏图或同图身份检查',async()=>{
   const x=await setupAgentTrr('MVP合成缺项来源'), c=x.imported.rows[0];
   const capture={fileEvidence:{name:'合成门店资料.json',sha256:'a'.repeat(64),row:'第1条'},capturedAt:new Date().toISOString(),fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.measurements',label:'尺寸',status:'UNAVAILABLE',reason:'原记录未提供'}],images:[]};
-  const changed=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[0],sourceFacts:{capture}}]});
+  const changed=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[standardizeGenericCandidate({...x.candidates[0],sourceFacts:{...x.candidates[0].sourceFacts,capture}})]});
   const version=changed.rows[0].version;
   await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
   const body={ids:[c.id],versions:{[c.id]:version},possession:'IN_HAND',status:'AVAILABLE'};
@@ -3257,8 +3323,8 @@ test('商品资料库：批量逐件缺项依据绑定版本且不绕过漏图�
   const proof=await db.audit.findFirst({where:{resourceId:c.id,action:'INGEST_CANDIDATE_CONFIRMED'}});
   assert.ok(proof);assert.equal(proof.detail.acceptIncomplete,true);assert.match(proof.detail.note,/来源未提供/);
   const missing=x.imported.rows[1];
-  const nextBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'mvp-missing-'+randomUUID(),agentName:'Synthetic'});
-  const newRows=await machineOk(`/agent-ingest/batches/${nextBatch.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[1],sourceFacts:{capture:{...capture,images:[{sourceFile:'missing.png',sha256:'b'.repeat(64),width:1500,height:2000,quality:'ORIGINAL'}]}}}]});
+  const nextBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'mvp-missing-'+randomUUID(),agentName:'Synthetic',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{synthetic:true})});
+  const newRows=await machineOk(`/agent-ingest/batches/${nextBatch.id}/candidates`,x.session.token,'POST',{candidates:[standardizeGenericCandidate({...x.candidates[1],sourceFacts:{...x.candidates[1].sourceFacts,capture:{...capture,images:[{sourceFile:'missing.png',sha256:'b'.repeat(64),width:1500,height:2000,quality:'ORIGINAL'}]}}})]});
   const blocked=await ok('/ingest/candidates/bulk-confirm','POST',{ids:[missing.id],versions:{[missing.id]:newRows.rows[0].version},possession:'IN_HAND',incompleteAcknowledgements:{[missing.id]:'明知缺图仍试图越过检查'}});
   assert.equal(blocked.failed,1);assert.match(blocked.rows[0].error,/原文件|保存|清单/);
 });
@@ -3266,7 +3332,7 @@ test('商品资料库：批量逐件缺项依据绑定版本且不绕过漏图�
 test('商品资料库：跨批次补采保留历史成员与封存检查，候选只生成同一TM',async()=>{
   const x=await setupAgentTrr('MVP合成批次历史');
   const old=await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
-  const next=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'next-'+randomUUID(),agentName:'Synthetic'});
+  const next=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'next-'+randomUUID(),agentName:'Synthetic',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{synthetic:true})});
   await machineOk(`/agent-ingest/batches/${next.id}/candidates`,x.session.token,'POST',{candidates:[{...x.candidates[0],titleRaw:'合成补采标题'}]});
   const priorList=await ok(`/ingest/candidates?batchId=${x.batch.id}&decision=`),nextList=await ok(`/ingest/candidates?batchId=${next.id}&decision=`);
   assert.equal(priorList.total,7);assert.equal(nextList.total,1);assert.ok(priorList.rows.some(c=>c.id===nextList.rows[0].id));
@@ -3326,11 +3392,11 @@ test('商品资料库：补图、已售和删除改变资料包，旧包不能�
 
 test('商品资料库：500件按批处理后可重试，明确版本和身份保护保持生效',async()=>{
  const suffix=randomUUID().slice(0,8), source=await ok('/procurement/sources','POST',{code:'V'+suffix.toUpperCase(),name:'MVP500合成来源',kind:'OFFLINE',defaultCurrency:'CNY'}), session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'500件隔离验收',ttlMinutes:60});
- const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'MVP500-'+suffix,agentName:'Synthetic'}), rows=[];
- for(let n=0;n<500;n+=200){const candidates=Array.from({length:Math.min(200,500-n)},(_,j)=>({externalKey:suffix+':'+(n+j),titleRaw:'MVP500合成商品 '+(n+j)}));rows.push(...(await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates})).rows);}
+ const batch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'MVP500-'+suffix,agentName:'Synthetic',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.0',{synthetic:true})}), rows=[];
+ for(let n=0;n<500;n+=200){const candidates=Array.from({length:Math.min(200,500-n)},(_,j)=>standardizeGenericCandidate({externalKey:suffix+':'+(n+j),titleRaw:'MVP500合成商品 '+(n+j)}));rows.push(...(await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates})).rows);}
  await machineOk(`/agent-ingest/batches/${batch.id}/seal`,session.token,'POST',{});
  const identities=new Set();
- for(let n=0;n<500;n+=100){const slice=rows.slice(n,n+100),body={ids:slice.map(c=>c.id),versions:Object.fromEntries(slice.map(c=>[c.id,c.version])),possession:'IN_HAND'},key=randomUUID();const r=await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key);assert.equal(r.ok,100);assert.deepEqual(await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key),r);for(const c of r.rows)identities.add(c.itemId);}
+ for(let n=0;n<500;n+=100){const slice=rows.slice(n,n+100),body={ids:slice.map(c=>c.id),versions:Object.fromEntries(slice.map(c=>[c.id,c.version])),possession:'IN_HAND',incompleteAcknowledgements:incompleteAcknowledgements(slice,'已核对合成来源缺项')},key=randomUUID();const r=await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key);assert.equal(r.ok,100);assert.deepEqual(await ok('/ingest/candidates/bulk-confirm','POST',body,admin,key),r);for(const c of r.rows)identities.add(c.itemId);}
  assert.equal(identities.size,500);assert.equal((await ok(`/ingest/candidates?batchId=${batch.id}&decision=PENDING`)).total,0);assert.equal((await ok(`/ingest/candidates?batchId=${batch.id}&decision=CONFIRMED&page=5`)).rows.length,100);
 });
 

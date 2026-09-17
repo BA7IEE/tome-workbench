@@ -44,6 +44,89 @@ async function machine(
   expect(r.ok(), await r.text()).toBeTruthy();
   return r.json();
 }
+function standardManifest(extra = {}) {
+  return {
+    ...extra,
+    protocolVersion: "1.2",
+    skillVersion: "tome-ingest/1.0",
+    profile: "GENERIC_MARKETPLACE/1.0",
+  };
+}
+const genericProfileFields = [
+  ["titleRaw", "商品名称"],
+  ["sourceItemKey", "来源货号"],
+  ["brandRaw", "来源品牌"],
+  ["categoryRaw", "来源品类"],
+  ["conditionRaw", "来源成色"],
+  ["sourceFacts.sizeLabel", "标签尺码"],
+  ["sourceFacts.productUrl", "来源页面"],
+  ["sourceFacts.description", "来源描述"],
+  ["sourceCurrentPrice", "来源当前价"],
+];
+function readCandidatePath(candidate, path) {
+  return path
+    .split(".")
+    .reduce(
+      (value, key) =>
+        value && typeof value === "object" ? value[key] : undefined,
+      candidate,
+    );
+}
+function hasCandidateValue(value) {
+  return (
+    value !== null &&
+    value !== undefined &&
+    value !== "" &&
+    (!Array.isArray(value) || value.length > 0) &&
+    (typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length > 0)
+  );
+}
+function standardizeGenericCandidate(candidate, key = candidate.externalKey) {
+  const sourceFacts =
+      candidate.sourceFacts && typeof candidate.sourceFacts === "object"
+        ? candidate.sourceFacts
+        : {},
+    existing =
+      sourceFacts.capture && typeof sourceFacts.capture === "object"
+        ? sourceFacts.capture
+        : {},
+    fields = Array.isArray(existing.fields) ? [...existing.fields] : [];
+  for (const [path, label] of genericProfileFields)
+    if (!fields.some((field) => field.path === path)) {
+      const value = readCandidatePath(candidate, path);
+      fields.push(
+        hasCandidateValue(value)
+          ? { path, label, status: "CAPTURED" }
+          : {
+              path,
+              label,
+              status: "UNAVAILABLE",
+              reason: "合成来源未提供该字段",
+            },
+      );
+    }
+  const capture = {
+    ...existing,
+    capturedAt: existing.capturedAt || "2026-09-17T00:00:00.000Z",
+    fields,
+    images: Array.isArray(existing.images) ? existing.images : [],
+  };
+  if (!capture.pageUrl && !capture.fileEvidence)
+    capture.pageUrl =
+      "https://example.invalid/ingest/" + encodeURIComponent(String(key));
+  candidate.sourceFacts = { ...sourceFacts, capture };
+  return candidate;
+}
+function incompleteAcknowledgements(rows, note) {
+  return {
+    versions: Object.fromEntries(rows.map((row) => [row.id, row.version])),
+    incompleteAcknowledgements: Object.fromEntries(
+      rows.map((row) => [row.id, note]),
+    ),
+  };
+}
 function trrOrder(sourceId, suffix) {
   const rows = [
     ["WDI571039", "Diane von Furstenberg", "Silk Midi Length Dress", 19500],
@@ -199,7 +282,7 @@ async function setupAgentOrder(page) {
     agentName: "Synthetic Agent",
     agentVersion: "1.0",
     kind: "ORDER_HISTORY",
-    rawManifest: { synthetic: true },
+    rawManifest: standardManifest({ synthetic: true }),
   });
   const byKey = new Map(order.lines.map((x) => [x.lineKey, x]));
   const candidates = orderInput.lines.map((line) => ({
@@ -220,9 +303,12 @@ async function setupAgentOrder(page) {
       color: line.colorRaw,
       material: line.materialRaw,
       measurements: line.measurements,
+      productUrl: line.productUrl,
+      description: line.descriptionRaw,
     },
     rawPayload: { synthetic: true, sku: line.sourceSku },
   }));
+  candidates.forEach(standardizeGenericCandidate);
   const imported = await machine(
     page,
     `/agent-ingest/batches/${batch.id}/candidates`,
@@ -254,11 +340,20 @@ async function uploadCandidatePhoto(page, token, id) {
   expect(r.ok(), await r.text()).toBeTruthy();
   return r.json();
 }
+async function sealAgentBatch(page, { batch, session }) {
+  return machine(
+    page,
+    `/agent-ingest/batches/${batch.id}/seal`,
+    session.token,
+    {},
+  );
+}
 test.beforeEach(async ({ page }) => login(page));
 
 test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async ({ page }) => {
   const x = await setupAgentOrder(page);
   await uploadCandidatePhoto(page, x.session.token, x.imported.rows[0].id);
+  await sealAgentBatch(page, x);
   const before = (
     await (await page.request.get("/api/items?dataMode=ALL")).json()
   ).total;
@@ -282,6 +377,10 @@ test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async
   await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("生成TM后的状态").selectOption("AVAILABLE");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
+  await d
+    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .check();
+  await d.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
   await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
   await expect(d).not.toBeVisible();
   await expect(page.locator(".candidate-card")).toHaveCount(0);
@@ -320,7 +419,7 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
     agentName: "Bulk Synthetic Agent",
     agentVersion: "1.0",
     kind: "ITEM_BATCH",
-    rawManifest: { synthetic: true },
+    rawManifest: standardManifest({ synthetic: true }),
   });
   const candidates = Array.from({ length: 101 }, (_, n) => ({
     externalKey: `BULK:${suffix}:${n + 1}`,
@@ -338,12 +437,14 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
     sourceFacts: {},
     rawPayload: { synthetic: true, index: n + 1 },
   }));
+  candidates.forEach(standardizeGenericCandidate);
   await machine(
     page,
     `/agent-ingest/batches/${batch.id}/candidates`,
     session.token,
     { candidates },
   );
+  await sealAgentBatch(page, { batch, session });
   await page.goto("/#/candidates?sourceId=" + source.id);
   await expect(page.locator(".candidate-card")).toHaveCount(100);
   await page.getByLabel("选择本页").check();
@@ -353,6 +454,10 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
     .click();
   const d = page.getByRole("dialog", { name: "批量生成TM · 100件" });
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
+  await d
+    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .check();
+  await d.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
   await d.getByRole("button", { name: "确认生成TM" }).click();
   await expect(d).not.toBeVisible({ timeout: 45000 });
   await expect(page.locator(".candidate-card")).toHaveCount(1, {
@@ -369,10 +474,12 @@ test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民
   page,
 }) => {
   const x = await setupAgentOrder(page);
+  await sealAgentBatch(page, x);
   await api(page, "/ingest/candidates/bulk-confirm", {
     ids: x.imported.rows.map((r) => r.id),
     possession: "IN_HAND",
     status: "AVAILABLE",
+    ...incompleteAcknowledgements(x.imported.rows, "已核对合成来源缺项"),
   });
   await page.goto("/#/procurement/" + x.order.id);
   await expect(
@@ -420,8 +527,10 @@ test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民
 
 test("Credit退款明细校验后一次算净额，重开保留明细与固定汇率", async ({ page }) => {
   const x = await setupAgentOrder(page);
+  await sealAgentBatch(page, x);
   await api(page, "/ingest/candidates/bulk-confirm", {
     ids: x.imported.rows.map(r => r.id), possession: "IN_HAND", status: "AVAILABLE",
+    ...incompleteAcknowledgements(x.imported.rows, "已核对合成来源缺项"),
   });
   await page.goto("/#/procurement/" + x.order.id);
   await page.getByRole("button", { name: "确认订单成本依据", exact: true }).click();
@@ -558,15 +667,18 @@ test("v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同
   };
   const first = await setupAgentOrder(page), a = first.imported.rows[0];
   await upload(first.session.token, a.id, "same-a");
+  await sealAgentBatch(page, first);
   const created = await api(page, `/ingest/candidates/${a.id}/confirm`, {
     version: a.version,
     possession: "IN_HAND",
     status: "AVAILABLE",
     duplicateOverride: false,
+    acceptIncomplete: true,
     note: "浏览器测试第一来源建档",
   });
   const second = await setupAgentOrder(page), b = second.imported.rows[0];
   await upload(second.session.token, b.id, "same-b");
+  await sealAgentBatch(page, second);
   await page.goto("/#/candidates?sourceId=" + second.source.id);
   const card = page.locator(".candidate-card").filter({ hasText: "WDI571039" });
   await expect(card).toContainText("疑似同一实物");
@@ -645,8 +757,10 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
   const suffix=randomUUID().slice(0,8).toUpperCase();
   const source=await api(page,'/procurement/sources',{code:'CP'+suffix,name:'跨页测试 '+suffix,kind:'OFFLINE',defaultCurrency:'CNY'});
   const session=await api(page,'/ingest/sessions',{procurementSourceId:source.id,label:'跨页合成',ttlMinutes:60});
-  const batch=await machine(page,'/agent-ingest/batches',session.token,{externalBatchKey:'cross-'+suffix,agentName:'Synthetic',rawManifest:{synthetic:true}});
-  const imported=await machine(page,`/agent-ingest/batches/${batch.id}/candidates`,session.token,{candidates:Array.from({length:101},(_,n)=>({externalKey:`CP:${suffix}:${n}`,titleRaw:`跨页合成商品${n}`,sourceFacts:{},rawPayload:{synthetic:true}}))});
+  const batch=await machine(page,'/agent-ingest/batches',session.token,{externalBatchKey:'cross-'+suffix,agentName:'Synthetic',rawManifest:standardManifest({synthetic:true})});
+  const candidates=Array.from({length:101},(_,n)=>standardizeGenericCandidate({externalKey:`CP:${suffix}:${n}`,titleRaw:`跨页合成商品${n}`,sourceFacts:{},rawPayload:{synthetic:true}}));
+  const imported=await machine(page,`/agent-ingest/batches/${batch.id}/candidates`,session.token,{candidates});
+  await sealAgentBatch(page,{batch,session});
   await page.goto('/#/candidates?sourceId='+source.id);
   await page.getByLabel('选择本页').check();
   await page.locator('#candidate-filter input[name=q]').fill('不存在的合成查询');
@@ -673,6 +787,8 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
   await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   const d=page.getByRole('dialog',{name:'批量生成TM · 101件'});
   await d.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
+  await d.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
+  await d.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
   await d.getByRole('button',{name:'确认生成TM',exact:true}).click();
   await expect(d.locator('.form-error')).toContainText('网络中断',{timeout:45000});
   const interim=await (await page.request.get(`/api/ingest/candidates?sourceId=${source.id}&decision=CONFIRMED`)).json();
@@ -693,7 +809,7 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
     const width=1800+n,height=2200+n,buffer=await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="${n?'#abc':'#cab'}"/><text x="100" y="200">${marker}-${n}</text></svg>`)).png().toBuffer();
     files.push({buffer,width,height,sha256:createHash('sha256').update(buffer).digest('hex'),sourceUrl:`https://example.invalid/original-${n}.png`,quality:'ORIGINAL'});
   }
-  const input={...x.candidates[0],sourceFacts:{...x.candidates[0].sourceFacts,description:'合成来源完整描述，原文保留',material:'100% Silk',measurements:{Bust:'37 in',Length:'44.5 in'},capture:{pageUrl:'https://example.invalid/item',capturedAt:'2026-09-14T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'商品描述',status:'CAPTURED'}],images:files.map(({buffer,...rest})=>rest)}}};
+  const input=standardizeGenericCandidate({...x.candidates[0],sourceFacts:{...x.candidates[0].sourceFacts,description:'合成来源完整描述，原文保留',material:'100% Silk',measurements:{Bust:'37 in',Length:'44.5 in'},capture:{pageUrl:'https://example.invalid/item',capturedAt:'2026-09-14T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'商品描述',status:'CAPTURED'}],images:files.map(({buffer,...rest})=>rest)}}});
   const updated=await machine(page,`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,{candidates:[input]});
   for(const f of files) {
     const r=await page.request.post(`/api/agent-ingest/candidates/${first.id}/assets`,{headers:{'X-Ingest-Token':x.session.token,'Idempotency-Key':randomUUID()},multipart:{sourceUrl:f.sourceUrl,file:{name:'original.png',mimeType:'image/png',buffer:f.buffer}}});expect(r.ok(),await r.text()).toBeTruthy();
@@ -740,11 +856,14 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
 
 test('批量部分失败显示逐件原因，成功移除而失败保留供重新核对',async({page})=>{
   const x=await setupAgentOrder(page),first=x.imported.rows[0],second=x.imported.rows[1];
+  await sealAgentBatch(page,x);
   await page.goto('/#/candidates?sourceId='+x.source.id);
   await page.locator(`[data-pick="${first.id}"]`).check();await page.locator(`[data-pick="${second.id}"]`).check();
   await api(page,`/ingest/candidates/${first.id}/review`,{version:first.version,possession:'UNKNOWN',title:'并发核对后的名称',note:'合成并发变更'});
   await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
+  await page.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
+  await page.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
   await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
   const result=page.getByRole('dialog',{name:'批量处理结果'});
   await expect(result).toContainText('1件成功，1件需要处理');await expect(result).toContainText('修改');
@@ -754,6 +873,8 @@ test('批量部分失败显示逐件原因，成功移除而失败保留供重�
   await page.locator(`[data-pick="${first.id}"]`).uncheck();await page.locator(`[data-pick="${first.id}"]`).check();
   await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
+  await page.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
+  await page.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
   await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   const confirmed=await (await page.request.get(`/api/ingest/candidates?sourceId=${x.source.id}&decision=CONFIRMED`)).json();expect(confirmed.total).toBe(2);
@@ -762,12 +883,14 @@ test('批量部分失败显示逐件原因，成功移除而失败保留供重�
 
 test('单件建档清除该件批量勾选并保留其他候选',async({page})=>{
   const x=await setupAgentOrder(page),first=x.imported.rows[0],second=x.imported.rows[1];
+  await sealAgentBatch(page,x);
   await page.goto('/#/candidates?sourceId='+x.source.id);
   await page.locator(`[data-pick="${first.id}"]`).check();
   await page.locator(`[data-pick="${second.id}"]`).check();
   await page.locator(`[data-candidate="${first.id}"]`).getByRole('button',{name:'单件处理',exact:true}).click();
   await page.getByRole('button',{name:'确认这是另一件并新建TM',exact:true}).click();
   await page.getByLabel('我已确认实物在手并应纳入经营').check();
+  await page.getByLabel('我已核对来源缺项，接受先建档后补充').check();
   await page.getByRole('button',{name:'确认生成新TM',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(page.locator(`[data-candidate="${first.id}"]`)).toHaveCount(0);
@@ -778,9 +901,10 @@ test('单件建档清除该件批量勾选并保留其他候选',async({page})=>
 test('来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典', async ({page}) => {
   const x=await setupAgentOrder(page), first=x.imported.rows[0];
   const brand='合成未入字典品牌-'+randomUUID();
-  const input={...x.candidates[0],brandRaw:brand,conditionRaw:'Excellent',sourceFacts:{...x.candidates[0].sourceFacts,conditionDescription:'Minor wear <not-a-tag> at cuff'}};
+  const input=standardizeGenericCandidate({...x.candidates[0],brandRaw:brand,conditionRaw:'Excellent',sourceFacts:{...x.candidates[0].sourceFacts,conditionDescription:'Minor wear <not-a-tag> at cuff'}});
   const updated=await machine(page,`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,{candidates:[input]});
-  const confirmed=await api(page,`/ingest/candidates/${first.id}/confirm`,{version:updated.rows[0].version,possession:'IN_HAND',note:'合成来源字段可见性核对'});
+  await sealAgentBatch(page,x);
+  const confirmed=await api(page,`/ingest/candidates/${first.id}/confirm`,{version:updated.rows[0].version,possession:'IN_HAND',acceptIncomplete:true,note:'合成来源字段可见性核对'});
   const getItem=async()=> (await page.request.get('/api/items/'+confirmed.itemId)).json();
   const original=await getItem();
   expect(original.brand).toBe('');

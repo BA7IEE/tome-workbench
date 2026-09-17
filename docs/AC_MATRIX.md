@@ -303,6 +303,15 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 
 `test/integration.test.cjs` 新增标准协议/Profile 降级拒绝、HTTP 与 MCP 黄金夹具等价、CLI 重启重用幂等状态且无 Token 的真实 PostgreSQL 场景。它们使用 `tome_test` 合成来源，不证明任何第三方网页、账号或真实订单已经接入。
 
+### v1.2 新机器 Batch 强制化
+
+`test/integration.test.cjs` 继续用真实隔离 PostgreSQL 验证：新 HTTP 和 MCP Batch
+缺少 protocolVersion/skillVersion/profile 时都返回 400；历史数据库中已存在、同来源同批次键
+且同清单的旧 Batch 仍可读取和幂等重试；Profile 服务端必查字段依旧与 Agent 声明取并集。
+MCP 回归分别用 `X-Ingest-Token` 与同一 Token 的 Bearer 头完成 initialize/tools/list/工具调用，
+覆盖 Codex、WorkBuddy 一类桌面 MCP 客户端的两种认证接法，但只使用合成 `tome_test` 资料，
+不宣称已经连接或验收任何外部 Agent 应用。
+
 ## v1.1 Distribution Foundation
 
 本增量把既有分发表收敛为标准资料交付与轻量经营记录，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保留 PUBLISH/UPDATE/DELIST 和内部状态，但默认 UI 显示待交付、已交付、已确认完成、需要处理、需要核对、已取消；Token/领取/租约只保留为高级兼容接口。`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。
