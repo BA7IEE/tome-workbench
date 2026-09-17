@@ -17,7 +17,7 @@ function confirmPlan(items: Item[], channel: Channel, rows: ReadinessRow[]) {
   form(
     "确认批量分发计划",
     note(
-      `目标为 ${channel.name}：${ready.length} 件可生成冻结使用包并计划发布，${blocked.length} 件暂时阻断。不会调用外部平台；执行仍由分发 Agent 或人工回执完成。`,
+      `目标为 ${channel.name}：${ready.length} 件可生成冻结使用包并准备交付，${blocked.length} 件暂时阻断。系统会根据该渠道已有资料自动判断首次发布、更新或无需重复交付；不会调用外部平台。`,
     ) +
       `<ul>${blocked
         .map((row) => {
@@ -50,7 +50,7 @@ function confirmPlan(items: Item[], channel: Channel, rows: ReadinessRow[]) {
                   return request(
                     "/distribution/plan",
                     "POST",
-                    { packageId: pack.id, action: "PUBLISH" },
+                    { packageId: pack.id },
                     `${key}.plan`,
                   );
                 },
@@ -73,7 +73,7 @@ export async function bulkDistributionPlan(items: Item[]) {
   form(
     "批量生成分发计划",
     note(
-      "先按目标渠道逐件执行统一 Readiness；通过的商品才会生成冻结使用包和 PUBLISH Attempt。图片、价格、批准资料与库存都会在提交时再校验。",
+      "先按目标渠道逐件执行统一 Readiness；通过的商品才会生成冻结使用包和分发记录。图片、价格、批准资料与库存都会在提交时再校验，平台操作仍由外部 Agent、脚本或人工完成。",
     ) +
       select(
         "channelId",

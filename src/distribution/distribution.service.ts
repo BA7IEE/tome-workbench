@@ -66,7 +66,6 @@ const sessionInput = z
 const planInput = z
   .object({
     packageId: uuid,
-    action: z.enum(["PUBLISH", "UPDATE"]).default("PUBLISH"),
   })
   .strict();
 const listingReceiptInput = z
@@ -79,6 +78,33 @@ const listingReceiptInput = z
 
 type AgentSession = DistributionRequest["distributionSession"];
 type ResultInput = z.infer<typeof resultInput>;
+
+/**
+ * Compare the frozen business content rather than a UsePackage UUID. A new
+ * package can legitimately have a new id while carrying exactly the same
+ * handoff material, so its id and timestamps deliberately stay out of this
+ * fingerprint.
+ */
+export function distributionPackageFingerprint(snapshot: unknown) {
+  const value = packageSnapshot.parse(snapshot);
+  return hash({
+    title: value.title,
+    body: value.body,
+    price: value.price,
+    currency: value.currency,
+    purpose: value.purpose,
+    assets: [...value.assets]
+      .sort(
+        (left, right) =>
+          left.position - right.position || left.id.localeCompare(right.id),
+      )
+      .map((asset) => ({
+        id: asset.id,
+        sha256: asset.sha256,
+        position: asset.position,
+      })),
+  });
+}
 
 function resultCode(error: unknown) {
   if (error instanceof Fault) {
@@ -153,7 +179,11 @@ function checkedResult(raw: unknown): ResultInput {
       "失败或结果未知必须提供可读的原因代码与说明",
       400,
     );
-  return parsed;
+  // A confirmed success must not retain an old UNKNOWN/FAILED explanation.
+  // Keeping it would make the business record contradict its final state.
+  return parsed.state === "SUCCEEDED"
+    ? { ...parsed, errorCode: "", errorMessage: "" }
+    : parsed;
 }
 
 function sameResult(
@@ -401,6 +431,97 @@ export class DistributionService {
     );
   }
 
+  private async planDecision(tx: Tx, packageId: string) {
+    const { p, s } = await this.publishing.validPackage(tx, packageId);
+    if (p.purpose === "CUSTOMER_CARD")
+      throw new Fault("CARD_NOT_LISTING", "客户资料卡不能作为交易发布", 400);
+
+    // An outstanding handoff must be resolved before this account receives a
+    // second external publish. It applies even when a newer package was made.
+    const active = await tx.distributionAttempt.findFirst({
+      where: {
+        itemId: p.itemId,
+        channelId: p.channelId,
+        action: { in: ["PUBLISH", "UPDATE"] },
+        state: { in: ["PENDING", "RUNNING", "UNKNOWN"] },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    if (active)
+      return {
+        p,
+        existing: active,
+        action: active.action,
+        reason: "OUTSTANDING_HANDOFF" as const,
+      };
+
+    const published = await tx.distributionAttempt.findFirst({
+      where: {
+        itemId: p.itemId,
+        channelId: p.channelId,
+        action: { in: ["PUBLISH", "UPDATE"] },
+        state: "SUCCEEDED",
+      },
+      include: { package: { select: { snapshot: true } } },
+      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    const completedDelist = await tx.distributionAttempt.findFirst({
+      where: {
+        itemId: p.itemId,
+        channelId: p.channelId,
+        action: "DELIST",
+        state: "SUCCEEDED",
+      },
+      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    const publishedAt = published?.finishedAt || published?.createdAt || null;
+    const delistedAfterPublish =
+      !!completedDelist &&
+      (!publishedAt ||
+        (completedDelist.finishedAt || completedDelist.createdAt) >
+          publishedAt);
+
+    if (
+      published?.package?.snapshot &&
+      !delistedAfterPublish &&
+      distributionPackageFingerprint(published.package.snapshot) ===
+        distributionPackageFingerprint(s)
+    )
+      return {
+        p,
+        existing: published,
+        action: "NOOP" as const,
+        reason: "UNCHANGED_PACKAGE" as const,
+      };
+
+    const action = published && !delistedAfterPublish ? "UPDATE" : "PUBLISH";
+    const dedupeKey = [
+      action.toLowerCase(),
+      p.itemId,
+      p.channelId,
+      p.id,
+      ...(delistedAfterPublish && completedDelist
+        ? ["after", completedDelist.id]
+        : []),
+    ].join(":");
+    const exact = await tx.distributionAttempt.findUnique({
+      where: { dedupeKey },
+    });
+    if (exact)
+      return {
+        p,
+        existing: exact,
+        action: exact.action,
+        reason: "SAME_PACKAGE" as const,
+      };
+    return {
+      p,
+      action,
+      dedupeKey,
+      fingerprint: distributionPackageFingerprint(s),
+    };
+  }
+
   plan(actor: Actor, key: unknown, raw: unknown) {
     const input = planInput.parse(raw);
     return this.commands.run(
@@ -415,55 +536,76 @@ export class DistributionService {
         });
         if (!packageRow) throw new Fault("NOT_FOUND", "使用包不存在", 404);
         await itemLock(tx, packageRow.itemId);
-        const { p } = await this.publishing.validPackage(tx, input.packageId);
-        if (p.purpose === "CUSTOMER_CARD")
-          throw new Fault(
-            "CARD_NOT_LISTING",
-            "客户资料卡不能作为交易发布",
-            400,
-          );
-        const dedupeKey = `${input.action.toLowerCase()}:${p.itemId}:${p.channelId}:${p.id}`;
-        const prior = await tx.distributionAttempt.findUnique({
-          where: { dedupeKey },
-        });
-        if (prior) return { id: prior.id, state: prior.state, existing: true };
+        const decision = await this.planDecision(tx, input.packageId);
+        if (decision.existing)
+          return {
+            id: decision.existing.id,
+            state: decision.existing.state,
+            action: decision.action,
+            existing: true,
+            ...(decision.reason === "UNCHANGED_PACKAGE" ? { noop: true } : {}),
+          };
         const row = await tx.distributionAttempt.create({
           data: {
-            itemId: p.itemId,
-            channelId: p.channelId,
-            packageId: p.id,
-            action: input.action,
-            dedupeKey,
+            itemId: decision.p.itemId,
+            channelId: decision.p.channelId,
+            packageId: decision.p.id,
+            action: decision.action,
+            dedupeKey: decision.dedupeKey,
             createdBy: actor.id,
           },
         });
-        await audit(tx, actor.id, "DISTRIBUTION_ATTEMPT_PLANNED", p.itemId, {
+        await audit(
+          tx,
+          actor.id,
+          "DISTRIBUTION_ATTEMPT_PLANNED",
+          decision.p.itemId,
+          {
+            attemptId: row.id,
+            action: row.action,
+            channelId: row.channelId,
+            packageId: row.packageId,
+            packageFingerprint: decision.fingerprint,
+            automaticAction: true,
+          },
+        );
+        await event(tx, decision.p.itemId, "DISTRIBUTION_ATTEMPT_PLANNED", {
           attemptId: row.id,
-          action: row.action,
-          channelId: row.channelId,
-          packageId: row.packageId,
-        });
-        await event(tx, p.itemId, "DISTRIBUTION_ATTEMPT_PLANNED", {
-          attemptId: row.id,
           channelId: row.channelId,
           action: row.action,
         });
-        return { id: row.id, state: row.state, existing: false };
+        return {
+          id: row.id,
+          state: row.state,
+          action: row.action,
+          existing: false,
+        };
       },
     );
   }
 
   async summary(channelId?: string) {
-    const grouped = await this.db.distributionAttempt.groupBy({
-      by: ["channelId", "state"],
-      where: channelId ? { channelId } : undefined,
-      _count: { _all: true },
-    });
-    const channels = await this.db.channel.findMany({
-      where: channelId ? { id: channelId } : undefined,
-      select: { id: true, name: true, platform: true, active: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const [grouped, pendingStops, channels] = await Promise.all([
+      this.db.distributionAttempt.groupBy({
+        by: ["channelId", "state"],
+        where: channelId ? { channelId } : undefined,
+        _count: { _all: true },
+      }),
+      this.db.distributionAttempt.groupBy({
+        by: ["channelId"],
+        where: {
+          ...(channelId ? { channelId } : {}),
+          action: "DELIST",
+          state: { notIn: ["SUCCEEDED", "CANCELLED"] },
+        },
+        _count: { _all: true },
+      }),
+      this.db.channel.findMany({
+        where: channelId ? { id: channelId } : undefined,
+        select: { id: true, name: true, platform: true, active: true },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
     return channels.map((channel) => ({
       channel,
       counts: Object.fromEntries(
@@ -471,6 +613,9 @@ export class DistributionService {
           .filter((row) => row.channelId === channel.id)
           .map((row) => [row.state, row._count._all]),
       ),
+      needsStop:
+        pendingStops.find((row) => row.channelId === channel.id)?._count._all ||
+        0,
     }));
   }
 
@@ -510,10 +655,7 @@ export class DistributionService {
         remoteUrl: true,
         errorCode: true,
         errorMessage: true,
-        attemptCount: true,
-        leaseUntil: true,
         createdAt: true,
-        startedAt: true,
         finishedAt: true,
         channel: { select: { id: true, name: true, platform: true } },
         item: { select: { id: true, serial: true, title: true, status: true } },
@@ -834,11 +976,36 @@ export class DistributionService {
         const attempt = await tx.distributionAttempt.findUniqueOrThrow({
           where: { id },
         });
-        if (
-          ["SUCCEEDED", "FAILED", "UNKNOWN", "CANCELLED"].includes(
-            attempt.state,
-          )
-        ) {
+        if (attempt.state === "UNKNOWN") {
+          if (!["SUCCEEDED", "FAILED"].includes(result.state))
+            throw new Fault(
+              "RECONCILIATION_RESULT_REQUIRED",
+              "结果未知只能在原分发记录上核对为已确认完成或需要处理",
+              409,
+            );
+          if (!result.evidence)
+            throw new Fault(
+              "RECONCILIATION_EVIDENCE_REQUIRED",
+              "结果未知的人工核对必须填写核对依据",
+              400,
+            );
+          const finished = await this.finish(
+            tx,
+            attempt,
+            result,
+            actor.id,
+            "MANUAL_RECONCILIATION",
+            false,
+          );
+          await audit(tx, actor.id, "DISTRIBUTION_RECONCILED", attempt.itemId, {
+            attemptId: attempt.id,
+            priorState: "UNKNOWN",
+            state: finished.state,
+            evidence: result.evidence,
+          });
+          return { ...finished, reconciled: true };
+        }
+        if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(attempt.state)) {
           if (sameResult(attempt, result))
             return { id: attempt.id, state: attempt.state, existing: true };
           throw new Fault(
@@ -875,7 +1042,7 @@ export class DistributionService {
     if (/^MANUAL:/i.test(input.remoteId))
       throw new Fault(
         "FAKE_REMOTE_ID_DENIED",
-        "不能用 MANUAL:TM 伪造远端身份；没有稳定ID时请走分发执行结果",
+        "不能用 MANUAL:TM 伪造远端身份；没有稳定ID时请更新分发记录结果",
         400,
       );
     noCredentialText(input.remoteId, "远端编号");
@@ -892,23 +1059,27 @@ export class DistributionService {
         });
         if (!packageRow) throw new Fault("NOT_FOUND", "使用包不存在", 404);
         await itemLock(tx, packageRow.itemId);
-        const { p } = await this.publishing.validPackage(tx, input.packageId);
-        if (p.purpose === "CUSTOMER_CARD")
+        const decision = await this.planDecision(tx, input.packageId);
+        if (
+          decision.existing &&
+          decision.reason === "OUTSTANDING_HANDOFF" &&
+          decision.existing.packageId !== decision.p.id
+        )
           throw new Fault(
-            "CARD_NOT_LISTING",
-            "客户资料卡不能作为交易上架记录",
-            400,
+            "HANDOFF_RESOLUTION_REQUIRED",
+            "该渠道已有待核对或待交付的原分发记录；请先在原记录登记结果，不能用新使用包绕过",
+            409,
           );
-        const dedupeKey = `publish:${p.itemId}:${p.channelId}:${p.id}`;
+        const p = decision.p;
         const attempt =
-          (await tx.distributionAttempt.findUnique({ where: { dedupeKey } })) ||
+          decision.existing ||
           (await tx.distributionAttempt.create({
             data: {
               itemId: p.itemId,
               channelId: p.channelId,
               packageId: p.id,
-              action: "PUBLISH",
-              dedupeKey,
+              action: decision.action,
+              dedupeKey: decision.dedupeKey,
               createdBy: actor.id,
             },
           }));

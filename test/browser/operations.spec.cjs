@@ -51,6 +51,51 @@ async function image(name = "front.png") {
       .toBuffer(),
   };
 }
+async function distributionReady(page, title) {
+  const item = await api(page, "/items", {
+    title,
+    category: "BAG",
+    brand: "SYNTHETIC",
+    currentPrice: 280000,
+    currency: "CNY",
+    facts: {
+      material: "合成羊毛",
+      condition: "合成资料中的轻微使用痕迹",
+      measurements: "肩宽40cm，衣长60cm",
+      measurementSource: "合成测量依据",
+      descriptionZh: "用于分发中心交互验收的合成商品。",
+      descriptionEn: "Synthetic item for handoff UI acceptance.",
+      authentication: { status: "PASSED", evidence: "合成复核依据" },
+    },
+  });
+  const auth = await (await page.request.get("/api/auth/me")).json();
+  const uploaded = await page.request.fetch("/api/assets/upload", {
+    method: "POST",
+    headers: {
+      Origin: new URL(page.url()).origin,
+      "X-CSRF-Token": auth.csrf,
+      "Idempotency-Key": randomUUID(),
+    },
+    multipart: {
+      itemId: item.id,
+      role: "PRODUCT",
+      origin: "OWN",
+      sourceNote: "分发中心合成交互图片",
+      file: await image("handoff.png"),
+    },
+  });
+  expect(uploaded.ok()).toBeTruthy();
+  const asset = await uploaded.json();
+  await api(page, "/assets/" + asset.id + "/review", {
+    rights: "PUBLIC",
+    verified: true,
+    sourceNote: "合成图片已核对并可公开使用",
+    validUntil: null,
+    position: 0,
+  });
+  await api(page, "/items/" + item.id + "/approve", { version: 1 });
+  return item;
+}
 async function find(page, name) {
   return (
     await (
@@ -504,6 +549,64 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
     page.getByRole("heading", { name: "商品分发", exact: true }),
   ).toBeVisible();
   await expect(page.locator("table")).toContainText(title);
+});
+
+test("分发中心只展示交付语义，UNKNOWN 可在原记录上人工核对为失败", async ({
+  page,
+}) => {
+  const title = "分发核对 " + randomUUID().slice(0, 8);
+  const item = await distributionReady(page, title);
+  const channel = await api(page, "/channels", {
+    name: "分发交付验收 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  const pack = await api(page, `/items/${item.id}/packages`, {
+    channelId: channel.id,
+    purpose: "TRADE",
+    confirmed: true,
+  });
+  const attempt = await api(page, "/distribution/plan", { packageId: pack.id });
+  await api(page, `/distribution/attempts/${attempt.id}/manual-result`, {
+    state: "UNKNOWN",
+    errorCode: "SYNTHETIC_UNKNOWN",
+    errorMessage: "合成外部回执没有确认结果。",
+  });
+
+  await page.goto(`/#/distribution?attemptId=${attempt.id}`);
+  await expect(
+    page.getByRole("heading", { name: "商品分发", exact: true }),
+  ).toBeVisible();
+  const row = page.locator("table").filter({ hasText: title });
+  await expect(row).toContainText("需要核对");
+  await expect(row).toContainText("发布资料");
+  await expect(page.locator("main")).not.toContainText("租约");
+  await page.getByRole("button", { name: "核对结果", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("只更新这一条分发记录，不会重新发布");
+  await dialog.getByLabel("结果", { exact: true }).selectOption("FAILED");
+  await dialog
+    .getByLabel("核对依据", { exact: true })
+    .fill("已按永久 TM 在目标账号核对。 ");
+  await dialog
+    .getByLabel("失败代码（失败或未知时必填）", { exact: true })
+    .fill("NOT_FOUND_AFTER_RECONCILIATION");
+  await dialog
+    .getByLabel("失败详情（失败或未知时必填）", { exact: true })
+    .fill("目标渠道中未找到该 TM。");
+  await dialog
+    .getByRole("button", { name: "确认核对结果", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  const attempts = await (
+    await page.request.get(`/api/distribution/attempts?itemId=${item.id}`)
+  ).json();
+  expect(attempts).toHaveLength(1);
+  expect(attempts[0].id).toBe(attempt.id);
+  expect(attempts[0].state).toBe("FAILED");
 });
 
 test("询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进", async ({

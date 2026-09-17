@@ -268,7 +268,6 @@ after(async () => {
   await app?.close();
   await db.$disconnect();
 });
-
 test("HTTP: unauthorized read, bad origin and missing CSRF are rejected", async () => {
   assert.equal((await api("/items", "GET", undefined, null)).status, 401);
   assert.equal(
@@ -3625,6 +3624,154 @@ test("Distribution Foundation：UNKNOWN 必须复核原 Attempt，成功可无�
   );
 });
 
+test("Distribution handoff：人工核对与资料指纹防止重复交付", async () => {
+  const i = await ready();
+  const firstPack = await pack(i.id);
+  const first = await ok("/distribution/plan", "POST", {
+    packageId: firstPack.id,
+  });
+  assert.equal(first.action, "PUBLISH");
+
+  // A later frozen package cannot bypass an outstanding handoff for this
+  // account. The operator is sent back to the original record instead.
+  const whilePending = await pack(i.id);
+  const blocked = await ok("/distribution/plan", "POST", {
+    packageId: whilePending.id,
+  });
+  assert.equal(blocked.id, first.id);
+  assert.equal(blocked.existing, true);
+
+  await ok(`/distribution/attempts/${first.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成账号内可按永久 TM 找到商品。" },
+  });
+  const identical = await pack(i.id);
+  const noop = await ok("/distribution/plan", "POST", {
+    packageId: identical.id,
+  });
+  assert.equal(noop.id, first.id);
+  assert.equal(noop.action, "NOOP");
+  assert.equal(noop.noop, true);
+
+  await ok(`/items/${i.id}/channel-prices/${channel.id}`, "POST", {
+    amount: 201000,
+    currency: "CNY",
+  });
+  const changed = await pack(i.id);
+  const update = await ok("/distribution/plan", "POST", {
+    packageId: changed.id,
+  });
+  assert.equal(update.action, "UPDATE");
+  assert.notEqual(update.id, first.id);
+  await ok(`/distribution/attempts/${update.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成账号内已按新资料核对。" },
+  });
+  const unchangedUpdate = await pack(i.id);
+  const updateNoop = await ok("/distribution/plan", "POST", {
+    packageId: unchangedUpdate.id,
+  });
+  assert.equal(updateNoop.id, update.id);
+  assert.equal(updateNoop.action, "NOOP");
+
+  // This simulates the completed stop fact that the next PR will attach to a
+  // source publish generation. Planner behavior must already allow a fresh
+  // handoff after a confirmed stop.
+  await db.distributionAttempt.create({
+    data: {
+      itemId: i.id,
+      channelId: channel.id,
+      action: "DELIST",
+      state: "SUCCEEDED",
+      dedupeKey: "synthetic-stop:" + randomUUID(),
+      finishedAt: new Date(Date.now() + 1000),
+    },
+  });
+  const afterStop = await pack(i.id);
+  const republish = await ok("/distribution/plan", "POST", {
+    packageId: afterStop.id,
+  });
+  assert.equal(republish.action, "PUBLISH");
+  assert.notEqual(republish.id, first.id);
+
+  const successItem = await ready();
+  const unknownSuccess = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(successItem.id)).id,
+  });
+  await ok(
+    `/distribution/attempts/${unknownSuccess.id}/manual-result`,
+    "POST",
+    {
+      state: "UNKNOWN",
+      errorCode: "SYNTHETIC_UNKNOWN",
+      errorMessage: "合成回执未能确认结果。",
+    },
+  );
+  await ok(
+    `/distribution/attempts/${unknownSuccess.id}/manual-result`,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      evidence: {
+        method: "RECONCILIATION",
+        note: "人工按永久 TM 核对确认已发布。",
+      },
+      errorCode: "STALE_ERROR",
+      errorMessage: "不应保留",
+    },
+  );
+  const reconciledSuccess = await db.distributionAttempt.findUniqueOrThrow({
+    where: { id: unknownSuccess.id },
+  });
+  assert.equal(reconciledSuccess.state, "SUCCEEDED");
+  assert.equal(reconciledSuccess.errorCode, "");
+  assert.equal(reconciledSuccess.errorMessage, "");
+
+  const failureItem = await ready();
+  const unknownFailure = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(failureItem.id)).id,
+  });
+  await ok(
+    `/distribution/attempts/${unknownFailure.id}/manual-result`,
+    "POST",
+    {
+      state: "UNKNOWN",
+      errorCode: "SYNTHETIC_UNKNOWN",
+      errorMessage: "合成回执未能确认结果。",
+    },
+  );
+  await ok(
+    `/distribution/attempts/${unknownFailure.id}/manual-result`,
+    "POST",
+    {
+      state: "FAILED",
+      evidence: {
+        method: "RECONCILIATION",
+        note: "人工按永久 TM 核对确认未发布。",
+      },
+      errorCode: "NOT_FOUND_AFTER_RECONCILIATION",
+      errorMessage: "目标渠道中未找到该 TM。",
+    },
+  );
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({
+        where: { id: unknownFailure.id },
+      })
+    ).state,
+    "FAILED",
+  );
+  assert.equal(
+    await db.audit.count({
+      where: {
+        action: "DISTRIBUTION_RECONCILED",
+        resourceId: { in: [successItem.id, failureItem.id] },
+      },
+    }),
+    2,
+  );
+});
+
 test("Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号快照均不伪造历史", async () => {
   const i = await ready(), p = await pack(i.id);
   const attempt = await ok("/distribution/plan", "POST", { packageId: p.id });
@@ -4072,10 +4219,15 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
     where: { channelId_remoteId: { channelId: anqicms.id, remoteId: archiveId } },
   });
   assert.equal(createdListing.itemId, i.id);
-  const update = await ok("/distribution/plan", "POST", {
-    packageId: p.id,
-    action: "UPDATE",
+  await ok("/items/" + i.id + "/channel-prices/" + anqicms.id, "POST", {
+    amount: 139000,
+    currency: "USD",
   });
+  const updatePack = await pack(i.id, anqicms);
+  const update = await ok("/distribution/plan", "POST", {
+    packageId: updatePack.id,
+  });
+  assert.equal(update.action, "UPDATE");
   await distributionAgentOk(
     "/distribution-agent/attempts/" + update.id + "/claim",
     session.token,

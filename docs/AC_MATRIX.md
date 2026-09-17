@@ -305,11 +305,11 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 
 ## v1.1 Distribution Foundation
 
-本增量只把分发执行事实与受限 Agent 面落入数据库，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保存 PUBLISH/UPDATE 等执行状态、租约、重试和核对依据；`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。
+本增量把既有分发表收敛为标准资料交付与轻量经营记录，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保留 PUBLISH/UPDATE/DELIST 和内部状态，但默认 UI 显示待交付、已交付、已确认完成、需要处理、需要核对、已取消；Token/领取/租约只保留为高级兼容接口。`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。
 
-`test/integration.test.cjs` 的 Distribution Foundation 场景使用 `tome_test` 合成包，覆盖 Token 仅存哈希且不能访问正常写接口、渠道隔离、同包计划去重、并发领取/租约过期、FAILED 复用原 Attempt、UNKNOWN 原记录核对、稳定 ID 冲突拒绝、无 ID 成功不创建 Listing，以及 Sale/Inquiry 的渠道快照。它不证明任何真实账号、页面、远端 archive ID、渠道价格生效或经营成交。
+`test/integration.test.cjs` 的 Distribution Foundation 场景使用 `tome_test` 合成包，覆盖 Token 仅存哈希且不能访问正常写接口、渠道隔离、FAILED 复用原记录、UNKNOWN 在原记录附依据人工核对、成功核对会清除过期错误、稳定 ID 冲突拒绝、无 ID 成功不创建 Listing，以及冻结资料指纹驱动的 PUBLISH/UPDATE/NOOP 与停售后重新交付。`test/browser/operations.spec.cjs` 在 Chromium/WebKit 用真实登录、真实图片上传和点击覆盖分发中心的交付语义与 UNKNOWN→FAILED 原记录核对。它们不证明任何真实账号、页面、远端 archive ID、渠道价格生效或经营成交。
 
-ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基础上由后续 Real Operations 接入；本节只证明 Foundation 的分发事实和受限 Agent 面。历史 migration 保持封印，新 migration 单独校验。
+ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基础上由后续 Real Operations 接入；本节只证明资料交付记录与受限高级接口。历史 migration 保持封印，新 migration 单独校验。
 
 ## v1.1 Real Operations
 
