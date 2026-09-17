@@ -2805,6 +2805,127 @@
         ]
       }
     },
+    "/api/distribution/operations": {
+      "get": {
+        "operationId": "DistributionController_operations",
+        "parameters": [
+          {
+            "name": "attemptId",
+            "required": false,
+            "in": "query",
+            "description": "定位一条原分发记录；会锁定其商品与渠道",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "按永久 TM、商品名称或品牌搜索",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "brand",
+            "required": false,
+            "in": "query",
+            "description": "按品牌文本筛选",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "description": "经营视图范围，默认 all",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "unpublished",
+                "ready",
+                "blocked",
+                "pending",
+                "handed-off",
+                "published",
+                "needs-update",
+                "attention",
+                "needs-stop",
+                "cancelled"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "按单一经营状态筛选，不能与 scope 同时传入",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "READY",
+                "BLOCKED",
+                "PENDING",
+                "HANDED_OFF",
+                "PUBLISHED",
+                "NEEDS_UPDATE",
+                "ATTENTION",
+                "NEEDS_STOP",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "channelId",
+            "required": false,
+            "in": "query",
+            "description": "按渠道账号筛选",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "size",
+            "required": false,
+            "in": "query",
+            "description": "每页项目数，1—100",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，最小为 1",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品分发"
+        ]
+      }
+    },
     "/api/distribution/attempts": {
       "get": {
         "operationId": "DistributionController_attempts",
