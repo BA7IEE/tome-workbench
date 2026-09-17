@@ -1,6 +1,6 @@
-# Distribution Foundation · 1.1.0-rc.2
+# Distribution Foundation 与 Real Operations · 1.1.0-rc.3
 
-这是“标准 Agent 采集 + 批量商品分发”中的第二个独立切片。它只建立分发执行事实和受限执行面；不连接任何真实第三方，不自动发布、改价、下架或改变库存。
+这是“标准 Agent 采集 + 批量商品分发”的执行地基和首批运营动作。它不连接任何真实第三方，不自动调用第三方发布、换汇、下架或改变库存；人工或受限 Agent 的结果仍必须回填本系统。
 
 ## 事实边界
 
@@ -8,7 +8,7 @@
 
 只有回传稳定 `remoteId` 时才建立或更新 `Listing`。APP/UI 渠道拿不到稳定 ID 的成功结果合法，系统保存成功 Attempt，并以标题中的永久 TM 为后续核对和下架 locator。严禁使用 `MANUAL:TM...` 等伪远端 ID。
 
-`ChannelPrice` 已作为独立渠道报价事实新增；当前切片只保存其结构，尚未把它接入 Readiness、Package 或 PublishingService。现有 `Item.currentPrice/currency` 的回退逻辑不变，effective channel price 属于 Real Operations 切片，不能提前把表存在当作报价已生效。
+`ChannelPrice` 是账号维度的明确报价。启用的覆盖值优先于 `Item.currentPrice/currency`，未启用时才回退默认报价；不会实时换汇或改写 Item。Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验均使用同一 effective price。草稿和包记录来源/版本，因此改价、改回默认价或以后恢复覆盖都会让旧资料重新核验。
 
 ## 受限 Agent 面
 
@@ -35,12 +35,15 @@
 
 普通“登记 Listing 回执”仍可用于已有稳定远端 ID 的手工路径，并保持旧的幂等、审计和旧下架待办收敛行为。
 
+## 运营闭环
+
+询盘页面不再允许把 WON 当作普通状态。确认成交在一个事务中检查 Inquiry 版本、Item 可售状态和预留，创建带 Inquiry/Channel 历史快照的 Sale，停止销售、更新 Inquiry 为 WON，并给本周期已有成功 PUBLISH/UPDATE 的渠道创建去重 DELIST Attempt。APP 没有 Listing 也不例外：受限 Agent 领取无包 DELIST 后按标题永久 TM 定位并回填真实结果。
+
+商品库的批量确认资料先预检，再逐件调用已有 approve 命令；批量渠道价与批量分发计划也逐件调用已有写入命令。分发中心只展示渠道统计和 Attempt，FAILED 可以复用原 Attempt，UNKNOWN 必须先核对，不能从页面直接调用任何第三方。
+
 ## 明确未做
 
-- ChannelPrice 的有效价解析、Readiness/Package 使用渠道价格和批量调价；
-- Inquiry → Sale → Item SOLD 原子转化；
-- 售出后由成功 Attempt 自动计划 DELIST；
-- Distribution Center UI、真实平台连接器、AnQiCMS 接口和 archive ID 实测；
-- 自动化登录 APP、第三方凭据托管、支付、订单或库存反写。
+- 真实平台连接器、自动登录 APP、AnQiCMS 接口和 archive ID 实测；
+- 第三方凭据托管、支付、订单或库存反写。
 
 这些项目必须在后续独立切片中用本地/脱敏测试先验证，真实账号或凭据不得进入源码、测试、日志、配置样例或数据库明文字段。

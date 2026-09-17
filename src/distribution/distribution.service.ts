@@ -155,14 +155,17 @@ function checkedResult(raw: unknown): ResultInput {
   return parsed;
 }
 
-function sameResult(attempt: {
-  state: string;
-  remoteId: string;
-  remoteUrl: string;
-  evidence: unknown;
-  errorCode: string;
-  errorMessage: string;
-}, result: ResultInput) {
+function sameResult(
+  attempt: {
+    state: string;
+    remoteId: string;
+    remoteUrl: string;
+    evidence: unknown;
+    errorCode: string;
+    errorMessage: string;
+  },
+  result: ResultInput,
+) {
   return (
     attempt.state === result.state &&
     attempt.remoteId === result.remoteId &&
@@ -171,6 +174,58 @@ function sameResult(attempt: {
     attempt.errorMessage === result.errorMessage &&
     hash(attempt.evidence) === hash(result.evidence || {})
   );
+}
+
+// A successful APP publish can have no Listing because it has no stable remote
+// identity. Sale safety must therefore look at execution facts, not Listings.
+// The caller already holds the item lock and runs inside the Sale transaction.
+export async function planDelistsAfterSale(
+  tx: Tx,
+  actorId: string,
+  itemId: string,
+  cycle: number,
+) {
+  const published = await tx.distributionAttempt.findMany({
+    where: {
+      itemId,
+      action: { in: ["PUBLISH", "UPDATE"] },
+      state: "SUCCEEDED",
+      package: { is: { cycle } },
+    },
+    select: { channelId: true },
+    distinct: ["channelId"],
+  });
+  const planned: string[] = [];
+  for (const row of published) {
+    const dedupeKey = `delist:${itemId}:${row.channelId}:${cycle}`;
+    const current = await tx.distributionAttempt.findUnique({
+      where: { dedupeKey },
+    });
+    if (current) continue;
+    const attempt = await tx.distributionAttempt.create({
+      data: {
+        itemId,
+        channelId: row.channelId,
+        action: "DELIST",
+        dedupeKey,
+        createdBy: actorId,
+      },
+    });
+    planned.push(attempt.id);
+    await audit(tx, actorId, "DISTRIBUTION_ATTEMPT_PLANNED", itemId, {
+      attemptId: attempt.id,
+      action: attempt.action,
+      channelId: attempt.channelId,
+      reason: "ITEM_SOLD",
+    });
+    await event(tx, itemId, "DISTRIBUTION_ATTEMPT_PLANNED", {
+      attemptId: attempt.id,
+      action: attempt.action,
+      channelId: attempt.channelId,
+      reason: "ITEM_SOLD",
+    });
+  }
+  return planned;
 }
 
 @Injectable()
@@ -361,7 +416,11 @@ export class DistributionService {
         await itemLock(tx, packageRow.itemId);
         const { p } = await this.publishing.validPackage(tx, input.packageId);
         if (p.purpose === "CUSTOMER_CARD")
-          throw new Fault("CARD_NOT_LISTING", "客户资料卡不能作为交易发布", 400);
+          throw new Fault(
+            "CARD_NOT_LISTING",
+            "客户资料卡不能作为交易发布",
+            400,
+          );
         const dedupeKey = `${input.action.toLowerCase()}:${p.itemId}:${p.channelId}:${p.id}`;
         const prior = await tx.distributionAttempt.findUnique({
           where: { dedupeKey },
@@ -420,7 +479,14 @@ export class DistributionService {
         channelId: uuid.optional(),
         itemId: uuid.optional(),
         state: z
-          .enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "UNKNOWN", "CANCELLED"])
+          .enum([
+            "PENDING",
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+            "UNKNOWN",
+            "CANCELLED",
+          ])
           .optional(),
         take: z.coerce.number().int().min(1).max(200).default(100),
       })
@@ -475,7 +541,11 @@ export class DistributionService {
             409,
           );
         if (attempt.state !== "FAILED")
-          throw new Fault("RETRY_NOT_ALLOWED", "只有明确失败的执行记录可以重试", 409);
+          throw new Fault(
+            "RETRY_NOT_ALLOWED",
+            "只有明确失败的执行记录可以重试",
+            409,
+          );
         const row = await tx.distributionAttempt.update({
           where: { id },
           data: {
@@ -507,7 +577,11 @@ export class DistributionService {
     observed: string,
   ) {
     if (!attempt.packageId)
-      throw new Fault("LISTING_PACKAGE_REQUIRED", "稳定远端身份必须关联发布使用包", 409);
+      throw new Fault(
+        "LISTING_PACKAGE_REQUIRED",
+        "稳定远端身份必须关联发布使用包",
+        409,
+      );
     const prior = await tx.listing.findUnique({
       where: { channelId_remoteId: { channelId: attempt.channelId, remoteId } },
     });
@@ -563,6 +637,104 @@ export class DistributionService {
     return listing;
   }
 
+  private async recordDelist(
+    tx: Tx,
+    attempt: { itemId: string; channelId: string },
+    result: ResultInput,
+    actorId: string,
+    observed: string,
+  ) {
+    const offlineObserved =
+      observed === "AGENT_REPORTED_LIVE"
+        ? "AGENT_REPORTED_OFFLINE"
+        : observed === "MANUAL_REPORTED_LIVE"
+          ? "MANUAL_REPORTED_OFFLINE"
+          : observed;
+    let rows = await tx.listing.findMany({
+      where: result.remoteId
+        ? { channelId: attempt.channelId, remoteId: result.remoteId }
+        : { itemId: attempt.itemId, channelId: attempt.channelId },
+    });
+    if (rows.some((row) => row.itemId !== attempt.itemId))
+      throw new Fault(
+        "REMOTE_ID_ITEM_CONFLICT",
+        "该渠道远端身份已经关联另一件商品，不能将其登记为下架",
+        409,
+      );
+    // A platform may disclose a stable ID only while deleting an old APP
+    // listing. Preserve it when a historical publish package is available;
+    // otherwise the Attempt remains the complete execution fact.
+    if (!rows.length && result.remoteId) {
+      const source = await tx.distributionAttempt.findFirst({
+        where: {
+          itemId: attempt.itemId,
+          channelId: attempt.channelId,
+          action: { in: ["PUBLISH", "UPDATE"] },
+          state: "SUCCEEDED",
+          packageId: { not: null },
+        },
+        orderBy: [
+          { finishedAt: "desc" },
+          { createdAt: "desc" },
+          { id: "desc" },
+        ],
+      });
+      if (source?.packageId) {
+        const created = await tx.listing.create({
+          data: {
+            itemId: attempt.itemId,
+            channelId: attempt.channelId,
+            packageId: source.packageId,
+            remoteId: result.remoteId,
+            url: result.remoteUrl,
+            desired: "OFFLINE",
+            observed: offlineObserved,
+            observedAt: new Date(),
+          },
+        });
+        rows = [created];
+        await audit(
+          tx,
+          actorId,
+          "LISTING_REMOTE_ID_RECONCILED",
+          attempt.itemId,
+          {
+            listingId: created.id,
+            channelId: attempt.channelId,
+            sourceAttemptId: source.id,
+          },
+        );
+      }
+    }
+    const updated = [];
+    for (const row of rows) {
+      updated.push(
+        await tx.listing.update({
+          where: { id: row.id },
+          data: {
+            desired: "OFFLINE",
+            observed: offlineObserved,
+            observedAt: new Date(),
+            ...(result.remoteUrl ? { url: result.remoteUrl } : {}),
+          },
+        }),
+      );
+    }
+    if (updated.length)
+      await tx.task.updateMany({
+        where: {
+          listingId: { in: updated.map((row) => row.id) },
+          kind: "DELIST",
+          status: "OPEN",
+        },
+        data: {
+          status: "DONE",
+          note: "已由分发执行回执确认下架",
+        },
+      });
+    return updated[0] || null;
+  }
+
   private async finish(
     tx: Tx,
     attempt: {
@@ -578,18 +750,22 @@ export class DistributionService {
     observed: string,
     incrementAttempt: boolean,
   ) {
-    await itemLock(tx, attempt.itemId);
+    const item = await itemLock(tx, attempt.itemId);
     const listing =
-      result.state === "SUCCEEDED" && result.remoteId
-        ? await this.upsertListing(
-            tx,
-            attempt,
-            result.remoteId,
-            result.remoteUrl,
-            actorId,
-            observed,
-          )
-        : null;
+      result.state !== "SUCCEEDED"
+        ? null
+        : attempt.action === "DELIST"
+          ? await this.recordDelist(tx, attempt, result, actorId, observed)
+          : result.remoteId
+            ? await this.upsertListing(
+                tx,
+                attempt,
+                result.remoteId,
+                result.remoteUrl,
+                actorId,
+                observed,
+              )
+            : null;
     const row = await tx.distributionAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -605,22 +781,44 @@ export class DistributionService {
         finishedAt: new Date(),
       },
     });
-    await audit(tx, actorId, `DISTRIBUTION_ATTEMPT_${result.state}`, row.itemId, {
-      attemptId: row.id,
-      action: row.action,
-      channelId: row.channelId,
-      packageId: row.packageId,
-      remoteId: row.remoteId || null,
-      listingId: listing?.id || null,
-      errorCode: row.errorCode || null,
-    });
+    // A sale can commit while an Agent still holds a publish lease. Once that
+    // in-flight PUBLISH/UPDATE reports success, create the same deduped delist
+    // fact the sale command would have created had the success arrived earlier.
+    const delistAttemptIds =
+      result.state === "SUCCEEDED" &&
+      ["PUBLISH", "UPDATE"].includes(row.action) &&
+      item.status === "SOLD"
+        ? await planDelistsAfterSale(tx, actorId, row.itemId, item.cycle)
+        : [];
+    await audit(
+      tx,
+      actorId,
+      `DISTRIBUTION_ATTEMPT_${result.state}`,
+      row.itemId,
+      {
+        attemptId: row.id,
+        action: row.action,
+        channelId: row.channelId,
+        packageId: row.packageId,
+        remoteId: row.remoteId || null,
+        listingId: listing?.id || null,
+        errorCode: row.errorCode || null,
+        delistAttemptIds,
+      },
+    );
     await event(tx, row.itemId, "DISTRIBUTION_ATTEMPT_RESULT", {
       attemptId: row.id,
       state: row.state,
       channelId: row.channelId,
       listingId: listing?.id || null,
+      delistAttemptIds,
     });
-    return { id: row.id, state: row.state, listingId: listing?.id || null };
+    return {
+      id: row.id,
+      state: row.state,
+      listingId: listing?.id || null,
+      delistAttemptIds,
+    };
   }
 
   manualResult(actor: Actor, key: unknown, id: string, raw: unknown) {
@@ -635,10 +833,18 @@ export class DistributionService {
         const attempt = await tx.distributionAttempt.findUniqueOrThrow({
           where: { id },
         });
-        if (["SUCCEEDED", "FAILED", "UNKNOWN", "CANCELLED"].includes(attempt.state)) {
+        if (
+          ["SUCCEEDED", "FAILED", "UNKNOWN", "CANCELLED"].includes(
+            attempt.state,
+          )
+        ) {
           if (sameResult(attempt, result))
             return { id: attempt.id, state: attempt.state, existing: true };
-          throw new Fault("ATTEMPT_RESULT_CONFLICT", "该执行记录已有不同结果", 409);
+          throw new Fault(
+            "ATTEMPT_RESULT_CONFLICT",
+            "该执行记录已有不同结果",
+            409,
+          );
         }
         if (
           attempt.state === "RUNNING" &&
@@ -687,7 +893,11 @@ export class DistributionService {
         await itemLock(tx, packageRow.itemId);
         const { p } = await this.publishing.validPackage(tx, input.packageId);
         if (p.purpose === "CUSTOMER_CARD")
-          throw new Fault("CARD_NOT_LISTING", "客户资料卡不能作为交易上架记录", 400);
+          throw new Fault(
+            "CARD_NOT_LISTING",
+            "客户资料卡不能作为交易上架记录",
+            400,
+          );
         const dedupeKey = `publish:${p.itemId}:${p.channelId}:${p.id}`;
         const attempt =
           (await tx.distributionAttempt.findUnique({ where: { dedupeKey } })) ||
@@ -736,10 +946,18 @@ export class DistributionService {
               );
             return { id: listing.id, attemptId: attempt.id, existing: true };
           }
-          throw new Fault("ATTEMPT_RESULT_CONFLICT", "该使用包已有不同的成功远端身份", 409);
+          throw new Fault(
+            "ATTEMPT_RESULT_CONFLICT",
+            "该使用包已有不同的成功远端身份",
+            409,
+          );
         }
         if (attempt.state === "CANCELLED")
-          throw new Fault("ATTEMPT_CANCELLED", "已取消的执行记录不能登记结果", 409);
+          throw new Fault(
+            "ATTEMPT_CANCELLED",
+            "已取消的执行记录不能登记结果",
+            409,
+          );
         const finished = await this.finish(
           tx,
           attempt,
@@ -832,7 +1050,8 @@ export class DistributionService {
           await this.publishing.validPackage(tx, attempt.packageId);
         } catch (error) {
           const code = resultCode(error);
-          const message = error instanceof Error ? error.message : "使用包不可用";
+          const message =
+            error instanceof Error ? error.message : "使用包不可用";
           const failed = await tx.distributionAttempt.update({
             where: { id },
             data: {
@@ -876,11 +1095,17 @@ export class DistributionService {
           attemptCount: { increment: 1 },
         },
       });
-      await audit(tx, session.createdBy, "DISTRIBUTION_ATTEMPT_CLAIMED", claimed.itemId, {
-        attemptId: claimed.id,
-        channelId: claimed.channelId,
-        reconcile,
-      });
+      await audit(
+        tx,
+        session.createdBy,
+        "DISTRIBUTION_ATTEMPT_CLAIMED",
+        claimed.itemId,
+        {
+          attemptId: claimed.id,
+          channelId: claimed.channelId,
+          reconcile,
+        },
+      );
       return {
         id: claimed.id,
         state: claimed.state,
@@ -912,7 +1137,9 @@ export class DistributionService {
       // reconciliation marker; a retried FAILED attempt has its reason cleared.
       const reconcile = !!attempt.errorCode;
       if (!attempt.packageId) {
-        const item = await tx.item.findUniqueOrThrow({ where: { id: attempt.itemId } });
+        const item = await tx.item.findUniqueOrThrow({
+          where: { id: attempt.itemId },
+        });
         const channel = await tx.channel.findUniqueOrThrow({
           where: { id: attempt.channelId },
         });
@@ -926,7 +1153,12 @@ export class DistributionService {
             name: channel.name,
             locale: channel.locale,
           },
-          product: { id: item.id, code: tm(item.serial), title: item.title },
+          product: {
+            id: item.id,
+            code: tm(item.serial),
+            title: item.title,
+            locator: `标题中的 ${tm(item.serial)}`,
+          },
         };
       }
       if (reconcile) {
@@ -974,7 +1206,9 @@ export class DistributionService {
           currency: pack.s.currency,
           images: pack.s.assets.map((image) => ({
             id: image.id,
-            role: pack.assets.find((asset) => asset.id === image.id)?.role || "PRODUCT",
+            role:
+              pack.assets.find((asset) => asset.id === image.id)?.role ||
+              "PRODUCT",
             position: image.position,
             download: `/api/distribution-agent/attempts/${attempt.id}/assets/${image.id}`,
           })),
@@ -987,18 +1221,34 @@ export class DistributionService {
     return this.db.$transaction(async (tx) => {
       const attempt = await this.activeClaim(tx, session, attemptId);
       if (!attempt.packageId)
-        throw new Fault("ASSET_UNAVAILABLE", "该执行记录没有可分发的使用包", 404);
+        throw new Fault(
+          "ASSET_UNAVAILABLE",
+          "该执行记录没有可分发的使用包",
+          404,
+        );
       if (attempt.errorCode)
         throw new Fault(
           "RECONCILIATION_ONLY",
           "结果未知的核对只允许使用永久TM定位，不能重新下载素材或再次发布",
           409,
         );
-      const { s, assets } = await this.publishing.validPackage(tx, attempt.packageId);
+      const { s, assets } = await this.publishing.validPackage(
+        tx,
+        attempt.packageId,
+      );
       if (!s.assets.some((image) => image.id === assetId))
-        throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前分发使用包", 403);
+        throw new Fault(
+          "ASSET_NOT_IN_PACKAGE",
+          "图片不属于当前分发使用包",
+          403,
+        );
       const asset = assets.find((row) => row.id === assetId);
-      if (!asset) throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前分发使用包", 403);
+      if (!asset)
+        throw new Fault(
+          "ASSET_NOT_IN_PACKAGE",
+          "图片不属于当前分发使用包",
+          403,
+        );
       return {
         mime: asset.mime,
         filename: `${asset.id}.${asset.mime.split("/")[1] || "bin"}`,
@@ -1016,9 +1266,16 @@ export class DistributionService {
       });
       if (!attempt) throw new Fault("NOT_FOUND", "分发执行记录不存在", 404);
       if (["SUCCEEDED", "FAILED", "UNKNOWN"].includes(attempt.state)) {
-        if (attempt.claimedBySessionId === session.id && sameResult(attempt, result))
+        if (
+          attempt.claimedBySessionId === session.id &&
+          sameResult(attempt, result)
+        )
           return { id: attempt.id, state: attempt.state, existing: true };
-        throw new Fault("ATTEMPT_RESULT_CONFLICT", "该执行记录已有不同结果", 409);
+        throw new Fault(
+          "ATTEMPT_RESULT_CONFLICT",
+          "该执行记录已有不同结果",
+          409,
+        );
       }
       if (
         attempt.state !== "RUNNING" ||
@@ -1026,7 +1283,11 @@ export class DistributionService {
         !attempt.leaseUntil ||
         attempt.leaseUntil <= new Date()
       )
-        throw new Fault("CLAIM_REQUIRED", "请先领取尚未过期的分发执行记录", 409);
+        throw new Fault(
+          "CLAIM_REQUIRED",
+          "请先领取尚未过期的分发执行记录",
+          409,
+        );
       return this.finish(
         tx,
         attempt,

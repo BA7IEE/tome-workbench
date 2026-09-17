@@ -5,7 +5,13 @@ import { setupChannel } from "./channel-setup";
 
 interface WorkQueueRow {
   id: string;
-  kind: "CANDIDATE" | "TASK" | "OBSERVATION" | "INQUIRY" | "SALE_FINANCE";
+  kind:
+    | "CANDIDATE"
+    | "TASK"
+    | "OBSERVATION"
+    | "DISTRIBUTION"
+    | "INQUIRY"
+    | "SALE_FINANCE";
   priority: number;
   title: string;
   detail: string;
@@ -52,6 +58,16 @@ export async function dailyWork() {
       to: "#/candidates",
       sub: "Agent采集后等待人工生成TM",
     },
+    ...(can("publish")
+      ? [
+          {
+            label: "分发异常",
+            value: counts.pendingDistribution ?? 0,
+            to: "#/distribution?state=UNKNOWN",
+            sub: "结果未知先按 TM 核对",
+          },
+        ]
+      : []),
   ];
   const onboarding =
     !recent.total || !channels.length

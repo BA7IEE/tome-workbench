@@ -222,7 +222,7 @@ export class TradingController {
     const b = z
       .object({
         version: z.number().int().positive(),
-        state: z.enum(["OPEN", "FOLLOWUP", "WON", "LOST"]),
+        state: z.enum(["OPEN", "FOLLOWUP", "LOST"]),
         notes: safeText(4000),
       })
       .strict()
@@ -240,6 +240,12 @@ export class TradingController {
           throw new Fault(
             "VERSION_CONFLICT",
             "这条询盘刚被更新。你的输入已保留，请查看最新沟通记录后重新确认。",
+            409,
+          );
+        if (current.state === "WON")
+          throw new Fault(
+            "INQUIRY_CONVERTED_IMMUTABLE",
+            "已转化成交的询盘必须保留对应 Sale，不能再通过普通状态修改",
             409,
           );
         const i = await tx.inquiry.update({
@@ -261,6 +267,18 @@ export class TradingController {
         });
         return { id, version: i.version };
       },
+    );
+  }
+  @Access("sell") @Post("inquiries/:id/convert") convertInquiry(
+    @Param("id") id: string,
+    @Body() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return this.service.convertInquiry(
+      r.actor,
+      uuid.parse(id),
+      r.get("Idempotency-Key"),
+      raw,
     );
   }
   @Access("users") @Post("observations/:id/resolve") resolve(

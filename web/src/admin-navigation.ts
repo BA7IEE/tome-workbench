@@ -16,6 +16,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     items: [
       ["inquiries", "客户询盘", "sell"],
       ["sales", "成交记录", "sell"],
+      ["distribution", "商品分发", "publish"],
       ["listings", "发布记录", "read"],
       ["collections", "客户选品", "read"],
     ],

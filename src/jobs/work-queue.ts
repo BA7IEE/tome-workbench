@@ -14,6 +14,7 @@ const querySchema = z
         "TASK",
         "CANDIDATE",
         "OBSERVATION",
+        "DISTRIBUTION",
         "INQUIRY",
         "SALE_FINANCE",
       ])
@@ -46,6 +47,7 @@ export async function readWorkQueue(
 ) {
   const q = querySchema.parse(raw),
     sell = permission(role, "sell"),
+    publish = permission(role, "publish"),
     finance = permission(role, "finance");
   const [result] = await db.$queryRaw<
     { rows: Row[]; total: number; summary: Record<string, number> }[]
@@ -67,13 +69,23 @@ export async function readWorkQueue(
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Observation" o JOIN "Item" i ON i.id=o."itemId" WHERE NOT o.resolved AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
-      SELECT 'inquiry:' || n.id::text, n.id, 'INQUIRY', CASE WHEN n.state='FOLLOWUP' THEN 55 ELSE 45 END,
+      SELECT 'distribution:' || d.id::text, d.id, 'DISTRIBUTION', CASE WHEN d.action='DELIST' THEN 100 WHEN d.state='UNKNOWN' THEN 95 ELSE 70 END,
+        CASE WHEN d.action='DELIST' THEN '商品已售，分发渠道仍待下架' WHEN d.state='UNKNOWN' THEN '分发结果未知，须按TM核对' ELSE '分发执行明确失败待处理' END,
+        concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, c.name, d.action, nullif(d."errorCode", '')), d."createdAt",
+        jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
+      FROM "DistributionAttempt" d JOIN "Item" i ON i.id=d."itemId" JOIN "Channel" c ON c.id=d."channelId"
+      WHERE ${publish} AND (
+        (d.action='DELIST' AND d.state IN ('PENDING','RUNNING','UNKNOWN','FAILED'))
+        OR (d.action<>'DELIST' AND d.state IN ('UNKNOWN','FAILED'))
+      ) AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
+      UNION ALL
+      SELECT 'inquiry:' || n.id::text, n.id, 'INQUIRY', 85,
         CASE WHEN n.state='FOLLOWUP' THEN '客户询盘跟进中' ELSE '新询盘待跟进' END,
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, n.channel, n."customerRef"), n."updatedAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Inquiry" n JOIN "Item" i ON i.id=n."itemId" WHERE ${sell} AND n.state IN ('OPEN','FOLLOWUP') AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
-      SELECT 'sale:' || s.id::text, s.id, 'SALE_FINANCE', 80, '成交记录待补收支',
+      SELECT 'sale:' || s.id::text, s.id, 'SALE_FINANCE', 30, '成交记录待补收支',
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title,
           '缺 ' || concat_ws('、', CASE WHEN s.amount IS NULL THEN '成交额' END, CASE WHEN s.cost IS NULL THEN '成本' END, CASE WHEN s.fees IS NULL THEN '费用' END, CASE WHEN NOT s.paid THEN '到账确认' END)), s."soldAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
@@ -86,7 +98,7 @@ export async function readWorkQueue(
     ) SELECT coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.priority DESC,p."createdAt",p.id) FROM page_rows p),'[]'::jsonb) AS rows,
       (SELECT count(*)::int FROM filtered) AS total,
       (SELECT jsonb_build_object('total',count(*),'candidates',count(*) FILTER(WHERE kind='CANDIDATE'),'tasks',count(*) FILTER(WHERE kind='TASK'),
-        'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY'),'saleFinance',count(*) FILTER(WHERE kind='SALE_FINANCE')) FROM all_rows) AS summary
+        'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'distribution',count(*) FILTER(WHERE kind='DISTRIBUTION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY'),'saleFinance',count(*) FILTER(WHERE kind='SALE_FINANCE')) FROM all_rows) AS summary
   `);
   for (const row of result.rows) {
     const item = row.item;
@@ -101,6 +113,10 @@ export async function readWorkQueue(
     if (row.kind === "OBSERVATION") {
       row.href = `#/items/${item!.id}`;
       row.action = "去核对";
+    }
+    if (row.kind === "DISTRIBUTION") {
+      row.href = `#/distribution?attemptId=${row.entityId}&from=tasks`;
+      row.action = "去处理";
     }
     if (row.kind === "INQUIRY") {
       row.href = `#/inquiries?id=${row.entityId}&from=tasks`;

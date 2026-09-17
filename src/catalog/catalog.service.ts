@@ -1,4 +1,4 @@
-import { approveRevision } from "./approve-revision";
+import { approvalBlockers, approveRevision } from "./approve-revision";
 import {
   selectionSchema,
   normalizeTerm,
@@ -606,6 +606,68 @@ export class CatalogService {
         return approveRevision(tx, item, actor.id);
       },
     );
+  }
+  async approvalReadiness(raw: unknown) {
+    const b = z
+      .object({
+        items: z
+          .array(z.object({ id: uuid, version: expectedVersion }).strict())
+          .min(1)
+          .max(100),
+      })
+      .strict()
+      .superRefine((value, context) => {
+        if (
+          new Set(value.items.map((item) => item.id)).size !==
+          value.items.length
+        )
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["items"],
+            message: "商品不能重复",
+          });
+      })
+      .parse(raw);
+    return this.db.$transaction(async (tx) => {
+      const rows = [];
+      for (const request of b.items) {
+        const item = await tx.item.findUnique({ where: { id: request.id } });
+        if (!item || item.deletedAt) {
+          rows.push({
+            id: request.id,
+            ready: false,
+            missing: [{ code: "not_found", title: "商品不存在或已删除" }],
+          });
+          continue;
+        }
+        if (item.version !== request.version) {
+          rows.push({
+            id: item.id,
+            version: item.version,
+            ready: false,
+            missing: [{ code: "version", title: "商品资料刚变化，请重新读取" }],
+          });
+          continue;
+        }
+        const revision = await tx.itemRevision.findUnique({
+          where: { itemId_version: { itemId: item.id, version: item.version } },
+        });
+        const missing = revision
+          ? approvalBlockers(item)
+          : [{ code: "revision", title: "当前资料版本不存在，不能批准" }];
+        rows.push({
+          id: item.id,
+          version: item.version,
+          ready: missing.length === 0,
+          missing,
+        });
+      }
+      return {
+        rows,
+        ready: rows.filter((row) => row.ready).length,
+        blocked: rows.filter((row) => !row.ready).length,
+      };
+    });
   }
   move(actor: Actor, id: string, key: unknown, raw: unknown) {
     const b = z

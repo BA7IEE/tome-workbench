@@ -309,4 +309,14 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 
 `test/integration.test.cjs` 的 Distribution Foundation 场景使用 `tome_test` 合成包，覆盖 Token 仅存哈希且不能访问正常写接口、渠道隔离、同包计划去重、并发领取/租约过期、FAILED 复用原 Attempt、UNKNOWN 原记录核对、稳定 ID 冲突拒绝、无 ID 成功不创建 Listing，以及 Sale/Inquiry 的渠道快照。它不证明任何真实账号、页面、远端 archive ID、渠道价格生效或经营成交。
 
-ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 是后续 Real Operations 的前向结构准备；effective channel price、Inquiry 原子转化、售出后 DELIST 计划和运营中心仍为后续范围。历史 migration 保持封印，新 migration 单独校验。
+ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基础上由后续 Real Operations 接入；本节只证明 Foundation 的分发事实和受限 Agent 面。历史 migration 保持封印，新 migration 单独校验。
+
+## v1.1 Real Operations
+
+本增量把渠道报价、询盘成交和下架计划接入已有领域命令，不重写 Item、Sale、成本、库存、UsePackage、图片权利或 Agent 边界。`202609170013_real_operations_price_basis` 只给草稿增加有效价来源/版本；`202609170014_channel_price_revision_continuity` 以禁用覆盖保留版本连续性，避免清除再恢复相同金额时误复用旧使用包。两项都是独立前向 migration。
+
+`resolveChannelPrice` 统一在启用 ChannelPrice 与 Item 默认价间选择。Readiness、预览、PublishingDraft、UsePackage 创建和有效包复核都使用该结果；AnQiCMS 以 USD、闲鱼以 CNY 作为最低交易资料币种要求，不自动换汇。批量批准先只读预检，实际批准逐件复用原 `POST /items/:id/approve`，批量渠道价与分发计划同样逐件保留幂等、item lock、Audit、Receipt 和失败结果。
+
+`POST /api/inquiries/:id/convert` 锁定 Item 后检查版本、可售性、预留和既有 Sale，在同一事务创建 Sale、停售、标记 WON、写审计/事件并为已成功分发渠道创建去重 DELIST Attempt。若发布租约先领取、成功回执后到，回执落库也补建同一去重 DELIST Attempt。普通状态接口拒绝 WON 及已转化记录的后续改写。没有 Listing 的 APP 成功发布同样按永久 TM 创建下架执行记录；待办将待下架、UNKNOWN、询盘、FAILED 和财务补录按 100/95/85/70/30 显示。
+
+`test/integration.test.cjs` 使用隔离 `tome_test` 覆盖 USD 覆盖价、默认价不覆盖渠道价、清除/恢复后旧包仍 stale、Inquiry→Sale→SOLD 原子性、预留冲突、无 Listing 下架、批量批准预检和队列优先级。`test/browser/operations.spec.cjs` 用真实登录和点击覆盖确认成交、停售和分发中心显示；两个浏览器范围仍由当前文档守卫锁定。它们不证明真实账号、平台页面、AnQiCMS archive ID、支付或外部发布。

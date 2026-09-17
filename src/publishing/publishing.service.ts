@@ -29,6 +29,16 @@ export const packageSnapshot = z.object({
   ),
   manualOverride: z.boolean(),
   waivers: z.array(uuid).default([]),
+  // Older snapshots had no basis and are interpreted as Item fallback only.
+  // New snapshots retain the mutable ChannelPrice version they were reviewed
+  // against, while the package itself remains immutable.
+  priceBasis: z
+    .object({
+      source: z.enum(["ITEM", "CHANNEL"]),
+      version: z.number().int().positive().nullable(),
+    })
+    .strict()
+    .optional(),
 });
 const packageInput = z
   .object({
@@ -42,6 +52,61 @@ const packageInput = z
     assetIds: z.array(uuid).min(1).max(40).optional(),
   })
   .strict();
+const channelPriceInput = z
+  .object({
+    amount: z.number().int().min(0).max(2000000000).nullable(),
+    currency: z.string().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.amount !== null &&
+      !["CNY", "USD", "EUR", "HKD", "GBP", "SGD"].includes(value.currency || "")
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["currency"],
+        message: "设置渠道价时必须提供受支持的币种",
+      });
+  });
+
+export type EffectiveChannelPrice = {
+  amount: number | null;
+  currency: string;
+  source: "ITEM" | "CHANNEL";
+  version: number | null;
+};
+
+export async function resolveChannelPrice(
+  tx: Tx,
+  item: { id: string; currentPrice: number | null; currency: string },
+  channelId: string,
+): Promise<EffectiveChannelPrice> {
+  const stored = await tx.channelPrice.findUnique({
+    where: { itemId_channelId: { itemId: item.id, channelId } },
+  });
+  const override = stored?.active ? stored : null;
+  return override
+    ? {
+        amount: override.amount,
+        currency: override.currency,
+        source: "CHANNEL",
+        version: override.version,
+      }
+    : {
+        amount: item.currentPrice,
+        currency: item.currency,
+        source: "ITEM",
+        version: null,
+      };
+}
+
+export function requiredChannelCurrency(channel: { platform: string }) {
+  if (channel.platform === "ANQICMS") return "USD";
+  if (channel.platform === "XIANYU") return "CNY";
+  return null;
+}
+
 export async function packageContext(
   tx: Tx,
   itemId: string,
@@ -74,7 +139,18 @@ export async function packageContext(
   const waivers = await tx.requirementWaiver.findMany({
     where: { itemId, category: item.category, status: "ACTIVE" },
   });
-  return { item, channel, rev, approved, facts, assets, validOffer, waivers };
+  const price = await resolveChannelPrice(tx, item, channelId);
+  return {
+    item,
+    channel,
+    rev,
+    approved,
+    facts,
+    assets,
+    validOffer,
+    waivers,
+    price,
+  };
 }
 @Injectable()
 export class PublishingService {
@@ -83,44 +159,142 @@ export class PublishingService {
     private commands: Commands,
   ) {}
   async readiness(itemId: string, channelId: string, p = "TRADE") {
-    return this.db.$transaction(async (tx) => {
-      const c = await packageContext(tx, itemId, channelId, false);
-      const draft = await tx.publishingDraft.findUnique({
-        where: { itemId_channelId_purpose: { itemId, channelId, purpose: p } },
-      });
-      const sameBasis =
-        draft &&
-        c.item.approvedValid &&
-        draft.basisRevisionId === c.item.approvedId &&
-        draft.basisPrice === c.item.currentPrice &&
-        draft.basisCurrency === c.item.currency;
-      const missing = requirements({
-        title: c.item.title,
-        brand: c.item.brand,
-        category: c.item.category,
-        facts: {
-          ...c.facts,
-          ...(sameBasis
-            ? c.channel.locale === "en"
-              ? { descriptionEn: draft.body }
-              : { descriptionZh: draft.body }
-            : {}),
-        },
-        assetCount: c.assets.length,
-        exemptions: c.waivers.map((w) => w.code),
-        english: c.channel.locale === "en",
-        trade: p !== "CUSTOMER_CARD",
-        offerValid: !!c.validOffer,
-        ownership: c.item.ownership,
-        price: c.item.currentPrice,
-        status: c.item.status,
-      });
-      return {
-        missing,
-        approved: c.item.approvedValid,
-        ready: missing.length === 0 && c.item.approvedValid,
-      };
+    return this.db.$transaction((tx) =>
+      this.readinessInTransaction(tx, itemId, channelId, p),
+    );
+  }
+  async readinessMany(itemIds: string[], channelId: string, p = "TRADE") {
+    return this.db.$transaction(async (tx) => ({
+      rows: await Promise.all(
+        itemIds.map(async (itemId) => ({
+          itemId,
+          ...(await this.readinessInTransaction(tx, itemId, channelId, p)),
+        })),
+      ),
+    }));
+  }
+  setChannelPrice(
+    actor: Actor,
+    itemId: string,
+    channelId: string,
+    key: unknown,
+    raw: unknown,
+  ) {
+    const input = channelPriceInput.parse(raw);
+    return this.commands.run(
+      actor.id,
+      "channel-price.set",
+      key,
+      { itemId, channelId, ...input },
+      async (tx) => {
+        const item = await itemLock(tx, itemId);
+        const channel = await tx.channel.findUnique({
+          where: { id: channelId },
+        });
+        if (!channel)
+          throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
+        const current = await tx.channelPrice.findUnique({
+          where: { itemId_channelId: { itemId, channelId } },
+        });
+        if (input.amount === null) {
+          const changed = current?.active
+            ? await tx.channelPrice.update({
+                where: { id: current.id },
+                data: {
+                  active: false,
+                  updatedBy: actor.id,
+                  version: { increment: 1 },
+                },
+              })
+            : current;
+          await audit(tx, actor.id, "CHANNEL_PRICE_FALLBACK", itemId, {
+            channelId,
+            source: "ITEM",
+            version: changed?.version ?? null,
+          });
+        } else {
+          const row = await tx.channelPrice.upsert({
+            where: { itemId_channelId: { itemId, channelId } },
+            create: {
+              itemId,
+              channelId,
+              amount: input.amount,
+              currency: input.currency!,
+              updatedBy: actor.id,
+              active: true,
+            },
+            update: {
+              amount: input.amount,
+              currency: input.currency!,
+              updatedBy: actor.id,
+              active: true,
+              version: { increment: 1 },
+            },
+          });
+          await audit(tx, actor.id, "CHANNEL_PRICE_SET", itemId, {
+            channelId,
+            amount: row.amount,
+            currency: row.currency,
+            version: row.version,
+          });
+        }
+        const price = await resolveChannelPrice(tx, item, channelId);
+        await event(tx, itemId, "CHANNEL_PRICE_CHANGED", {
+          channelId,
+          source: price.source,
+          version: price.version,
+        });
+        return { itemId, channelId, price };
+      },
+    );
+  }
+  private async readinessInTransaction(
+    tx: Tx,
+    itemId: string,
+    channelId: string,
+    p: string,
+  ) {
+    const c = await packageContext(tx, itemId, channelId, false);
+    const draft = await tx.publishingDraft.findUnique({
+      where: { itemId_channelId_purpose: { itemId, channelId, purpose: p } },
     });
+    const sameBasis =
+      draft &&
+      c.item.approvedValid &&
+      draft.basisRevisionId === c.item.approvedId &&
+      draft.basisPrice === c.price.amount &&
+      draft.basisCurrency === c.price.currency &&
+      draft.basisPriceSource === c.price.source &&
+      draft.basisPriceVersion === c.price.version;
+    const missing = requirements({
+      title: c.item.title,
+      brand: c.item.brand,
+      category: c.item.category,
+      facts: {
+        ...c.facts,
+        ...(sameBasis
+          ? c.channel.locale === "en"
+            ? { descriptionEn: draft.body }
+            : { descriptionZh: draft.body }
+          : {}),
+      },
+      assetCount: c.assets.length,
+      exemptions: c.waivers.map((w) => w.code),
+      english: c.channel.locale === "en",
+      trade: p !== "CUSTOMER_CARD",
+      offerValid: !!c.validOffer,
+      ownership: c.item.ownership,
+      price: c.price.amount,
+      currency: c.price.currency,
+      requiredCurrency: requiredChannelCurrency(c.channel),
+      status: c.item.status,
+    });
+    return {
+      missing,
+      approved: c.item.approvedValid,
+      ready: missing.length === 0 && c.item.approvedValid,
+      price: c.price,
+    };
   }
   prepare(actor: Actor, itemId: string, key: unknown, raw: unknown) {
     const b = z
@@ -146,7 +320,9 @@ export class PublishingService {
           trade: b.purpose !== "CUSTOMER_CARD",
           offerValid: !!c.validOffer,
           ownership: c.item.ownership,
-          price: c.item.currentPrice,
+          price: c.price.amount,
+          currency: c.price.currency,
+          requiredCurrency: requiredChannelCurrency(c.channel),
           status: c.item.status,
         });
         for (const m of missing) {
@@ -181,8 +357,8 @@ export class PublishingService {
           locale: c.channel.locale,
           titleLimit: c.channel.titleLimit,
         }),
-        price: c.item.currentPrice,
-        currency: c.item.currency,
+        price: c.price.amount,
+        currency: c.price.currency,
       };
     });
   }
@@ -211,8 +387,10 @@ export class PublishingService {
         if (
           draft &&
           (draft.basisRevisionId !== c.item.approvedId ||
-            draft.basisPrice !== c.item.currentPrice ||
-            draft.basisCurrency !== c.item.currency)
+            draft.basisPrice !== c.price.amount ||
+            draft.basisCurrency !== c.price.currency ||
+            draft.basisPriceSource !== c.price.source ||
+            draft.basisPriceVersion !== c.price.version)
         )
           throw new Fault(
             "DRAFT_STALE",
@@ -247,7 +425,9 @@ export class PublishingService {
           trade: b.purpose !== "CUSTOMER_CARD",
           offerValid: !!c.validOffer,
           ownership: c.item.ownership,
-          price: c.item.currentPrice,
+          price: c.price.amount,
+          currency: c.price.currency,
+          requiredCurrency: requiredChannelCurrency(c.channel),
           status: c.item.status,
         });
         if (missing.length)
@@ -325,8 +505,9 @@ export class PublishingService {
             c.channel.titleLimit,
           ),
           body,
-          price: c.item.currentPrice,
-          currency: c.item.currency,
+          price: c.price.amount,
+          currency: c.price.currency,
+          priceBasis: { source: c.price.source, version: c.price.version },
           locale: c.channel.locale,
           purpose: b.purpose,
           assets: chosen.map((a, index) => ({
@@ -383,6 +564,11 @@ export class PublishingService {
       throw new Fault("TEST_NOT_PUBLIC", "测试商品不对外展示", 404);
     if (i.deletedAt)
       throw new Fault("ITEM_DELETED", "商品已删除，发布资料停止使用");
+    const effectivePrice = await resolveChannelPrice(tx, i, p.channelId);
+    const samePriceBasis = s.priceBasis
+      ? s.priceBasis.source === effectivePrice.source &&
+        s.priceBasis.version === effectivePrice.version
+      : effectivePrice.source === "ITEM";
     if (
       !allowHistorical &&
       (p.validUntil <= new Date() ||
@@ -390,8 +576,9 @@ export class PublishingService {
         p.cycle !== i.cycle ||
         !i.approvedValid ||
         i.approvedId !== p.revisionId ||
-        i.currentPrice !== s.price ||
-        i.currency !== s.currency ||
+        effectivePrice.amount !== s.price ||
+        effectivePrice.currency !== s.currency ||
+        !samePriceBasis ||
         !p.channel.active)
     )
       throw new Fault(

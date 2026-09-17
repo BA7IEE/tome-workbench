@@ -3146,7 +3146,9 @@ test('询盘并发写入阻断旧版本，重试保留逐次沟通历史且库�
   const n=await ok('/inquiries','POST',{itemId:i.id,channel:'合成询盘',customerRef:'并发客户',notes:'初次咨询'});
   const key=randomUUID();const input={version:1,state:'FOLLOWUP',notes:'第一次跟进'};
   await ok('/inquiries/'+n.id+'/status','POST',input,admin,key);await ok('/inquiries/'+n.id+'/status','POST',input,admin,key);
-  const stale=await api('/inquiries/'+n.id+'/status','POST',{version:1,state:'WON',notes:'旧窗口的内容'});assert.equal(stale.status,409);
+  // WON is now reserved for the atomic conversion command; retain the stale-version
+  // check with an otherwise valid ordinary status transition.
+  const stale=await api('/inquiries/'+n.id+'/status','POST',{version:1,state:'LOST',notes:'旧窗口的内容'});assert.equal(stale.status,409);
   await ok('/inquiries/'+n.id+'/status','POST',{version:2,state:'LOST',notes:'尺码不合'});
   const h=await ok('/inquiries/'+n.id+'/history');assert.equal(h.initial,'初次咨询');assert.equal(h.rows.length,2);assert.deepEqual(h.rows.map(x=>x.detail.notes),['第一次跟进','尺码不合']);
   assert.equal((await item(i.id)).status,before.status);assert.equal((await item(i.id)).version,before.version);
@@ -3649,4 +3651,339 @@ test("Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号�
   const storedSale = await db.sale.findUniqueOrThrow({ where: { id: sale.id } });
   assert.equal(storedSale.channelId, channel.id);
   assert.equal(storedSale.channel, channel.name);
+});
+
+test("Real Operations：ChannelPrice 解析冻结到使用包，默认价不覆盖渠道价", async () => {
+  const overseas = await ok("/channels", "POST", {
+    name: "渠道价海外站 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+    distributionMode: "MANUAL",
+  });
+  const i = await ready({ currentPrice: 200000, currency: "CNY" });
+  const before = await ok(`/items/${i.id}/readiness?channelId=${overseas.id}`);
+  assert.equal(before.ready, false);
+  assert.ok(before.missing.some((row) => row.code === "price_currency"));
+  const bulkBefore = await ok("/distribution/readiness", "POST", {
+    channelId: overseas.id,
+    itemIds: [i.id],
+  });
+  assert.equal(bulkBefore.rows[0].ready, false);
+  const set = await ok(`/items/${i.id}/channel-prices/${overseas.id}`, "POST", {
+    amount: 138000,
+    currency: "USD",
+  });
+  assert.deepEqual(set.price, {
+    amount: 138000,
+    currency: "USD",
+    source: "CHANNEL",
+    version: 1,
+  });
+  const after = await ok(`/items/${i.id}/readiness?channelId=${overseas.id}`);
+  assert.equal(after.ready, true);
+  assert.equal(after.price.currency, "USD");
+  const preview = await ok(
+    `/items/${i.id}/package-preview?channelId=${overseas.id}`,
+  );
+  assert.equal(preview.price, 138000);
+  assert.equal(preview.currency, "USD");
+  const approved = await item(i.id);
+  const draft = await ok(`/items/${i.id}/publishing-draft`, "POST", {
+    channelId: overseas.id,
+    purpose: "TRADE",
+    version: 0,
+    title: "合成渠道草稿",
+    body: approved.facts.descriptionEn,
+    assetIds: [i.asset],
+    basisRevisionId: approved.approvedId,
+    basisPrice: 138000,
+    basisCurrency: "USD",
+  });
+  const p = await pack(i.id, overseas);
+  const stored = await ok(`/packages/${p.id}`);
+  assert.deepEqual(stored.snapshot.priceBasis, {
+    source: "CHANNEL",
+    version: 1,
+  });
+  const current = await item(i.id);
+  await ok(`/items/${i.id}`, "PATCH", {
+    version: current.version,
+    currentPrice: 210000,
+    currency: "CNY",
+  });
+  assert.equal((await api(`/packages/${p.id}/usable`)).status, 200);
+  await ok(`/items/${i.id}/channel-prices/${overseas.id}`, "POST", {
+    amount: 128000,
+    currency: "USD",
+  });
+  assert.equal((await api(`/packages/${p.id}/usable`)).status, 409);
+  const currentPack = await pack(i.id, overseas);
+  await ok(`/items/${i.id}/channel-prices/${overseas.id}`, "POST", {
+    amount: null,
+  });
+  assert.equal((await api(`/packages/${currentPack.id}/usable`)).status, 409);
+  const restored = await ok(
+    `/items/${i.id}/channel-prices/${overseas.id}`,
+    "POST",
+    { amount: 128000, currency: "USD" },
+  );
+  assert.equal(restored.price.version, 4);
+  assert.equal((await api(`/packages/${currentPack.id}/usable`)).status, 409);
+  const staleDraft = await api(`/items/${i.id}/packages`, "POST", {
+    channelId: overseas.id,
+    purpose: "TRADE",
+    confirmed: true,
+    draftId: draft.id,
+    draftVersion: draft.version,
+  });
+  assert.equal(staleDraft.status, 409);
+  assert.equal(staleDraft.data.error.code, "DRAFT_STALE");
+  const fallback = await ready();
+  const fallbackPack = await pack(fallback.id);
+  assert.deepEqual(
+    (await ok(`/packages/${fallbackPack.id}`)).snapshot.priceBasis,
+    {
+      source: "ITEM",
+      version: null,
+    },
+  );
+});
+
+test("Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发布渠道计划下架", async () => {
+  const i = await ready();
+  const p = await pack(i.id);
+  const publish = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await ok(`/distribution/attempts/${publish.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "",
+    remoteUrl: "",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成账号内可按永久TM找到发布商品。",
+    },
+  });
+  assert.equal(await db.listing.count({ where: { itemId: i.id } }), 0);
+  const inquiry = await ok("/inquiries", "POST", {
+    itemId: i.id,
+    channel: "客户端不得覆盖的名称",
+    channelId: channel.id,
+    customerRef: "成交客户标记",
+    notes: "已确认成交的合成询盘",
+  });
+  assert.equal(
+    (
+      await api(`/inquiries/${inquiry.id}/status`, "POST", {
+        version: 1,
+        state: "WON",
+        notes: "普通状态接口不得伪造成交。",
+      })
+    ).status,
+    400,
+  );
+  const converted = await ok(`/inquiries/${inquiry.id}/convert`, "POST", {
+    version: 1,
+    externalKey: "synthetic-convert-" + randomUUID(),
+    note: "合成确认成交；金额稍后按财务补录。",
+  });
+  const [sale, storedInquiry, soldItem] = await Promise.all([
+    db.sale.findUniqueOrThrow({ where: { id: converted.id } }),
+    db.inquiry.findUniqueOrThrow({ where: { id: inquiry.id } }),
+    item(i.id),
+  ]);
+  assert.equal(sale.inquiryId, inquiry.id);
+  assert.equal(sale.channelId, channel.id);
+  assert.equal(sale.channel, channel.name);
+  assert.equal(storedInquiry.state, "WON");
+  assert.equal(soldItem.status, "SOLD");
+  const ordinaryEdit = await api(`/inquiries/${inquiry.id}/status`, "POST", {
+    version: 2,
+    state: "LOST",
+    notes: "不能把已转化成交改回普通状态",
+  });
+  assert.equal(ordinaryEdit.status, 409);
+  assert.equal(ordinaryEdit.data.error.code, "INQUIRY_CONVERTED_IMMUTABLE");
+  const delist = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${i.id}:${channel.id}:${soldItem.cycle}` },
+  });
+  assert.equal(delist.action, "DELIST");
+  assert.equal(delist.state, "PENDING");
+  assert.equal(
+    (await api(`/inquiries/${inquiry.id}/convert`, "POST", { version: 2 }))
+      .status,
+    409,
+  );
+  const session = await distributionSession(channel.id, "成交下架合成会话");
+  await distributionAgentOk(
+    `/distribution-agent/attempts/${delist.id}/claim`,
+    session.token,
+    "POST",
+  );
+  const payload = await distributionAgentOk(
+    `/distribution-agent/attempts/${delist.id}/payload`,
+    session.token,
+  );
+  assert.equal(payload.action, "DELIST");
+  assert.match(payload.product.locator, /^标题中的 TM\d+$/);
+  await distributionAgentOk(
+    `/distribution-agent/attempts/${delist.id}/result`,
+    session.token,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: "",
+      remoteUrl: "",
+      evidence: { method: "TM_SEARCH", note: "已按永久TM定位并下架合成商品。" },
+    },
+  );
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({
+        where: { id: delist.id },
+      })
+    ).state,
+    "SUCCEEDED",
+  );
+
+  const reserved = await ready();
+  await ok(`/items/${reserved.id}/reserve`, "POST", {
+    customerRef: "另一位预留客户",
+    minutes: 20,
+  });
+  const blockedInquiry = await ok("/inquiries", "POST", {
+    itemId: reserved.id,
+    channel: "线下合成",
+    customerRef: "不匹配的询盘客户",
+  });
+  const blocked = await api(`/inquiries/${blockedInquiry.id}/convert`, "POST", {
+    version: 1,
+    note: "不能越过其他客户的预留",
+  });
+  assert.equal(blocked.status, 409);
+  assert.equal(blocked.data.error.code, "RESERVATION_CONFLICT");
+  assert.equal(
+    await db.sale.count({ where: { inquiryId: blockedInquiry.id } }),
+    0,
+  );
+});
+
+test("Real Operations：售出与迟到发布成功交错时仍生成去重下架执行", async () => {
+  const i = await ready();
+  const p = await pack(i.id);
+  const publish = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const session = await distributionSession(channel.id, "迟到发布成功合成会话");
+  await distributionAgentOk(
+    `/distribution-agent/attempts/${publish.id}/claim`,
+    session.token,
+    "POST",
+  );
+  await sold(i.id);
+  const soldItem = await item(i.id);
+  const dedupeKey = `delist:${i.id}:${channel.id}:${soldItem.cycle}`;
+  assert.equal(
+    await db.distributionAttempt.count({ where: { dedupeKey } }),
+    0,
+  );
+  const completed = await distributionAgentOk(
+    `/distribution-agent/attempts/${publish.id}/result`,
+    session.token,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: "",
+      remoteUrl: "",
+      evidence: {
+        method: "TM_SEARCH",
+        note: "售出后才收到成功回执，仍可按永久TM核对发布结果。",
+      },
+    },
+  );
+  assert.equal(completed.delistAttemptIds.length, 1);
+  const delist = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey },
+  });
+  assert.equal(delist.action, "DELIST");
+  assert.equal(delist.state, "PENDING");
+});
+
+test("Real Operations：批量批准预检保留逐件版本与证据阻断", async () => {
+  const readyItem = await sparse({
+    facts: {
+      authentication: { status: "PASSED", evidence: "合成批准依据" },
+    },
+  });
+  const blockedItem = await sparse({
+    facts: {
+      authentication: { status: "PASSED", evidence: "" },
+    },
+  });
+  const preflight = await ok("/items/approvals/readiness", "POST", {
+    items: [
+      { id: readyItem.id, version: 1 },
+      { id: blockedItem.id, version: 1 },
+    ],
+  });
+  assert.equal(preflight.ready, 1);
+  assert.equal(preflight.blocked, 1);
+  assert.ok(
+    preflight.rows
+      .find((row) => row.id === blockedItem.id)
+      .missing.some((row) => row.code === "authentication_evidence"),
+  );
+  await ok(`/items/${readyItem.id}/approve`, "POST", { version: 1 });
+  assert.equal((await item(readyItem.id)).approvedValid, true);
+});
+
+test("Real Operations：工作队列优先已售下架、未知分发和客户跟进", async () => {
+  const distributionItem = await ready();
+  const p = await pack(distributionItem.id);
+  const attempt = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await ok(`/distribution/attempts/${attempt.id}/manual-result`, "POST", {
+    state: "UNKNOWN",
+    errorCode: "SYNTHETIC_UNKNOWN",
+    errorMessage: "合成结果未知，必须用永久TM复核。",
+  });
+  const inquiryItem = await sparse();
+  const inquiry = await ok("/inquiries", "POST", {
+    itemId: inquiryItem.id,
+    channel: "合成客户渠道",
+    customerRef: "需优先跟进的客户",
+  });
+  const saleItem = await sparse();
+  const sale = await sold(saleItem.id);
+  const delistItem = await ready();
+  const delistPack = await pack(delistItem.id);
+  const published = await ok("/distribution/plan", "POST", {
+    packageId: delistPack.id,
+  });
+  await ok(`/distribution/attempts/${published.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成发布后可按 TM 核对。" },
+  });
+  await sold(delistItem.id);
+  const soldItem = await item(delistItem.id);
+  const pendingDelist = await db.distributionAttempt.findUniqueOrThrow({
+    where: {
+      dedupeKey: `delist:${delistItem.id}:${channel.id}:${soldItem.cycle}`,
+    },
+  });
+  const queue = await ok("/work-queue");
+  const unknown = queue.rows.find(
+    (row) => row.id === `distribution:${attempt.id}`,
+  );
+  const followup = queue.rows.find((row) => row.id === `inquiry:${inquiry.id}`);
+  const finance = queue.rows.find((row) => row.id === `sale:${sale.id}`);
+  const delist = queue.rows.find(
+    (row) => row.id === `distribution:${pendingDelist.id}`,
+  );
+  assert.equal(delist.priority, 100);
+  assert.equal(unknown.priority, 95);
+  assert.equal(
+    unknown.href,
+    `#/distribution?attemptId=${attempt.id}&from=tasks`,
+  );
+  assert.equal(followup.priority, 85);
+  assert.equal(finance.priority, 30);
+  assert.ok(queue.summary.distribution >= 1);
 });

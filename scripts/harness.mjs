@@ -54,6 +54,7 @@ export const required = [
   "docs/V1-ITEM-CENTER.md",
   "docs/AGENT-INGEST-PROTOCOL.md",
   "docs/DISTRIBUTION-FOUNDATION.md",
+  "docs/REAL-OPERATIONS.md",
   "docs/RELEASE-NOTES-1.0.md",
   "package-lock.json",
   "prisma/schema.prisma",
@@ -331,6 +332,31 @@ export function checks(
       ) &&
       !read("web/src/publishing-workspace.ts").includes("MANUAL:") &&
       read("test/integration.test.cjs").includes("Distribution Foundation："),
+  );
+  check(
+    "v11-real-operations",
+    () =>
+      read("prisma/schema.prisma").includes("basisPriceSource") &&
+      read("prisma/schema.prisma").includes("active    Boolean") &&
+      read("prisma/migrations/202609170013_real_operations_price_basis/migration.sql").includes(
+        "PublishingDraft_price_basis_check",
+      ) &&
+      read("prisma/migrations/202609170014_channel_price_revision_continuity/migration.sql").includes(
+        'ADD COLUMN "active" BOOLEAN',
+      ) &&
+      read("src/publishing/publishing.service.ts").includes(
+        "resolveChannelPrice",
+      ) &&
+      read("src/trading/trading.service.ts").includes("convertInquiry") &&
+      read("src/distribution/distribution.service.ts").includes(
+        "planDelistsAfterSale",
+      ) &&
+      read("src/jobs/work-queue.ts").includes("商品已售，分发渠道仍待下架") &&
+      read("test/integration.test.cjs").includes("Real Operations：") &&
+      read("test/browser/operations.spec.cjs").includes(
+        "询盘确认成交通过原子动作停售",
+      ) &&
+      read("docs/REAL-OPERATIONS.md").includes("询盘成交"),
   );
   check("v1-item-center-webkit", () =>
     read("playwright.webkit.config.cjs").includes("v1-item-center.spec.cjs"),

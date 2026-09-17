@@ -24,7 +24,8 @@ export async function checkCollection(
           trade: false,
           offerValid: !!c.validOffer,
           ownership: c.item.ownership,
-          price: c.item.currentPrice,
+          price: c.price.amount,
+          currency: c.price.currency,
           status: c.item.status,
         });
         const issues = missing.map((m) => m.title);

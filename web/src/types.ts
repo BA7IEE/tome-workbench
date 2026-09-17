@@ -263,6 +263,9 @@ export const states: Record<string, string> = {
   PENDING_REVIEW: "待核对",
   PENDING: "待处理",
   WORKING: "执行中",
+  RUNNING: "执行中",
+  SUCCEEDED: "已成功",
+  UNKNOWN: "结果待核对",
   FAILED: "失败待处理",
   LIVE: "保持在线",
   OFFLINE: "要求下架",
@@ -272,6 +275,6 @@ export const states: Record<string, string> = {
   SYSTEM_LIVE: "展厅已显示",
   SYSTEM_OFFLINE: "展厅已隐藏",
   FOLLOWUP: "跟进中",
-  WON: "已转化（需另记成交）",
+  WON: "已转化成交",
   LOST: "未成交",
 };
