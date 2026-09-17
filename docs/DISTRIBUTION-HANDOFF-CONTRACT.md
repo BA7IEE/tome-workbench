@@ -54,6 +54,12 @@
 `DELIST` 可返回 `package: null`。它只交付永久 TM 与 Channel 身份，以便外部执行方
 停止出售；不会反向构造历史包，也不会因历史图片权利失效而阻塞停售。
 
+AnQiCMS 的本地标准交付投影在已有 archive ID 时，额外把停售固定为 identity-only
+`STOCK_ZERO`：只读取 TM、当前库存状态、Channel 和 archive ID，输出 `stock=0`、
+保留 SOLD 页面且关闭 Checkout。它不读取历史图片、文案、USD 报价或 UsePackage；发布/
+更新资料则使用冻结包的 USD、`styleNumber` 以及分开的成色等级/瑕疵说明。字段细节见
+[ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)。
+
 ## 最小结果
 
 确认目标操作完成：

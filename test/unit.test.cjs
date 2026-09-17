@@ -12,6 +12,7 @@ const { netPayment, creditValue } = require("../dist/costing/costing.logic");
 const {
   anqicmsSpikeProtocol,
   buildAnqicmsSpikePayload,
+  buildAnqicmsTakedownProjection,
   normalizeAnqicmsReceipt,
 } = require("../dist/distribution/anqicms-spike");
 const anqicmsSpikeFixtures = require("./fixtures/anqicms-spike/deidentified-20.json");
@@ -220,13 +221,14 @@ const anqicmsInput = (row, action, listing = null) => ({
   item: {
     tmCode: row.tmCode,
     title: "Deidentified " + row.category + " " + row.tmCode,
-    body: "Local-only AnQiCMS Spike fixture. " + row.condition,
+    body: "Local-only AnQiCMS handoff fixture. " + row.condition,
     price: row.price,
     currency: "USD",
     status: row.status,
     brand: row.brand,
     category: row.category,
-    condition: row.condition,
+    conditionGrade: "VERY_GOOD",
+    conditionDescription: row.condition,
     size: "One size",
     color: "Neutral",
     material: "Synthetic material note",
@@ -244,22 +246,23 @@ const anqicmsInput = (row, action, listing = null) => ({
   listing,
 });
 
-test("AnQiCMS Spike：20件脱敏商品冻结 USD、图片、库存、SEO 与售出页合同", () => {
+test("AnQiCMS 标准交付合同：20件脱敏商品冻结 USD、图片、库存、SEO 与售出页", () => {
   const rows = anqicmsSpikeFixtures.items;
   assert.equal(anqicmsSpikeFixtures.protocol, anqicmsSpikeProtocol);
   assert.equal(rows.length, 20);
   let overflowCases = 0;
   for (const row of rows) {
     const available = row.status === "AVAILABLE";
-    const payload = buildAnqicmsSpikePayload(
-      anqicmsInput(
-        row,
-        available ? "PUBLISH" : "DELIST",
-        available
-          ? null
-          : { archiveId: "archive-" + row.case.toLowerCase(), url: "https://example.invalid/archive" },
-      ),
-    );
+    const payload = available
+      ? buildAnqicmsSpikePayload(anqicmsInput(row, "PUBLISH"))
+      : buildAnqicmsTakedownProjection({
+          action: "DELIST",
+          item: { tmCode: row.tmCode, status: row.status },
+          listing: {
+            archiveId: "archive-" + row.case.toLowerCase(),
+            url: "https://example.invalid/archive",
+          },
+        });
     assert.equal(payload.protocol, anqicmsSpikeProtocol);
     assert.equal(payload.identity.tm_code, row.tmCode);
     assert.equal(JSON.stringify(payload).includes("cost"), false);
@@ -274,6 +277,11 @@ test("AnQiCMS Spike：20件脱敏商品冻结 USD、图片、库存、SEO 与售
     assert.equal(payload.fields.currency, "USD");
     assert.equal(payload.fields.stock, 1);
     assert.equal(payload.fields.custom.tm_code, row.tmCode);
+    assert.equal(payload.fields.custom.condition_grade, "VERY_GOOD");
+    assert.equal(payload.fields.custom.condition_description, row.condition);
+    assert.equal(payload.fields.custom.styleNumber, row.case);
+    assert.equal("condition" in payload.fields.custom, false);
+    assert.equal("style_number" in payload.fields.custom, false);
     assert.ok(payload.fields.content.includes(row.condition));
     assert.ok(payload.fields.images.length <= 9);
     assert.equal(
@@ -288,7 +296,7 @@ test("AnQiCMS Spike：20件脱敏商品冻结 USD、图片、库存、SEO 与售
   assert.ok(overflowCases >= 5);
 });
 
-test("AnQiCMS Spike：archive ID 复用更新，回执规范化并拒绝伪远端身份", () => {
+test("AnQiCMS 标准交付合同：archive ID 复用更新，回执规范化并拒绝伪远端身份", () => {
   const row = anqicmsSpikeFixtures.items[0];
   const update = buildAnqicmsSpikePayload(
     anqicmsInput(row, "UPDATE", {
@@ -313,6 +321,25 @@ test("AnQiCMS Spike：archive ID 复用更新，回执规范化并拒绝伪远�
     normalizeAnqicmsReceipt({ archive_id: "MANUAL:TM990001" }, row.tmCode),
   );
   assert.throws(() =>
-    buildAnqicmsSpikePayload(anqicmsInput(row, "DELIST")),
+    buildAnqicmsTakedownProjection({
+      action: "DELIST",
+      item: { tmCode: row.tmCode, status: "SOLD" },
+      listing: null,
+    }),
   );
+});
+
+test("styleNumber 统一新写入，旧 style_number 只作兼容读取", () => {
+  const canonical = d.factsSchema.parse({
+    attributes: { styleNumber: "NEW-STYLE", style_number: "OLD-STYLE" },
+    attributeLabels: { styleNumber: "款号", style_number: "旧款号" },
+  });
+  assert.deepEqual(canonical.attributes, { styleNumber: "NEW-STYLE" });
+  assert.deepEqual(canonical.attributeLabels, { styleNumber: "款号" });
+  const legacy = d.factsSchema.parse({
+    attributes: { style_number: "OLD-STYLE" },
+    attributeLabels: { style_number: "旧款号" },
+  });
+  assert.deepEqual(legacy.attributes, { styleNumber: "OLD-STYLE" });
+  assert.deepEqual(legacy.attributeLabels, { styleNumber: "旧款号" });
 });

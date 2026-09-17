@@ -5,6 +5,30 @@ export const amount = z.number().int().min(0).max(2000000000).nullable();
 export const uuid = z.string().uuid();
 export const expectedVersion = z.number().int().positive();
 export const safeText = (max = 4000) => z.string().trim().max(max);
+const attributeKey = z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,47}$/);
+function canonicalStyleNumber<T extends string | number | boolean>(
+  values: Record<string, T>,
+) {
+  const { style_number: legacy, ...canonical } = values;
+  // `style_number` is readable only for historical facts. Every newly parsed
+  // write is stored under the canonical standard extension key instead.
+  const styleNumber =
+    canonical.styleNumber !== undefined && canonical.styleNumber !== ""
+      ? canonical.styleNumber
+      : legacy;
+  if (styleNumber !== undefined && styleNumber !== "")
+    canonical.styleNumber = styleNumber;
+  return canonical;
+}
+const attributeLabels = z
+  .record(attributeKey, safeText(100))
+  .transform(canonicalStyleNumber);
+const attributes = z
+  .record(
+    attributeKey,
+    z.union([safeText(1000), z.number().finite(), z.boolean()]),
+  )
+  .transform(canonicalStyleNumber);
 export const factsSchema = z
   .object({
     material: safeText(300).default(""),
@@ -37,15 +61,8 @@ export const factsSchema = z
       )
       .max(40)
       .default([]),
-    attributeLabels: z
-      .record(z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,47}$/), safeText(100))
-      .default({}),
-    attributes: z
-      .record(
-        z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,47}$/),
-        z.union([safeText(1000), z.number().finite(), z.boolean()]),
-      )
-      .default({}),
+    attributeLabels: attributeLabels.default({}),
+    attributes: attributes.default({}),
   })
   .strict();
 export type Facts = z.infer<typeof factsSchema>;

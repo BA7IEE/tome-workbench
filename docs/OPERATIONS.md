@@ -122,11 +122,11 @@ Channel 的默认币种是账号事实：AnQiCMS 固定 USD、闲鱼固定 CNY�
 
 商品库的「批量确认当前资料」先显示每件预检阻断项，再逐件批准；「批量渠道价」接受 `TM编号 金额` 的粘贴行；「批量生成分发计划」先按目标渠道筛 READY，只有当前仍合格的商品会生成使用包和分发记录。系统根据资料内容与该渠道既有完成记录自动判断首次交付、更新资料或无需重复交付；任一件失败都查看该件结果，不用刷新、重开一批或假定平台已执行。
 
-销售中的「商品分发」只显示渠道的待交付、已交付、已确认完成、需要处理、需要核对和需要停售的经营记录。UNKNOWN 必须进入指定账号按标题永久 TM 核对**原分发记录**，再填写依据将它改为成功或失败；FAILED 才能复用原记录重新交付。商品已售但停售尚未回填优先级最高，APP 没有 Listing 也一样；进入对应渠道完成实际操作后登记结果。当前没有真实平台 Connector 或 AnQiCMS API 调用；本地 Spike 资料读取不改变这一点。不要在这里填写 Cookie、密码、Token 或真实账号资料。
+销售中的「商品分发」只显示渠道的待交付、已交付、已确认完成、需要处理、需要核对和需要停售的经营记录。UNKNOWN 必须进入指定账号按标题永久 TM 核对**原分发记录**，再填写依据将它改为成功或失败；FAILED 才能复用原记录重新交付。商品已售但停售尚未回填优先级最高，APP 没有 Listing 也一样；进入对应渠道完成实际操作后登记结果。当前没有真实平台 Connector 或 AnQiCMS API 调用；本地标准交付合同不改变这一点。不要在这里填写 Cookie、密码、Token 或真实账号资料。
 
-## v1.1-rc.4 AnQiCMS 本地 Spike
+## v1.1-rc.4 AnQiCMS 本地标准交付合同
 
-目前 ToMe 只提供 AnQiCMS 的本地 Spike 资料合同；外部 Agent 的 MCP/API 或人工可取得交付资料后自行完成站点操作，它不是站点登录入口，也不会调用 AnQiCMS。PUBLISH/UPDATE 的合同保留永久 tm_code、USD 渠道价、最多 9 张 Gallery 图片、其余正文图片和公开 SEO 字段；没有 archive ID 时执行方只能先按 tm_code 核对，不能用标题或 MANUAL:TM 占位。
+目前 ToMe 只提供 AnQiCMS 的本地标准资料合同；外部 Agent 的 MCP/API 或人工可取得交付资料后自行完成站点操作，它不是站点登录入口，也不会调用 AnQiCMS。PUBLISH/UPDATE 的合同保留永久 tm_code、USD 渠道价、最多 9 张 Gallery 图片、其余正文图片、`styleNumber` 和分开的成色等级/瑕疵说明；没有 archive ID 时执行方只能先按 tm_code 核对，不能用标题或 MANUAL:TM 占位。售出时只交付 TM、当前状态、Channel 与 archive ID 的 identity-only stock=0 保页投影，旧图片授权失效不阻塞停售。
 
 售出后的 AnQiCMS DELIST 合同要求已有 archive ID，并明确要求未来执行方把 stock 置 0、页面保留、显示 SOLD、不开 Checkout。当前必须由人工完成任何站点操作并回填真实结果；不要将 Cookie、密码、Token、真实账号、真实正文或客户资料放进 Channel、分发会话、日志或测试。字段与本地验收边界见 docs/integrations/ANQICMS-CONTRACT.md。
 

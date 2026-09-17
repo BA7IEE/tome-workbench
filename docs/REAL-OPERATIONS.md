@@ -20,10 +20,10 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 工作待办按经营风险排序：待停售 100、需要核对 95、库存冲突 90、询盘 85、需要处理的分发记录 70、资料缺项 50、成交补账 30。分发中心只显示渠道统计和交付/经营记录；它不会保存凭据或发起第三方请求。
 
-标准 Handoff 读取 DELIST 时可只得到永久 TM 和 Channel 身份；这是刻意保留的 identity-only 停售交付，外部执行方不能把它当成重新发布包。它仍通过同一受限 Channel 会话回填确认完成或待人工核对；详情见 [DISTRIBUTION-HANDOFF-CONTRACT](DISTRIBUTION-HANDOFF-CONTRACT.md)。
+标准 Handoff 读取 DELIST 时可只得到永久 TM 和 Channel 身份；这是刻意保留的 identity-only 停售交付，外部执行方不能把它当成重新发布包。AnQiCMS 的售出投影进一步只读取 TM、当前状态和 Listing.archive ID，固定输出 stock=0、保页、SOLD、无 Checkout，不重验历史图片、价格、文案或使用包。它仍通过同一受限 Channel 会话回填确认完成或待人工核对；详情见 [DISTRIBUTION-HANDOFF-CONTRACT](DISTRIBUTION-HANDOFF-CONTRACT.md)。
 
 ## 批量操作与未做范围
 
 批量批准先做只读预检，再逐件复用已有批准命令；批量渠道价和批量计划也逐件走既有幂等写入。任何一件因版本、图片、权限、库存或价格变化失败，都保留逐件结果，不用 `updateMany` 掩盖领域规则。
 
-尚未实现真实平台连接器、AnQiCMS 真实 archive ID/UAT、支付/订单、自动调用第三方发布或下架、自动汇率。后续 AnQiCMS Connector 的本地字段合同已冻结在 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)，但不会发送请求。全部自动化只使用隔离 `tome_test` 和合成资料。
+尚未实现真实平台连接器、AnQiCMS 真实 archive ID/UAT、支付/订单、自动调用第三方发布或下架、自动汇率。后续 AnQiCMS Connector 的本地标准字段合同已冻结在 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)，包括 `styleNumber`、分开的成色等级/说明和 identity-only 售出投影，但不会发送请求。全部自动化只使用隔离 `tome_test` 和合成资料。
