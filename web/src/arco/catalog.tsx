@@ -350,7 +350,7 @@ export function Catalog({
           {can("edit") && (
             <Action
               action={{
-                label: "＋ 快速录货",
+                label: "＋ 快速录入我方现货",
                 primary: true,
                 run: () => quickIntake(reload),
               }}
@@ -484,11 +484,11 @@ export function Catalog({
               />
               <SelectField
                 name="listing"
-                label="发布记录"
+                label="远端身份记录"
                 choices={{
-                  "": "全部发布记录",
-                  none: "暂无发布记录",
-                  recorded: "有发布记录",
+                  "": "全部远端身份记录",
+                  none: "暂无远端身份记录",
+                  recorded: "有远端身份记录",
                 }}
                 value={qs.get("listing") || ""}
               />
@@ -581,7 +581,7 @@ export function Catalog({
             description={
               <>
                 <h2>没有找到商品</h2>
-                <p>可以清除筛选条件，或从快速录货开始。</p>
+                <p>可以清除筛选条件，或从快速录入我方现货开始。</p>
               </>
             }
           />
@@ -685,12 +685,12 @@ export function Catalog({
                 ),
               },
               {
-                title: "图片 / 发布记录",
+                title: "图片 / 远端身份记录",
                 width: 150,
                 render: (_, i) => (
                   <>
                     {i._count?.assets ?? i.assets.length} 张图片
-                    <small>{i._count?.listings || 0} 条发布记录</small>
+                    <small>{i._count?.listings || 0} 条远端身份记录</small>
                     <small>{i.updatedAt ? when(i.updatedAt) : ""}</small>
                   </>
                 ),

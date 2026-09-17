@@ -37,6 +37,7 @@ export const required = [
   "src/publishing/drafts.controller.ts",
   "src/media/actions.controller.ts",
   "scripts/verify-release.mjs",
+  "scripts/benchmark-launch-scale.mjs",
   "Dockerfile",
   "compose.production.yaml",
   "deploy/Caddyfile",
@@ -550,6 +551,24 @@ export function checks(
       read("test/browser/operations.spec.cjs").includes(
         "分发异常",
       ),
+  );
+  check(
+    "v11-launch-closure-scale-workflows",
+    () =>
+      read("src/distribution/distribution.service.ts").includes(
+        "activeTargetKeys",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes("historyKeys") &&
+      read("src/distribution/publication-health.service.ts").includes(
+        "evaluateLoadedPublicationHealth",
+      ) &&
+      read("src/jobs/work-queue.ts").includes("ITEM_REVIEW") &&
+      read("src/jobs/work-queue.ts").includes("t.kind <> 'PREPARE'") &&
+      read("web/src/quick-intake.ts").includes('ownership: "OWN"') &&
+      read("src/costing/costing.controller.ts").includes('Post("orders/previews")') &&
+      read("scripts/benchmark-launch-scale.mjs").includes("const itemCount = 1000") &&
+      read("scripts/benchmark-launch-scale.mjs").includes("guardDatabase") &&
+      read("test/integration.test.cjs").includes("Launch Closure workflow scale："),
   );
   check(
     "v11-channel-price-currency-interactions",

@@ -43,6 +43,7 @@ try {
     webkit = report("browser-webkit.json"),
     ha = report("high-availability.json"),
     recovery = report("recovery.json"),
+    launchScale = report("benchmark-launch-scale.json"),
     guards = report("harness.json");
   const nodeSuites = [
     ...output.matchAll(/# tests (\d+)[\s\S]*?# pass (\d+)\s*# fail (\d+)/g),
@@ -57,6 +58,7 @@ try {
     webkitStats: webkit.stats,
     highAvailability: ha,
     recovery,
+    launchScale,
     staticGuards: guards.results,
   };
   if (
@@ -64,6 +66,10 @@ try {
     before.sha256 !== after.sha256 ||
     !ha.passed ||
     !recovery.passed ||
+    !launchScale.passed ||
+    Object.values(launchScale.durationsMs || {}).some(
+      (duration) => typeof duration !== "number" || duration > 1000,
+    ) ||
     guards.results.some((row) => !row.pass) ||
     browser.stats.flaky ||
     webkit.stats.flaky ||

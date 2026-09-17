@@ -219,8 +219,8 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   );
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
-  // Existing work-queue tools now live under the approved MVP Settings entry.
-  await page.getByRole("link", { name: "设置", exact: true }).click();
+  // Existing work-queue tools now live under the approved MVP More entry.
+  await page.getByRole("link", { name: "更多", exact: true }).click();
   await page.getByText("其他业务记录与维护工具", { exact: true }).click();
   await page.getByRole("link", { name: "经营待办", exact: true }).click();
   await expect(page.getByLabel("查看范围", { exact: true })).toBeVisible();
@@ -386,7 +386,7 @@ test("渠道维护可修改停用，发布查询保留显式范围且手机可�
   ).toMatchObject({ active: false, version: 2, name: title + " 更新" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/listings");
-  await page.getByLabel("发布记录类型", { exact: true }).selectOption("TEST");
+  await page.getByLabel("远端身份记录类型", { exact: true }).selectOption("TEST");
   await page.getByRole("button", { name: "查询", exact: true }).click();
   await expect(page).toHaveURL(/dataMode=TEST/);
   expect(
@@ -469,8 +469,27 @@ test("集中成本批量确认两单，退款单保留待核对且回执丢失�
   page,
 }) => {
   const x = await procurement(page, 3, { linked: true, refundLast: true });
+  let batchPreviewRequests = 0,
+    individualPreviewRequests = 0;
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.method() !== "POST") return;
+    if (request.url().endsWith("/api/costing/orders/previews")) batchPreviewRequests++;
+    if (/\/api\/costing\/orders\/[^/]+\/preview$/.test(request.url())) individualPreviewRequests++;
+  });
+  const batchPreview = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/api/costing/orders/previews"),
+  );
   await page.goto(
     "/#/procurement?mode=costs&sourceId=" + x.source.id + "&month=2024-06",
+  );
+  const previewResponse = await batchPreview;
+  expect(previewResponse.ok(), await previewResponse.text()).toBeTruthy();
+  expect(batchPreviewRequests).toBe(1);
+  expect(individualPreviewRequests).toBe(0);
+  expect(previewResponse.request().postDataJSON().orderIds.sort()).toEqual(
+    x.orders.map((order) => order.id).sort(),
   );
   await page.getByRole("button", { name: "选择本页", exact: true }).click();
   await expect(page.locator("[data-cost-count]")).toContainText("已选 3 单");

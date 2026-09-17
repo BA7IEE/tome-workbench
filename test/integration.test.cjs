@@ -438,16 +438,30 @@ test("Complete supplier item needs no local photography/measurement workflow", a
   });
   assert.equal(await db.task.count({ where: { itemId: i.id } }), 0);
 });
-test("Preparation requirements are deduplicated across purposes and runs", async () => {
+test("Preparation requirements stay live by target and never create stale PREPARE tasks", async () => {
   const i = await sparse();
+  const legacy = await db.task.create({
+    data: {
+      itemId: i.id,
+      dedupeKey: `legacy-prepare-${randomUUID()}`,
+      kind: "PREPARE",
+      title: "历史资料待补齐",
+      status: "OPEN",
+      assignee: "",
+      note: "仅用于兼容审计",
+    },
+  });
+  const evaluations = [];
   for (let n = 0; n < 2; n++)
-    await ok(`/items/${i.id}/prepare`, "POST", {
+    evaluations.push(await ok(`/items/${i.id}/prepare`, "POST", {
       channelId: channel.id,
       purpose: "TRADE",
-    });
+    }));
+  assert.ok(evaluations.every((row) => row.missing.includes("images")));
   const tasks = await db.task.findMany({ where: { itemId: i.id } });
-  assert.equal(new Set(tasks.map((t) => t.dedupeKey)).size, tasks.length);
-  assert.ok(tasks.some((t) => t.dedupeKey.endsWith(":images")));
+  assert.deepEqual(tasks.map((task) => task.id), [legacy.id]);
+  const queue = await ok(`/work-queue?scope=TASK&q=${encodeURIComponent(legacy.title)}`);
+  assert.equal(queue.rows.some((row) => row.entityId === legacy.id), false);
 });
 test("Approved copy stays fixed while drafts change; actual critical changes revoke it", async () => {
   const i = await ready();
@@ -3078,6 +3092,19 @@ test('成本的现金与确认汇率模式遵守同一Credit规则，混币种�
   assert.equal(result.status, 400);
 });
 
+test("Cost Batch：一个请求返回当前页各订单的同一成本预览", async () => {
+  const x = await setupAgentTrr("Cost batch preview synthetic");
+  const single = await ok(`/costing/orders/${x.order.id}/preview`);
+  const batch = await ok("/costing/orders/previews", "POST", {
+    orderIds: [x.order.id],
+  });
+  assert.deepEqual(batch.rows, [{ orderId: x.order.id, preview: single }]);
+  const tooMany = await api("/costing/orders/previews", "POST", {
+    orderIds: Array.from({ length: 101 }, () => randomUUID()),
+  });
+  assert.equal(tooMany.status, 400);
+});
+
 test('v1 经营行动中心统一投影候选、任务、询盘、成交补账和事实冲突，并按角色收口敏感事项',async()=>{
   const x=await setupAgentTrr('Action queue source');
   const taskItem=await sparse({title:'行动中心任务商品'}),inquiryItem=await sparse({title:'行动中心询盘商品'}),saleItem=await sparse({title:'行动中心成交商品'}),observationItem=await sparse({title:'行动中心冲突商品'});
@@ -3369,6 +3396,48 @@ test('完整经营检索先排序筛选再分页，旧事项与紧急下架都�
     const only=await ok('/work-queue?scope=INQUIRY&q='+prefix);assert.ok(only.rows.some(r=>r.entityId===n.id));
     const hidden=await ok('/work-queue?scope=INQUIRY&q='+prefix,'GET',undefined,viewer);assert.equal(hidden.total,0);
   } finally {await db.task.deleteMany({where:{dedupeKey:{startsWith:prefix}}});}
+});
+
+test("Launch Closure workflow scale：全局待确认商品不受首屏限制，旧 PREPARE 不进入队列", async () => {
+  const prefix = "ITEM-REVIEW-" + randomUUID().slice(0, 8);
+  const ids = Array.from({ length: 1000 }, () => randomUUID());
+  await db.$transaction(async (tx) => {
+    await tx.item.createMany({
+      data: ids.map((id, index) => ({
+        id,
+        title: `${prefix}-${String(index + 1).padStart(4, "0")}`,
+        facts: {},
+        dataMode: "BUSINESS",
+        status: "AVAILABLE",
+      })),
+    });
+    await tx.cycle.createMany({
+      data: ids.map((itemId) => ({ itemId, number: 1 })),
+    });
+  });
+  try {
+    const pages = await Promise.all(
+      [1, 2, 3, 4].map((page) =>
+        ok(`/work-queue?scope=ITEM_REVIEW&q=${encodeURIComponent(prefix)}&size=300&page=${page}`),
+      ),
+    );
+    assert.equal(pages[0].total, ids.length);
+    assert.deepEqual(pages.map((page) => page.rows.length), [300, 300, 300, 100]);
+    const found = new Set(pages.flatMap((page) => page.rows.map((row) => row.entityId)));
+    assert.equal(found.size, ids.length);
+    assert.deepEqual([...found].sort(), [...ids].sort());
+    const first = pages[0].rows[0];
+    assert.equal(first.kind, "ITEM_REVIEW");
+    assert.equal(first.action, "去确认");
+    assert.equal(first.href, `#/items/${first.entityId}?tab=facts&returnTo=${encodeURIComponent("#/tasks?scope=ITEM_REVIEW")}`);
+    const dashboard = await ok("/dashboard");
+    assert.ok(dashboard.pendingItemReviews >= ids.length);
+  } finally {
+    await db.$transaction(async (tx) => {
+      await tx.cycle.deleteMany({ where: { itemId: { in: ids } } });
+      await tx.item.deleteMany({ where: { id: { in: ids } } });
+    });
+  }
 });
 
 test('经营账1001笔全量汇总导出和分页保持日期客户币种与精确成交一致',async()=>{
@@ -5424,11 +5493,15 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   });
   assert.equal(pendingDelist.sourceAttemptId, published.id);
   const queue = await ok("/work-queue");
+  // rc.5 puts every unapproved business TM in the shared queue.  A lower
+  // priority financial follow-up can legitimately fall beyond the first page,
+  // so verify its scoped projection instead of relying on the old small queue.
+  const financeQueue = await ok("/work-queue?scope=SALE_FINANCE");
   const unknown = queue.rows.find(
     (row) => row.id === `distribution:${attempt.id}`,
   );
   const followup = queue.rows.find((row) => row.id === `inquiry:${inquiry.id}`);
-  const finance = queue.rows.find((row) => row.id === `sale:${sale.id}`);
+  const finance = financeQueue.rows.find((row) => row.id === `sale:${sale.id}`);
   const delist = queue.rows.find(
     (row) => row.id === `distribution:${pendingDelist.id}`,
   );

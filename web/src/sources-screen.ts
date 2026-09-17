@@ -117,7 +117,7 @@ export async function sourcesScreen() {
     );
   });
   return (
-    `<div id="${root}"><div class="page-title"><div><h1>货源与供应商</h1><p>维护手工供货资料与供应商；已接手商品在TM中经营，外部Agent资料统一到待确认处理。</p></div><div class="button-row">${can("edit") ? button("手工录货", () => quickIntake()) : ""}<a class="btn primary" href="#/candidates">外部批量接收</a>${button("＋ 记录货源", () => singleSource(suppliers), "")}${button("导入表格", () => importSources(suppliers))}</div></div>` +
+    `<div id="${root}"><div class="page-title"><div><h1>货源与供应商</h1><p>维护供应商持有、寄售或远端货源；已接手商品在TM中经营，外部Agent资料统一到待确认处理。</p></div><div class="button-row">${can("edit") ? button("＋ 快速录入我方现货", () => quickIntake()) : ""}<a class="btn primary" href="#/candidates">外部批量接收</a>${button("＋ 记录货源", () => singleSource(suppliers), "")}${button("导入表格", () => importSources(suppliers))}</div></div>` +
     section(
       "货源池",
       `<form class="filters" id="source-search-form"><input name="q" id="source-search" aria-label="搜索全部货源" placeholder="搜索名称、原货号、供货方" value="${esc(q)}"><select name="stage" aria-label="货源阶段"><option value="">全部阶段</option><option value="pending" ${stage === "pending" ? "selected" : ""}>待选品</option><option value="adopted" ${stage === "adopted" ? "selected" : ""}>已接手</option></select><button class="btn primary">搜索</button><span>共 ${result.total} 条 · 第 ${page} 页</span></form><div class="button-row">${can("edit") ? '<button class="btn" id="adopt-selection">为勾选货源建档</button>' : ""}</div>` +

@@ -449,6 +449,19 @@ export class CostingService {
   preview(orderId: string) {
     return this.db.$transaction((tx) => this.calculate(tx, orderId));
   }
+  previews(orderIds: string[]) {
+    return this.db.$transaction(async (tx) => {
+      // Keep the exact per-order calculator as the only cost algorithm. The
+      // batch endpoint only shares one read transaction and one HTTP request.
+      const rows = await Promise.all(
+        orderIds.map(async (orderId) => ({
+          orderId,
+          preview: await this.calculate(tx, orderId),
+        })),
+      );
+      return { rows };
+    });
+  }
   commit(actor: Actor, key: unknown, orderId: string, basisVersion: number) {
     return this.commands.run(
       actor.id,

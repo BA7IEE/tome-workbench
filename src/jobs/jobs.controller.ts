@@ -21,7 +21,10 @@ export class JobsController {
   ) {}
   @Access("read") @Get("tasks") tasks() {
     return this.db.task.findMany({
-      where: { item: { deletedAt: null, dataMode: "BUSINESS" } },
+      where: {
+        kind: { not: "PREPARE" },
+        item: { deletedAt: null, dataMode: "BUSINESS" },
+      },
       include: {
         item: { select: { id: true, serial: true, title: true } },
         listing: { include: { channel: true } },
@@ -102,6 +105,7 @@ export class JobsController {
       unresolved,
       pendingJobs,
       pendingCandidates,
+      pendingItemReviews,
       pendingInquiries,
       pendingSalesFinance,
       pendingDistribution,
@@ -116,6 +120,7 @@ export class JobsController {
       this.db.task.count({
         where: {
           status: "OPEN",
+          kind: { not: "PREPARE" },
           item: { deletedAt: null, dataMode: "BUSINESS" },
         },
       }),
@@ -127,6 +132,13 @@ export class JobsController {
         where: { status: { in: ["PENDING", "WORKING", "FAILED"] } },
       }),
       this.db.ingestCandidate.count({ where: { decision: "PENDING" } }),
+      this.db.item.count({
+        where: {
+          deletedAt: null,
+          dataMode: "BUSINESS",
+          approvedValid: false,
+        },
+      }),
       this.db.inquiry.count({
         where: {
           state: { in: ["OPEN", "FOLLOWUP"] },
@@ -166,6 +178,7 @@ export class JobsController {
         openTasks +
         unresolved +
         pendingCandidates +
+        pendingItemReviews +
         visibleDistributionWork +
         visibleInquiries +
         visibleSalesFinance;
@@ -177,6 +190,7 @@ export class JobsController {
       unresolved,
       pendingJobs,
       pendingCandidates,
+      pendingItemReviews,
       pendingDistribution: visibleDistribution,
       pendingInquiries: visibleInquiries,
       pendingSalesFinance: visibleSalesFinance,

@@ -48,12 +48,21 @@ export async function costBatchPage() {
       "/procurement/orders?" + p,
     ),
   ]);
-  const previews = await Promise.all(
-    result.rows.map((o) =>
-      request<CostPreview>(`/costing/orders/${o.id}/preview`),
-    ),
+  const previewResult = result.rows.length
+    ? await request<{ rows: { orderId: string; preview: CostPreview }[] }>(
+        "/costing/orders/previews",
+        "POST",
+        { orderIds: result.rows.map((order) => order.id) },
+      )
+    : { rows: [] };
+  const previews = new Map(
+    previewResult.rows.map((row) => [row.orderId, row.preview]),
   );
-  const rows = result.rows.map((order, n) => ({ order, preview: previews[n] }));
+  const rows = result.rows.map((order) => {
+    const preview = previews.get(order.id);
+    if (!preview) throw new Error("本批成本预览缺少订单结果，请重新读取");
+    return { order, preview };
+  });
   for (const r of rows)
     if (selected.has(r.order.id)) selected.set(r.order.id, r);
   const basis = (r: Selected) =>

@@ -45,7 +45,8 @@ interface WorkQueueRow {
     | "OBSERVATION"
     | "DISTRIBUTION"
     | "INQUIRY"
-    | "SALE_FINANCE";
+    | "SALE_FINANCE"
+    | "ITEM_REVIEW";
   priority: number;
   title: string;
   detail: string;
@@ -63,6 +64,7 @@ interface WorkQueue {
     total: number;
     candidates: number;
     tasks: number;
+    itemReviews: number;
     observations: number;
     distribution: number;
     inquiries: number;
@@ -77,6 +79,7 @@ const workKindNames: Record<WorkQueueRow["kind"], string> = {
   DISTRIBUTION: "分发执行",
   INQUIRY: "客户跟进",
   SALE_FINANCE: "成交补账",
+  ITEM_REVIEW: "商品资料确认",
 };
 function taskControl(row: WorkQueueRow) {
   if (row.kind !== "TASK" || !row.task || !can("edit")) return "";
@@ -126,6 +129,7 @@ export async function tasksPage() {
   const metrics = [
     ["全部待处理", s.total, "按业务风险和时效统一排序"],
     ["商品待确认", s.candidates, "Agent采集后等待人工生成TM"],
+    ["商品资料待确认", s.itemReviews, "全部未批准TM，不受商品列表当前页限制"],
     ["分发异常", s.distribution, "结果未知优先按 TM 核对，再处理明确失败"],
     ["客户跟进", s.inquiries, "新询盘与跟进中询盘"],
     ["成交补账", s.saleFinance, "缺成交额、成本、费用或到账确认"],
@@ -153,6 +157,7 @@ export async function tasksPage() {
     ALL: "全部事项",
     TASK: "商品任务",
     CANDIDATE: "待确认商品",
+    ITEM_REVIEW: "待确认商品资料",
     DISTRIBUTION: "分发异常",
     INQUIRY: "客户跟进",
     SALE_FINANCE: "成交补账",
@@ -205,11 +210,11 @@ export async function listingsPage() {
   const listings = result.rows;
   return (
     section(
-      "渠道发布记录",
+      "远端身份记录",
       recordFilters("listings", qs, "listings") +
         recordContext(qs, "listings") +
         note(
-          "平台发布和下架仍由操作人员实际执行。这里记录平台商品ID、系统希望的状态和你最后确认的实际状态；下载资料不会自动记成已发布。",
+          "这里只保留已取得稳定远端ID的身份记录。实际发布、待更新、异常和需停售状态请到“商品分发”查看；平台发布和下架仍由外部操作者实际执行。",
         ) +
         table(
           ["商品", "渠道", "平台商品ID", "应有状态", "实际状态", "操作"],
@@ -519,8 +524,9 @@ async function followInquiry(i: Inquiry) {
           changed = true;
           dialog.querySelector<HTMLSelectElement>('[name="state"]')!.value =
             latest[0].state;
-          dialog.querySelector<HTMLInputElement>('[name="nextFollowUpAt"]')!.value =
-            localDateTime(latest[0].nextFollowUpAt);
+          dialog.querySelector<HTMLInputElement>(
+            '[name="nextFollowUpAt"]',
+          )!.value = localDateTime(latest[0].nextFollowUpAt);
           dialog.querySelector("[data-inquiry-conflict]")!.innerHTML =
             `<div class="notice warning"><strong>最新进度：${esc(states[latest[0].state] || latest[0].state)}</strong>${await historyHtml(i.id)}${check("acceptLatest", "已核对最新沟通，保留本次输入继续提交")}</div>`;
         }

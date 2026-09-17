@@ -41,7 +41,7 @@ export async function itemActivity(item: Item) {
       (sales
         ? `<section><h3>成交记录 · ${sales.total} 笔</h3>${sales.rows.map((x) => `<p>${when(x.soldAt)} · ${esc(x.customerRef || "未标记客户")} · ${esc(x.channel)}${can("finance") ? ` · ${money(x.amount, x.currency)}` : ""}</p>`).join("")}${full("sales", "查看本商品全部成交")}</section>`
         : "") +
-      `<section><h3>发布记录 · ${listings.total} 条</h3>${listings.rows.map((x) => `<p>${esc(x.channel.name)} · ${esc(states[x.observed] || x.observed)}</p>`).join("")}${full("listings", "查看本商品全部发布")}</section>` +
+      `<section><h3>远端身份记录 · ${listings.total} 条</h3>${listings.rows.map((x) => `<p>${esc(x.channel.name)} · ${esc(states[x.observed] || x.observed)}</p>`).join("")}${full("listings", "查看本商品全部远端身份记录")}</section>` +
       (costs
         ? `<section><h3>成本依据</h3>${costs.length ? costs.map((c) => `<p>${money(c.amount, c.currency)} · ${c.status === "ACTIVE" ? "有效" : "已作废"}<small>${esc(c.note)}</small></p>`).join("") : "<p>暂无成本依据</p>"}<a class="btn" href="#/items/${item.id}?tab=costs&returnTo=${back}">维护成本明细</a></section>`
         : ""),

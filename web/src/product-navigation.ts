@@ -24,7 +24,7 @@ export function productReturn(item: Item) {
           : href.startsWith("#/inquiries")
             ? "返回客户询盘"
             : href.startsWith("#/listings")
-              ? "返回发布记录"
+              ? "返回远端身份记录"
               : href.startsWith("#/tasks")
                 ? "返回待办"
                 : "返回商品列表";

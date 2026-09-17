@@ -16,8 +16,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     items: [
       ["inquiries", "客户询盘", "sell"],
       ["sales", "成交记录", "sell"],
-      ["distribution", "商品分发", "publish"],
-      ["listings", "发布记录", "read"],
+      ["listings", "远端身份记录", "read"],
       ["collections", "客户选品", "read"],
     ],
   },
@@ -36,7 +35,7 @@ const sections: { name: string; compact?: boolean; items: Entry[] }[] = [
     items: [
       ["dictionaries", "字典管理", "dictionary"],
       ["settlements", "合作对账", "finance"],
-      ["settings", "设置与账户", "read"],
+      ["settings", "更多与账户", "read"],
       ["operations", "运行状态", "users"],
       ["audit", "操作记录", "audit"],
       ["jobs", "失败任务", "users"],
@@ -78,6 +77,15 @@ export function navigation(page: string) {
       page === "items" || page === "trash",
     ],
     ["imports", "导入记录", page === "imports" || page === "candidates"],
+    ...(can("publish")
+      ? [
+          ["distribution", "商品分发", page === "distribution"] as [
+            string,
+            string,
+            boolean,
+          ],
+        ]
+      : []),
     ...(can("sell")
       ? [
           ["sales", "销售", page === "sales" || page === "inquiries"] as [
@@ -89,7 +97,7 @@ export function navigation(page: string) {
       : []),
     [
       "settings",
-      "设置",
+      "更多",
       ![
         "dashboard",
         "items",
@@ -98,6 +106,7 @@ export function navigation(page: string) {
         "candidates",
         "sales",
         "inquiries",
+        "distribution",
       ].includes(page),
     ],
   ];

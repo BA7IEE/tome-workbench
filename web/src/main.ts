@@ -141,7 +141,7 @@ async function render() {
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings")
       html =
-        `<div class="page-title"><div><h1>设置</h1><p>账户与常用配置；其他业务记录可在下方查看。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
+        `<div class="page-title"><div><h1>更多</h1><p>账户与常用配置；采购、供应商、对账、字典、运行状态和审计都在这里。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
         (await settingsPage());
     else if (page === "jobs" && can("users")) html = await jobsPage();
     else if (page === "audit" && can("audit")) html = await auditPage();

@@ -507,6 +507,22 @@ test("外币对账快照缺少汇率基础时保持草稿，不执行打款", as
     path: "reports/screenshots/settlement.png",
     fullPage: true,
   });
+  // Keep repeated browser runs independent: this is an explicitly synthetic
+  // item and the draft statement stays as evidence, while its sale no longer
+  // participates in a later foreign-currency preview.
+  const cleanupPreview = await page.request.get(
+    `/api/items/${i.id}/test-cleanup-preview`,
+  );
+  expect(cleanupPreview.ok()).toBeTruthy();
+  const cleanup = await cleanupPreview.json();
+  await browserCommand(page, `/items/${i.id}/test-cleanup`, "POST", {
+    version: cleanup.version,
+    digest: cleanup.digest,
+    typedCode: cleanup.code,
+    reason: "浏览器外币对账隔离夹具",
+    noRealTransaction: true,
+    noRealPublication: true,
+  });
 });
 
 test("商品列表可删除、取消删除并在回收站恢复原编号", async ({ page }) => {

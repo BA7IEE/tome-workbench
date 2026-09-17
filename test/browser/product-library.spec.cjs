@@ -266,7 +266,7 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
   await expect(page.locator("tbody tr")).toContainText(title);
   await expect(page.locator("tbody tr")).not.toContainText("已定价");
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const label of ["工作台", "商品库", "导入记录", "销售", "设置"])
+  for (const label of ["工作台", "商品库", "导入记录", "销售", "更多"])
     await expect(
       page
         .getByRole("navigation", { name: "主导航" })
@@ -779,8 +779,8 @@ test("完成批次直达本批商品，重置和查看已归入不丢范围，�
 
 test("单件录货可保存关闭，下载失败只重试文件不重复整理", async ({ page }) => {
   const title = "单件完成 " + randomUUID().slice(0, 8);
-  await page.getByRole("button", { name: "＋ 快速录货", exact: true }).click();
-  const intake = page.getByRole("dialog", { name: "快速录货" });
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  const intake = page.getByRole("dialog", { name: "快速录入我方现货" });
   await intake.getByLabel("商品名称", { exact: true }).fill(title);
   await intake.getByRole("button", { name: "保存并关闭", exact: true }).click();
   await expect(intake).not.toBeVisible();

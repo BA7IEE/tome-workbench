@@ -5,7 +5,7 @@ import { PrismaService } from "../database/prisma.service";
 import { itemLock } from "../catalog/catalog.service";
 import { Fault } from "../common/errors";
 import { Tx, audit } from "../common/transaction";
-import { assetUsable, factsSchema } from "../common/domain";
+import { factsSchema } from "../common/domain";
 import { planStopDistribution } from "../distribution/distribution.service";
 import { PublicationHealthService } from "../distribution/publication-health.service";
 @Injectable()
@@ -56,45 +56,12 @@ export class WorkerService {
         exposure.channelId,
       );
     }
-    const current = await tx.item.findUniqueOrThrow({ where: { id: itemId } }),
-      f = factsSchema.parse(current.facts);
-    const assets = await tx.asset.findMany({ where: { itemId } }),
-      offer = await tx.offer.findFirst({
-        where: { itemId, status: "CONFIRMED", validUntil: { gt: new Date() } },
-      });
-    const measurementWaiver = await tx.requirementWaiver.findFirst({
-      where: {
-        itemId,
-        code: "measurements",
-        category: current.category,
-        status: "ACTIVE",
-      },
-    });
-    const satisfied: Record<string, boolean> = {
-      brand: !!current.brand,
-      title: !!current.title,
-      images: assets.some((a) => assetUsable(a)),
-      condition: !!f.condition,
-      measurements:
-        !!measurementWaiver || (!!f.measurements && !!f.measurementSource),
-      authentication:
-        f.authentication.status === "PASSED" && !!f.authentication.evidence,
-      price: current.currentPrice !== null && current.currentPrice > 0,
-      supply: current.ownership === "OWN" || !!offer,
-      availability: current.status === "AVAILABLE",
-      english: !!f.descriptionEn,
-      copy: !!f.descriptionZh,
-    };
-    for (const [code, ok] of Object.entries(satisfied))
-      if (ok)
-        await tx.task.updateMany({
-          where: {
-            dedupeKey: `req:${itemId}:${code}`,
-            kind: "PREPARE",
-            status: "OPEN",
-          },
-          data: { status: "SATISFIED" },
-        });
+    // Keep the sweep's corrupt-record boundary: invalid persisted facts must
+    // fail this item and let the bounded cursor continue with later rows. It
+    // no longer materializes or mutates legacy PREPARE tasks.
+    factsSchema.parse(
+      (await tx.item.findUniqueOrThrow({ where: { id: itemId } })).facts,
+    );
   }
   private leaseSeconds() {
     const value = Number(process.env.WORKER_LEASE_SECONDS || 60);

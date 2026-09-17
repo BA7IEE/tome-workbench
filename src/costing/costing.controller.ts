@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import { z } from "zod";
 import { Access, AuthRequest } from "../auth/auth";
 import { uuid } from "../common/domain";
 import { CostingService } from "./costing.service";
@@ -28,6 +29,13 @@ export class CostingController {
   }
   @Get("orders/:id/preview") preview(@Param("id") id: string) {
     return this.service.preview(uuid.parse(id));
+  }
+  @Post("orders/previews") previews(@Body() raw: unknown) {
+    const ids = z
+      .object({ orderIds: z.array(uuid).min(1).max(100) })
+      .strict()
+      .parse(raw).orderIds;
+    return this.service.previews(ids);
   }
   @Post("orders/:id/basis") basis(
     @Param("id") id: string,
