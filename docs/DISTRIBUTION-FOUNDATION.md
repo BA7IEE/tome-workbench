@@ -26,9 +26,11 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 ## 标准 Handoff 面
 
-仓库内的 `agent/skills/tome-distribution` 和[标准分发交付合同](DISTRIBUTION-HANDOFF-CONTRACT.md)是默认机器接入面。`GET /api/distribution-agent/handoffs` 只列当前 Channel 待交付资料和本会话已交付资料；带幂等键的 `POST .../package` 才把记录记为已交付，并且只返回有效 UsePackage 的冻结字段和按位置排序的图片。停用或退出 TRADE 的账号只可在有未完成 DELIST 时建立 stop-only 会话，并且该会话只能列出/取得 DELIST。每次机器写入及每个 Receipt 重放都会重查 Channel 会话、创建者的当前 publish 权限、Item lock、包版本和图片权利。
+仓库内的 `agent/skills/tome-distribution` 和[标准分发交付合同](DISTRIBUTION-HANDOFF-CONTRACT.md)是默认机器接入面。执行方先用 `X-Distribution-Token` 或同一 Token 的 Bearer 读取 `/api/distribution-agent/protocol`，下载其中声明的 Skill/Profile 并核对 SHA-256；MCP `initialize` 返回同一发现信息。`GET /api/distribution-agent/handoffs` 只列当前 Channel 待交付资料和本会话已交付资料；带幂等键的 `POST .../package` 才把记录记为已交付，并且只返回有效 UsePackage 的冻结字段和按位置排序的图片。停用或退出 TRADE 的账号只可在有未完成 DELIST 时建立 stop-only 会话，并且该会话只能列出/取得 DELIST。每次机器写入及每个 Receipt 重放都会重查 Channel 会话、创建者的当前 publish 权限、Item lock、包版本和图片权利。
 
-薄 MCP `/api/mcp/distribution` 只有 `tome_distribution_list_handoffs`、`tome_distribution_get_package`、`tome_distribution_report_published`、`tome_distribution_report_attention`。完成回传的 remoteId 可为空，AnQiCMS 真实 archive ID 应原样保存；伪造 `MANUAL:TM...` 一律拒绝。`ATTENTION` 把原记录转为 UNKNOWN，之后只能人工核对。DELIST 没有有效发布包时只交付永久 TM 和 Channel 身份，不能让历史图片权利成为停售阻断。
+薄 MCP `/api/mcp/distribution` 只有 `tome_distribution_list_handoffs`、`tome_distribution_get_package`、`tome_distribution_report_published`、`tome_distribution_report_attention`。APP 完成回传的 `remoteId` 可为空；AnQiCMS 的 PUBLISH/UPDATE 成功必须原样保存真实稳定 archive ID，伪造 `MANUAL:TM...`、TM 或空 archive ID 一律拒绝。AnQiCMS 包额外有 `platformData` 本地合同包装，仍不含平台请求。`ATTENTION` 把原记录转为 UNKNOWN，之后只能人工核对。DELIST 没有有效发布包时只交付永久 TM 和 Channel 身份，不能让历史图片权利成为停售阻断。
+
+标准 Handoff 的 `RUNNING` 若超过 `DISTRIBUTION_HANDOFF_STALE_HOURS`（默认 24 小时）或其会话已撤销/过期，经营投影动态显示 `HANDOFF_STALE` 或 `HANDOFF_SESSION_DEAD` 的 ATTENTION；不落库、不自动换会话或重发。旧领取/租约接口保留为兼容代码，但默认 `DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false`，只有显式开启的受控迁移才可访问。
 
 分发中心把内部状态显示为：PENDING=待交付、RUNNING=已交付、SUCCEEDED=已确认完成、FAILED=需要处理、UNKNOWN=需要核对、CANCELLED=已取消。它还汇总尚未确认完成的停售记录；页面不会保存凭据或调用第三方。
 

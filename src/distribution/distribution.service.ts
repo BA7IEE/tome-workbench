@@ -11,6 +11,7 @@ import {
 } from "../auth/auth";
 import { authorizationContext } from "../auth/request-context";
 import { getItem, itemLock } from "../catalog/catalog.service";
+import { config } from "../common/config";
 import { Fault } from "../common/errors";
 import {
   hash,
@@ -40,7 +41,18 @@ import {
 import {
   buildAnqicmsSpikePayload,
   buildAnqicmsTakedownProjection,
+  validateAnqicmsArchiveId,
 } from "./anqicms-spike";
+import {
+  DISTRIBUTION_PROTOCOL_VERSION,
+  DISTRIBUTION_SKILL_ID,
+  DISTRIBUTION_SKILL_NAME,
+  DISTRIBUTION_SKILL_VERSION,
+  profileForPlatform,
+  readDistributionProfileDocument,
+  readDistributionSkillDocument,
+  type DistributionProfile,
+} from "./distribution-standard";
 import {
   PublicationHealthService,
   type PublicationHealth,
@@ -167,10 +179,17 @@ type OperationalAttempt = {
   errorCode: string;
   errorMessage: string;
   createdAt: Date;
+  startedAt: Date | null;
   finishedAt: Date | null;
 };
 type OperationalAttemptWithPackage = OperationalAttempt & {
   packageId: string | null;
+  leaseUntil: Date | null;
+  claimedBySessionId: string | null;
+  claimedBySession: {
+    revokedAt: Date | null;
+    expiresAt: Date;
+  } | null;
 };
 type OperationalListing = {
   id: string;
@@ -572,6 +591,36 @@ export class DistributionService {
     if (!Number.isInteger(value) || value < min || value > 900)
       throw new Error("Invalid distribution lease duration");
     return value;
+  }
+
+  private standardHandoffAttention(
+    attempt: OperationalAttemptWithPackage,
+    now: Date,
+    staleHours: number,
+  ) {
+    // Legacy claims retain a lease. A standard handoff deliberately has none:
+    // it is only an external delivery fact and must never be auto-reclaimed.
+    if (attempt.state !== "RUNNING" || attempt.leaseUntil !== null) return null;
+    const session = attempt.claimedBySession;
+    if (
+      !attempt.claimedBySessionId ||
+      !session ||
+      session.revokedAt ||
+      session.expiresAt <= now
+    )
+      return {
+        code: "HANDOFF_SESSION_DEAD",
+        message: "已交付资料绑定的分发会话已撤销、过期或不存在，需要人工按永久 TM 核对",
+      };
+    if (
+      attempt.startedAt &&
+      now.getTime() - attempt.startedAt.getTime() >= staleHours * 3600000
+    )
+      return {
+        code: "HANDOFF_STALE",
+        message: `标准交付已超过 ${staleHours} 小时，尚未收到结果；不会自动重发，请人工按永久 TM 核对`,
+      };
+    return null;
   }
 
   private async handoffScope(
@@ -979,9 +1028,11 @@ export class DistributionService {
    * Read-only operating view.  It derives one current business state for an
    * Item × Channel pair from the existing Item, frozen package and handoff
    * facts; it deliberately does not persist a second inventory truth.
-   */
+  */
   async operations(raw: unknown) {
-    const input = operationalInput.parse(raw), now = new Date();
+    const input = operationalInput.parse(raw),
+      now = new Date(),
+      staleHours = config().distributionHandoffStaleHours;
     const pinned = input.attemptId
       ? await this.db.distributionAttempt.findUnique({
           where: { id: input.attemptId },
@@ -1148,7 +1199,13 @@ export class DistributionService {
           errorCode: true,
           errorMessage: true,
           createdAt: true,
+          startedAt: true,
           finishedAt: true,
+          leaseUntil: true,
+          claimedBySessionId: true,
+          claimedBySession: {
+            select: { revokedAt: true, expiresAt: true },
+          },
         },
       }),
       this.db.usePackage.findMany({
@@ -1223,6 +1280,7 @@ export class DistributionService {
             errorCode: row.errorCode,
             errorMessage: row.errorMessage,
             createdAt: row.createdAt,
+            startedAt: row.startedAt,
             finishedAt: row.finishedAt,
           }
         : null;
@@ -1389,12 +1447,32 @@ export class DistributionService {
               ),
           ),
         );
+        const activeStandardHandoff = newest(
+          pairAttempts.filter(
+            (attempt) =>
+              attempt.state === "RUNNING" && attempt.leaseUntil === null,
+          ),
+        );
+        const handoffAttention = activeStandardHandoff
+          ? this.standardHandoffAttention(
+              activeStandardHandoff,
+              now,
+              staleHours,
+            )
+          : null;
         const publishedPackage = currentPublication?.packageId
           ? packageById.get(currentPublication.packageId)
           : null;
         let state: OperationalState | null = null,
           attempt: OperationalAttemptWithPackage | null = null;
-        if (openStop || health?.state === "MUST_STOP") {
+        if (activeStandardHandoff && handoffAttention) {
+          state = "ATTENTION";
+          attempt = {
+            ...activeStandardHandoff,
+            errorCode: handoffAttention.code,
+            errorMessage: handoffAttention.message,
+          };
+        } else if (openStop || health?.state === "MUST_STOP") {
           state = "NEEDS_STOP";
           attempt = openStop;
         } else if (outstanding) {
@@ -1802,6 +1880,30 @@ export class DistributionService {
     return updated[0] || null;
   }
 
+  private async enforceAnqicmsSuccessReceipt(
+    tx: Tx,
+    attempt: { channelId: string; action: string },
+    result: ResultInput,
+  ): Promise<ResultInput> {
+    if (
+      result.state !== "SUCCEEDED" ||
+      !["PUBLISH", "UPDATE"].includes(attempt.action)
+    )
+      return result;
+    const channel = await tx.channel.findUniqueOrThrow({
+      where: { id: attempt.channelId },
+      select: { platform: true },
+    });
+    if (channel.platform !== "ANQICMS") return result;
+    if (!result.remoteId)
+      throw new Fault(
+        "ANQICMS_ARCHIVE_ID_REQUIRED",
+        "AnQiCMS 发布或更新成功必须回传稳定 archive ID",
+        400,
+      );
+    return { ...result, remoteId: validateAnqicmsArchiveId(result.remoteId) };
+  }
+
   private async finish(
     tx: Tx,
     attempt: {
@@ -1817,18 +1919,23 @@ export class DistributionService {
     observed: string,
     incrementAttempt: boolean,
   ) {
+    const finalResult = await this.enforceAnqicmsSuccessReceipt(
+      tx,
+      attempt,
+      result,
+    );
     const item = await itemLock(tx, attempt.itemId);
     const listing =
-      result.state !== "SUCCEEDED"
+      finalResult.state !== "SUCCEEDED"
         ? null
         : attempt.action === "DELIST"
-          ? await this.recordDelist(tx, attempt, result, actorId, observed)
-          : result.remoteId
+          ? await this.recordDelist(tx, attempt, finalResult, actorId, observed)
+          : finalResult.remoteId
             ? await this.upsertListing(
                 tx,
                 attempt,
-                result.remoteId,
-                result.remoteUrl,
+                finalResult.remoteId,
+                finalResult.remoteUrl,
                 actorId,
                 observed,
               )
@@ -1836,12 +1943,12 @@ export class DistributionService {
     const row = await tx.distributionAttempt.update({
       where: { id: attempt.id },
       data: {
-        state: result.state,
-        remoteId: result.remoteId,
-        remoteUrl: result.remoteUrl,
-        evidence: json(result.evidence || {}),
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
+        state: finalResult.state,
+        remoteId: finalResult.remoteId,
+        remoteUrl: finalResult.remoteUrl,
+        evidence: json(finalResult.evidence || {}),
+        errorCode: finalResult.errorCode,
+        errorMessage: finalResult.errorMessage,
         ...(incrementAttempt ? { attemptCount: { increment: 1 } } : {}),
         leaseUntil: null,
         startedAt: new Date(),
@@ -1852,7 +1959,7 @@ export class DistributionService {
     // flight. A late successful PUBLISH/UPDATE must therefore create the same
     // source-linked stop fact as the inventory transition would have created.
     const health =
-      result.state === "SUCCEEDED" &&
+      finalResult.state === "SUCCEEDED" &&
       ["PUBLISH", "UPDATE"].includes(row.action)
         ? await this.publicationHealth.evaluatePublicationHealth(
             tx,
@@ -1863,7 +1970,7 @@ export class DistributionService {
         : null;
     const mustStop = item.status !== "AVAILABLE" || health?.state === "MUST_STOP";
     const delistAttemptIds =
-      result.state === "SUCCEEDED" &&
+      finalResult.state === "SUCCEEDED" &&
       ["PUBLISH", "UPDATE"].includes(row.action) &&
       mustStop
         ? await planStopDistribution(
@@ -1880,7 +1987,7 @@ export class DistributionService {
     await audit(
       tx,
       actorId,
-      `DISTRIBUTION_ATTEMPT_${result.state}`,
+      `DISTRIBUTION_ATTEMPT_${finalResult.state}`,
       row.itemId,
       {
         attemptId: row.id,
@@ -2226,6 +2333,165 @@ export class DistributionService {
     }));
   }
 
+  private async anqicmsHandoffPayload(
+    tx: Tx,
+    attempt: {
+      id: string;
+      itemId: string;
+      channelId: string;
+      packageId: string | null;
+      action: string;
+    },
+    assetRoute: "handoffs" | "attempts" = "handoffs",
+  ) {
+    const channel = await tx.channel.findUniqueOrThrow({
+      where: { id: attempt.channelId },
+    });
+    if (channel.platform !== "ANQICMS")
+      throw new Fault(
+        "ANQICMS_CHANNEL_REQUIRED",
+        "只有 AnQiCMS API 渠道可以读取本地资料合同",
+        409,
+      );
+
+    if (attempt.action === "DELIST") {
+      const item = await tx.item.findUniqueOrThrow({
+        where: { id: attempt.itemId },
+        select: { id: true, serial: true, status: true },
+      });
+      const listing = await tx.listing.findFirst({
+        where: { itemId: item.id, channelId: attempt.channelId },
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        select: { remoteId: true, url: true },
+      });
+      return buildAnqicmsTakedownProjection({
+        action: "DELIST",
+        item: { tmCode: tm(item.serial), status: item.status },
+        listing: listing
+          ? { archiveId: listing.remoteId, url: listing.url }
+          : null,
+      });
+    }
+
+    if (!attempt.packageId)
+      throw new Fault(
+        "ANQICMS_PACKAGE_REQUIRED",
+        "AnQiCMS 发布资料需要有效冻结使用包，不能凭空拼装资料",
+        409,
+      );
+    const pack = await this.publishing.validPackage(tx, attempt.packageId);
+    if (pack.s.price === null || pack.s.currency !== "USD")
+      throw new Fault(
+        "ANQICMS_USD_REQUIRED",
+        "AnQiCMS 发布合同只接受已冻结的 USD 渠道报价",
+        409,
+      );
+    const revision = await tx.itemRevision.findUnique({
+      where: { id: pack.p.revisionId },
+    });
+    const approved = revision?.snapshot as
+      | {
+          brand?: string;
+          category?: string;
+          facts?: unknown;
+        }
+      | undefined;
+    if (!approved?.brand || !approved.category || !approved.facts)
+      throw new Fault(
+        "ANQICMS_APPROVED_FACTS_REQUIRED",
+        "AnQiCMS 合同需要冻结版本中的品牌、分类和已批准商品事实",
+        409,
+      );
+    const facts = factsSchema.parse(approved.facts);
+    const conditionSelection = await tx.itemDictionarySelection.findUnique({
+      where: {
+        itemId_kind: { itemId: pack.p.itemId, kind: "CONDITION" },
+      },
+      select: { code: true },
+    });
+    const attribute = (key: string) => {
+      const value = facts.attributes[key];
+      return typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+        ? String(value)
+        : "";
+    };
+    const byId = new Map(pack.assets.map((asset) => [asset.id, asset]));
+    const images = pack.s.assets.map((image) => {
+      const asset = byId.get(image.id);
+      if (!asset)
+        throw new Fault(
+          "ANQICMS_IMAGE_REQUIRED",
+          "使用包缺少已批准图片，不能生成 AnQiCMS 合同资料",
+          409,
+        );
+      if (!["PRODUCT", "DETAIL", "DEFECT"].includes(asset.role))
+        throw new Fault(
+          "ANQICMS_IMAGE_ROLE_INVALID",
+          "AnQiCMS 合同只能使用已批准的实物、细节或瑕疵图片",
+          409,
+        );
+      return {
+        id: image.id,
+        role: asset.role as "PRODUCT" | "DETAIL" | "DEFECT",
+        position: image.position,
+        download: `/api/distribution-agent/${assetRoute}/${attempt.id}/assets/${image.id}`,
+      };
+    });
+    const listing = await tx.listing.findFirst({
+      where: { itemId: attempt.itemId, channelId: attempt.channelId },
+      orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+    });
+    return buildAnqicmsSpikePayload({
+      action: attempt.action as "PUBLISH" | "UPDATE" | "DELIST",
+      item: {
+        tmCode: pack.s.code,
+        title: pack.s.title,
+        body: pack.s.body,
+        price: pack.s.price,
+        currency: "USD",
+        status: pack.p.item.status,
+        brand: approved.brand,
+        category: approved.category,
+        conditionGrade: conditionSelection?.code || "",
+        conditionDescription: facts.condition,
+        size: facts.sizeLabel || attribute("size"),
+        color: facts.color || attribute("color"),
+        material: facts.mainMaterial || facts.material || attribute("material"),
+        measurements: facts.measurements,
+        year: attribute("year"),
+        collection: attribute("collection"),
+        styleNumber: attribute("styleNumber") || attribute("style_number"),
+      },
+      images,
+      listing: listing
+        ? { archiveId: listing.remoteId, url: listing.url }
+        : null,
+    });
+  }
+
+  private async platformDataForHandoff(
+    tx: Tx,
+    attempt: {
+      id: string;
+      itemId: string;
+      channelId: string;
+      packageId: string | null;
+      action: string;
+    },
+  ) {
+    const channel = await tx.channel.findUniqueOrThrow({
+      where: { id: attempt.channelId },
+      select: { platform: true },
+    });
+    if (channel.platform !== "ANQICMS") return null;
+    return {
+      schema: "tome.anqicms/v1",
+      payload: await this.anqicmsHandoffPayload(tx, attempt),
+    };
+  }
+
   private async handoffPackagePayload(
     tx: Tx,
     attempt: {
@@ -2251,6 +2517,7 @@ export class DistributionService {
         tm: tm(item.serial),
         channel: { id: channel.id, name: channel.name, platform: channel.platform },
         package: null,
+        platformData: await this.platformDataForHandoff(tx, attempt),
       };
     }
     const pack = await this.publishing.validPackage(tx, attempt.packageId);
@@ -2282,6 +2549,7 @@ export class DistributionService {
             download: `/api/distribution-agent/handoffs/${attempt.id}/assets/${image.id}`,
           })),
       },
+      platformData: await this.platformDataForHandoff(tx, attempt),
     };
   }
 
@@ -2514,15 +2782,67 @@ export class DistributionService {
     );
   }
 
+  private async distributionProfile(session: AgentSession): Promise<DistributionProfile> {
+    const channel = await this.db.channel.findUnique({
+      where: { id: session.channelId },
+      select: { platform: true },
+    });
+    if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
+    const profile = profileForPlatform(channel.platform);
+    if (!profile)
+      throw new Fault(
+        "DISTRIBUTION_PROFILE_UNAVAILABLE",
+        `渠道 ${channel.platform} 没有可验证的标准分发 Profile；请由运营人员先指定渠道资料合同`,
+        409,
+      );
+    return profile;
+  }
+
   async agentProtocol(session: AgentSession) {
+    const profile = await this.distributionProfile(session);
+    const [skillDocument, profileDocument] = await Promise.all([
+      readDistributionSkillDocument(),
+      readDistributionProfileDocument(profile),
+    ]);
     return {
-      protocolVersion: "1.0",
+      protocolVersion: DISTRIBUTION_PROTOCOL_VERSION,
       session: { channelId: session.channelId, agentName: session.agentName },
-      actions: ["PUBLISH", "UPDATE", "DELIST", "VERIFY"],
-      resultStates: ["SUCCEEDED", "FAILED", "UNKNOWN"],
+      skill: {
+        id: DISTRIBUTION_SKILL_ID,
+        name: DISTRIBUTION_SKILL_NAME,
+        version: DISTRIBUTION_SKILL_VERSION,
+        sha256: skillDocument.sha256,
+        url: "/api/distribution-agent/skill",
+      },
+      profile: {
+        id: profile.id,
+        name: profile.name,
+        platform: profile.platform,
+        sha256: profileDocument.sha256,
+        url: "/api/distribution-agent/profile",
+      },
+      handoff: {
+        tools: [
+          "tome_distribution_list_handoffs",
+          "tome_distribution_get_package",
+          "tome_distribution_report_published",
+          "tome_distribution_report_attention",
+        ],
+        noAutoRetry: true,
+      },
       unknownRule:
-        "UNKNOWN 必须领取原 Attempt 并通过永久TM核对；禁止新建第二个发布 Attempt。",
+        "UNKNOWN 必须在原记录按永久 TM 核对；禁止新建第二个发布记录或自动重发。",
+      documentation: "docs/DISTRIBUTION-HANDOFF-CONTRACT.md",
     };
+  }
+
+  async machineHandoffSkillDocument() {
+    return readDistributionSkillDocument();
+  }
+
+  async machineHandoffProfileDocument(session: AgentSession) {
+    const profile = await this.distributionProfile(session);
+    return { profile, ...(await readDistributionProfileDocument(profile)) };
   }
 
   async agentAttempts(session: AgentSession) {
@@ -2764,148 +3084,12 @@ export class DistributionService {
       const attempt = await this.activeClaim(tx, session, id);
       const channel = await tx.channel.findUniqueOrThrow({
         where: { id: attempt.channelId },
-      });
-      if (channel.platform !== "ANQICMS")
-        throw new Fault(
-          "ANQICMS_CHANNEL_REQUIRED",
-          "只有 AnQiCMS API 渠道可以读取本地资料合同",
-          409,
-        );
-
-      if (attempt.action === "DELIST") {
-        const item = await tx.item.findUniqueOrThrow({
-          where: { id: attempt.itemId },
-          select: { id: true, serial: true, status: true },
-        });
-        const listing = await tx.listing.findFirst({
-          where: { itemId: item.id, channelId: attempt.channelId },
-          orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-          select: { remoteId: true, url: true },
-        });
-        const payload = buildAnqicmsTakedownProjection({
-          action: "DELIST",
-          item: { tmCode: tm(item.serial), status: item.status },
-          listing: listing
-            ? { archiveId: listing.remoteId, url: listing.url }
-            : null,
-        });
-        return {
-          attemptId: attempt.id,
-          channel: {
-            id: channel.id,
-            platform: channel.platform,
-            name: channel.name,
-            locale: channel.locale,
-          },
-          payload,
-        };
-      }
-
-      if (!attempt.packageId)
-        throw new Fault(
-          "ANQICMS_PACKAGE_REQUIRED",
-          "AnQiCMS 发布资料需要有效冻结使用包，不能凭空拼装资料",
-          409,
-        );
-      const pack = await this.publishing.validPackage(tx, attempt.packageId);
-      if (pack.s.price === null || pack.s.currency !== "USD")
-        throw new Fault(
-          "ANQICMS_USD_REQUIRED",
-          "AnQiCMS 发布合同只接受已冻结的 USD 渠道报价",
-          409,
-        );
-      const revision = await tx.itemRevision.findUnique({
-        where: { id: pack.p.revisionId },
-      });
-      const approved = revision?.snapshot as
-        | {
-            brand?: string;
-            category?: string;
-            facts?: unknown;
-          }
-        | undefined;
-      if (!approved?.brand || !approved.category || !approved.facts)
-        throw new Fault(
-          "ANQICMS_APPROVED_FACTS_REQUIRED",
-          "AnQiCMS 合同需要冻结版本中的品牌、分类和已批准商品事实",
-          409,
-        );
-      const facts = factsSchema.parse(approved.facts);
-      const conditionSelection = await tx.itemDictionarySelection.findUnique({
-        where: {
-          itemId_kind: { itemId: pack.p.itemId, kind: "CONDITION" },
-        },
-        select: { code: true },
-      });
-      const attribute = (key: string) => {
-        const value = facts.attributes[key];
-        return typeof value === "string" ||
-          typeof value === "number" ||
-          typeof value === "boolean"
-          ? String(value)
-          : "";
-      };
-      const byId = new Map(pack.assets.map((asset) => [asset.id, asset]));
-      const images = pack.s.assets.map((image) => {
-        const asset = byId.get(image.id);
-        if (!asset)
-          throw new Fault(
-            "ANQICMS_IMAGE_REQUIRED",
-            "使用包缺少已批准图片，不能生成 AnQiCMS 合同资料",
-            409,
-          );
-        if (!["PRODUCT", "DETAIL", "DEFECT"].includes(asset.role))
-          throw new Fault(
-            "ANQICMS_IMAGE_ROLE_INVALID",
-            "AnQiCMS 合同只能使用已批准的实物、细节或瑕疵图片",
-            409,
-          );
-        return {
-          id: image.id,
-          role: asset.role as "PRODUCT" | "DETAIL" | "DEFECT",
-          position: image.position,
-          download: `/api/distribution-agent/attempts/${attempt.id}/assets/${image.id}`,
-        };
-      });
-      const listing = await tx.listing.findFirst({
-        where: { itemId: attempt.itemId, channelId: attempt.channelId },
-        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-      });
-      const payload = buildAnqicmsSpikePayload({
-        action: attempt.action as "PUBLISH" | "UPDATE" | "DELIST",
-        item: {
-          tmCode: pack.s.code,
-          title: pack.s.title,
-          body: pack.s.body,
-          price: pack.s.price,
-          currency: "USD",
-          status: pack.p.item.status,
-          brand: approved.brand,
-          category: approved.category,
-          conditionGrade: conditionSelection?.code || "",
-          conditionDescription: facts.condition,
-          size: facts.sizeLabel || attribute("size"),
-          color: facts.color || attribute("color"),
-          material: facts.mainMaterial || facts.material || attribute("material"),
-          measurements: facts.measurements,
-          year: attribute("year"),
-          collection: attribute("collection"),
-          styleNumber: attribute("styleNumber") || attribute("style_number"),
-        },
-        images,
-        listing: listing
-          ? { archiveId: listing.remoteId, url: listing.url }
-          : null,
+        select: { id: true, platform: true, name: true, locale: true },
       });
       return {
         attemptId: attempt.id,
-        channel: {
-          id: channel.id,
-          platform: channel.platform,
-          name: channel.name,
-          locale: channel.locale,
-        },
-        payload,
+        channel,
+        payload: await this.anqicmsHandoffPayload(tx, attempt, "attempts"),
       };
     });
   }

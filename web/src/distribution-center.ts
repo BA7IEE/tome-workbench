@@ -25,6 +25,7 @@ type Attempt = {
   errorCode: string;
   errorMessage: string;
   createdAt: string;
+  startedAt: string | null;
   finishedAt: string | null;
 };
 
@@ -174,6 +175,11 @@ function recordManualResult(attempt: Attempt, title: string) {
 }
 
 function operationLabel(row: Operation) {
+  if (
+    row.state === "ATTENTION" &&
+    row.attempt?.errorCode.startsWith("HANDOFF_")
+  )
+    return "交付需核对";
   if (row.state === "ATTENTION" && row.attempt)
     return handoffStates[row.attempt.state] || operationStates[row.state];
   return operationStates[row.state] || row.state;

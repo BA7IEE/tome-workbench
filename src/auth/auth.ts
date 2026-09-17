@@ -113,7 +113,11 @@ export class AuthGuard implements CanActivate {
       [ctx.getHandler(), ctx.getClass()],
     );
     if (distribution) {
-      const token = req.get("X-Distribution-Token") || "";
+      const directToken = req.get("X-Distribution-Token") || "";
+      const bearer =
+        /^Bearer\s+([a-f0-9]{64})$/.exec(req.get("Authorization") || "")?.[1] ||
+        "";
+      const token = directToken || bearer;
       if (!/^[a-f0-9]{64}$/.test(token))
         throw new Fault("DISTRIBUTION_TOKEN_REQUIRED", "缺少有效分发令牌", 401);
       const now = new Date();

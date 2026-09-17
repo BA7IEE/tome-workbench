@@ -20,6 +20,15 @@ export function config() {
     throw new Error(
       "本版无真实渠道/支付适配器，禁止开启 EXTERNAL_EFFECTS_ENABLED",
     );
+  const distributionHandoffStaleHours = Number(
+    process.env.DISTRIBUTION_HANDOFF_STALE_HOURS || 24,
+  );
+  if (
+    !Number.isInteger(distributionHandoffStaleHours) ||
+    distributionHandoffStaleHours < 1 ||
+    distributionHandoffStaleHours > 168
+  )
+    throw new Error("DISTRIBUTION_HANDOFF_STALE_HOURS 必须是 1—168 的整数");
   const secure = process.env.COOKIE_SECURE === "true";
   if (env === "production" && (!secure || !origin.startsWith("https://")))
     throw new Error("生产需要 HTTPS 与安全 Cookie");
@@ -33,5 +42,8 @@ export function config() {
     host: process.env.HOST || "127.0.0.1",
     port,
     mediaDir: resolve(process.env.MEDIA_DIR || "./data/media"),
+    distributionCompatRuntimeEnabled:
+      process.env.DISTRIBUTION_COMPAT_RUNTIME_ENABLED === "true",
+    distributionHandoffStaleHours,
   };
 }

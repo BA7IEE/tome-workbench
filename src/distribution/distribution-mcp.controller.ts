@@ -124,7 +124,7 @@ const toolDefinitions = [
   {
     name: "tome_distribution_report_published",
     description:
-      "回填目标操作已确认完成；稳定远端 ID 可选，禁止用伪造 ID 占位。",
+      "回填目标操作已确认完成；AnQiCMS 的发布/更新必须回传 archive ID，APP 无稳定 ID 时可留空。",
     inputSchema: {
       type: "object",
       properties: {
@@ -216,15 +216,23 @@ export class DistributionMcpController {
       const initialization = initializeInput.safeParse(parsed.data.params);
       if (!initialization.success)
         return rpcError(id, -32602, "Invalid initialize params");
+      const handoff = await this.distribution.agentProtocol(
+        request.distributionSession,
+      );
       return response(id, {
         protocolVersion:
           initialization.data.protocolVersion === MCP_PROTOCOL_VERSION
             ? initialization.data.protocolVersion
             : MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: "tome-distribution", version: "1.0" },
+        serverInfo: {
+          name: "tome-distribution",
+          version: handoff.skill.version,
+        },
+        skill: handoff.skill,
+        profile: handoff.profile,
         instructions:
-          "Use only the four standard handoff tools. ToMe provides frozen material and records results; it does not perform external platform steps.",
+          "Read and verify the advertised Skill and Profile SHA-256 before using only the four standard handoff tools. ToMe provides frozen material and records results; it does not perform external platform steps.",
       });
     }
     if (parsed.data.method === "tools/list")
