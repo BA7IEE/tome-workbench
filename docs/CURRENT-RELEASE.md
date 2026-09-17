@@ -1,10 +1,12 @@
 # 当前发布事实
 
-当前源码版本：**1.0.2-rc.1**，稳定化候选，尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.1**，Agent Ingest Standard 启动版，尚未完成真实生产和经营验收。
 
 2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
 
 功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 销售 / 设置五入口；销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
+
+本版新增 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层新增 SHA-256 校验的 Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。标准 Profile 的服务端必查字段会与 Agent 自报字段合并，旧批次合同保持兼容；机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。本版没有 migration、没有第三方真实连接，也没有启用任何外部副作用。
 
 ## 自动维护约束
 
@@ -13,7 +15,7 @@
 <!-- current-facts -->
 ```json
 {
-  "version": "1.0.2-rc.1",
+  "version": "1.1.0-rc.1",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
@@ -59,6 +61,11 @@
 - PR #2 修复原生 autofocus 延迟抢焦点造成的登录问题，以及图片保存完成前提前显示成功的问题。
 - PR #3 实现版本统一、当前文档守卫、图片补偿、后端权限能力、生产备份恢复与 PushPlus 显式启用工具。
 - PR #4 实现上述 UX 1.0.2 功能。三项 PR 的最终 CI 均通过；本地完整门禁和打包证据见 [VALIDATION](VALIDATION.md)，合并后的 CI 见上方运行记录。
+
+## 本版范围
+
+- 标准 Agent Ingest 仅扩展候选采集入口和运营侧接入说明；既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和迁移封印均保持不动。
+- DistributionAttempt、ChannelPrice、Inquiry 原子转化、真实平台发布和 AnQiCMS 都属于后续独立切片，当前没有借由文档或接口名称宣称已完成。
 
 ## 尚未完成
 

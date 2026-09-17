@@ -104,6 +104,15 @@ export const required = [
   "src/ingest/ingest.logic.ts",
   "src/ingest/ingest.service.ts",
   "src/ingest/ingest.controller.ts",
+  "src/ingest/ingest-standard.ts",
+  "src/ingest/ingest-mcp.controller.ts",
+  "agent/skills/tome-ingest/SKILL.md",
+  "agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
+  "agent/skills/tome-ingest/profiles/TRR.md",
+  "tools/tome-ingest/cli.mjs",
+  "tools/tome-ingest/client.mjs",
+  "tools/tome-ingest/state.mjs",
+  "test/fixtures/tome-ingest/trr-v1.2-golden.json",
   "src/costing/costing.schemas.ts",
   "src/costing/costing.logic.ts",
   "src/costing/costing.service.ts",
@@ -283,6 +292,21 @@ export function checks(
       read("src/auth/auth.ts").includes("MachineIngest") &&
       read("src/ingest/ingest.controller.ts").includes("agent-ingest") &&
       read("test/integration.test.cjs").includes("Agent短期Token只能写采集层"),
+  );
+  check(
+    "v11-agent-standard-thin-surface",
+    () =>
+      read("src/ingest/ingest.controller.ts").includes('Get("skill")') &&
+      read("src/ingest/ingest.controller.ts").includes('Get("profile")') &&
+      read("src/ingest/ingest-mcp.controller.ts").includes(
+        "tome_ingest_upsert_candidates",
+      ) &&
+      read("src/ingest/ingest-mcp.controller.ts").includes(
+        "MCP 订单导入尚未连接既有采购服务",
+      ) === false &&
+      read("test/integration.test.cjs").includes(
+        "标准 Agent 协议校验 Skill/Profile",
+      ),
   );
   check("v1-item-center-webkit", () =>
     read("playwright.webkit.config.cjs").includes("v1-item-center.spec.cjs"),

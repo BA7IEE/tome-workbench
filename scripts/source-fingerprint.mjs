@@ -15,6 +15,7 @@ export function sourceFingerprint(root = process.cwd()) {
     }
   };
   for (const d of [
+    "agent",
     "src",
     "web",
     "prisma",
@@ -23,6 +24,7 @@ export function sourceFingerprint(root = process.cwd()) {
     "harness",
     "deploy",
     ".github",
+    "tools",
   ])
     visit(d);
   for (const f of [

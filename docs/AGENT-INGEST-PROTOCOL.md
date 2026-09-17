@@ -15,11 +15,13 @@ Agent 请求使用：
 网络回执中断时，必须使用**同一个 Idempotency-Key 和同一请求内容**重试；不要生成新请求号来猜测是否成功。
 
 ## 推荐流程
-1. `POST /batches` 创建采集批次。
-2. `POST /orders` 提交来源订单事实；没有订单的来源可跳过。
-3. `POST /batches/:id/candidates` 批量提交商品候选。
-4. `POST /candidates/:id/assets` 上传已下载的来源图片原件。
-5. `POST /batches/:id/seal` 封闭批次。
+1. `GET /protocol`，读取当前协议、Skill 和本会话来源 Profile。
+2. 校验协议主版本、Skill/Profile SHA-256；不兼容时停止写入。
+3. `POST /batches` 创建采集批次。
+4. `POST /orders` 提交来源订单事实；没有订单的来源可跳过。
+5. `POST /batches/:id/candidates` 批量提交商品候选。
+6. `POST /candidates/:id/assets` 上传已下载的来源图片原件。
+7. `POST /batches/:id/seal` 封闭批次。
 
 封批后批次不可继续增加候选或图片；重新采集同一外部商品使用稳定 `externalKey`，系统追加修订而不是制造第二件候选。
 ## 候选商品必须提供的稳定信息
@@ -124,3 +126,87 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 ## UX 1.0.1 确认状态
 
 机器导入权限没有扩展。后台新 UI 的单件/批量确认默认待整理 PAUSED；后台 bulk-confirm 未提供 status 时也默认 PAUSED，显式 status=AVAILABLE 仍支持。实物在手与可售分别确认。单件 confirm 的旧默认值与说明保持兼容，UI 始终显式提交状态和说明；旧客户端应明确传 status 表达意图。原结果未知的请求使用原状态、版本、缺项说明和幂等键恢复，不在重试时替换为新默认值。
+
+## 1.2 标准 Agent Ingest
+
+`/api/agent-ingest` 仍是唯一服务端写入合同；v1.2 只统一 Skill、来源 Profile、MCP 和 CLI 的使用方式，不重写候选、TM、库存、成本、成交或发布模型。
+
+### 启动校验
+
+机器会话先读取 `GET /api/agent-ingest/protocol`。响应包含：
+
+```json
+{
+  "version": "1.2",
+  "skill": {
+    "name": "tome-ingest",
+    "version": "1.0",
+    "id": "tome-ingest/1.0",
+    "sha256": "…",
+    "url": "/api/agent-ingest/skill"
+  },
+  "profile": {
+    "id": "TRR/1.0",
+    "sha256": "…",
+    "url": "/api/agent-ingest/profile",
+    "requiredFields": ["titleRaw"]
+  }
+}
+```
+
+随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.0`；其他当前来源使用 `GENERIC_MARKETPLACE/1.0`。Profile 由服务器选择，机器不能自行降级。
+
+### 批次元数据与完整性
+
+标准客户端创建批次时将以下内容放入 `rawManifest`：
+
+```json
+{
+  "protocolVersion": "1.2",
+  "skillVersion": "tome-ingest/1.0",
+  "profile": "TRR/1.0",
+  "expectedCandidateKeys": [],
+  "requiredFields": []
+}
+```
+
+`requiredFields` 仅用于增加本次采集检查。封批时实际必查字段为 **当前 Profile 的服务端必查字段 ∪ 本 Manifest 声明字段**。所有字段都需要在 `sourceFacts.capture.fields` 里记录 `CAPTURED` 或带原因的 `UNAVAILABLE`；不能用删掉检查项降低合同。带标准元数据的批次 Profile 错配、Skill 版本错误或协议不兼容时在创建时拒绝；旧批次没有这些元数据时保持历史兼容。
+
+### 标准资料目录
+
+- `agent/skills/tome-ingest/SKILL.md`：所有 Agent 的行为边界、图片优先级、重试和封批顺序。
+- `agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md`：通用市场来源语义。
+- `agent/skills/tome-ingest/profiles/TRR.md`：TRR 商品、订单和图片语义。
+
+Profile 规定字段含义，不存放网页 selector、第三方 Cookie、账号或凭据。
+
+### 薄 MCP
+
+`/api/mcp/ingest` 是无状态、受 `X-Ingest-Token` 保护的 JSON-RPC MCP 工具面。POST 接收单条请求或批次；仅通知时返回空的 HTTP 202，含请求时返回 HTTP 200 JSON。服务端校验浏览器 Origin，避免跨站页面携带 Token 调用。它不提供 SSE，已认证的 GET 明确返回 `405 Allow: POST`。只有以下六个工具：
+
+- `tome_ingest_get_protocol`
+- `tome_ingest_create_batch`
+- `tome_ingest_import_order`
+- `tome_ingest_upsert_candidates`
+- `tome_ingest_get_batch_status`
+- `tome_ingest_seal_batch`
+
+MCP 直接复用 `IngestService` 与采购订单导入服务；不提供候选确认、TM、库存、成交、成本或发布工具。图片继续走现有 multipart HTTP 接口，不使用 Base64 MCP 上传。
+
+### 确定性 CLI
+
+发布包内提供 `tome-ingest`：
+
+```sh
+export TOME_INGEST_BASE_URL='https://example.invalid/api/agent-ingest'
+export TOME_INGEST_TOKEN='本次短期令牌'
+tome-ingest protocol
+tome-ingest batch create batch.json
+tome-ingest order import order.json
+tome-ingest candidates upsert <batch-id> candidates.json
+tome-ingest asset upload <candidate-id> image.jpg --source-url 'https://…'
+tome-ingest batch status <batch-id>
+tome-ingest batch seal <batch-id>
+```
+
+未以包安装时，也可在源码根目录执行 `npm run tome-ingest -- protocol`。CLI 每次写入前都会校验协议、Skill 和 Profile；当前目录的 `.tome-ingest-state.json` 只保存 operation fingerprint、幂等键、服务器 ID 和状态，绝不保存 Token、Cookie 或第三方凭据。结果未知时使用同一输入重新执行原命令，使其复用同一幂等键。

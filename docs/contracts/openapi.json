@@ -442,6 +442,34 @@
         ]
       }
     },
+    "/api/agent-ingest/skill": {
+      "get": {
+        "operationId": "IngestMachineController_skill",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
+    "/api/agent-ingest/profile": {
+      "get": {
+        "operationId": "IngestMachineController_profile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent导入协议"
+        ]
+      }
+    },
     "/api/agent-ingest/orders": {
       "post": {
         "operationId": "IngestMachineController_order",
@@ -559,6 +587,32 @@
         },
         "tags": [
           "Agent导入协议"
+        ]
+      }
+    },
+    "/api/mcp/ingest": {
+      "post": {
+        "operationId": "IngestMcpController_handle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Agent 导入 MCP"
+        ]
+      },
+      "get": {
+        "operationId": "IngestMcpController_streamUnavailable",
+        "parameters": [],
+        "responses": {
+          "405": {
+            "description": "MCP endpoint does not provide an SSE stream; use POST."
+          }
+        },
+        "tags": [
+          "Agent 导入 MCP"
         ]
       }
     },
@@ -3147,7 +3201,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.0.2-rc.1",
+    "version": "1.1.0-rc.1",
     "contact": {}
   },
   "tags": [],

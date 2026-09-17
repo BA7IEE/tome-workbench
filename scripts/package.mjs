@@ -4,8 +4,10 @@ import path from "node:path";
 import crypto from "node:crypto";
 import archiver from "archiver";
 const dirs = [
+  "agent",
   "deploy",
   "src",
+  "tools",
   "web",
   "prisma",
   "scripts",
@@ -90,7 +92,10 @@ zip.pipe(out);
 for (const f of entries)
   zip.file(f, {
     name: `tome-workbench/${f}`,
-    mode: f.endsWith(".command") ? 0o755 : 0o644,
+    mode:
+      f.endsWith(".command") || f === "tools/tome-ingest/cli.mjs"
+        ? 0o755
+        : 0o644,
   });
 zip.append(JSON.stringify(manifest, null, 2), {
   name: "tome-workbench/SHA256-MANIFEST.json",

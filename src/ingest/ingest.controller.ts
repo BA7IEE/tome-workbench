@@ -475,42 +475,28 @@ export class IngestMachineController {
     private service: IngestService,
     private procurement: ProcurementService,
   ) {}
-  @Get("protocol") protocol() {
-    return {
-      version: "1.1",
-      batchManifest: {
-        expectedCandidateKeys: ["source:item-key"],
-        requiredFields: [
-          "titleRaw",
-          "sourceFacts.description",
-          "sourceFacts.sizeLabel",
-        ],
-      },
-      captureLocation: "candidate.sourceFacts.capture",
-      imageFields: [
-        "sourceUrl",
-        "sha256",
-        "width",
-        "height",
-        "quality",
-        "reason",
-      ],
-      imageQuality: [
-        "ORIGINAL",
-        "LARGEST_AVAILABLE",
-        "THUMBNAIL",
-        "UNAVAILABLE",
-      ],
-      fieldCheck: {
-        path: "sourceFacts.sizeLabel",
-        label: "标签尺码",
-        status: "UNAVAILABLE",
-        reason: "来源页面未提供",
-      },
-      completion:
-        "GET /batches/:id reports completeness against the declared manifest; seal refuses missing items/files. Source-only gaps remain visible for human review.",
-      documentation: "docs/AGENT-INGEST-PROTOCOL.md",
-    };
+  @Get("protocol") protocol(@Req() r: IngestRequest) {
+    return this.service.machineProtocol(r.ingestSession);
+  }
+  @Get("skill") async skill(@Res() res: Response) {
+    const skill = await this.service.machineSkillDocument();
+    res
+      .set({
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      })
+      .send(skill.markdown);
+  }
+  @Get("profile") async profile(@Req() r: IngestRequest, @Res() res: Response) {
+    const profile = await this.service.machineProfileDocument(r.ingestSession);
+    res
+      .set({
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      })
+      .send(profile.markdown);
   }
   @Post("orders")
   order(@Body() raw: unknown, @Req() r: IngestRequest) {

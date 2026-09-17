@@ -188,12 +188,12 @@ function createAgentSession(sources: Source[]) {
         key,
       );
       const endpoint = `${location.origin}/api/agent-ingest`;
-      const prompt = `把以下信息作为本次 ToMeBoutique 导入会话使用。\nBase URL: ${endpoint}\nX-Ingest-Token: ${result.token}\n来源: ${result.source.name} (${result.source.code})\n\n先GET /protocol读取约定。创建批次时提交expectedCandidateKeys和requiredFields清单；逐件提交sourceFacts.capture字段/图片检查清单，再上传原图文件。只采集来源事实，不要自行判断本地库存、成色或人民币成本。读取批次完整性报告，补齐漏项后再封闭；网页未提供的资料要注明原因，不能宣称全部收齐。`;
+      const prompt = `把以下信息作为本次 ToMeBoutique 导入会话使用。\nBase URL: ${endpoint}\nX-Ingest-Token: ${result.token}\n来源: ${result.source.name} (${result.source.code})\n\n先 GET /protocol，确认协议主版本为 1 且标准版本至少 1.2；随后下载并校验返回的 Skill 和当前来源 Profile。创建批次时带 protocolVersion、skillVersion、profile、expectedCandidateKeys 和 requiredFields；服务端会把 Profile 必查项与本次清单合并。逐件提交 sourceFacts.capture 字段/图片检查清单，再通过 multipart 上传原图。只采集来源事实，不要自行判断正式TM、库存、本地成色、人民币成本、售价、成交或发布。结果未知时必须用同一请求体和同一 Idempotency-Key 重试。先读取批次完整性报告，补齐 blocker 后再封闭；网页未提供的资料要注明原因，不能宣称全部收齐。\n\n可使用标准 CLI：TOME_INGEST_BASE_URL 和 TOME_INGEST_TOKEN 后执行 tome-ingest protocol；薄 MCP 入口为 ${location.origin}/api/mcp/ingest，不能上传图片或调用确认/库存/成交/成本/发布工具。`;
       setTimeout(
         () =>
           viewDialog(
             "Agent接入信息 · 仅显示一次",
-            `<p>有效期至 ${esc(when(result.expiresAt))}</p><div class="agent-token"><code>${esc(result.token)}</code></div>${button(
+            `<p>有效期至 ${esc(when(result.expiresAt))}</p><p>复制内容会要求 Agent 先校验协议、Skill 和来源 Profile；可使用标准 CLI 或薄 MCP 入口，图片仍经 multipart 上传。</p><div class="agent-token"><code>${esc(result.token)}</code></div>${button(
               "复制给Agent",
               async () => {
                 await copyText(prompt);

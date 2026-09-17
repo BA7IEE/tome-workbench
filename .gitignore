@@ -8,6 +8,7 @@ reports/runtime/
 playwright-report/
 test-results/
 .DS_Store
+.tome-ingest-state.json
 
 backups/
 .transfer-*

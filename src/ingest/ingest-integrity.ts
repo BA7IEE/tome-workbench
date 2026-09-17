@@ -94,6 +94,21 @@ export const captureEvidence = z
   });
 export const batchManifest = z
   .object({
+    protocolVersion: z
+      .string()
+      .regex(/^\d+\.\d+(?:\.\d+)?$/)
+      .max(20)
+      .optional(),
+    skillVersion: z
+      .string()
+      .regex(/^tome-ingest\/\d+\.\d+(?:\.\d+)?$/)
+      .max(80)
+      .optional(),
+    profile: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_-]*(?:\/[0-9]+\.[0-9]+(?:\.[0-9]+)?)?$/)
+      .max(120)
+      .optional(),
     expectedCandidateKeys: z
       .array(safeText(240).min(1))
       .min(1)

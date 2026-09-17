@@ -11,6 +11,7 @@ function walk(dir) {
 }
 walk("scripts");
 walk("test");
+walk("tools");
 for (const f of files) {
   const r = spawnSync(process.execPath, ["--check", f], { encoding: "utf8" });
   if (r.status !== 0) {

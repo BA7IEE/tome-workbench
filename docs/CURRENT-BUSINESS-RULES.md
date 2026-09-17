@@ -1,7 +1,7 @@
 # 当前业务不变量
 
 1. **TM 商品身份**：一件实物一个永久 TM，同款不同实物可有多个 TM。外部货号、订单、RMA 和 Agent 都是来源证据。ItemSourceLink 为长期多来源关系，Item.sourceId 仅兼容。
-2. **来源与确认**：Agent 只能走通用 ingest session/batch/candidate。来源 Sold/Shipped、成色、颜色、尺码和金额保留原文，不自动改库存或标准化。候选必须人工确认；默认 PAUSED，明确核对可用 AVAILABLE。
+2. **来源与确认**：Agent 只能走通用 ingest session/batch/candidate。标准 Agent 必须先校验协议、Skill 和服务端指定的来源 Profile；Profile 必查项与 Agent 声明项共同进入封批检查，不能由客户端降低。来源 Sold/Shipped、成色、颜色、尺码和金额保留原文，不自动改库存或标准化。候选必须人工确认；默认 PAUSED，明确核对可用 AVAILABLE。
 3. **候选完整性和身份**：完整性、缺原图、身份冲突不能批量豁免。可接受来源缺项逐候选绑定版本。精确同图只是证据，但必须阻断静默重复建档；同图不同实物要逐件确认和审计。关联已有 TM 不改现有状态、人工资料、价格、批准。
 4. **采购与成本**：订单行金额、来源当前价、零售价、人民币取得成本独立；没有确认支付/汇率依据不得分摊。保留人工 businessDecision/possession/TM 关联。采购 Source 生成要求 INCLUDE + IN_HAND。RMA/退款/排除需要明确最终经济支付依据；Sale 成本是历史快照，不能因后续采购修正反改。
 5. **库存和财务**：同件不得重复售出，item lock、DB 唯一约束、版本保护保留。不明确冲突记 Observation/PAUSED。快速停售不受财务缺项阻塞；人工库存观察不编造收入。未知金额 NULL，不能跨币种合计。financial-journal 和账期保护不放松，对账不是法定财务或自动协议解释。

@@ -7,6 +7,18 @@ import {
   batchManifest,
   type Integrity,
 } from "./ingest-integrity";
+import {
+  INGEST_PROTOCOL_VERSION,
+  INGEST_SKILL_ID,
+  INGEST_SKILL_NAME,
+  INGEST_SKILL_VERSION,
+  assertStandardManifest,
+  effectiveRequiredFields,
+  profileForSourceCode,
+  readProfileDocument,
+  readSkillDocument,
+  type IngestProfile,
+} from "./ingest-standard";
 import { Injectable } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { PrismaService } from "../database/prisma.service";
@@ -57,6 +69,81 @@ export class IngestService {
     private db: PrismaService,
     private commands: Commands,
   ) {}
+
+  private async sourceProfile(session: MachineSession): Promise<IngestProfile> {
+    const source = await this.db.procurementSource.findUnique({
+      where: { id: session.procurementSourceId },
+      select: { code: true },
+    });
+    if (!source)
+      throw new Fault("INGEST_SOURCE_UNAVAILABLE", "导入来源不存在", 404);
+    return profileForSourceCode(source.code);
+  }
+
+  async machineProtocol(session: MachineSession) {
+    const profile = await this.sourceProfile(session),
+      skill = await readSkillDocument(),
+      profileDocument = await readProfileDocument(profile);
+    return {
+      version: INGEST_PROTOCOL_VERSION,
+      skill: {
+        name: INGEST_SKILL_NAME,
+        version: INGEST_SKILL_VERSION,
+        id: INGEST_SKILL_ID,
+        sha256: skill.sha256,
+        url: "/api/agent-ingest/skill",
+      },
+      profile: {
+        id: profile.id,
+        name: profile.name,
+        sha256: profileDocument.sha256,
+        url: "/api/agent-ingest/profile",
+        requiredFields: profile.requiredFields,
+      },
+      batchManifest: {
+        protocolVersion: INGEST_PROTOCOL_VERSION,
+        skillVersion: INGEST_SKILL_ID,
+        profile: profile.id,
+        expectedCandidateKeys: ["source:item-key"],
+        requiredFields: ["sourceFacts.description"],
+      },
+      captureLocation: "candidate.sourceFacts.capture",
+      imageFields: [
+        "sourceUrl",
+        "sha256",
+        "width",
+        "height",
+        "quality",
+        "reason",
+      ],
+      imageQuality: [
+        "ORIGINAL",
+        "LARGEST_AVAILABLE",
+        "THUMBNAIL",
+        "UNAVAILABLE",
+      ],
+      fieldCheck: {
+        path: "sourceFacts.sizeLabel",
+        label: "标签尺码",
+        status: "UNAVAILABLE",
+        reason: "来源页面未提供",
+      },
+      completion:
+        "GET /batches/:id reports the union of server Profile fields and the agent manifest; seal refuses missing items/files. Source-only gaps remain visible for human review.",
+      documentation: "docs/AGENT-INGEST-PROTOCOL.md",
+    };
+  }
+
+  async machineSkillDocument() {
+    return readSkillDocument();
+  }
+
+  async machineProfileDocument(session: MachineSession) {
+    const profile = await this.sourceProfile(session),
+      document = await readProfileDocument(profile);
+    return { profile, ...document };
+  }
+
   createSession(
     actor: Actor,
     key: unknown,
@@ -1093,6 +1180,16 @@ export class IngestService {
         tx,
         `ingest-batch:${session.procurementSourceId}:${input.externalBatchKey}`,
       );
+      const source = await tx.procurementSource.findUnique({
+        where: { id: session.procurementSourceId },
+        select: { code: true },
+      });
+      if (!source)
+        throw new Fault("INGEST_SOURCE_UNAVAILABLE", "导入来源不存在", 404);
+      assertStandardManifest(
+        input.rawManifest,
+        profileForSourceCode(source.code),
+      );
       const old = await tx.ingestBatch.findUnique({
         where: {
           procurementSourceId_externalBatchKey: {
@@ -1365,7 +1462,7 @@ export class IngestService {
     return inspectCapture(
       candidate,
       assets,
-      manifest.success ? manifest.data.requiredFields : [],
+      manifest.success ? effectiveRequiredFields(manifest.data) : [],
     );
   }
   async batchReport(tx: Tx | PrismaService, id: string) {
