@@ -55,6 +55,7 @@ export const required = [
   "docs/AGENT-INGEST-PROTOCOL.md",
   "docs/DISTRIBUTION-FOUNDATION.md",
   "docs/REAL-OPERATIONS.md",
+  "docs/integrations/ANQICMS-CONTRACT.md",
   "docs/RELEASE-NOTES-1.0.md",
   "package-lock.json",
   "prisma/schema.prisma",
@@ -111,6 +112,7 @@ export const required = [
   "src/distribution/distribution.service.ts",
   "src/distribution/distribution.controller.ts",
   "src/distribution/distribution-agent.controller.ts",
+  "src/distribution/anqicms-spike.ts",
   "agent/skills/tome-ingest/SKILL.md",
   "agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
   "agent/skills/tome-ingest/profiles/TRR.md",
@@ -118,6 +120,7 @@ export const required = [
   "tools/tome-ingest/client.mjs",
   "tools/tome-ingest/state.mjs",
   "test/fixtures/tome-ingest/trr-v1.2-golden.json",
+  "test/fixtures/anqicms-spike/deidentified-20.json",
   "src/costing/costing.schemas.ts",
   "src/costing/costing.logic.ts",
   "src/costing/costing.service.ts",
@@ -357,6 +360,29 @@ export function checks(
         "询盘确认成交通过原子动作停售",
       ) &&
       read("docs/REAL-OPERATIONS.md").includes("询盘成交"),
+  );
+  check(
+    "v11-anqicms-spike",
+    () =>
+      read("src/distribution/anqicms-spike.ts").includes(
+        "anqicmsSpikeProtocol",
+      ) &&
+      read("src/distribution/distribution-agent.controller.ts").includes(
+        'Get("attempts/:id/anqicms-spike")',
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "agentAnqicmsSpikePayload",
+      ) &&
+      !/(?:\bfetch\s*\(|\baxios\b|\bhttps?:\/\/|\bprocess\.env\b)/.test(
+        read("src/distribution/anqicms-spike.ts"),
+      ) &&
+      read("test/unit.test.cjs").includes("20件脱敏商品冻结") &&
+      read("test/integration.test.cjs").includes(
+        "受限会话以脱敏本地合同",
+      ) &&
+      read("docs/integrations/ANQICMS-CONTRACT.md").includes(
+        "真实 AnQiCMS API 尚未连接",
+      ),
   );
   check("v1-item-center-webkit", () =>
     read("playwright.webkit.config.cjs").includes("v1-item-center.spec.cjs"),

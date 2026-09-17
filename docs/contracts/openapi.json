@@ -2939,6 +2939,29 @@
         ]
       }
     },
+    "/api/distribution-agent/attempts/{id}/anqicms-spike": {
+      "get": {
+        "operationId": "DistributionAgentController_anqicmsSpike",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
     "/api/distribution-agent/attempts/{id}/assets/{assetId}": {
       "get": {
         "operationId": "DistributionAgentController_asset",
@@ -3589,7 +3612,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.1.0-rc.3",
+    "version": "1.1.0-rc.4",
     "contact": {}
   },
   "tags": [],

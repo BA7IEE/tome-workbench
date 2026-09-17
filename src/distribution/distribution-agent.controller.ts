@@ -34,6 +34,17 @@ export class DistributionAgentController {
     );
   }
 
+  @Get("attempts/:id/anqicms-spike")
+  anqicmsSpike(
+    @Param("id") id: string,
+    @Req() request: DistributionRequest,
+  ) {
+    return this.distribution.agentAnqicmsSpikePayload(
+      request.distributionSession,
+      uuid.parse(id),
+    );
+  }
+
   @Get("attempts/:id/assets/:assetId")
   async asset(
     @Param("id") id: string,

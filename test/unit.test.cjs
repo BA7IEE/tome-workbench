@@ -9,6 +9,12 @@ const {
 } = require("../dist/auth/auth");
 const { guardDatabase } = require("../scripts/db-test-guard.cjs");
 const { netPayment, creditValue } = require("../dist/costing/costing.logic");
+const {
+  anqicmsSpikeProtocol,
+  buildAnqicmsSpikePayload,
+  normalizeAnqicmsReceipt,
+} = require("../dist/distribution/anqicms-spike");
+const anqicmsSpikeFixtures = require("./fixtures/anqicms-spike/deidentified-20.json");
 test("现金与Credit支付退款同值，净额只扣一次且允许全额退回", () => {
   assert.equal(netPayment({ cashPaid: 30000, creditUsed: 10000, cashRefunded: 0, creditRefunded: 5000 }), 35000);
   assert.equal(netPayment({ cashPaid: 30000, creditUsed: 10000, cashRefunded: 5000, creditRefunded: 0 }), 35000);
@@ -207,4 +213,106 @@ test('文件型来源凭据无需伪造网址，缺少原文件或记录位置�
   assert.equal(captureEvidence.safeParse({...evidence,fileEvidence:{...evidence.fileEvidence,row:''}}).success,false);
   assert.equal(captureEvidence.safeParse({...evidence,pageUrl:'https://example.invalid/product'}).success,false);
   const check=inspectCapture({titleRaw:'合成外套',sourceFacts:{capture:evidence}},[]);assert.match(check.blockers.join(),/原文件尚未保存/);
+});
+
+const anqicmsInput = (row, action, listing = null) => ({
+  action,
+  item: {
+    tmCode: row.tmCode,
+    title: "Deidentified " + row.category + " " + row.tmCode,
+    body: "Local-only AnQiCMS Spike fixture. " + row.condition,
+    price: row.price,
+    currency: "USD",
+    status: row.status,
+    brand: row.brand,
+    category: row.category,
+    condition: row.condition,
+    size: "One size",
+    color: "Neutral",
+    material: "Synthetic material note",
+    measurements: "20 × 12 × 8 cm",
+    year: "2022",
+    collection: "Local contract set",
+    styleNumber: row.case,
+  },
+  images: Array.from({ length: row.imageCount }, (_, position) => ({
+    id: row.case + "-image-" + (position + 1),
+    role: position === row.imageCount - 1 && row.imageCount > 9 ? "DEFECT" : "PRODUCT",
+    position,
+    download: "/local-spike/" + row.case + "/" + (position + 1),
+  })),
+  listing,
+});
+
+test("AnQiCMS Spike：20件脱敏商品冻结 USD、图片、库存、SEO 与售出页合同", () => {
+  const rows = anqicmsSpikeFixtures.items;
+  assert.equal(anqicmsSpikeFixtures.protocol, anqicmsSpikeProtocol);
+  assert.equal(rows.length, 20);
+  let overflowCases = 0;
+  for (const row of rows) {
+    const available = row.status === "AVAILABLE";
+    const payload = buildAnqicmsSpikePayload(
+      anqicmsInput(
+        row,
+        available ? "PUBLISH" : "DELIST",
+        available
+          ? null
+          : { archiveId: "archive-" + row.case.toLowerCase(), url: "https://example.invalid/archive" },
+      ),
+    );
+    assert.equal(payload.protocol, anqicmsSpikeProtocol);
+    assert.equal(payload.identity.tm_code, row.tmCode);
+    assert.equal(JSON.stringify(payload).includes("cost"), false);
+    assert.equal(JSON.stringify(payload).includes("supplier"), false);
+    if (!available) {
+      assert.equal(payload.operation, "STOCK_ZERO");
+      assert.equal(payload.fields.stock, 0);
+      assert.equal(payload.page.retain, true);
+      continue;
+    }
+    assert.equal(payload.operation, "LOOKUP_THEN_CREATE");
+    assert.equal(payload.fields.currency, "USD");
+    assert.equal(payload.fields.stock, 1);
+    assert.equal(payload.fields.custom.tm_code, row.tmCode);
+    assert.ok(payload.fields.content.includes(row.condition));
+    assert.ok(payload.fields.images.length <= 9);
+    assert.equal(
+      payload.fields.images.length + payload.fields.contentImages.length,
+      row.imageCount,
+    );
+    if (row.imageCount > 9) {
+      overflowCases += 1;
+      assert.ok(payload.fields.contentImages.some((image) => image.role === "DEFECT"));
+    }
+  }
+  assert.ok(overflowCases >= 5);
+});
+
+test("AnQiCMS Spike：archive ID 复用更新，回执规范化并拒绝伪远端身份", () => {
+  const row = anqicmsSpikeFixtures.items[0];
+  const update = buildAnqicmsSpikePayload(
+    anqicmsInput(row, "UPDATE", {
+      archiveId: "archive-verified-990001",
+      url: "https://example.invalid/products/archive-verified-990001",
+    }),
+  );
+  assert.equal(update.operation, "UPDATE");
+  assert.equal(update.identity.archive_id, "archive-verified-990001");
+  assert.equal("lookup" in update, false);
+  const result = normalizeAnqicmsReceipt(
+    {
+      archive_id: "archive-verified-990001",
+      url: "https://example.invalid/products/archive-verified-990001",
+      ignored_external_field: "local mock only",
+    },
+    row.tmCode,
+  );
+  assert.equal(result.remoteId, "archive-verified-990001");
+  assert.equal(result.evidence.locator, "tm_code=" + row.tmCode);
+  assert.throws(() =>
+    normalizeAnqicmsReceipt({ archive_id: "MANUAL:TM990001" }, row.tmCode),
+  );
+  assert.throws(() =>
+    buildAnqicmsSpikePayload(anqicmsInput(row, "DELIST")),
+  );
 });

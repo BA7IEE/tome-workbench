@@ -11,7 +11,7 @@
 | dictionaries | 标准 ID、别名、停用状态 | 来源原文不自动成为标准字典 |
 | media | Asset、IntakeFile | 原图不可覆盖，授权独立 |
 | costing / trading | 成本依据、成交、预留、询盘、调整、账期 | 未知金额 NULL、按币种；成交成本冻结 |
-| publishing / distribution | Channel、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、Collection | Attempt 是执行事实；稳定远端 ID 才有 Listing；草稿可改、快照不可改 |
+| publishing / distribution | Channel、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、Collection、AnQiCMS Spike 合同 | Attempt 是执行事实；稳定远端 ID 才有 Listing；Spike 只读本地合同，不含 Connector |
 | jobs | Outbox、Task | PG 租约、重试、失败持久化；无外部副作用 |
 | operations | work-queue、运行健康、审计视图 | 只读投影，不复制第二套可写经营事实 |
 
@@ -45,4 +45,4 @@ UX 1.0.2：collection-draft 只负责账号范围的浏览器草稿持久化，c
 
 Agent Ingest Standard v1.2：机器会话先取得协议、校验 Skill 与当前来源 Profile 的 SHA-256，再经 HTTP、薄 MCP 或 `tome-ingest` CLI 调用同一 `IngestService`。TRR 与通用市场 Profile 的服务端必查字段会和 Agent 自报字段取并集；历史未带标准元数据的批次仍按其旧合同读取。MCP 只提供协议、批次、订单、候选和封批工具，图片仍走原 multipart 接口。CLI 状态文件仅保存 fingerprint、幂等键、服务器 ID 和状态，不能保存 Token。
 
-Distribution Foundation 与 Real Operations：后台用户先从有效 UsePackage 计划 DistributionAttempt；该 Attempt 在 PostgreSQL 事务中同时产生 Audit、Receipt、Outbox。分发会话只保存 Token 哈希，按 Channel 隔离，领取采用数据库锁和短租约。Agent 只能读取自己 Channel 内、已领取且未过期 Attempt 的当前包和包内原图；结果未知只能领取原 Attempt，以永久 TM 做核对，不能另建发布记录。`SUCCEEDED + remoteId` 才 upsert Listing；没有远端 ID 的 APP 发布仍是成功 Attempt，不以假 ID 补齐。`resolveChannelPrice` 统一选择启用的 ChannelPrice 或 Item 回退价，草稿与包快照记录来源/版本；报价变化、清除再恢复都会使旧包失效。Inquiry 的成交转化在 financial-journal 与 Item 锁内创建 Sale、停售、标 WON 并计划 DELIST；没有 Listing 的 APP 成功 Attempt 同样参与下架计划。
+Distribution Foundation 与 Real Operations：后台用户先从有效 UsePackage 计划 DistributionAttempt；该 Attempt 在 PostgreSQL 事务中同时产生 Audit、Receipt、Outbox。分发会话只保存 Token 哈希，按 Channel 隔离，领取采用数据库锁和短租约。Agent 只能读取自己 Channel 内、已领取且未过期 Attempt 的当前包和包内原图；结果未知只能领取原 Attempt，以永久 TM 做核对，不能另建发布记录。`SUCCEEDED + remoteId` 才 upsert Listing；没有远端 ID 的 APP 发布仍是成功 Attempt，不以假 ID 补齐。`resolveChannelPrice` 统一选择启用的 ChannelPrice 或 Item 回退价，草稿与包快照记录来源/版本；报价变化、清除再恢复都会使旧包失效。Inquiry 的成交转化在 financial-journal 与 Item 锁内创建 Sale、停售、标 WON 并计划 DELIST；没有 Listing 的 APP 成功 Attempt 同样参与下架计划。AnQiCMS Spike 只在受限会话中读取冻结包并输出本地字段合同：无 archive ID 时按 tm_code 保护性查找，稳定 archive ID 才会进入 Listing；售出时输出 stock=0、保留 SOLD 页面。它没有 HTTP 客户端、配置读取或外部写入。

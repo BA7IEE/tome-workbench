@@ -24,4 +24,4 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 批量批准先做只读预检，再逐件复用已有批准命令；批量渠道价和批量计划也逐件走既有幂等写入。任何一件因版本、图片、权限、库存或价格变化失败，都保留逐件结果，不用 `updateMany` 掩盖领域规则。
 
-尚未实现真实平台连接器、AnQiCMS archive ID、真实账号 UAT、支付/订单、自动调用第三方发布或下架、自动汇率。全部自动化只使用隔离 `tome_test` 和合成资料。
+尚未实现真实平台连接器、AnQiCMS 真实 archive ID/UAT、支付/订单、自动调用第三方发布或下架、自动汇率。后续 AnQiCMS Connector 的本地字段合同已冻结在 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)，但不会发送请求。全部自动化只使用隔离 `tome_test` 和合成资料。
