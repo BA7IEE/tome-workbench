@@ -201,6 +201,25 @@ async function finance(id, patch = {}) {
     ...patch,
   });
 }
+async function activeCnyCost(itemId, amount) {
+  const current = await db.item.findUniqueOrThrow({ where: { id: itemId } });
+  return db.costEntry.create({
+    data: {
+      itemId,
+      cycleNumber: current.cycle,
+      kind: "MANUAL",
+      amount,
+      currency: "CNY",
+      confirmed: true,
+      status: "ACTIVE",
+      sourceType: "TEST_FIXTURE",
+      sourceRef: "",
+      note: "仅用于隔离成交成本快照验证",
+      createdBy: admin.id,
+      occurredAt: new Date(),
+    },
+  });
+}
 before(async () => {
   await db.$connect();
   // Static table names read from this project's schema, validated before SQL interpolation.
@@ -1285,6 +1304,24 @@ test("Statement arithmetic rounds signed minor units once and never combines cur
   const row = await statementBody(p.id);
   assert.equal(row.snapshot.lines.length, 1);
   assert.equal(row.snapshot.summary.profit, 90000);
+  const foreignConfirm = await api(`/settlements/${p.id}/confirm`, "POST", {
+    digest: p.digest,
+    confirmed: true,
+  });
+  assert.equal(foreignConfirm.status, 409);
+  assert.equal(
+    foreignConfirm.data.error.code,
+    "FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED",
+  );
+  assert.equal(
+    (await db.settlementStatement.findUniqueOrThrow({ where: { id: p.id } }))
+      .status,
+    "DRAFT",
+  );
+  assert.equal(
+    (await db.sale.findUniqueOrThrow({ where: { id: s.id } })).currency,
+    "USD",
+  );
 });
 test("An expired claim cannot acknowledge a new worker's lease", async () => {
   const i = await sparse(),
@@ -3068,6 +3105,88 @@ test('v1 经营行动中心统一投影候选、任务、询盘、成交补账�
   assert.ok(dashboard.pendingSalesFinance>=1);
 });
 
+test("询盘下次跟进时间驱动待办，逾期优先且结束状态清空日程", async () => {
+  const i = await sparse(),
+    prefix = "FOLLOWUP-" + randomUUID().slice(0, 8),
+    create = (customer) =>
+      ok("/inquiries", "POST", {
+        itemId: i.id,
+        channel: prefix,
+        customerRef: customer,
+      });
+  const overdue = await create("逾期客户");
+  const missingDate = await api(`/inquiries/${overdue.id}/status`, "POST", {
+    version: 1,
+    state: "FOLLOWUP",
+    notes: "不能没有下次跟进时间",
+  });
+  assert.equal(missingDate.status, 400);
+  await ok(`/inquiries/${overdue.id}/status`, "POST", {
+    version: 1,
+    state: "FOLLOWUP",
+    notes: "已经逾期",
+    nextFollowUpAt: new Date(Date.now() - 3600000).toISOString(),
+  });
+
+  const upcoming = await create("近期客户"),
+    upcomingAt = new Date(Date.now() + 3600000),
+    futureInquiry = await create("后续客户");
+  await ok(`/inquiries/${upcoming.id}/status`, "POST", {
+    version: 1,
+    state: "FOLLOWUP",
+    notes: "近期确认",
+    nextFollowUpAt: upcomingAt.toISOString(),
+  });
+  await ok(`/inquiries/${futureInquiry.id}/status`, "POST", {
+    version: 1,
+    state: "FOLLOWUP",
+    notes: "后续确认",
+    nextFollowUpAt: new Date(Date.now() + 48 * 3600000).toISOString(),
+  });
+  const open = await create("新询盘客户");
+  const queue = await ok(
+    "/work-queue?scope=INQUIRY&q=" + encodeURIComponent(prefix),
+  );
+  const rows = new Map(queue.rows.map((row) => [row.entityId, row]));
+  assert.equal(rows.get(overdue.id).priority, 90);
+  const shanghaiDay = (date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  assert.equal(
+    rows.get(upcoming.id).priority,
+    shanghaiDay(upcomingAt) === shanghaiDay(new Date()) ? 85 : 55,
+  );
+  assert.equal(rows.get(futureInquiry.id).priority, 55);
+  assert.equal(rows.get(open.id).priority, 85);
+
+  await ok(`/inquiries/${overdue.id}/status`, "POST", {
+    version: 2,
+    state: "OPEN",
+    notes: "回到待处理",
+  });
+  assert.equal(
+    (await db.inquiry.findUniqueOrThrow({ where: { id: overdue.id } }))
+      .nextFollowUpAt,
+    null,
+  );
+  await ok(`/inquiries/${overdue.id}/status`, "POST", {
+    version: 3,
+    state: "LOST",
+    notes: "本次未成交",
+  });
+  const after = await ok(
+    "/work-queue?scope=INQUIRY&q=" + encodeURIComponent(prefix),
+  );
+  assert.equal(
+    after.rows.some((row) => row.entityId === overdue.id),
+    false,
+  );
+});
+
 test('v1.0.0-rc.3 同图候选阻止静默重复建TM，可人工关联已有TM或明确覆盖新建',async()=>{
   const first=await setupAgentTrr('Duplicate source A'),firstCandidate=first.imported.rows[0],marker=randomUUID();
   const image=await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="79" height="101"><rect width="79" height="101" fill="#d8d4cc"/><text x="4" y="54" font-size="5">${marker}</text></svg>`)).png().toBuffer();
@@ -3271,7 +3390,7 @@ test('经营账1001笔全量汇总导出和分页保持日期客户币种与精�
 test('询盘并发写入阻断旧版本，重试保留逐次沟通历史且库存不变',async()=>{
   const i=await sparse(),before=await item(i.id);
   const n=await ok('/inquiries','POST',{itemId:i.id,channel:'合成询盘',customerRef:'并发客户',notes:'初次咨询'});
-  const key=randomUUID();const input={version:1,state:'FOLLOWUP',notes:'第一次跟进'};
+  const key=randomUUID();const input={version:1,state:'FOLLOWUP',notes:'第一次跟进',nextFollowUpAt:future()};
   await ok('/inquiries/'+n.id+'/status','POST',input,admin,key);await ok('/inquiries/'+n.id+'/status','POST',input,admin,key);
   // WON is now reserved for the atomic conversion command; retain the stale-version
   // check with an otherwise valid ordinary status transition.
@@ -3310,7 +3429,7 @@ test('选品预检集中返回缺项且不写资料包，权限及TEST边界保�
 
 test('询盘变更使旧清理预览失效并保留沟通与正式商品',async()=>{
  const i=await sparse(),n=await ok('/inquiries','POST',{itemId:i.id,channel:'合成',customerRef:'客户',notes:'初次'}),body=await testCleanupInput(i.id);
- await ok('/inquiries/'+n.id+'/status','POST',{version:1,state:'FOLLOWUP',notes:'预览后新沟通'});
+ await ok('/inquiries/'+n.id+'/status','POST',{version:1,state:'FOLLOWUP',notes:'预览后新沟通',nextFollowUpAt:future()});
  const result=await api('/items/'+i.id+'/test-cleanup','POST',body);assert.equal(result.data.error.code,'TEST_PREVIEW_STALE');assert.equal((await item(i.id)).dataMode,'BUSINESS');assert.equal((await ok('/inquiries/'+n.id+'/history')).rows[0].detail.notes,'预览后新沟通');
 });
 
@@ -4977,6 +5096,113 @@ test("渠道账号币种约束、渠道价和询盘默认值不混用商品默�
   });
   assert.equal(storedNoFxInquiry.quote, null);
   assert.equal(storedNoFxInquiry.currency, "EUR");
+});
+
+test("成交币种保留询盘和渠道事实，外币不自动写人民币成本", async () => {
+  const anqicms = await ok("/channels", "POST", {
+    name: "成交美元独立站 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+  });
+  const xianyu = await ok("/channels", "POST", {
+    name: "成交人民币闲鱼 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+  });
+
+  const usdInquiryItem = await ready({ currency: "CNY" });
+  await activeCnyCost(usdInquiryItem.id, 12345);
+  const usdInquiry = await ok("/inquiries", "POST", {
+    itemId: usdInquiryItem.id,
+    channelId: anqicms.id,
+    customerRef: "美元询盘客户",
+  });
+  assert.equal(
+    (await db.inquiry.findUniqueOrThrow({ where: { id: usdInquiry.id } }))
+      .currency,
+    "USD",
+  );
+  const usdInquirySale = await ok(
+    `/inquiries/${usdInquiry.id}/convert`,
+    "POST",
+    { version: 1, note: "隔离美元询盘确认成交" },
+  );
+  const storedUsdInquirySale = await db.sale.findUniqueOrThrow({
+    where: { id: usdInquirySale.id },
+  });
+  assert.equal(storedUsdInquirySale.inquiryId, usdInquiry.id);
+  assert.equal(storedUsdInquirySale.currency, "USD");
+  assert.equal(storedUsdInquirySale.cost, null);
+  const usdInquiryAudit = await db.audit.findFirstOrThrow({
+    where: { action: "SALE_RECORDED", resourceId: usdInquiryItem.id },
+    orderBy: { createdAt: "desc" },
+  });
+  assert.equal(usdInquiryAudit.detail.currency, "USD");
+
+  const cnyInquiryItem = await ready({ currency: "CNY" });
+  await activeCnyCost(cnyInquiryItem.id, 23456);
+  const cnyInquiry = await ok("/inquiries", "POST", {
+    itemId: cnyInquiryItem.id,
+    channel: "线下人民币成交",
+    customerRef: "人民币询盘客户",
+    currency: "CNY",
+  });
+  await ok(`/inquiries/${cnyInquiry.id}/status`, "POST", {
+    version: 1,
+    state: "FOLLOWUP",
+    notes: "约定下次确认",
+    nextFollowUpAt: future(),
+  });
+  const cnyInquirySale = await ok(
+    `/inquiries/${cnyInquiry.id}/convert`,
+    "POST",
+    { version: 2, note: "隔离人民币询盘确认成交" },
+  );
+  const [storedCnyInquiry, cnySale] = await Promise.all([
+    db.inquiry.findUniqueOrThrow({ where: { id: cnyInquiry.id } }),
+    db.sale.findUniqueOrThrow({ where: { id: cnyInquirySale.id } }),
+  ]);
+  assert.equal(storedCnyInquiry.nextFollowUpAt, null);
+  assert.equal(cnySale.currency, "CNY");
+  assert.equal(cnySale.cost, 23456);
+
+  const directUsdItem = await ready({ currency: "CNY" });
+  await activeCnyCost(directUsdItem.id, 34567);
+  const directUsd = await sold(directUsdItem.id, {
+    channelId: anqicms.id,
+    customerRef: "独立站直接成交",
+  });
+  const directUsdSale = await db.sale.findUniqueOrThrow({
+    where: { id: directUsd.id },
+  });
+  assert.equal(directUsdSale.currency, "USD");
+  assert.equal(directUsdSale.cost, null);
+  const directUsdAudit = await db.audit.findFirstOrThrow({
+    where: { action: "SALE_RECORDED", resourceId: directUsdItem.id },
+    orderBy: { createdAt: "desc" },
+  });
+  assert.equal(directUsdAudit.detail.currency, "USD");
+
+  const directCnyItem = await ready({ currency: "CNY" });
+  await activeCnyCost(directCnyItem.id, 45678);
+  const directCny = await sold(directCnyItem.id, {
+    channelId: xianyu.id,
+    customerRef: "闲鱼直接成交",
+  });
+  const directCnySale = await db.sale.findUniqueOrThrow({
+    where: { id: directCny.id },
+  });
+  assert.equal(directCnySale.currency, "CNY");
+  assert.equal(directCnySale.cost, 45678);
+
+  const directUnconfiguredItem = await ready({ currency: "USD" });
+  const directUnconfigured = await sold(directUnconfiguredItem.id, {
+    channel: "线下美元成交",
+  });
+  const directUnconfiguredSale = await db.sale.findUniqueOrThrow({
+    where: { id: directUnconfigured.id },
+  });
+  assert.equal(directUnconfiguredSale.currency, "USD");
+  assert.equal(directUnconfiguredSale.cost, null);
 });
 
 test("Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发布渠道计划下架", async () => {

@@ -24,6 +24,7 @@ import {
   currencies,
   text,
   cents,
+  iso,
   form,
   empty,
   note,
@@ -421,13 +422,14 @@ export async function inquiriesPage() {
       ) +
         context +
         table(
-          ["商品", "渠道 / 客户", "报价", "记录", "状态", "操作"],
+          ["商品", "渠道 / 客户", "报价", "记录", "状态", "下次跟进", "操作"],
           rows.map((i) => [
             itemLink(i.item.id, code(i.item.serial) + " " + i.item.title),
             `${esc(i.channel)}<small>${esc(i.customerRef)}</small>`,
             money(i.quote, i.currency),
             esc(i.notes) + button("沟通历史", () => inquiryHistory(i.id)),
             esc(states[i.state] || i.state),
+            i.state === "FOLLOWUP" ? when(i.nextFollowUpAt) : "—",
             i.state === "WON"
               ? "已转化成交"
               : button("更新跟进", () => followInquiry(i)) +
@@ -448,7 +450,12 @@ async function historyHtml(id: string) {
     initial: string;
     rows: {
       at: string;
-      detail: { notes: string; state: string; actorName?: string };
+      detail: {
+        notes: string;
+        state: string;
+        actorName?: string;
+        nextFollowUpAt?: string | null;
+      };
     }[];
   }>(`/inquiries/${id}/history`);
   return (
@@ -456,7 +463,7 @@ async function historyHtml(id: string) {
     h.rows
       .map(
         (r) =>
-          `<article><small>${when(r.at)} · ${esc(r.detail.actorName || "历史记录")} · ${esc(states[r.detail.state] || r.detail.state)}</small><p>${esc(r.detail.notes || "仅更新进度")}</p></article>`,
+          `<article><small>${when(r.at)} · ${esc(r.detail.actorName || "历史记录")} · ${esc(states[r.detail.state] || r.detail.state)}${r.detail.nextFollowUpAt ? " · 下次跟进 " + when(r.detail.nextFollowUpAt) : ""}</small><p>${esc(r.detail.notes || "仅更新进度")}</p></article>`,
       )
       .join("")
   );
@@ -476,17 +483,33 @@ async function followInquiry(i: Inquiry) {
       { OPEN: "待跟进", FOLLOWUP: "跟进中", LOST: "未成交" },
       i.state,
     ) +
-      note("每次跟进独立保留，下面填写本次新增内容。") +
+      field(
+        "nextFollowUpAt",
+        "下次跟进时间",
+        localDateTime(i.nextFollowUpAt),
+        "datetime-local",
+      ) +
+      note("选择“跟进中”时必须填写下次跟进时间；每次沟通独立保留。") +
       area("notes", "沟通记录 / 流失原因", "") +
       `<div data-inquiry-conflict></div><details><summary>沟通历史</summary>${history}</details>`,
     async (d, k) => {
       if (changed && !d.has("acceptLatest"))
         throw new Error("请先核对最新记录并勾选确认，你的输入已保留。");
       try {
+        const state = text(d, "state");
+        const nextFollowUpAt = text(d, "nextFollowUpAt");
+        if (state === "FOLLOWUP" && !nextFollowUpAt)
+          throw new Error("请选择下次跟进时间");
         return await request(
           `/inquiries/${i.id}/status`,
           "POST",
-          { version, state: text(d, "state"), notes: text(d, "notes") },
+          {
+            version,
+            state,
+            notes: text(d, "notes"),
+            nextFollowUpAt:
+              state === "FOLLOWUP" ? iso(d.get("nextFollowUpAt")) : null,
+          },
           k,
         );
       } catch (e) {
@@ -494,6 +517,10 @@ async function followInquiry(i: Inquiry) {
           const latest = await request<Inquiry[]>(`/inquiries?id=${i.id}`);
           version = latest[0].version;
           changed = true;
+          dialog.querySelector<HTMLSelectElement>('[name="state"]')!.value =
+            latest[0].state;
+          dialog.querySelector<HTMLInputElement>('[name="nextFollowUpAt"]')!.value =
+            localDateTime(latest[0].nextFollowUpAt);
           dialog.querySelector("[data-inquiry-conflict]")!.innerHTML =
             `<div class="notice warning"><strong>最新进度：${esc(states[latest[0].state] || latest[0].state)}</strong>${await historyHtml(i.id)}${check("acceptLatest", "已核对最新沟通，保留本次输入继续提交")}</div>`;
         }
@@ -502,6 +529,13 @@ async function followInquiry(i: Inquiry) {
     },
     "保存",
   );
+}
+function localDateTime(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
 }
 function convertInquiry(i: Inquiry) {
   form(

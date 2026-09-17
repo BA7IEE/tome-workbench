@@ -577,6 +577,39 @@ export function checks(
       read("docs/REAL-OPERATIONS.md").includes("Channel.defaultCurrency"),
   );
   check(
+    "v11-inquiry-followup-and-sale-currency",
+    () =>
+      read("prisma/schema.prisma").includes("nextFollowUpAt DateTime?") &&
+      read(
+        "prisma/migrations/202609180017_inquiry_followup/migration.sql",
+      ).includes('ADD COLUMN "nextFollowUpAt"') &&
+      read("src/trading/trading.controller.ts").includes(
+        "跟进中的询盘必须明确下一次跟进时间",
+      ) &&
+      read("src/trading/trading.service.ts").includes(
+        "const saleCurrency = inquiry.currency",
+      ) &&
+      read("src/trading/trading.service.ts").includes(
+        "requiredChannelCurrency(configured)",
+      ) &&
+      read("src/trading/settlement.service.ts").includes(
+        "FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED",
+      ) &&
+      read("src/jobs/work-queue.ts").includes("nextFollowUpAt") &&
+      read("test/integration.test.cjs").includes(
+        "成交币种保留询盘和渠道事实，外币不自动写人民币成本",
+      ) &&
+      read("test/integration.test.cjs").includes(
+        "询盘下次跟进时间驱动待办",
+      ) &&
+      read("test/browser/system-review.spec.cjs").includes(
+        "下次跟进时间",
+      ) &&
+      read("docs/REAL-OPERATIONS.md").includes(
+        "FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED",
+      ),
+  );
+  check(
     "v11-ingest-v12-required",
     () =>
       read("src/ingest/ingest-standard.ts").includes(

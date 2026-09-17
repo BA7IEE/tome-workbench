@@ -226,6 +226,7 @@ export interface Inquiry {
   quote: number | null;
   currency: string;
   state: string;
+  nextFollowUpAt: string | null;
 }
 export const categories: Record<string, string> = {
   CLOTHING: "服装",

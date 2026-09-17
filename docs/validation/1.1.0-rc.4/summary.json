@@ -1,8 +1,8 @@
 {
   "version": "1.1.0-rc.4",
-  "startedAt": "2026-09-17T21:33:37.474Z",
-  "finishedAt": "2026-09-17T21:43:54.358Z",
-  "sourceSha256": "03217e923de1c4f186ff04eb849792a7be3714dde699b69d52726ab9dad18471",
+  "startedAt": "2026-09-17T22:27:57.129Z",
+  "finishedAt": "2026-09-17T22:38:19.884Z",
+  "sourceSha256": "1f5bcd24093d85d06b58fc7cd1b47b3ae72f47f3dafdf504173456b83d3a39a5",
   "fullHarnessExitCode": 0,
   "sourceUnchanged": true,
   "passed": true,
@@ -15,13 +15,13 @@
         "failed": 0
       },
       {
-        "tests": 25,
-        "passed": 25,
+        "tests": 26,
+        "passed": 26,
         "failed": 0
       },
       {
-        "tests": 148,
-        "passed": 148,
+        "tests": 150,
+        "passed": 150,
         "failed": 0
       },
       {
@@ -31,16 +31,16 @@
       }
     ],
     "browserStats": {
-      "startTime": "2026-09-17T21:34:45.447Z",
-      "duration": 233606.821,
+      "startTime": "2026-09-17T22:29:06.643Z",
+      "duration": 237134.209,
       "expected": 174,
       "skipped": 0,
       "unexpected": 0,
       "flaky": 0
     },
     "webkitStats": {
-      "startTime": "2026-09-17T21:38:39.952Z",
-      "duration": 267610.218,
+      "startTime": "2026-09-17T22:33:04.470Z",
+      "duration": 267099.367,
       "expected": 174,
       "skipped": 0,
       "unexpected": 0,
@@ -58,7 +58,7 @@
         },
         "apiCrash": {
           "passed": true,
-          "observedFailoverMs": 938,
+          "observedFailoverMs": 920,
           "successfulReadsAfterFailover": 12
         },
         "maintenance": {
@@ -69,13 +69,13 @@
         "workerCrash": {
           "passed": true,
           "testLeaseSeconds": 2,
-          "observedRecoveryMs": 1956,
+          "observedRecoveryMs": 1954,
           "attempts": 2,
           "replacementWorkers": 2
         },
         "dependencyLoss": {
           "passed": true,
-          "observedExitMs": 125,
+          "observedExitMs": 124,
           "postgresServerNotStopped": true
         },
         "startupFailure": {
@@ -90,22 +90,22 @@
         "autoRestart": {
           "passed": true,
           "observedReplacementMs": {
-            "api-1": 2063,
-            "worker-1": 1456
+            "api-1": 1939,
+            "worker-1": 1454
           },
           "allOwnedChildrenStopped": true
         }
       },
       "cleanupPassed": true,
       "passed": true,
-      "at": "2026-09-17T21:43:19.202Z"
+      "at": "2026-09-17T22:37:43.405Z"
     },
     "recovery": {
       "kind": "actual-local-offline-recovery-drill",
-      "at": "2026-09-17T21:43:54.043Z",
+      "at": "2026-09-17T22:38:19.554Z",
       "passed": true,
       "source": "tome_test",
-      "target": "tome_restore_mu623v6p",
+      "target": "tome_restore_mu641ufx",
       "checks": {
         "liveProcessBlocksBackup": true,
         "allSelectedTableHashesEqual": true,
@@ -115,283 +115,283 @@
       "tables": {
         "user": {
           "count": 26,
-          "sha256": "9bca92b074405217a993269962ee3d07140d4a789271a595f30d3022b38a2e65"
+          "sha256": "bd4a067351079e6e68c1bad10f802e5da0cc0dd2928974a08d97e4aa1aefc069"
         },
         "session": {
           "count": 371,
-          "sha256": "5181fd871863e4e9e73b70443e71d14dd75d78d37eaaf91ddcd7b02b8b334699"
+          "sha256": "63014a72ef40b28e1fcbd710ba7eaaa312c53040f0d5a729a99be1f4ea325d54"
         },
         "loginThrottle": {
           "count": 10,
-          "sha256": "a440fcbed851e509601a11e73ca92b50579c423dfeb746bfd7f209ccf446aef6"
+          "sha256": "0164258b29bb4f5a38138b119e50d21c025fe0893b0a6aaa9cd1c61bab123aa4"
         },
         "supplier": {
           "count": 3,
-          "sha256": "e28f4590ab7022c1c1218d87ce02a42fa8fb9fa547bc53a4e88b3de83a295cb2"
+          "sha256": "7ad2237079ae645a047244a95c4d5f2865f9b73be76ede399782019d99bc44af"
         },
         "source": {
           "count": 1097,
-          "sha256": "c905594944d436ce725e807791ec60e2f93cd58b5704ad49cf81f22a93a770b5"
+          "sha256": "c523900383fe3cc0244373fcc195f1a342d58994c3ca91d50e57aa54a5b180aa"
         },
         "sourceRevision": {
           "count": 1098,
-          "sha256": "8f23f1114d2edaef80948dbaae86e621803729d786f89fe16ad62cd07bd41ed7"
+          "sha256": "ef4d55d17948884384a098d9ea2e810e0e447e4cc07ca0f54d580682b5daac4f"
         },
         "procurementSource": {
           "count": 88,
-          "sha256": "82fe48ed220d935c340a4e277bcaf0afbee30057bd3091f6aefde4190d906150"
+          "sha256": "c43a3fc71239a2e57f70e8da6557920daa402a407423b936f771c4a8b8f5307f"
         },
         "purchaseOrder": {
           "count": 127,
-          "sha256": "39b302896ab7a05fdf6c153ddd4bffb7ff7231fcd3999791f581ed737f099cc7"
+          "sha256": "3dd7321b0dc6db97e0d7e6c35a03361abcaacd9a91835a7c3bcd5e73d7fc6101"
         },
         "purchaseOrderRevision": {
           "count": 133,
-          "sha256": "390ed9eec6412bc60b2e2bc354cd8a81222bd7856b176fa2552d00509bbfdc7a"
+          "sha256": "264f5b6fa75d7342c7c2dd24799eda584a419fc01f9e3abd57fda4e91b6aae5c"
         },
         "purchaseOrderAdjustment": {
           "count": 333,
-          "sha256": "98fdc3cf75f51abc383c65ce0cbe1cd373a4ba1cc7064574148568bf5903da61"
+          "sha256": "a8dbd31282f48aa2ae6ec3eac9afce27a374c0201887a30fb0cdfa62f7fddf66"
         },
         "purchaseLine": {
           "count": 457,
-          "sha256": "b3714b9691b44adaa42bff63377a8dbd686f8c4746fabcc098e522696d2e210e"
+          "sha256": "c0d9cd19531fb5bd6f007ddaa5b4826b8e02808e4c7320f7525ebb0c0ae90acd"
         },
         "purchaseLineRevision": {
           "count": 458,
-          "sha256": "1500c85236f2a5fb2725734b239222dccf91503a4dd060763b7eef04294d3f4b"
+          "sha256": "c2da7e713a1f9a5f9c2005954e53c20ef1ee3a1aca648df8ce237811ea03bd6e"
         },
         "purchaseShipment": {
           "count": 110,
-          "sha256": "96fb58cf4aa4c06417a28ce7a9ca7655d583dfa4d963faa3e022531aa19ef0a1"
+          "sha256": "49015cc9899c8d236b37feaa527a8614b88254d33965291ac9e67440c9306cfd"
         },
         "purchaseShipmentLine": {
           "count": 385,
-          "sha256": "766b9385f0a78998b0cb3a1bdcdb7e26a7754bcada74942c862089b9c18fc9a8"
+          "sha256": "255fe57a923c2729e8fe9c11a7b4f1042d8d142b5732ee42e2ade1cb59d90a86"
         },
         "purchaseReturn": {
           "count": 2,
-          "sha256": "26124d589d47d9137e2736d73887121af0b3837b501e9e86c0c9343190fbace1"
+          "sha256": "c5d6e86a187f3158ed72b0e0448f3df659ff00d1f74319984cd635126e20bf30"
         },
         "purchaseReturnLine": {
           "count": 2,
-          "sha256": "da0e5033f86e8c10a5d9ac2d9faa47d12166f2230e3bc4f74e4b860a5e5fb647"
+          "sha256": "b62ed655ac8e5ecf9bb810c0399b5adae6052ec03868998f3eb147f6bbf7645c"
         },
         "itemPurchaseLink": {
           "count": 114,
-          "sha256": "fa8576c711e3b83a62475cce614a149c4cdc8b7d5e2e1dcbed47d6d110775d35"
+          "sha256": "f6cde3c7f14895296759b70e6d02a67ce775a2497234bc77d18d95a14dd2d2b6"
         },
         "purchaseCostConfirmation": {
           "count": 2,
-          "sha256": "c4fc13874c7787473165f3a39397a1a133f4acaa5e851dee8df08b40d4b285d8"
+          "sha256": "c1ada523838b38cdf2243e98066dedf091afa8f803ad29152caf076ed088e9a2"
         },
         "purchaseOrderCostBasis": {
           "count": 13,
-          "sha256": "92350b87614b91a6be3726cc534a6755c82b54a7e6971ffa9a9b52c11758a2f9"
+          "sha256": "35db16f4673a0684380a7531dc7bdf9782133dc80b1cc398c8ff049d6af58be5"
         },
         "purchaseOrderCostBasisRevision": {
           "count": 23,
-          "sha256": "72d1aab8bdd091b959e470d99ee71314ddff10329ccc62f9dea6bd62f9e4390c"
+          "sha256": "bd11d6d0f718d6100241c9bc13745665130510dd1dea09856dcd4d69174fa191"
         },
         "item": {
-          "count": 1784,
-          "sha256": "096cd829162b30dc0d165941d5ff7407452c6894fc3f09929912c3c363219552"
+          "count": 1790,
+          "sha256": "0e6e3f1d9a778ab0ae0d04c3e72221d6d9e549efdc32fb33a2c90455d2114805"
         },
         "cycle": {
-          "count": 1784,
-          "sha256": "054f74d4b4649a630510c70a2ba2ec4869659ef1be0fb60a13a767df1c4ee013"
+          "count": 1790,
+          "sha256": "375bc0f17dc54b3cdfa5e3bb3f27e6da532e06c61beb64effdb239cfeb70df9f"
         },
         "itemRevision": {
-          "count": 1888,
-          "sha256": "eadb672fd9bf8f2b2cf9b8f7630d3978654e3d128225b44e0dbc29d1c2952cfd"
+          "count": 1894,
+          "sha256": "e5fcce953a5e0be56343ce264f015721bb63dcf6586cbd4d88ec545be9627b74"
         },
         "offer": {
           "count": 5,
-          "sha256": "d3e63f1044a0846d81794cf5cfd2350d225ff6bc83fbcbe38229d27030c2784b"
+          "sha256": "1f714bfd038273a801bef9a6a1c8de2815f7eb76e67c11c7c981047bfabdf303"
         },
         "asset": {
-          "count": 308,
-          "sha256": "58781416bb8be33ce92af44335a4a0b00e3c4b21057662bc00218b77d0e1386b"
+          "count": 313,
+          "sha256": "aac53c0dab2886eaaf4d28cb7538f07c26609e519acc7ad6b1f00bf0d5be0bbc"
         },
         "channel": {
-          "count": 44,
-          "sha256": "a9b7648df2d4d91f1564933e0a7d285576e02b2d5a05fecc3461e51dd19ed06a"
+          "count": 46,
+          "sha256": "3310b11729d6afbf8118cb64a5521a4df3cc9a63f38b321f0d0786a810c852e8"
         },
         "usePackage": {
           "count": 130,
-          "sha256": "ece261a81e4c1170075ad9e9fed2b87fb47cb2693c5c6493f1e527fca6ea7a26"
+          "sha256": "932fb173b39875bdf69b47323f19b903fee8d11386ed31da033421b9c74999a7"
         },
         "listing": {
           "count": 17,
-          "sha256": "d23d670143dc02dca33a3b386f94bde158d0265d7c23ccb6b120fd6f03d813d5"
+          "sha256": "fc2bc0dcf597a505613ded240ea5a6d0f5d3db6999796a5467ae2d6158d2fd20"
         },
         "channelPrice": {
           "count": 11,
-          "sha256": "379ae3fa51f1e24bf3c127491987a0c8578334543932251bb4c197effa29b429"
+          "sha256": "6d59dbd16436a886567d77cbd8989065496d43572de3d5ec44ac9ad640c26343"
         },
         "distributionTarget": {
           "count": 7,
-          "sha256": "4d1cc081790452be478db7215c5ad820c3c4357001f5801ab236dfc7895464cc"
+          "sha256": "64ea060be7958eb9c1b4748639edf811d2289f7b7ae17a97cc0dc3220964b8d3"
         },
         "distributionSession": {
           "count": 17,
-          "sha256": "402c95478ba9ca06ba3e9fec30cf41c4f9c99f50ecb5b6d348437771bd948c57"
+          "sha256": "a9b267a44e37089536d76e6656478588442d1b62a5114a1ce501ba9eb98be855"
         },
         "distributionAttempt": {
           "count": 120,
-          "sha256": "8730d58d10e2b9baa0466e5eb725bfdbcec57bb98a5950ab384487eeae6ea93a"
+          "sha256": "805d8d707eb685add83a542d44fb45d7e7e8e5f9c55a78676898de4d1cee8bee"
         },
         "task": {
           "count": 27,
-          "sha256": "63a40f2e28010cc41db482c48c2fc561ffb0806fb809e482fa4841367e907901"
+          "sha256": "11161bec1ef22a88cdda670c2f3d642a5c017456767a4b609d8dedec95d71871"
         },
         "reservation": {
           "count": 7,
-          "sha256": "733bf4425658ed8416b0f06aba419b11f21993742c4ab2c097522e243fe6d2fb"
+          "sha256": "4c3fc07d58e4499faf624c05ecb78fa3864766f261113a5a857a3830c095614a"
         },
         "exceptionIntent": {
           "count": 1,
-          "sha256": "587c4caff3d8c2c7a7db458a5bf08823ad0bf2e7b1c41cd05b106bcb057d8a68"
+          "sha256": "d122e6798f87f4b59cc811d70371726104a37a3c5619d7189b871c8cca93a79c"
         },
         "sale": {
-          "count": 52,
-          "sha256": "18799b2c0c09875839f7133b22f26bb0f5c283cb209100d38919b9d5a21f4295"
+          "count": 57,
+          "sha256": "2690ed0949bf358a1871cfde9da59e8da46851988f074ea1641f8c7ee5db514e"
         },
         "adjustment": {
           "count": 6,
-          "sha256": "636d725a5fbf0ed85ffaccfa658190a56466657c85a169f4138375df8d54fd1f"
+          "sha256": "8576610feec56fa8e8f9b195115ab424d72c91550e46f64fc14f14a39d5224e7"
         },
         "observation": {
           "count": 3,
-          "sha256": "4a4b869058a19c139d23cfd33df0591c60ead9961979d96e19cb52e02f9d12c1"
+          "sha256": "94e58b9d2dbca3c28126861211247486f9aadefc3abc575016e52cdc691b03cd"
         },
         "inquiry": {
-          "count": 29,
-          "sha256": "ff112ec4ad24aef0e0e414249a27d00e125cc119fe3cb8be62034019b8a646f6"
+          "count": 35,
+          "sha256": "f05cdd75df1bfc17cda4b7729fdea0633be885bf7bd45a8865b72cb1a2cae327"
         },
         "suggestion": {
           "count": 2,
-          "sha256": "0b5fc7ea22f739274389271de4dbcad7477b564a325b1eb74d3bd1b7cc1c9090"
+          "sha256": "500b6bf61bec26b1b3c6603a2c5b99873061fa3e1af90a3d956ff282d6d170c4"
         },
         "movement": {
           "count": 2,
-          "sha256": "42b76eebe9e40bbe160a09541386c739f29f6d0818abac05e7a690bd8536a6b0"
+          "sha256": "ea2ad120f5bdff6ee0c61006662f6d7f80d461e603cc85f62437720b1013e14b"
         },
         "audit": {
-          "count": 6695,
-          "sha256": "2354f5e0915164954b6cc643d97f1c8ae91d45457d05a8db9a0b6d4d20aa774c"
+          "count": 6740,
+          "sha256": "e56d5593721874f11379405afbe57946708b81064fe7050b0e43be2eda627490"
         },
         "receipt": {
-          "count": 3982,
-          "sha256": "c96ab39f89426c1447aa53e2769bb8364e5a5276f52db7befae0d770b71dfee6"
+          "count": 4020,
+          "sha256": "26e8e4d42ed80448e55871c890e9551b816f0b43bfd4c47c377bd0d1af206bc5"
         },
         "outbox": {
-          "count": 1205,
-          "sha256": "f2b54437126e53df9429dc19ad7cbcb787d6193a60d1f9f4c50863adba7b7eb4"
+          "count": 1225,
+          "sha256": "12c1fb5fa9a1ed9b405d224da5b090db3bfea33751aa50257457ef722e93b8ce"
         },
         "costEntry": {
-          "count": 67,
-          "sha256": "8ac35c49ec10566b0b164a32a5a65dfec60dba656d6e2ebd1faa86688609bc35"
+          "count": 71,
+          "sha256": "a2ddc88e047c42378a38b855087d76ac47656cb62cdae444ff5c60f2a6f23b2c"
         },
         "runtimeHeartbeat": {
           "count": 17,
-          "sha256": "4d453405e456e8774bb9ddf898ca9c36585c7e58a2b43cf3e875c2a661ebf712"
+          "sha256": "49a0e28d2991023540f7e4ad8593e5ccb2448ad2221c5ffe632c125e92ed0cb6"
         },
         "sweepLease": {
           "count": 1,
-          "sha256": "8a779c49e3a177dc12b71886d47d77a5f28297a41285230bff27f420f299e699"
+          "sha256": "d9495b938a41ff06c975fc5e55b1197dcc87ecb697e76357aa85f8dd655658d3"
         },
         "itemAlias": {
           "count": 3,
-          "sha256": "9d624477dc840457262231bfd1d11ed526a4b8c4d7e6071a5fd45a753eac76aa"
+          "sha256": "d3f30029fa8f48960d420cb9688ab2dfe1cf5cd32b2c2f9f1ea1dcc48c9d4520"
         },
         "requirementWaiver": {
           "count": 3,
-          "sha256": "d6357cf65a1e26882c2c5184afa0d890a9e451e0d7c0a3ab3e26c9968acc3daa"
+          "sha256": "be80c53d4392296abfc253b3f2db867e28e0b5e96ed5961e1594377fa83565c2"
         },
         "intakeBatch": {
           "count": 8,
-          "sha256": "824a78182c375cc26d29b9256f2b90c1bd01ea46f1a7d93636302fe8634cc07f"
+          "sha256": "e1f2baac984fabb4e7ade2f49deefc814ef77b3cef77f1e35f293ff63abefcb2"
         },
         "intakeFile": {
           "count": 10,
-          "sha256": "b90a61263fdc60f50d2de64426e29bbd7beb23104492955cde9eff222bbadf5d"
+          "sha256": "2814ef794dfe1cd0819ce321e1180cd4c2809a9e193a68471c8bee0e1edc756c"
         },
         "collection": {
           "count": 5,
-          "sha256": "55f78d142770f7c05b3f8e9e89f62ab8d96fbdd90f045b18ec8d0b1cd5e5d9f2"
+          "sha256": "437aa8f6c07bd6c810d0add9a1aa760e91bfbd30fa2f9f0a7cacf512933720d9"
         },
         "collectionEntry": {
           "count": 8,
-          "sha256": "ea1cbf31b974aa42008dc9f9e4a718e02848a60bb65167527e3c8b5ed71156d9"
+          "sha256": "f837e74e165d4ce808f40aa30e737ce77969ba9d7b8ccaa7f4410d962b442124"
         },
         "settlementRule": {
           "count": 4,
-          "sha256": "8868f6cd1c62e250d371db7d69c94ba3bd12c4d27662c25faf13f62162272b72"
+          "sha256": "7b66a777e50ae7569acd8439c6ea3b79ffff1f9543369b7200db36ce8668598e"
         },
         "settlementStatement": {
           "count": 10,
-          "sha256": "ae685b4ecd350f8bb951164cfad3cf0679c7e93882a3ed92a3ab0b618e8b6c81"
+          "sha256": "5b5281cf20b9d00519972333c7cf48efa6cd6a312569908b3dd5ea19f4e3e50e"
         },
         "settlementLine": {
           "count": 9,
-          "sha256": "22cd7b00069da34cc26f5b3462ef734c065f301a3cbc3fd1943c3e3380b70566"
+          "sha256": "f13e59650d28d3fc6a183e0634317a51177362a24bcec667c2e681c5b3dac791"
         },
         "publishingDraft": {
           "count": 42,
-          "sha256": "ee5f5e9bad9cc8b853d18adea96d41e4629efa4dec2763ce439f80fadac0d5ba"
+          "sha256": "e280a059c5f443325d604bc80e06f66c8e56e784b53d7288c94de9b1bafd3ef3"
         },
         "dictionaryEntry": {
           "count": 161,
-          "sha256": "c585e887a54727c3118bf2dfecb32cb0b64aff32fab09117157f3f72598ad24b"
+          "sha256": "e56bb604d2368d34fbf7043d5ecb9b8b93eca73477753a6ed70d0190e4278227"
         },
         "dictionaryTerm": {
           "count": 233,
-          "sha256": "4520ac43bcbf53436a7f79e6393b2d9f14ea9c337a3c53707cac9c20f018d2f8"
+          "sha256": "b83cc0954d52f4cc4581dcbaebe9c59a867447b23e7a484ee57788d1a3cc6e85"
         },
         "itemDictionarySelection": {
-          "count": 416,
-          "sha256": "8b1ae57e1abbf641470d5fdf9ed8fbcc92e73dd27deb5b28732154345b77373b"
+          "count": 421,
+          "sha256": "c21a6882e71ae25f982ec31862480836af6f0583a518aa86c6b6754772cebb35"
         },
         "ingestSession": {
           "count": 67,
-          "sha256": "e1b21c7e7a1e45a70ef68f5efc8202c01ba8172736d79462a44856dd5a2adec9"
+          "sha256": "8d9f8823a61dea745b4a502bc30a4d9be5e4489625447b8ed333fcdfd5455ef5"
         },
         "ingestBatch": {
           "count": 71,
-          "sha256": "9c2664b886e2c0e70545b506784361f8b2e904cb270931fb6d194e5fa4eb0afb"
+          "sha256": "157535adbb996833d2c5246f86eb5072136ba9764655b4aca5173ab27c880c39"
         },
         "ingestCandidate": {
           "count": 1219,
-          "sha256": "e1a34b43ca04bf919e684ac96d2973d7711aaaceaff65e2e38ac72fa2e6ca87c"
+          "sha256": "8b7962be2ee206424e940a201e1495e2ad2da83a13db6112e884a188177a5609"
         },
         "ingestBatchMember": {
           "count": 1223,
-          "sha256": "fd707234929081d98296c998a6533b52cb96889d124c6363ec2a98458df6dd30"
+          "sha256": "e1819387f83a5228df20d009e1f0b6a4abcce65c6a1560d9a8ec531974e52275"
         },
         "materialExport": {
           "count": 14,
-          "sha256": "c1a12183081dd0c55df8e5b1b653230d48fe1b6d4aad0574fbc978f59e57506c"
+          "sha256": "d3bf37461002147185a1e36e8660a0334973567b86ceb5ef5312dcd12a9c6df1"
         },
         "materialExportEntry": {
           "count": 14,
-          "sha256": "5104491ef18e315b8f1583b54a7e4d03c39e48314fb531c7009badc74b5483e0"
+          "sha256": "bb623c524dd6fc4942d4af07c1a209651c64b37ef3de3fe3f9ddcb9586947a6f"
         },
         "ingestCandidateRevision": {
           "count": 1233,
-          "sha256": "cc5fa8154bff6ab6c5b3d3d5aace193ecdd049eb647c127f55d072a628b67010"
+          "sha256": "a94ace3e8371c9f376fc576f7a53c71780ac0ce9aa6b1c375ce7e6e0b70c6595"
         },
         "ingestCandidateAsset": {
           "count": 27,
-          "sha256": "8d304e1f8c20000d4947379b6d19459e908ac7269066a80d9fe51242a664e24c"
+          "sha256": "f68ec2fa73546b5c8f497294433ffeb0cfb5ca3eca9ec245f7559eb184fa25e4"
         },
         "itemSourceLink": {
           "count": 1041,
-          "sha256": "6a0a68ae7832957ce7427e845ca303ea44112bf3f745477977e25a09f2af97d4"
+          "sha256": "43492adae60a1a55af241f123ee94982e0891ddb7ae61a35e5743c7fddbe429e"
         }
       },
       "comparedModelCount": 69,
-      "mediaFiles": 35818,
+      "mediaFiles": 38498,
       "externalActionsExecuted": 0
     },
     "staticGuards": [
@@ -1077,6 +1077,10 @@
       },
       {
         "id": "v11-channel-price-currency-interactions",
+        "pass": true
+      },
+      {
+        "id": "v11-inquiry-followup-and-sale-currency",
         "pass": true
       },
       {

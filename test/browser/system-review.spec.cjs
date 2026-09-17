@@ -155,9 +155,11 @@ test("询盘旧窗口保留本次输入，核对最新沟通后追加历史", as
     version: 1,
     state: "FOLLOWUP",
     notes: "另一窗口确认客户尺码",
+    nextFollowUpAt: new Date(Date.now() + 86400000).toISOString(),
   });
   await d.getByRole("button", { name: "保存", exact: true }).click();
   await expect(d).toContainText("另一窗口确认客户尺码");
+  await expect(d.getByLabel("下次跟进时间", { exact: true })).not.toHaveValue("");
   await expect(
     d.getByLabel("沟通记录 / 流失原因", { exact: true }),
   ).toHaveValue("本窗口约定周五试穿");

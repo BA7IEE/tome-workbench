@@ -409,11 +409,13 @@ test("客户合集直接使用TM编号创建，售出一件只停止该件取用
   );
   await expect(page.locator("tr").filter({ hasText: "可使用" })).toHaveCount(1);
 });
-test("明确启用合成规则后可核对并确认单币种快照，不执行打款", async ({
+test("外币对账快照缺少汇率基础时保持草稿，不执行打款", async ({
   page,
   browserName,
 }) => {
-  // Each browser has an independent one-sale journal fixture; never change the expected arithmetic.
+  // The prior expectation that this isolated foreign-currency snapshot could
+  // confirm is no longer valid in rc.5. Each browser keeps its own currency
+  // fixture so unrelated CNY settlement history cannot enter this preview.
   const statementCurrency = browserName === "webkit" ? "GBP" : "SGD";
   const i = await preparedFixture(
       page,
@@ -482,8 +484,25 @@ test("明确启用合成规则后可核对并确认单币种快照，不执行�
     .locator("#dialog")
     .getByRole("button", { name: "确认并保留不可变快照", exact: true })
     .click();
+  await expect(page.locator("#dialog")).toContainText(
+    "外币结算尚无经确认的汇率基础",
+  );
+  await expect(page.locator("#content")).toContainText("草稿");
+  const discardConfirmation = new Promise((resolve, reject) => {
+    page.once("dialog", async (discard) => {
+      try {
+        expect(discard.type()).toBe("confirm");
+        expect(discard.message()).toContain("还有未保存的修改");
+        await discard.accept();
+        resolve(undefined);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await discardConfirmation;
   await expect(page.locator("#dialog")).not.toBeVisible();
-  await expect(page.locator("#content")).toContainText("已确认");
   await page.screenshot({
     path: "reports/screenshots/settlement.png",
     fullPage: true,

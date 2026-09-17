@@ -7,6 +7,10 @@ import { Fault } from "../common/errors";
 import { amount, currency, expectedVersion, safeText } from "../common/domain";
 import { itemLock, versionMatch } from "../catalog/catalog.service";
 import { planStopDistribution } from "../distribution/distribution.service";
+import {
+  requiredChannelCurrency,
+  resolveChannelPrice,
+} from "../publishing/publishing.service";
 async function stop(
   tx: Tx,
   itemId: string,
@@ -313,6 +317,7 @@ export class TradingService {
         const item = await itemLock(tx, itemId);
         await expireReservations(tx, itemId);
         let channelName = b.channel || "";
+        let saleCurrency = item.currency;
         if (b.channelId) {
           const configured = await tx.channel.findUnique({
             where: { id: b.channelId },
@@ -322,6 +327,12 @@ export class TradingService {
           // The immutable historical text is always the server-side account name,
           // never a caller-supplied label that might later be edited or spoofed.
           channelName = configured.name;
+          const price = await resolveChannelPrice(tx, item, b.channelId);
+          const requiredCurrency = requiredChannelCurrency(configured);
+          saleCurrency =
+            price.currency === requiredCurrency
+              ? price.currency
+              : requiredCurrency;
         }
         if (b.externalKey) {
           const old = await tx.sale.findUnique({
@@ -397,7 +408,7 @@ export class TradingService {
           }
         }
         const activeCost =
-          item.currency === "CNY"
+          saleCurrency === "CNY"
             ? await tx.costEntry.aggregate({
                 where: {
                   itemId,
@@ -421,7 +432,7 @@ export class TradingService {
             cooperation,
             intentId,
             note: b.note,
-            currency: item.currency,
+            currency: saleCurrency,
             cost: costSnapshot,
             createdBy: actor.id,
           },
@@ -440,6 +451,7 @@ export class TradingService {
         await audit(tx, actor.id, "SALE_RECORDED", itemId, {
           saleId: sale.id,
           cooperation,
+          currency: saleCurrency,
           costSnapshot,
           delistAttemptIds,
         });
@@ -531,8 +543,9 @@ export class TradingService {
               409,
             );
         }
+        const saleCurrency = inquiry.currency;
         const activeCost =
-          item.currency === "CNY"
+          saleCurrency === "CNY"
             ? await tx.costEntry.aggregate({
                 where: {
                   itemId: item.id,
@@ -556,7 +569,7 @@ export class TradingService {
             externalKey: b.externalKey || null,
             cooperation: "INCLUDED",
             note: b.note,
-            currency: item.currency,
+            currency: saleCurrency,
             cost: costSnapshot,
             createdBy: actor.id,
           },
@@ -574,12 +587,17 @@ export class TradingService {
         );
         const converted = await tx.inquiry.update({
           where: { id: inquiryId },
-          data: { state: "WON", version: { increment: 1 } },
+          data: {
+            state: "WON",
+            nextFollowUpAt: null,
+            version: { increment: 1 },
+          },
         });
         await audit(tx, actor.id, "SALE_RECORDED", item.id, {
           saleId: sale.id,
           inquiryId,
           cooperation: "INCLUDED",
+          currency: saleCurrency,
           costSnapshot,
           delistAttemptIds,
         });

@@ -1,4 +1,4 @@
-# Real Operations · 1.1.0-rc.3
+# Real Operations · 1.1.0-rc.5
 
 本切片把“已有商品如何按渠道准备、确认成交后如何停止对外分发”落到本地经营事实中；不接通真实第三方，不把分发 Attempt 当成平台调用，也不改变 TM、来源证据、库存锁、成本、图片权利和现有审计边界。
 
@@ -10,9 +10,9 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 ## 询盘成交
 
-选择配置账号创建询盘时，若存在同币种有效 ChannelPrice，默认填写该金额和币种；否则报价保持 NULL，但币种使用该账号目标币种。显式输入仍由操作者负责，系统不臆造跨币种金额。普通询盘只可更新为 OPEN、FOLLOWUP 或 LOST。`POST /api/inquiries/:id/convert` 在一次事务中完成：锁定 Item、核对询盘版本与预留、拒绝重复 Sale、创建 `Sale(inquiryId, channelId, channel)`、停止销售、消费匹配预留、将 Inquiry 标为 WON，并写入 Audit/Outbox。
+选择配置账号创建询盘时，若存在同币种有效 ChannelPrice，默认填写该金额和币种；否则报价保持 NULL，但币种使用该账号目标币种。显式输入仍由操作者负责，系统不臆造跨币种金额。前向 migration `202609180017_inquiry_followup` 为 Inquiry 增加 `nextFollowUpAt`：OPEN 可为空，FOLLOWUP 必须明确下次跟进时间，WON/LOST 一律清空。`POST /api/inquiries/:id/convert` 在一次事务中完成：锁定 Item、核对询盘版本与预留、拒绝重复 Sale、创建 `Sale(inquiryId, channelId, channel)`、停止销售、消费匹配预留、将 Inquiry 标为 WON，并写入 Audit/Outbox。
 
-这一步优先保证实物停售；成交金额、成本、费用和到账状态仍可为 NULL，交给既有财务命令补录。已转化询盘不能再走普通状态接口改写。
+这一步优先保证实物停售；成交金额、成本、费用和到账状态仍可为 NULL，交给既有财务命令补录。成交币种不再从 Item 猜测：询盘转成交保留 `Inquiry.currency`；配置账号的直接成交取有效渠道价币种，若 Item 回退价不符合账号固定/默认币种则取该账号要求币种；未配置账号才取 `Item.currency`。只有 CNY Sale 自动冻结已确认 CNY 成本，外币 Sale 的 `cost` 保持 NULL，不能把人民币成本写入外币记录。已转化询盘不能再走普通状态接口改写。外币结算可生成本地预览，但没有经确认 FX basis 时确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`；本版没有 FX 引擎、自动换汇或实际结算动作。
 
 ## 分发和待办
 
@@ -20,7 +20,7 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 `PublicationHealthService` 同样把无稳定 remoteId 的成功 PUBLISH/UPDATE 当作可能在线的远端暴露。库存、关闭 Target、停用/退出交易用途的 Channel、失效 Offer、批准/鉴定、发布图片权利和交易价不安全时，Worker/Sweep 只计划该成功资料的来源关联 DELIST；不会调用外部平台。安全但批准版本、渠道价、文案或图片变化时标为待更新。UsePackage 的七天 TTL 仍拦住新的交付，但不单独让成功发布待更新；回收站先本地取消未交付 PENDING，仍可能在线或未完成停售的记录一律阻止删除。
 
-工作待办按经营风险排序：待停售 100、需要核对 95、库存冲突 90、询盘 85、需要处理的分发记录 70、资料缺项 50、成交补账 30。分发中心以同一份只读 Item × Channel 投影显示未发布、缺资料、待交付、已交付、已发布、待更新、异常和需停售；渠道、状态、品牌、TM/商品筛选先在服务端完成，再分页。Dashboard 的“分发异常”固定进入 `scope=attention`，统计与列表不分叉。投影不保存第二套渠道库存事实、凭据，也不发起第三方请求。
+工作待办按经营风险排序：待停售 100、需要核对 95、库存冲突 90，逾期或遗漏下次时间的 FOLLOWUP 询盘同为 90；按上海自然日，今天 FOLLOWUP 与新 OPEN 为 85，未来 FOLLOWUP 为 55，需要处理的分发记录 70、资料缺项 50、成交补账 30。分发中心以同一份只读 Item × Channel 投影显示未发布、缺资料、待交付、已交付、已发布、待更新、异常和需停售；渠道、状态、品牌、TM/商品筛选先在服务端完成，再分页。Dashboard 的“分发异常”固定进入 `scope=attention`，统计与列表不分叉。投影不保存第二套渠道库存事实、凭据，也不发起第三方请求。
 
 标准 Handoff 读取 DELIST 时可只得到永久 TM 和 Channel 身份；这是刻意保留的 identity-only 停售交付，外部执行方不能把它当成重新发布包。AnQiCMS 的售出投影进一步只读取 TM、当前状态和 Listing.archive ID，固定输出 stock=0、保页、SOLD、无 Checkout，不重验历史图片、价格、文案或使用包。它仍通过同一受限 Channel 会话回填确认完成或待人工核对；详情见 [DISTRIBUTION-HANDOFF-CONTRACT](DISTRIBUTION-HANDOFF-CONTRACT.md)。
 

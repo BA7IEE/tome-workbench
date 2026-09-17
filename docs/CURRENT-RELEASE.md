@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
 
 2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
 
@@ -18,9 +18,9 @@
 
 当前源码新增 `Channel.businessPurpose` 与 `DistributionTarget`。`TRADE` 是唯一可以设为交易经营目标、写 ChannelPrice 或走 TRADE Readiness/资料交付的用途；XHS 固定为 `CONTENT`，SHOWROOM 固定为 `SHOWROOM`。Target 仅记录“当前希望在哪个交易账号经营此 TM”，每个 Item×Channel 唯一、可关闭、同平台多账号激活须明确确认；它在 Item lock、Receipt、Audit 与 Outbox 同一事务中写入，不创建 UsePackage、DistributionAttempt、Listing 或外部平台动作。
 
-当前源码还新增 `PublicationHealthService`。它以成功 PUBLISH/UPDATE 为远端暴露事实，不要求 APP 有 stable `remoteId` 或 Listing；库存不可售、关闭 Target、停用/退出 TRADE 的 Channel、失效 Offer、批准/鉴定、发布图片权利以及缺失、非正数或错币种的交易价都会显示为需停售，并由 Worker/Sweep 仅计划来源关联 DELIST。批准版本、渠道报价、文案或图片变化显示为待更新。UsePackage 的七天 TTL 仍拦住新交付，却不会单独改变已确认发布的状态。停用渠道会在本地取消未交付的 PUBLISH/UPDATE，且仅在仍有 DELIST 时允许 stop-only 会话；回收站同样阻止已交付、未知、成功或未完成停售的远端暴露。没有新增 migration、第三方动作或自动重发。
+当前源码还新增 `PublicationHealthService`。它以成功 PUBLISH/UPDATE 为远端暴露事实，不要求 APP 有 stable `remoteId` 或 Listing；库存不可售、关闭 Target、停用/退出 TRADE 的 Channel、失效 Offer、批准/鉴定、发布图片权利以及缺失、非正数或错币种的交易价都会显示为需停售，并由 Worker/Sweep 仅计划来源关联 DELIST。批准版本、渠道报价、文案或图片变化显示为待更新。UsePackage 的七天 TTL 仍拦住新交付，却不会单独改变已确认发布的状态。停用渠道会在本地取消未交付的 PUBLISH/UPDATE，且仅在仍有 DELIST 时允许 stop-only 会话；回收站同样阻止已交付、未知、成功或未完成停售的远端暴露。该发布安全切片不产生第三方动作或自动重发。
 
-渠道币种交互补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。没有实时汇率、自动定价或 Sale 财务模型重写。
+渠道币种与成交补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。前向 migration `202609180017_inquiry_followup` 新增 `Inquiry.nextFollowUpAt` 与索引：FOLLOWUP 必须给出下次跟进时间，OPEN/WON/LOST 不保留日程；工作队列把逾期 FOLLOWUP 提升为 90、今天 FOLLOWUP/新 OPEN 为 85、未来 FOLLOWUP 为 55。询盘转 Sale 严格保留 `Inquiry.currency`；配置账号直接成交以有效渠道价币种或账号要求币种为准，未配置账号使用 Item 币种。只有 CNY Sale 自动冻结 CNY 成本，外币 Sale 的成本保持 NULL。没有 FX basis 的外币结算确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`，没有实时汇率、自动定价或 FX 引擎，也不改写已有外币 Sale。
 
 ## 自动维护约束
 
@@ -47,7 +47,8 @@
     "202609170013_real_operations_price_basis",
     "202609170014_channel_price_revision_continuity",
     "202609170015_distribution_source_attempt",
-    "202609180016_distribution_intent"
+    "202609180016_distribution_intent",
+    "202609180017_inquiry_followup"
   ],
   "browserFiles": [
     "arco-workspace.spec.cjs",
@@ -84,7 +85,7 @@
 
 ## 本版范围
 
-- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
+- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、下次跟进日程、成交币种真相、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
 - `DistributionTarget` 只增加当前交易经营意图，不能把内容/展厅渠道变成交易渠道，也不能替代真实发布、远端身份、库存或停售回执。
 - 发布安全只维护本地经营状态和来源关联 DELIST：不把 UsePackage TTL 当远端页面寿命，不删除仍可能在线的商品，也不调用平台下架、重发或浏览器自动化。
