@@ -1,0 +1,9 @@
+{
+  "command": "npm audit --audit-level=high",
+  "exitCode": 0,
+  "vulnerabilities": {
+    "total": 0,
+    "high": 0,
+    "critical": 0
+  }
+}

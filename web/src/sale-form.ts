@@ -11,19 +11,24 @@ export async function recordSale(i: Item, after?: () => Promise<void>) {
         "channel",
         "成交渠道",
         Object.fromEntries([
-          ...channels.filter((c) => c.active).map((c) => [c.name, c.name]),
+          ...channels
+            .filter((c) => c.active)
+            .map((c) => [c.id, `${c.name}（已配置账号）`]),
           ["线下成交", "线下成交"],
           ["其他渠道", "其他渠道"],
         ]),
       ) +
       field("customerRef", "客户内部标记（建议不用手机号）") +
       `<details class="full"><summary>外部订单、备注与例外依据</summary>${field("externalKey", "外部订单唯一键（建议 平台:账号:订单行ID）")}${select("intentId", "提前登记的例外意向", { "": "正常合作", ...Object.fromEntries(i.intents.filter((x) => x.status === "ACTIVE").map((x) => [x.id, x.customerRef + " · " + x.reason])) })}${area("note", "成交备注", "", 2)}</details>`,
-    (d, k) =>
-      request(
+    (d, k) => {
+      const selected = text(d, "channel"),
+        configured = channels.find((c) => c.id === selected);
+      return request(
         `/items/${i.id}/sold`,
         "POST",
         {
-          channel: text(d, "channel"),
+          channel: configured?.name || selected,
+          ...(configured ? { channelId: configured.id } : {}),
           customerRef: text(d, "customerRef"),
           ...(text(d, "externalKey")
             ? { externalKey: text(d, "externalKey") }
@@ -32,7 +37,8 @@ export async function recordSale(i: Item, after?: () => Promise<void>) {
           note: text(d, "note"),
         },
         k,
-      ),
+      );
+    },
     "确认已售出",
     after,
   );

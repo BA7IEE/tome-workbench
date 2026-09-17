@@ -2631,6 +2631,20 @@ async function machineOk(path,token,method='GET',body,key){
   assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
   return r.data;
 }
+async function distributionAgentApi(path,token,method='GET',body){
+  const headers={'X-Distribution-Token':token};
+  if(body!==undefined)headers['Content-Type']='application/json';
+  const r=await fetch(origin+(path.startsWith('/api/')?path:'/api'+path),{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null),headers:r.headers};
+}
+async function distributionAgentOk(path,token,method='GET',body){
+  const r=await distributionAgentApi(path,token,method,body);
+  assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
+  return r.data;
+}
+async function distributionSession(channelId=channel.id,label='合成分发会话'){
+  return ok('/distribution/sessions','POST',{channelId,label,agentName:'synthetic-distribution-agent',expiresAt:future()});
+}
 async function mcpApi(token, body, extra={}){
   const r=await fetch(origin+'/api/mcp/ingest',{method:'POST',headers:{'X-Ingest-Token':token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
   return {status:r.status,data:await r.json().catch(()=>null)};
@@ -3417,4 +3431,222 @@ test("登录和当前会话能力来自后端权限，角色变化撤销旧会�
     await ok("/auth/user-access", "POST", { id: user.id, active: true, role: role === "VIEWER" ? "OPERATOR" : "VIEWER" });
     assert.equal((await api("/auth/me", "GET", undefined, session)).status, 401);
   }
+});
+
+test("Distribution Foundation：渠道配置、会话令牌和同包计划保持受限且不落明文", async () => {
+  const overseas = await ok("/channels", "POST", {
+    name: "合成海外站账号 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+    distributionMode: "API",
+    endpointUrl: "https://example.invalid/catalog",
+  });
+  assert.equal(overseas.defaultCurrency, "USD");
+  assert.equal(overseas.distributionMode, "API");
+  assert.equal(
+    (
+      await api("/channels", "POST", {
+        name: "拒绝凭据地址",
+        platform: "OTHER",
+        endpointUrl: "https://example.invalid/?token=not-allowed",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await api("/channels", "POST", {
+        name: "拒绝片段凭据",
+        platform: "OTHER",
+        endpointUrl: "https://example.invalid/#access_token=not-allowed",
+      })
+    ).status,
+    400,
+  );
+  const i = await ready(), p = await pack(i.id);
+  const first = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const repeated = await ok("/distribution/plan", "POST", { packageId: p.id });
+  assert.equal(first.id, repeated.id);
+  assert.equal(repeated.existing, true);
+  assert.equal(await db.distributionAttempt.count({ where: { packageId: p.id } }), 1);
+  const session = await distributionSession(channel.id, "同渠道合成会话");
+  assert.match(session.token, /^[a-f0-9]{64}$/);
+  const stored = await db.distributionSession.findUniqueOrThrow({ where: { id: session.id } });
+  assert.equal(stored.tokenHash, createHash("sha256").update(session.token).digest("hex"));
+  assert.equal(JSON.stringify(stored).includes(session.token), false);
+  const receipt = await db.receipt.findFirstOrThrow({
+    where: { actorId: admin.id, operation: "distribution.session.create" },
+    orderBy: { createdAt: "desc" },
+  });
+  assert.equal(JSON.stringify(receipt.response).includes(session.token), false);
+  const direct = await fetch(origin + "/api/items", {
+    method: "POST",
+    headers: {
+      Origin: origin,
+      "X-Distribution-Token": session.token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title: "分发令牌越权写入" }),
+  });
+  assert.equal(direct.status, 401);
+  const protocol = await distributionAgentOk("/distribution-agent/protocol", session.token);
+  assert.equal(protocol.session.channelId, channel.id);
+  const second = await ok("/channels", "POST", {
+    name: "隔离账号 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  const foreign = await distributionSession(second.id, "其他账号会话");
+  assert.deepEqual(await distributionAgentOk("/distribution-agent/attempts", foreign.token), []);
+  assert.equal(
+    (await distributionAgentApi(`/distribution-agent/attempts/${first.id}/claim`, foreign.token, "POST")).status,
+    404,
+  );
+});
+
+test("Distribution Foundation：并发领取、过期租约与失败重试只复用同一执行事实", async () => {
+  const i = await ready(), p = await pack(i.id);
+  const attempt = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const one = await distributionSession(channel.id, "并发领取一"), two = await distributionSession(channel.id, "并发领取二");
+  const claimed = await Promise.all([
+    distributionAgentApi(`/distribution-agent/attempts/${attempt.id}/claim`, one.token, "POST"),
+    distributionAgentApi(`/distribution-agent/attempts/${attempt.id}/claim`, two.token, "POST"),
+  ]);
+  assert.deepEqual(claimed.map((r) => r.status).sort(), [201, 409]);
+  const winner = claimed[0].status === 201 ? one : two;
+  const reclaimer = winner === one ? two : one;
+  await db.distributionAttempt.update({
+    where: { id: attempt.id },
+    data: { leaseUntil: new Date(Date.now() - 1000) },
+  });
+  const reclaimed = await distributionAgentOk(
+    `/distribution-agent/attempts/${attempt.id}/claim`,
+    reclaimer.token,
+    "POST",
+  );
+  assert.equal(reclaimed.state, "RUNNING");
+  const payload = await distributionAgentOk(
+    `/distribution-agent/attempts/${attempt.id}/payload`,
+    reclaimer.token,
+  );
+  assert.equal(payload.product.code, (await item(i.id)).code);
+  assert.equal(
+    (await distributionAgentApi(payload.product.images[0].download, reclaimer.token)).status,
+    200,
+  );
+  const unrelated = await ready();
+  assert.equal(
+    (
+      await distributionAgentApi(
+        `/distribution-agent/attempts/${attempt.id}/assets/${unrelated.asset}`,
+        reclaimer.token,
+      )
+    ).status,
+    403,
+  );
+  await distributionAgentOk(
+    `/distribution-agent/attempts/${attempt.id}/result`,
+    reclaimer.token,
+    "POST",
+    { state: "FAILED", errorCode: "SYNTHETIC_FAILURE", errorMessage: "合成明确失败，可安全重试" },
+  );
+  const retried = await ok(`/distribution/attempts/${attempt.id}/retry`, "POST");
+  assert.equal(retried.state, "PENDING");
+  const repeated = await ok("/distribution/plan", "POST", { packageId: p.id });
+  assert.equal(repeated.id, attempt.id);
+  assert.equal(await db.distributionAttempt.count({ where: { packageId: p.id } }), 1);
+});
+
+test("Distribution Foundation：UNKNOWN 必须复核原 Attempt，成功可无远端ID，稳定ID才创建 Listing", async () => {
+  const i = await ready(), p = await pack(i.id), session = await distributionSession();
+  const unknown = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await distributionAgentOk(`/distribution-agent/attempts/${unknown.id}/claim`, session.token, "POST");
+  await distributionAgentOk(`/distribution-agent/attempts/${unknown.id}/result`, session.token, "POST", {
+    state: "UNKNOWN",
+    errorCode: "RESULT_NOT_CONFIRMED",
+    errorMessage: "提交后未获得明确结果，必须先通过TM核对",
+  });
+  assert.equal((await ok("/distribution/plan", "POST", { packageId: p.id })).id, unknown.id);
+  const retry = await api(`/distribution/attempts/${unknown.id}/retry`, "POST");
+  assert.equal(retry.status, 409);
+  assert.equal(retry.data.error.code, "RECONCILIATION_REQUIRED");
+  const reconcile = await distributionAgentOk(`/distribution-agent/attempts/${unknown.id}/claim`, session.token, "POST");
+  assert.equal(reconcile.reconcile, true);
+  const locator = await distributionAgentOk(`/distribution-agent/attempts/${unknown.id}/payload`, session.token);
+  assert.equal(locator.reconcile, true);
+  assert.match(locator.product.locator, /^标题中的 TM\d+$/);
+  assert.equal(
+    (await distributionAgentApi(`/distribution-agent/attempts/${unknown.id}/assets/${i.asset}`, session.token)).status,
+    409,
+  );
+  await distributionAgentOk(`/distribution-agent/attempts/${unknown.id}/result`, session.token, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "",
+    remoteUrl: "",
+    evidence: { method: "TM_SEARCH", note: "指定账号商品列表中可检索到永久TM。" },
+  });
+  assert.equal((await db.distributionAttempt.findUniqueOrThrow({ where: { id: unknown.id } })).state, "SUCCEEDED");
+  assert.equal(await db.listing.count({ where: { itemId: i.id, channelId: channel.id } }), 0);
+  const stableItem = await ready(), stablePack = await pack(stableItem.id);
+  const stable = await ok("/distribution/plan", "POST", { packageId: stablePack.id });
+  await distributionAgentOk(`/distribution-agent/attempts/${stable.id}/claim`, session.token, "POST");
+  const remoteId = "synthetic-remote-" + randomUUID();
+  await distributionAgentOk(`/distribution-agent/attempts/${stable.id}/result`, session.token, "POST", {
+    state: "SUCCEEDED",
+    remoteId,
+    remoteUrl: "https://example.invalid/products/synthetic",
+    evidence: { method: "PLATFORM_RECEIPT", note: "合成平台返回稳定商品编号。" },
+  });
+  const listing = await db.listing.findUniqueOrThrow({ where: { channelId_remoteId: { channelId: channel.id, remoteId } } });
+  assert.equal(listing.itemId, stableItem.id);
+  const collisionItem = await ready(), collisionPack = await pack(collisionItem.id);
+  const collision = await ok("/distribution/plan", "POST", { packageId: collisionPack.id });
+  await distributionAgentOk(`/distribution-agent/attempts/${collision.id}/claim`, session.token, "POST");
+  assert.equal(
+    (
+      await distributionAgentApi(`/distribution-agent/attempts/${collision.id}/result`, session.token, "POST", {
+        state: "SUCCEEDED",
+        remoteId,
+        evidence: { method: "PLATFORM_RECEIPT", note: "合成冲突编号，不得绑定另一件商品。" },
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await api("/listings", "POST", { packageId: stablePack.id, remoteId: "MANUAL:TM000001" })
+    ).status,
+    400,
+  );
+});
+
+test("Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号快照均不伪造历史", async () => {
+  const i = await ready(), p = await pack(i.id);
+  const attempt = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const manual = await ok(`/distribution/attempts/${attempt.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "",
+    remoteUrl: "https://example.invalid/manual-check",
+    evidence: { method: "MANUAL_CONFIRMATION", note: "操作者已发布，可通过标题中的永久TM复查。" },
+  });
+  assert.equal(manual.state, "SUCCEEDED");
+  assert.equal(await db.listing.count({ where: { itemId: i.id, channelId: channel.id } }), 0);
+  const inquiry = await ok("/inquiries", "POST", {
+    itemId: i.id,
+    channel: "不可信客户端名称",
+    channelId: channel.id,
+    customerRef: "合成渠道客户",
+    notes: "合成询盘",
+  });
+  const storedInquiry = await db.inquiry.findUniqueOrThrow({ where: { id: inquiry.id } });
+  assert.equal(storedInquiry.channelId, channel.id);
+  assert.equal(storedInquiry.channel, channel.name);
+  const saleItem = await ready();
+  const sale = await sold(saleItem.id, { channel: "不可信客户端名称", channelId: channel.id });
+  const storedSale = await db.sale.findUniqueOrThrow({ where: { id: sale.id } });
+  assert.equal(storedSale.channelId, channel.id);
+  assert.equal(storedSale.channel, channel.name);
 });

@@ -14,7 +14,7 @@ export async function recordInquiry(i: Item, after?: () => Promise<void>) {
     (c) => c.active,
   );
   const choices = Object.fromEntries([
-    ...channels.map((c) => [c.name, c.name]),
+    ...channels.map((c) => [c.id, `${c.name}（已配置账号）`]),
     ["线下沟通", "线下沟通"],
     ["OTHER", "其他渠道"],
   ]);
@@ -42,8 +42,9 @@ export async function recordInquiry(i: Item, after?: () => Promise<void>) {
       area("notes", "问题、跟进计划与沟通摘要"),
     (d, k) => {
       const selected = text(d, "channel"),
+        configured = channels.find((c) => c.id === selected),
         other = text(d, "channelOther").trim(),
-        channel = selected === "OTHER" ? other : selected;
+        channel = selected === "OTHER" ? other : configured?.name || selected;
       if (!channel) throw new Error("请填写实际询盘渠道");
       return request(
         "/inquiries",
@@ -51,6 +52,7 @@ export async function recordInquiry(i: Item, after?: () => Promise<void>) {
         {
           itemId: i.id,
           channel,
+          ...(configured ? { channelId: configured.id } : {}),
           customerRef: text(d, "customerRef"),
           quote: cents(d.get("quote")),
           currency: text(d, "currency"),

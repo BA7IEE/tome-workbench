@@ -670,7 +670,7 @@ export class StudioPublisher {
           async () => {
             if (this.o.signal.aborted) return;
             this.feedback(
-              "已保存人工发布记录。后续售出时会生成对应渠道的停售待办。",
+              "已记录人工发布执行结果。稳定远端ID才会建立 Listing；后续渠道核对以这条执行记录为准。",
             );
           },
         )}</div><details><summary>查看最终文案</summary><h4>${esc(fresh.snapshot.title)}</h4><div class="copy">${esc(fresh.snapshot.body)}</div></details></section>`;
