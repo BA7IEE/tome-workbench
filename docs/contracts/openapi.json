@@ -2865,6 +2865,120 @@
         ]
       }
     },
+    "/api/distribution-agent/handoffs": {
+      "get": {
+        "operationId": "DistributionAgentController_handoffs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/handoffs/{id}/package": {
+      "post": {
+        "operationId": "DistributionAgentController_handoffPackage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/handoffs/{id}/assets/{assetId}": {
+      "get": {
+        "operationId": "DistributionAgentController_handoffAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/handoffs/{id}/published": {
+      "post": {
+        "operationId": "DistributionAgentController_handoffPublished",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/handoffs/{id}/attention": {
+      "post": {
+        "operationId": "DistributionAgentController_handoffAttention",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
     "/api/distribution-agent/protocol": {
       "get": {
         "operationId": "DistributionAgentController_protocol",
@@ -3013,6 +3127,32 @@
         },
         "tags": [
           "分发 Agent"
+        ]
+      }
+    },
+    "/api/mcp/distribution": {
+      "post": {
+        "operationId": "DistributionMcpController_handle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "标准分发交付 MCP"
+        ]
+      },
+      "get": {
+        "operationId": "DistributionMcpController_streamUnavailable",
+        "parameters": [],
+        "responses": {
+          "405": {
+            "description": "MCP endpoint does not provide an SSE stream; use POST."
+          }
+        },
+        "tags": [
+          "标准分发交付 MCP"
         ]
       }
     },

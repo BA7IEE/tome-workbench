@@ -47,6 +47,7 @@ import { OperationsController } from "./operations/operations.controller";
 import { DistributionService } from "./distribution/distribution.service";
 import { DistributionController } from "./distribution/distribution.controller";
 import { DistributionAgentController } from "./distribution/distribution-agent.controller";
+import { DistributionMcpController } from "./distribution/distribution-mcp.controller";
 @Module({
   imports: [DatabaseModule],
   providers: [
@@ -91,6 +92,7 @@ import { DistributionAgentController } from "./distribution/distribution-agent.c
     PublishingController,
     DistributionController,
     DistributionAgentController,
+    DistributionMcpController,
     TradingController,
     JobsController,
     AiController,

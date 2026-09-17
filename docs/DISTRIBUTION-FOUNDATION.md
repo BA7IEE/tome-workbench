@@ -18,6 +18,12 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 4. 回填分发记录。稳定 ID 已知时才创建或更新 Listing；没有稳定 ID 时留下可按永久 TM 核对的依据。
 5. 成功资料未变化时得到 NOOP，不会创建新的平台发布或新的分发记录。
 
+## 标准 Handoff 面
+
+仓库内的 `agent/skills/tome-distribution` 和[标准分发交付合同](DISTRIBUTION-HANDOFF-CONTRACT.md)是默认机器接入面。`GET /api/distribution-agent/handoffs` 只列当前 Channel 待交付资料和本会话已交付资料；带幂等键的 `POST .../package` 才把记录记为已交付，并且只返回有效 UsePackage 的冻结字段和按位置排序的图片。每次机器写入及每个 Receipt 重放都会重查 Channel 会话、创建者的当前 publish 权限、Item lock、包版本和图片权利。
+
+薄 MCP `/api/mcp/distribution` 只有 `tome_distribution_list_handoffs`、`tome_distribution_get_package`、`tome_distribution_report_published`、`tome_distribution_report_attention`。完成回传的 remoteId 可为空，AnQiCMS 真实 archive ID 应原样保存；伪造 `MANUAL:TM...` 一律拒绝。`ATTENTION` 把原记录转为 UNKNOWN，之后只能人工核对。DELIST 没有有效发布包时只交付永久 TM 和 Channel 身份，不能让历史图片权利成为停售阻断。
+
 分发中心把内部状态显示为：PENDING=待交付、RUNNING=已交付、SUCCEEDED=已确认完成、FAILED=需要处理、UNKNOWN=需要核对、CANCELLED=已取消。它还汇总尚未确认完成的停售记录；页面不会保存凭据或调用第三方。
 
 ## UNKNOWN 人工核对

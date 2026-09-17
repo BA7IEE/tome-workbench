@@ -54,6 +54,7 @@ export const required = [
   "docs/V1-ITEM-CENTER.md",
   "docs/AGENT-INGEST-PROTOCOL.md",
   "docs/DISTRIBUTION-FOUNDATION.md",
+  "docs/DISTRIBUTION-HANDOFF-CONTRACT.md",
   "docs/REAL-OPERATIONS.md",
   "docs/integrations/ANQICMS-CONTRACT.md",
   "docs/RELEASE-NOTES-1.0.md",
@@ -112,10 +113,17 @@ export const required = [
   "src/distribution/distribution.service.ts",
   "src/distribution/distribution.controller.ts",
   "src/distribution/distribution-agent.controller.ts",
+  "src/distribution/distribution-mcp.controller.ts",
   "src/distribution/anqicms-spike.ts",
   "agent/skills/tome-ingest/SKILL.md",
   "agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
   "agent/skills/tome-ingest/profiles/TRR.md",
+  "agent/skills/tome-distribution/SKILL.md",
+  "agent/skills/tome-distribution/profiles/ANQICMS.md",
+  "agent/skills/tome-distribution/profiles/XIANYU.md",
+  "agent/skills/tome-distribution/profiles/VC.md",
+  "agent/skills/tome-distribution/profiles/GRAILED.md",
+  "agent/skills/tome-distribution/profiles/CAROUSELL.md",
   "tools/tome-ingest/cli.mjs",
   "tools/tome-ingest/client.mjs",
   "tools/tome-ingest/state.mjs",
@@ -343,6 +351,42 @@ export function checks(
       read("web/src/distribution-center.ts").includes("handoffStates") &&
       !read("web/src/distribution-center.ts").includes("attemptCount") &&
       read("test/integration.test.cjs").includes("Distribution Foundation："),
+  );
+  check(
+    "v11-distribution-standard-handoff",
+    () => {
+      const mcp = read("src/distribution/distribution-mcp.controller.ts");
+      return (
+        read("src/app.ts").includes("DistributionMcpController") &&
+        read("src/distribution/distribution-agent.controller.ts").includes(
+          'Post("handoffs/:id/package")',
+        ) &&
+        read("src/distribution/distribution.service.ts").includes(
+          "machineHandoffRun",
+        ) &&
+        read("src/distribution/distribution.service.ts").includes(
+          "DISTRIBUTION_HANDOFF_DELIVERED",
+        ) &&
+        [
+          "tome_distribution_list_handoffs",
+          "tome_distribution_get_package",
+          "tome_distribution_report_published",
+          "tome_distribution_report_attention",
+        ].every((name) => mcp.includes(name)) &&
+        !/tome_distribution_(?:claim|heartbeat|renew_lease|retry_scheduler|browser_step)/.test(
+          mcp,
+        ) &&
+        read("agent/skills/tome-distribution/SKILL.md").includes(
+          "不执行闲鱼",
+        ) &&
+        read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
+          "tome_distribution_get_package",
+        ) &&
+        read("test/integration.test.cjs").includes(
+          "标准分发交付合同",
+        )
+      );
+    },
   );
   check(
     "v11-real-operations",

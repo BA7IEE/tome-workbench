@@ -106,6 +106,14 @@ API/Worker在data/run创建本库进程标记。进程崩溃的标记检查PID�
 
 Profile 的必查字段由服务端与 Agent 本次 `requiredFields` 合并。来源没有提供时写 `UNAVAILABLE + 原因`，不能删除检查项、填零、用常识补齐或把来源字段直接解释为本地库存、成色、成本、售价、成交或公开图片权利。封批前先看完整性报告；blocker 未清零不能封批，非阻断来源缺项仍须在人工候选确认时逐件说明。
 
+## v1.1 标准分发交付
+
+把分发 Token 仅通过受控渠道交给对应 Channel 的外部执行方。默认接入是仓库的 `tome-distribution` Skill 或 `/api/mcp/distribution`：只可列出待交付记录、取得冻结 Package、回填已确认完成、报告需要人工处理。取 Package 时必须传幂等键，它会将记录记为“已交付”；同键未知响应使用原请求和原键恢复，不要另建资料或猜测平台状态。
+
+外部执行方只能使用包中给定的 TM、Channel、标题、正文、价格/币种和图片顺序，不能隐藏瑕疵图、补商品事实、改价或把推断写回主档。APP 没有稳定 remoteId 时留空，并在确认说明留下永久 TM 的核对依据；禁止 `MANUAL:TM...`。AnQiCMS 外部 MCP/API 如果真实返回 archive ID，回填该 ID。`ATTENTION` 会把原记录变为需要核对，之后必须由运营人员在原记录人工确认成功或失败。
+
+停售 `DELIST` 可能只给永久 TM 与 Channel 身份，不会重新拼装旧发布包；这使旧图片授权失效也不会阻断停售。分发 Token、领取和短租约仍是兼容高级接口，不是默认流程。不要在 Token、状态文件、日志、备注、MCP 参数或资料中记录 Cookie、密码、验证码、真实账号或平台页面步骤。完整字段和端点见 [DISTRIBUTION-HANDOFF-CONTRACT](DISTRIBUTION-HANDOFF-CONTRACT.md)。
+
 ## v1.1-rc.3 渠道报价、分发和成交
 
 商品页「发布资料」前可在“各渠道报价”按具体账号填写明确金额和币种。AnQiCMS 的交易资料需要 USD，闲鱼需要 CNY；系统不会给出实时汇率或把一个账号的金额写到其他账号。改价、切回默认报价或恢复覆盖后，旧草稿/使用包会要求重新核对，先读取最新 Readiness 再生成新包。
