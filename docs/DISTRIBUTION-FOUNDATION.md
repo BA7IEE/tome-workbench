@@ -34,9 +34,11 @@ UNKNOWN 不能直接重试，也不能新建第二条发布资料。操作者必
 
 ## 运营闭环
 
-当前询盘成交会在同一事务内锁定 Item、创建 Sale、停售、更新 Inquiry 并为已有成功 PUBLISH/UPDATE 渠道建立去重的 DELIST 记录。APP 没有 Listing 也不例外：外部操作者用永久 TM 定位。
+`planStopDistribution` 在既有 Item 锁和同一事务中处理所有 `AVAILABLE → RESERVED/PAUSED/SOLD/GIFTED/SELF_USE/SUPPLIER_SOLD/QUARANTINED`。它逐渠道找到当前周期最近一条成功的 PUBLISH/UPDATE，并新建“需要停售”的 DELIST 记录；`sourceAttemptId` 指向该次成功资料，去重键是 `delist:<sourcePublishAttemptId>`。因此第一次发布 A 的停售不会挡住以后重新交付 B 的停售。APP 没有 Listing 也不例外：外部操作者用永久 TM 定位。
 
-商品库的批量确认资料先预检，再逐件调用已有 approve 命令；批量渠道价与批量资料交付也逐件调用已有写入命令。库存从 AVAILABLE 变为 RESERVED、PAUSED、SOLD、GIFTED、SELF_USE、SUPPLIER_SOLD 或 QUARANTINED 时的全量“需要停售”扩展，以及停止记录与源发布记录的绑定，仍属于下一独立切片，当前不把它写成已完成。
+`202609170015_distribution_source_attempt` 是仅新增的前向 migration。历史 DELIST 不被重写；若已有与历史成功资料时间相符的无关联停售事实，它仍是权威记录，不会被重复补发。若商品已经不可售、一个仍在交付的 PUBLISH/UPDATE 之后才确认成功，回执事务也会补建同一来源关联的停售记录。
+
+恢复 `AVAILABLE` 只恢复库存状态、Audit 和 Outbox，绝不自动 PUBLISH/UPDATE；运营人员必须重新检查资料后明确交付。商品库的批量确认资料先预检，再逐件调用已有 approve 命令；批量渠道价与批量资料交付也逐件调用已有写入命令。
 
 ## 明确未做
 

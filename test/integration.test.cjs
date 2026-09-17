@@ -3772,6 +3772,176 @@ test("Distribution handoff：人工核对与资料指纹防止重复交付", asy
   );
 });
 
+test("Distribution stop records：不可继续出售状态绑定发布代际且恢复不自动重发", async () => {
+  async function published(itemId, ch = channel) {
+    const packageRow = await pack(itemId, ch);
+    const attempt = await ok("/distribution/plan", "POST", {
+      packageId: packageRow.id,
+    });
+    await ok(`/distribution/attempts/${attempt.id}/manual-result`, "POST", {
+      state: "SUCCEEDED",
+      evidence: {
+        method: "TM_SEARCH",
+        note: "合成渠道内已按永久 TM 核对资料完成。",
+      },
+    });
+    return db.distributionAttempt.findUniqueOrThrow({
+      where: { id: attempt.id },
+    });
+  }
+  async function stopFor(state, ownership = "OWN") {
+    const i = await ready({ ownership });
+    if (ownership === "SUPPLIER")
+      await ok("/supply/offers", "POST", {
+        itemId: i.id,
+        supplierId: supplier.id,
+        amount: 150000,
+        currency: "CNY",
+        validUntil: future(),
+        canReserve: true,
+      });
+    const source = await published(i.id);
+    if (state === "RESERVED")
+      await ok(`/items/${i.id}/reserve`, "POST", {
+        customerRef: "停售覆盖合成预留",
+        minutes: 30,
+      });
+    else if (state === "SOLD") await sold(i.id);
+    else
+      await ok(`/items/${i.id}/state`, "POST", {
+        state,
+        reason: `合成停售覆盖：${state}`,
+      });
+    const stops = await db.distributionAttempt.findMany({
+      where: { sourceAttemptId: source.id, action: "DELIST" },
+    });
+    assert.equal(stops.length, 1, state);
+    assert.equal(stops[0].state, "PENDING", state);
+    assert.equal(stops[0].dedupeKey, `delist:${source.id}`, state);
+    return { item: i, source, stop: stops[0] };
+  }
+
+  for (const state of [
+    "RESERVED",
+    "PAUSED",
+    "SOLD",
+    "GIFTED",
+    "SELF_USE",
+    "QUARANTINED",
+  ])
+    await stopFor(state);
+  await stopFor("SUPPLIER_SOLD", "SUPPLIER");
+
+  const secondChannel = await ok("/channels", "POST", {
+    name: "停售覆盖第二渠道 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  const multiChannelItem = await ready();
+  const firstChannelSource = await published(multiChannelItem.id);
+  const secondChannelSource = await published(multiChannelItem.id, secondChannel);
+  await ok(`/items/${multiChannelItem.id}/state`, "POST", {
+    state: "PAUSED",
+    reason: "合成双渠道同时停售。",
+  });
+  const multiChannelStops = await db.distributionAttempt.findMany({
+    where: {
+      action: "DELIST",
+      sourceAttemptId: { in: [firstChannelSource.id, secondChannelSource.id] },
+    },
+    select: { sourceAttemptId: true, channelId: true },
+  });
+  assert.deepEqual(
+    multiChannelStops
+      .map((row) => `${row.channelId}:${row.sourceAttemptId}`)
+      .sort(),
+    [
+      `${channel.id}:${firstChannelSource.id}`,
+      `${secondChannel.id}:${secondChannelSource.id}`,
+    ].sort(),
+  );
+
+  // A historical stop remains a historical fact. The forward relation does
+  // not rewrite it or create a duplicate command for the same older channel.
+  const legacyItem = await ready();
+  const legacySource = await published(legacyItem.id);
+  const legacyStop = await db.distributionAttempt.create({
+    data: {
+      itemId: legacyItem.id,
+      channelId: channel.id,
+      action: "DELIST",
+      state: "PENDING",
+      dedupeKey: `legacy-delist:${legacySource.id}`,
+      createdBy: admin.id,
+    },
+  });
+  await ok(`/items/${legacyItem.id}/state`, "POST", {
+    state: "PAUSED",
+    reason: "合成历史停售兼容核对。",
+  });
+  assert.equal(
+    await db.distributionAttempt.count({
+      where: { action: "DELIST", sourceAttemptId: legacySource.id },
+    }),
+    0,
+  );
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({
+        where: { id: legacyStop.id },
+      })
+    ).sourceAttemptId,
+    null,
+  );
+
+  const first = await stopFor("PAUSED");
+  await ok(`/distribution/attempts/${first.stop.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成渠道内已确认停售。",
+    },
+  });
+  const beforeReopen = await db.distributionAttempt.count({
+    where: { itemId: first.item.id, action: { in: ["PUBLISH", "UPDATE"] } },
+  });
+  await ok(`/items/${first.item.id}/state`, "POST", {
+    state: "AVAILABLE",
+    reason: "合成复检后重新可售；不能自动重新发布。",
+  });
+  assert.equal(
+    await db.distributionAttempt.count({
+      where: { itemId: first.item.id, action: { in: ["PUBLISH", "UPDATE"] } },
+    }),
+    beforeReopen,
+  );
+
+  const nextPackage = await pack(first.item.id);
+  const next = await ok("/distribution/plan", "POST", {
+    packageId: nextPackage.id,
+  });
+  assert.equal(next.action, "PUBLISH");
+  await ok(`/distribution/attempts/${next.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成渠道内已确认重新交付。",
+    },
+  });
+  await ok(`/items/${first.item.id}/state`, "POST", {
+    state: "PAUSED",
+    reason: "再次暂停以核对新发布代际。",
+  });
+  const nextStop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${next.id}` },
+  });
+  assert.equal(nextStop.sourceAttemptId, next.id);
+  assert.notEqual(nextStop.id, first.stop.id);
+});
+
 test("Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号快照均不伪造历史", async () => {
   const i = await ready(), p = await pack(i.id);
   const attempt = await ok("/distribution/plan", "POST", { packageId: p.id });
@@ -3952,10 +4122,11 @@ test("Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发
   assert.equal(ordinaryEdit.status, 409);
   assert.equal(ordinaryEdit.data.error.code, "INQUIRY_CONVERTED_IMMUTABLE");
   const delist = await db.distributionAttempt.findUniqueOrThrow({
-    where: { dedupeKey: `delist:${i.id}:${channel.id}:${soldItem.cycle}` },
+    where: { dedupeKey: `delist:${publish.id}` },
   });
   assert.equal(delist.action, "DELIST");
   assert.equal(delist.state, "PENDING");
+  assert.equal(delist.sourceAttemptId, publish.id);
   assert.equal(
     (await api(`/inquiries/${inquiry.id}/convert`, "POST", { version: 2 }))
       .status,
@@ -4026,8 +4197,7 @@ test("Real Operations：售出与迟到发布成功交错时仍生成去重下�
     "POST",
   );
   await sold(i.id);
-  const soldItem = await item(i.id);
-  const dedupeKey = `delist:${i.id}:${channel.id}:${soldItem.cycle}`;
+  const dedupeKey = `delist:${publish.id}`;
   assert.equal(
     await db.distributionAttempt.count({ where: { dedupeKey } }),
     0,
@@ -4052,6 +4222,7 @@ test("Real Operations：售出与迟到发布成功交错时仍生成去重下�
   });
   assert.equal(delist.action, "DELIST");
   assert.equal(delist.state, "PENDING");
+  assert.equal(delist.sourceAttemptId, publish.id);
 });
 
 test("Real Operations：批量批准预检保留逐件版本与证据阻断", async () => {
@@ -4109,12 +4280,12 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
     evidence: { method: "TM_SEARCH", note: "合成发布后可按 TM 核对。" },
   });
   await sold(delistItem.id);
-  const soldItem = await item(delistItem.id);
   const pendingDelist = await db.distributionAttempt.findUniqueOrThrow({
     where: {
-      dedupeKey: `delist:${delistItem.id}:${channel.id}:${soldItem.cycle}`,
+      dedupeKey: `delist:${published.id}`,
     },
   });
+  assert.equal(pendingDelist.sourceAttemptId, published.id);
   const queue = await ok("/work-queue");
   const unknown = queue.rows.find(
     (row) => row.id === `distribution:${attempt.id}`,
@@ -4251,10 +4422,10 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
     },
   );
   await sold(i.id, { channelId: anqicms.id });
-  const soldItem = await item(i.id);
   const delist = await db.distributionAttempt.findUniqueOrThrow({
-    where: { dedupeKey: "delist:" + i.id + ":" + anqicms.id + ":" + soldItem.cycle },
+    where: { dedupeKey: "delist:" + update.id },
   });
+  assert.equal(delist.sourceAttemptId, update.id);
   await distributionAgentOk(
     "/distribution-agent/attempts/" + delist.id + "/claim",
     session.token,

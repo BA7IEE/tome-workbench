@@ -28,7 +28,7 @@ v1.0把永久TM商品作为唯一日常经营事实中心。外部Agent先进入
 
 1.0.0-rc.2新增「经营待办」投影：不新建第二套任务真相，而是从候选、商品任务、事实冲突、客户询盘和成交收支缺项实时汇总下一步动作，并按业务风险排序。首页工作总览和侧边栏待办共用这一队列。
 
-Agent协议见 `docs/AGENT-INGEST-PROTOCOL.md`，架构边界见 `docs/V1-ITEM-CENTER.md`。本版将 Agent 采集标准化为经校验的 Skill、来源 Profile、薄 MCP 和确定性 CLI；它们都只调用既有 `/api/agent-ingest`，不能直接创建 TM、改库存、记成交、确认成本或发布。分发侧以 [Distribution Foundation](docs/DISTRIBUTION-FOUNDATION.md) 准备冻结资料，并记录发布资料、更新资料、停售资料的交付和经营状态；系统按冻结内容与既有记录决定 PUBLISH、UPDATE 或 NOOP，外部 Agent、脚本或人工才完成平台操作。没有稳定远端 ID 也能确认完成，但不会伪造 Listing。首批运营动作见 [Real Operations](docs/REAL-OPERATIONS.md)：渠道报价按账号生效并冻结到使用包，询盘通过原子成交动作转为 Sale 和停售，已分发渠道产生需要停售的记录。AnQiCMS 的 [本地 Spike 合同](docs/integrations/ANQICMS-CONTRACT.md) 已冻结 USD、archive ID、图片和售出保页语义；实际发布仍由外部 Agent 的 MCP/API 或人工完成，ToMe 没有 HTTP Connector 或外部副作用。
+Agent协议见 `docs/AGENT-INGEST-PROTOCOL.md`，架构边界见 `docs/V1-ITEM-CENTER.md`。本版将 Agent 采集标准化为经校验的 Skill、来源 Profile、薄 MCP 和确定性 CLI；它们都只调用既有 `/api/agent-ingest`，不能直接创建 TM、改库存、记成交、确认成本或发布。分发侧以 [Distribution Foundation](docs/DISTRIBUTION-FOUNDATION.md) 准备冻结资料，并记录发布资料、更新资料、停售资料的交付和经营状态；系统按冻结内容与既有记录决定 PUBLISH、UPDATE 或 NOOP，外部 Agent、脚本或人工才完成平台操作。没有稳定远端 ID 也能确认完成，但不会伪造 Listing。首批运营动作见 [Real Operations](docs/REAL-OPERATIONS.md)：从 AVAILABLE 进入预留、暂停、售出、赠与、自留、供货方已售或待复检时，已分发渠道会产生绑定具体成功资料代际的需要停售记录；恢复可售不自动重新交付。渠道报价按账号生效并冻结到使用包。AnQiCMS 的 [本地 Spike 合同](docs/integrations/ANQICMS-CONTRACT.md) 已冻结 USD、archive ID、图片和售出保页语义；实际发布仍由外部 Agent 的 MCP/API 或人工完成，ToMe 没有 HTTP Connector 或外部副作用。
 
 1.0.0-rc.5补充现金与Store Credit等值的退款成本核对。可用四项支付/退款明细计算净额；明确属于某件商品的退款只冲减该件。确认汇率固定保存，来源变化要求重新核对，历史成交成本不反改。接口约定见 `docs/contracts/costing.md`。自动抓取月度汇率仍未实现；rc.11已支持跨页选单集中确认成本，汇率及支付依据仍需人工确认。
 

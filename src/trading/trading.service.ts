@@ -6,7 +6,7 @@ import { Commands, Tx, audit, event, json } from "../common/transaction";
 import { Fault } from "../common/errors";
 import { amount, currency, expectedVersion, safeText } from "../common/domain";
 import { itemLock, versionMatch } from "../catalog/catalog.service";
-import { planDelistsAfterSale } from "../distribution/distribution.service";
+import { planStopDistribution } from "../distribution/distribution.service";
 async function stop(
   tx: Tx,
   itemId: string,
@@ -14,13 +14,37 @@ async function stop(
   actor: string,
   reason: string,
 ) {
+  const before = await tx.item.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { status: true, cycle: true },
+  });
   await tx.item.update({ where: { id: itemId }, data: { status } });
   await tx.listing.updateMany({
     where: { itemId, desired: "LIVE" },
     data: { desired: "OFFLINE" },
   });
-  await audit(tx, actor, "INVENTORY_" + status, itemId, { reason });
-  await event(tx, itemId, "STOP_SELLING");
+  const delistAttemptIds =
+    before.status === "AVAILABLE" && status !== "AVAILABLE"
+      ? await planStopDistribution(
+          tx,
+          actor,
+          itemId,
+          before.cycle,
+          `ITEM_BECAME_${status}`,
+        )
+      : [];
+  await audit(tx, actor, "INVENTORY_" + status, itemId, {
+    fromStatus: before.status,
+    reason,
+    delistAttemptIds,
+  });
+  await event(tx, itemId, "STOP_SELLING", {
+    fromStatus: before.status,
+    status,
+    reason,
+    delistAttemptIds,
+  });
+  return delistAttemptIds;
 }
 async function expireReservations(tx: Tx, itemId: string) {
   await tx.reservation.updateMany({
@@ -126,6 +150,7 @@ export class TradingService {
           "GIFTED",
           "SELF_USE",
           "SUPPLIER_SOLD",
+          "QUARANTINED",
         ]),
         reason: safeText(2000).min(1),
       })
@@ -405,12 +430,12 @@ export class TradingService {
           where: { itemId, status: "ACTIVE" },
           data: { status: "CONSUMED" },
         });
-        await stop(tx, itemId, "SOLD", actor.id, "我方已售出，财务待补");
-        const delistAttemptIds = await planDelistsAfterSale(
+        const delistAttemptIds = await stop(
           tx,
-          actor.id,
           itemId,
-          item.cycle,
+          "SOLD",
+          actor.id,
+          "我方已售出，财务待补",
         );
         await audit(tx, actor.id, "SALE_RECORDED", itemId, {
           saleId: sale.id,
@@ -540,17 +565,17 @@ export class TradingService {
           where: { itemId: item.id, status: "ACTIVE" },
           data: { status: "CONSUMED" },
         });
-        await stop(tx, item.id, "SOLD", actor.id, "询盘确认成交，财务待补");
+        const delistAttemptIds = await stop(
+          tx,
+          item.id,
+          "SOLD",
+          actor.id,
+          "询盘确认成交，财务待补",
+        );
         const converted = await tx.inquiry.update({
           where: { id: inquiryId },
           data: { state: "WON", version: { increment: 1 } },
         });
-        const delistAttemptIds = await planDelistsAfterSale(
-          tx,
-          actor.id,
-          item.id,
-          item.cycle,
-        );
         await audit(tx, actor.id, "SALE_RECORDED", item.id, {
           saleId: sale.id,
           inquiryId,
