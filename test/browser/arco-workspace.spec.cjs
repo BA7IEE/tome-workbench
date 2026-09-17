@@ -359,6 +359,11 @@ for (const width of [1440, 390]) {
         await expect(page).toHaveURL(/#\/sources$/);
       }
       if (route === "settings") {
+        // Channel.defaultCurrency is now an operating fact shown with the
+        // account, so the former six-column layout expectation is obsolete.
+        await expect(content.locator(".record-table").first()).toContainText(
+          "默认币种",
+        );
         const columns = await content
           .locator(".record-table")
           .first()
@@ -368,7 +373,7 @@ for (const width of [1440, 390]) {
           .evaluateAll((cells) =>
             cells.map((cell) => cell.getBoundingClientRect().width),
           );
-        expect(columns.length).toBe(6);
+        expect(columns.length).toBe(7);
         expect(columns.every((value) => value >= 80)).toBe(true);
       }
       if (route === `procurement/${order.id}`) {

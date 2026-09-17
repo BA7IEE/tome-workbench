@@ -703,6 +703,89 @@ test("批量渠道价不会用零伪造未知默认报价，必须由操作者�
   );
 });
 
+test("渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元", async ({
+  page,
+}) => {
+  const title = "跨币种渠道价界面 " + randomUUID().slice(0, 8);
+  const created = await api(page, "/items", {
+    title,
+    currentPrice: 880000,
+    currency: "CNY",
+  });
+  const item = await (await page.request.get(`/api/items/${created.id}`)).json();
+  const cny = await api(page, "/channels", {
+    name: "人民币渠道价界面 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+  });
+  const usd = await api(page, "/channels", {
+    name: "美元渠道价界面 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+  });
+  await page.goto(`/#/items?q=${encodeURIComponent(title)}`);
+  await page
+    .getByRole("checkbox", { name: `选择 ${item.code}`, exact: true })
+    .check();
+  await page.getByText("批量操作", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "批量渠道价", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  const rows = dialog.getByLabel("渠道价格", { exact: true });
+  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(cny.id);
+  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("CNY");
+  await expect(rows).toHaveValue(`${item.code} 8800`);
+  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(usd.id);
+  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("USD");
+  await expect(rows).toHaveValue(item.code);
+  await expect(rows).not.toHaveValue(/8800/);
+  await expect(dialog).toContainText("不同于商品默认币种的金额没有带入");
+  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(cny.id);
+  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("CNY");
+  await expect(rows).toHaveValue(`${item.code} 8800`);
+  page.once("dialog", (confirmation) => confirmation.accept());
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: "＋ 创建渠道", exact: true }).click();
+  const channelDialog = page.getByRole("dialog");
+  await channelDialog.getByLabel("平台", { exact: true }).selectOption("ANQICMS");
+  await expect(
+    channelDialog.getByLabel("渠道默认币种", { exact: true }),
+  ).toHaveValue("USD");
+  await channelDialog.getByLabel("平台", { exact: true }).selectOption("XIANYU");
+  await expect(
+    channelDialog.getByLabel("渠道默认币种", { exact: true }),
+  ).toHaveValue("CNY");
+});
+
+test("记录询盘会预填目标渠道的有效价格和币种", async ({ page }) => {
+  const item = await api(page, "/items", {
+    title: "询盘渠道价界面 " + randomUUID().slice(0, 8),
+    currentPrice: 880000,
+    currency: "CNY",
+  });
+  const channel = await api(page, "/channels", {
+    name: "询盘美元账号 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+  });
+  await api(page, `/items/${item.id}/channel-prices/${channel.id}`, {
+    amount: 138000,
+    currency: "USD",
+  });
+  await page.goto(`/#/items/${item.id}`);
+  await page.getByRole("button", { name: "记录询盘", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("渠道", { exact: true }).selectOption(channel.id);
+  await expect(dialog.getByLabel("报价（可留空）", { exact: true })).toHaveValue(
+    "1380",
+  );
+  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("USD");
+});
+
 test("回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品", async ({
   page,
 }) => {

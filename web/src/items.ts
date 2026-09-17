@@ -113,14 +113,24 @@ async function channelPricePanel(i: Item, channels: Channel[]) {
   return section(
     "各渠道报价",
     note(
-      "当前商品报价是未设置渠道价时的 fallback。渠道价只影响该账号的 Readiness、草稿与冻结使用包；不会自动换汇或覆盖其他渠道。",
+      "当前商品报价只会在同币种时作为渠道价预填。渠道价只影响该账号的 Readiness、草稿与冻结使用包；不会自动换汇或覆盖其他渠道。",
     ) +
       table(
         ["渠道账号", "有效报价", "来源", "操作"],
         channels.map((channel) => {
           const override = overrides.get(channel.id);
-          const amount = override?.amount ?? i.currentPrice;
-          const currency = override?.currency ?? i.currency;
+          const targetCurrency =
+            channel.platform === "ANQICMS"
+              ? "USD"
+              : channel.platform === "XIANYU"
+                ? "CNY"
+                : channel.defaultCurrency;
+          const amount = override?.currency === targetCurrency
+            ? override.amount
+            : i.currency === targetCurrency
+              ? i.currentPrice
+              : null;
+          const currency = targetCurrency;
           return [
             `${esc(channel.name)}<small>${esc(channel.platform)}</small>`,
             money(amount, currency),
@@ -137,7 +147,16 @@ async function channelPricePanel(i: Item, channels: Channel[]) {
                       true,
                       'inputmode="decimal"',
                     ) +
-                      select("currency", "币种", currencies, currency) +
+                      select(
+                        "currency",
+                        "币种",
+                        {
+                          [currency]:
+                            (currencies as Record<string, string>)[currency] ||
+                            currency,
+                        },
+                        currency,
+                      ) +
                       check("confirmed", "我已核对该渠道的实际报价"),
                     (d, key) => {
                       if (!d.has("confirmed")) throw new Error("请先核对报价");

@@ -5,8 +5,7 @@ import {
   recordContext,
 } from "./record-controls";
 import { viewDialog, dialog, ApiError } from "./core";
-import { editChannel } from "./channel-setup";
-import { platformNames } from "./channel-setup";
+import { editChannel, platformNames, setupChannel } from "./channel-setup";
 import { onPageReady } from "./page-lifecycle";
 import { logsPage } from "./logs-page";
 import {
@@ -573,63 +572,18 @@ export async function settingsPage() {
       "标题上限是本项目的操作配置，不代表已经核实该平台最新规则。全渠道使用同一个TM号。自有展厅指本系统提供的商品展示页面。",
     ) +
       table(
-        ["账号", "平台", "语言", "标题字符上限", "状态", "操作"],
+        ["账号", "平台", "语言", "默认币种", "标题字符上限", "状态", "操作"],
         channels.map((c) => [
           esc(c.name),
           esc(platformNames[c.platform] || "其他渠道"),
           esc(c.locale === "en" ? "英文" : "中文"),
+          esc(c.defaultCurrency),
           String(c.titleLimit),
           c.active ? "启用" : "已停用",
           can("users") ? button("修改 / 停用", () => editChannel(c)) : "",
         ]),
       ),
-    can("users")
-      ? button("＋ 创建渠道", () =>
-          form(
-            "创建渠道账号",
-            field("name", "账号显示名称", "", "text", true) +
-              select(
-                "platform",
-                "平台",
-                {
-                  XIANYU: "闲鱼",
-                  XHS: "小红书",
-                  VC: "Vestiaire Collective",
-                  CAROUSELL: "Carousell",
-                  SHOWROOM: "自有展厅",
-                  OTHER: "其他",
-                },
-                "XIANYU",
-              ) +
-              select(
-                "locale",
-                "内容语言",
-                { "zh-CN": "中文", en: "英文" },
-                "zh-CN",
-              ) +
-              field(
-                "titleLimit",
-                "标题字符上限（请按实际规则填写）",
-                80,
-                "number",
-                true,
-                'min="16" max="300"',
-              ),
-            (d, k) =>
-              request(
-                "/channels",
-                "POST",
-                {
-                  name: text(d, "name"),
-                  platform: text(d, "platform"),
-                  locale: text(d, "locale"),
-                  titleLimit: Number(text(d, "titleLimit")),
-                },
-                k,
-              ),
-          ),
-        )
-      : "",
+    can("users") ? button("＋ 创建渠道", () => setupChannel()) : "",
   );
   if (can("users"))
     html += section(

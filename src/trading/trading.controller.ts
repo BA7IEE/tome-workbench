@@ -8,6 +8,10 @@ import { amount, currency, safeText, uuid } from "../common/domain";
 import { readSales, readInquiries } from "./record-queries";
 import { Fault } from "../common/errors";
 import { itemLock } from "../catalog/catalog.service";
+import {
+  requiredChannelCurrency,
+  resolveChannelPrice,
+} from "../publishing/publishing.service";
 import { TradingService } from "./trading.service";
 @ApiTags("交易与经营账")
 @Controller("api")
@@ -175,8 +179,8 @@ export class TradingController {
         channelId: uuid.optional(),
         customerRef: safeText(200).min(1),
         notes: safeText(4000).default(""),
-        quote: amount.default(null),
-        currency: currency.default("CNY"),
+        quote: amount.optional(),
+        currency: currency.optional(),
       })
       .strict()
       .superRefine((value, ctx) => {
@@ -192,10 +196,12 @@ export class TradingController {
       r.actor.id,
       "inquiry.create",
       r.get("Idempotency-Key"),
-      b,
+      { ...b, quote: b.quote ?? null, currency: b.currency ?? null },
       async (tx) => {
-        await itemLock(tx, b.itemId);
+        const item = await itemLock(tx, b.itemId);
         let channelName = b.channel || "";
+        let quote = b.quote ?? null;
+        let inquiryCurrency = b.currency ?? item.currency;
         if (b.channelId) {
           const configured = await tx.channel.findUnique({
             where: { id: b.channelId },
@@ -203,9 +209,26 @@ export class TradingController {
           if (!configured)
             throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
           channelName = configured.name;
+          const targetCurrency = requiredChannelCurrency(configured);
+          const price = await resolveChannelPrice(tx, item, b.channelId);
+          if (b.currency === undefined)
+            inquiryCurrency =
+              price.currency === targetCurrency
+                ? price.currency
+                : targetCurrency;
+          if (b.quote === undefined && price.currency === targetCurrency)
+            quote = price.amount;
         }
         const i = await tx.inquiry.create({
-          data: { ...b, channel: channelName, channelId: b.channelId || null },
+          data: {
+            itemId: b.itemId,
+            channel: channelName,
+            channelId: b.channelId || null,
+            customerRef: b.customerRef,
+            notes: b.notes,
+            quote,
+            currency: inquiryCurrency,
+          },
         });
         await audit(tx, r.actor.id, "INQUIRY_CREATED", b.itemId, {
           inquiryId: i.id,

@@ -4,13 +4,13 @@
 
 ## 渠道报价与资料冻结
 
-`resolveChannelPrice(item, channel)` 只做两级选择：启用的 `ChannelPrice` 优先，否则使用 `Item.currentPrice/currency`。渠道报价不会自动换汇，也不会反写 Item；AnQiCMS 交易资料必须使用 USD，闲鱼必须使用 CNY。
+`Channel.defaultCurrency` 是账号默认币种：AnQiCMS 固定 USD、闲鱼固定 CNY、其他平台使用账号设置。创建/编辑账号和写入 ChannelPrice 都由后端复核该约束，不能只靠界面。`resolveChannelPrice(item, channel)` 只做两级选择：启用的 `ChannelPrice` 优先，否则使用 `Item.currentPrice/currency`。目标账号与商品默认币种不同，就不把金额复制到目标币种；Readiness 会要求明确填写渠道价。渠道报价不会自动换汇，也不会反写 Item。
 
-Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享这一个解析。新草稿和使用包保存价格、币种以及来源/版本；因此同金额的渠道价被清除、后来又恢复时，旧包仍会失效，不能误把一次旧审核当成当前报价。未设置渠道价的历史包继续按 Item 回退价解释。
+Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享这一个解析。批量价选择渠道时同步切换目标币种和金额模板；只有同币种才带入 Item 价格，未知价格保持空白而不是 0。新草稿和使用包保存价格、币种以及来源/版本；因此同金额的渠道价被清除、后来又恢复时，旧包仍会失效，不能误把一次旧审核当成当前报价。未设置渠道价的历史包继续按 Item 回退价解释。
 
 ## 询盘成交
 
-普通询盘只可更新为 OPEN、FOLLOWUP 或 LOST。`POST /api/inquiries/:id/convert` 在一次事务中完成：锁定 Item、核对询盘版本与预留、拒绝重复 Sale、创建 `Sale(inquiryId, channelId, channel)`、停止销售、消费匹配预留、将 Inquiry 标为 WON，并写入 Audit/Outbox。
+选择配置账号创建询盘时，若存在同币种有效 ChannelPrice，默认填写该金额和币种；否则报价保持 NULL，但币种使用该账号目标币种。显式输入仍由操作者负责，系统不臆造跨币种金额。普通询盘只可更新为 OPEN、FOLLOWUP 或 LOST。`POST /api/inquiries/:id/convert` 在一次事务中完成：锁定 Item、核对询盘版本与预留、拒绝重复 Sale、创建 `Sale(inquiryId, channelId, channel)`、停止销售、消费匹配预留、将 Inquiry 标为 WON，并写入 Audit/Outbox。
 
 这一步优先保证实物停售；成交金额、成本、费用和到账状态仍可为 NULL，交给既有财务命令补录。已转化询盘不能再走普通状态接口改写。
 

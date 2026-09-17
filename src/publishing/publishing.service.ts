@@ -101,10 +101,17 @@ export async function resolveChannelPrice(
       };
 }
 
-export function requiredChannelCurrency(channel: { platform: string }) {
-  if (channel.platform === "ANQICMS") return "USD";
-  if (channel.platform === "XIANYU") return "CNY";
+export function fixedChannelCurrency(platform: string) {
+  if (platform === "ANQICMS") return "USD";
+  if (platform === "XIANYU") return "CNY";
   return null;
+}
+
+export function requiredChannelCurrency(channel: {
+  platform: string;
+  defaultCurrency: string;
+}) {
+  return fixedChannelCurrency(channel.platform) || channel.defaultCurrency;
 }
 
 export async function packageContext(
@@ -193,6 +200,16 @@ export class PublishingService {
         });
         if (!channel)
           throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
+        const expectedCurrency = requiredChannelCurrency(channel);
+        if (
+          input.amount !== null &&
+          input.currency !== expectedCurrency
+        )
+          throw new Fault(
+            "CHANNEL_PRICE_CURRENCY_REQUIRED",
+            `该渠道账号只能使用 ${expectedCurrency} 报价`,
+            400,
+          );
         const current = await tx.channelPrice.findUnique({
           where: { itemId_channelId: { itemId, channelId } },
         });

@@ -4,14 +4,36 @@ import {
   select,
   area,
   currencies,
+  dialog,
   request,
   text,
   cents,
 } from "./core";
 import type { Item, Channel } from "./types";
+
+type ChannelPrice = {
+  channelId: string;
+  amount: number;
+  currency: string;
+  active: boolean;
+};
+
+function channelCurrency(channel: Channel) {
+  if (channel.platform === "ANQICMS") return "USD";
+  if (channel.platform === "XIANYU") return "CNY";
+  return channel.defaultCurrency;
+}
+
 export async function recordInquiry(i: Item, after?: () => Promise<void>) {
-  const channels = (await request<Channel[]>("/channels")).filter(
-    (c) => c.active,
+  const [allChannels, prices] = await Promise.all([
+    request<Channel[]>("/channels"),
+    request<ChannelPrice[]>(`/items/${i.id}/channel-prices`),
+  ]);
+  const channels = allChannels.filter((c) => c.active);
+  const byChannel = new Map(
+    prices
+      .filter((price) => price.active)
+      .map((price) => [price.channelId, price]),
   );
   const choices = Object.fromEntries([
     ...channels.map((c) => [c.id, `${c.name}（已配置账号）`]),
@@ -64,4 +86,29 @@ export async function recordInquiry(i: Item, after?: () => Promise<void>) {
     "保存询盘",
     after,
   );
+  const channel = dialog.querySelector<HTMLSelectElement>('[name="channel"]');
+  const quote = dialog.querySelector<HTMLInputElement>('[name="quote"]');
+  const currency = dialog.querySelector<HTMLSelectElement>('[name="currency"]');
+  const sync = () => {
+    const configured = channels.find((row) => row.id === channel?.value);
+    if (!quote || !currency) return;
+    if (!configured) {
+      currency.value = i.currency;
+      quote.value = "";
+      return;
+    }
+    const targetCurrency = channelCurrency(configured);
+    const override = byChannel.get(configured.id);
+    const amount = override
+      ? override.currency === targetCurrency
+        ? override.amount
+        : null
+      : i.currency === targetCurrency
+        ? i.currentPrice
+        : null;
+    currency.value = targetCurrency;
+    quote.value = amount === null ? "" : String(amount / 100);
+  };
+  channel?.addEventListener("change", sync);
+  sync();
 }

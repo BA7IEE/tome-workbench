@@ -22,7 +22,11 @@ import { Fault } from "../common/errors";
 import { currency, uuid, safeText } from "../common/domain";
 import { PrismaService } from "../database/prisma.service";
 import { assetPath } from "../media/media.controller";
-import { PublishingService, purpose } from "./publishing.service";
+import {
+  fixedChannelCurrency,
+  PublishingService,
+  purpose,
+} from "./publishing.service";
 import { DistributionService } from "../distribution/distribution.service";
 
 const endpointUrl = z.union([z.literal(""), z.string().url().max(2000)]);
@@ -69,6 +73,17 @@ function safeEndpoint(value: string) {
     );
   return value;
 }
+function channelCurrency(platform: string, value?: string) {
+  const fixed = fixedChannelCurrency(platform);
+  const selected = value || fixed || "CNY";
+  if (fixed && selected !== fixed)
+    throw new Fault(
+      "CHANNEL_CURRENCY_REQUIRED",
+      `${platform === "ANQICMS" ? "AnQiCMS" : "闲鱼"} 必须使用 ${fixed}`,
+      400,
+    );
+  return selected;
+}
 @ApiTags("使用与分发")
 @Controller("api")
 export class PublishingController {
@@ -100,7 +115,7 @@ export class PublishingController {
         ]),
         locale: z.enum(["zh-CN", "en"]).default("zh-CN"),
         titleLimit: z.number().int().min(16).max(300).default(80),
-        defaultCurrency: currency.default("CNY"),
+        defaultCurrency: currency.optional(),
         distributionMode: z
           .enum(["MANUAL", "API", "AGENT", "SCRIPT"])
           .default("MANUAL"),
@@ -108,14 +123,15 @@ export class PublishingController {
       })
       .strict()
       .parse(raw);
+    const defaultCurrency = channelCurrency(b.platform, b.defaultCurrency);
     return this.commands.run(
       r.actor.id,
       "channel.create",
       r.get("Idempotency-Key"),
-      { ...b, endpointUrl: safeEndpoint(b.endpointUrl) },
+      { ...b, defaultCurrency, endpointUrl: safeEndpoint(b.endpointUrl) },
       async (tx) => {
         const c = await tx.channel.create({
-          data: { ...b, endpointUrl: safeEndpoint(b.endpointUrl) },
+          data: { ...b, defaultCurrency, endpointUrl: safeEndpoint(b.endpointUrl) },
         });
         await audit(tx, r.actor.id, "CHANNEL_CREATED", c.id);
         return c;
@@ -157,11 +173,15 @@ export class PublishingController {
             409,
           );
         const { version, ...data } = b;
+        const defaultCurrency = channelCurrency(
+          before.platform,
+          data.defaultCurrency ?? before.defaultCurrency,
+        );
         const updated = await tx.channel.update({
           where: { id },
           data: {
             ...data,
-            defaultCurrency: data.defaultCurrency ?? before.defaultCurrency,
+            defaultCurrency,
             distributionMode: data.distributionMode ?? before.distributionMode,
             endpointUrl:
               data.endpointUrl === undefined

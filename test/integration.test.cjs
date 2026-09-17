@@ -4362,6 +4362,107 @@ test("Real Operations：ChannelPrice 解析冻结到使用包，默认价不覆�
   );
 });
 
+test("渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种", async () => {
+  const badAnQi = await api("/channels", "POST", {
+    name: "拒绝错误独立站币种 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    defaultCurrency: "CNY",
+  });
+  assert.equal(badAnQi.status, 400);
+  assert.equal(badAnQi.data.error.code, "CHANNEL_CURRENCY_REQUIRED");
+  const anqicms = await ok("/channels", "POST", {
+    name: "默认美元独立站 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+  });
+  assert.equal(anqicms.defaultCurrency, "USD");
+  const xianyu = await ok("/channels", "POST", {
+    name: "默认人民币闲鱼 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+  });
+  assert.equal(xianyu.defaultCurrency, "CNY");
+  const vc = await ok("/channels", "POST", {
+    name: "欧元 VC 账号 " + randomUUID().slice(0, 8),
+    platform: "VC",
+    locale: "en",
+    defaultCurrency: "EUR",
+  });
+  assert.equal(vc.defaultCurrency, "EUR");
+  const badUpdate = await api(`/channels/${anqicms.id}`, "POST", {
+    version: anqicms.version,
+    name: anqicms.name,
+    locale: anqicms.locale,
+    titleLimit: anqicms.titleLimit,
+    active: true,
+    defaultCurrency: "CNY",
+  });
+  assert.equal(badUpdate.status, 400);
+  assert.equal(badUpdate.data.error.code, "CHANNEL_CURRENCY_REQUIRED");
+
+  const itemCny = await ready({ currentPrice: 200000, currency: "CNY" });
+  const wrongAnQiPrice = await api(
+    `/items/${itemCny.id}/channel-prices/${anqicms.id}`,
+    "POST",
+    { amount: 200000, currency: "CNY" },
+  );
+  assert.equal(wrongAnQiPrice.status, 400);
+  assert.equal(
+    wrongAnQiPrice.data.error.code,
+    "CHANNEL_PRICE_CURRENCY_REQUIRED",
+  );
+  await ok(`/items/${itemCny.id}/channel-prices/${anqicms.id}`, "POST", {
+    amount: 138000,
+    currency: "USD",
+  });
+  const defaultInquiry = await ok("/inquiries", "POST", {
+    itemId: itemCny.id,
+    channelId: anqicms.id,
+    customerRef: "渠道价默认询盘",
+  });
+  const storedDefaultInquiry = await db.inquiry.findUniqueOrThrow({
+    where: { id: defaultInquiry.id },
+  });
+  assert.equal(storedDefaultInquiry.quote, 138000);
+  assert.equal(storedDefaultInquiry.currency, "USD");
+
+  const vcBefore = await ok(
+    `/items/${itemCny.id}/readiness?channelId=${vc.id}`,
+  );
+  assert.ok(vcBefore.missing.some((row) => row.code === "price_currency"));
+  const wrongVcPrice = await api(
+    `/items/${itemCny.id}/channel-prices/${vc.id}`,
+    "POST",
+    { amount: 138000, currency: "USD" },
+  );
+  assert.equal(wrongVcPrice.status, 400);
+  await ok(`/items/${itemCny.id}/channel-prices/${vc.id}`, "POST", {
+    amount: 126000,
+    currency: "EUR",
+  });
+  const vcInquiry = await ok("/inquiries", "POST", {
+    itemId: itemCny.id,
+    channelId: vc.id,
+    customerRef: "欧元渠道价默认询盘",
+  });
+  const storedVcInquiry = await db.inquiry.findUniqueOrThrow({
+    where: { id: vcInquiry.id },
+  });
+  assert.equal(storedVcInquiry.quote, 126000);
+  assert.equal(storedVcInquiry.currency, "EUR");
+
+  const noFxItem = await ready({ currentPrice: 200000, currency: "CNY" });
+  const noFxInquiry = await ok("/inquiries", "POST", {
+    itemId: noFxItem.id,
+    channelId: vc.id,
+    customerRef: "没有汇率的欧元询盘",
+  });
+  const storedNoFxInquiry = await db.inquiry.findUniqueOrThrow({
+    where: { id: noFxInquiry.id },
+  });
+  assert.equal(storedNoFxInquiry.quote, null);
+  assert.equal(storedNoFxInquiry.currency, "EUR");
+});
+
 test("Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发布渠道计划下架", async () => {
   const i = await ready();
   const p = await pack(i.id);
