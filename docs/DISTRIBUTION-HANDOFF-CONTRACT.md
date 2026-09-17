@@ -10,7 +10,9 @@
 后台用户从有效 `UsePackage` 生成分发记录，再创建只对应**一个具体 Channel** 的
 `DistributionSession`。数据库、Audit、Receipt 只保存 Token 哈希；明文 Token 只在创建
 响应出现一次。每个机器请求使用 `X-Distribution-Token`，系统会核验会话未撤销/过期、
-创建者仍启用且仍具 `publish` 权限。
+创建者仍启用且仍具 `publish` 权限。停用或退出 `TRADE` 的 Channel 不再交付新的
+PUBLISH/UPDATE；只有仍有未完成 DELIST 时可以创建 stop-only Session，且其列表和取包
+只能处理 DELIST，全部确认停售后不能再创建会话。
 
 标准路径是：
 
@@ -49,7 +51,8 @@
 
 它只来自有效、未过期的 `UsePackage`：标题、正文、价格/币种、图片顺序和权利会重新
 校验。外部执行方必须原样使用，不得隐藏瑕疵图、改价、补写商品事实或把外部推断写回
-主档。`price: null` 就是未知，不能填 0 或自动换汇。
+主档。`price: null` 就是未知，交易资料也不能填 0 或自动换汇。使用包到期只阻止这一次
+新的取包；已经确认发布的远端暴露会另按当前安全事实检查，不会因为 TTL 自身变成更新。
 
 `DELIST` 可返回 `package: null`。它只交付永久 TM 与 Channel 身份，以便外部执行方
 停止出售；不会反向构造历史包，也不会因历史图片权利失效而阻塞停售。

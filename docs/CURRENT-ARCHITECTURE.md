@@ -11,7 +11,7 @@
 | dictionaries | 标准 ID、别名、停用状态 | 来源原文不自动成为标准字典 |
 | media | Asset、IntakeFile | 原图不可覆盖，授权独立 |
 | costing / trading | 成本依据、成交、预留、询盘、调整、账期 | 未知金额 NULL、按币种；成交成本冻结 |
-| publishing / distribution | Channel（含 businessPurpose）、DistributionTarget、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、Collection、AnQiCMS 标准交付合同 | Target 仅表达当前交易经营意图；默认路径交付冻结资料并记录经营状态；稳定远端 ID 才有 Listing；合同只读本地投影，不含 Connector |
+| publishing / distribution | Channel（含 businessPurpose）、DistributionTarget、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、PublicationHealth、Collection、AnQiCMS 标准交付合同 | Target 仅表达当前交易经营意图；成功资料无论是否有 Listing 都按当前安全事实复核；默认路径交付冻结资料并记录经营状态；合同只读本地投影，不含 Connector |
 | jobs | Outbox、Task | PG 租约、重试、失败持久化；无外部副作用 |
 | operations | work-queue、运行健康、审计视图 | 只读投影，不复制第二套可写经营事实 |
 
@@ -35,11 +35,13 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 详细业务不变量见 [CURRENT-BUSINESS-RULES](CURRENT-BUSINESS-RULES.md)，阶段演进见 [历史架构](archive/ARCHITECTURE-through-1.0.1-rc.1.md)。
 
-## 渠道用途、经营目标与币种约束
+## 渠道用途、经营目标、币种与发布安全
 
 `Channel.businessPurpose` 是账号层经营用途：`TRADE` 才能承载交易资料、交易报价和 `DistributionTarget`；XHS 固定 `CONTENT`，SHOWROOM 固定 `SHOWROOM`，不能通过 UI 或 API 改成交易渠道。`DistributionTarget` 是 Item×Channel 的可关闭经营意图，保留创建/更新人、版本和原因；它不镜像 Item 库存、不回填历史 Listing/Attempt、不创建 Package 或任何外部动作。启用同平台第二个 Target 前必须明确确认，避免误把同平台多账号经营当作默认行为。
 
 `Channel.defaultCurrency` 是 Channel 账号层的默认币种。`fixedChannelCurrency` 对 AnQiCMS/闲鱼分别强制 USD/CNY，其他平台返回账号默认值；Channel 创建、编辑、ChannelPrice 写入和发布 Readiness 共用这一要求。`resolveChannelPrice` 仍只解析 ChannelPrice 或 Item 回退价，不做 FX；回退价币种不等于目标账号时只能作为待补信息，不能复制金额。询盘创建在已配置账号下默认同币种有效渠道价；没有该价时金额 NULL、币种仍为目标账号。Sale 多币种财务结构没有改变。
+
+`PublicationHealthService` 不把 `Listing` 或 UsePackage TTL 当成唯一远端事实：当前成功 PUBLISH/UPDATE（包括 APP `remoteId` 为空）都会复核库存、Target、Channel、供应商 Offer、批准/鉴定、发布图片权利及正数且币种正确的交易价。安全但资料变化时输出待更新；不安全时 Worker/Sweep 只在本地创建来源关联 DELIST，不调用平台。停用或退出 TRADE 的渠道立即取消尚未交付的 PUBLISH/UPDATE，并且只可为未完成 DELIST 建立 stop-only 会话；回收站同样以这些暴露事实保护商品。
 
 ## 验证环境
 
@@ -51,6 +53,6 @@ UX 1.0.2：collection-draft 只负责账号范围的浏览器草稿持久化，c
 
 Agent Ingest Standard v1.2：机器会话先取得协议、校验 Skill 与当前来源 Profile 的 SHA-256，再经 HTTP、薄 MCP 或 `tome-ingest` CLI 调用同一 `IngestService`。新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；服务先查同键历史事实，仅已有同清单批次可保留旧合同。TRR 与通用市场 Profile 的服务端必查字段会和 Agent 自报字段取并集；MCP 可使用 `X-Ingest-Token` 或同一 Token 的 Bearer 头，但只提供协议、批次、订单、候选和封批工具，图片仍走原 multipart 接口。CLI 状态文件仅保存 fingerprint、幂等键、服务器 ID 和状态，不能保存 Token。
 
-Distribution Foundation 与 Real Operations：后台用户先从有效 UsePackage 准备一条 DistributionAttempt；该记录在 PostgreSQL 事务中同时产生 Audit、Receipt、Outbox。系统以冻结资料指纹和既有成功/停售事实自动决定 PUBLISH、UPDATE 或 NOOP，尚未处理的交付只会回到原记录。默认 UI 仅展示待交付、已交付、已确认完成、需要处理、需要核对、已取消等经营状态；`UNKNOWN` 必须在原记录附依据核对为成功或失败。默认机器入口是 `tome-distribution/1.0` Skill、受限 Handoff HTTP 和四工具 `/api/mcp/distribution`：它按 Channel 交付有效冻结包、把取包记为已交付、回填最小完成/待核对结果，并在每次机器写入及 Receipt 重放重新核验会话和创建者发布权限；它没有平台 Runtime 的领取、心跳、续租、调度或浏览器工具。`planStopDistribution` 在同一 Item 锁事务中处理 AVAILABLE 到所有不可售状态的变化：每个渠道的 DELIST 都用 `sourceAttemptId` 绑定当前成功 PUBLISH/UPDATE，并以源代际去重；恢复 AVAILABLE 不会创建 PUBLISH/UPDATE。分发会话、Token 哈希、按 Channel 隔离的领取和短租约仍保留为兼容的高级接口，不是默认工作流。`SUCCEEDED + remoteId` 才 upsert Listing；没有远端 ID 的 APP 发布仍可确认完成，不以假 ID 补齐。`resolveChannelPrice` 统一选择启用的 ChannelPrice 或 Item 回退价，草稿与包快照记录来源/版本；报价变化、清除再恢复都会使旧包失效。Inquiry 的成交转化在 financial-journal 与 Item 锁内创建 Sale、停售、标 WON 并计划 DELIST；没有 Listing 的 APP 成功 Attempt 同样参与下架计划。AnQiCMS 标准交付合同将冻结包映射为 USD、`styleNumber` 和分开的成色等级/说明；无 archive ID 时按 tm_code 保护性查找，稳定 archive ID 才会进入 Listing。售出时只读取 TM、当前状态、Channel 和 Listing.archive ID 输出 stock=0、保留 SOLD 页面，不重验历史图片或使用包。它没有 HTTP 客户端、配置读取或外部写入。
+Distribution Foundation 与 Real Operations：后台用户先从有效 UsePackage 准备一条 DistributionAttempt；该记录在 PostgreSQL 事务中同时产生 Audit、Receipt、Outbox。系统以冻结资料指纹和既有成功/停售事实自动决定 PUBLISH、UPDATE 或 NOOP，尚未处理的交付只会回到原记录。默认 UI 仅展示待交付、已交付、已确认完成、需要处理、需要核对、已取消等经营状态；`UNKNOWN` 必须在原记录附依据核对为成功或失败。默认机器入口是 `tome-distribution/1.0` Skill、受限 Handoff HTTP 和四工具 `/api/mcp/distribution`：它按 Channel 交付有效冻结包、把取包记为已交付、回填最小完成/待核对结果，并在每次机器写入及 Receipt 重放重新核验会话和创建者发布权限；它没有平台 Runtime 的领取、心跳、续租、调度或浏览器工具。`planStopDistribution` 在同一 Item 锁事务中处理 AVAILABLE 到所有不可售状态的变化：每个渠道的 DELIST 都用 `sourceAttemptId` 绑定当前成功 PUBLISH/UPDATE，并以源代际去重；恢复 AVAILABLE 不会创建 PUBLISH/UPDATE。`PublicationHealthService` 对有无 stable Listing 的成功资料代际重验当前经营安全；UsePackage 七天 TTL 只决定新交付，不能单独让已发布记录待更新。分发会话、Token 哈希、按 Channel 隔离的领取和短租约仍保留为兼容的高级接口，不是默认工作流。`SUCCEEDED + remoteId` 才 upsert Listing；没有远端 ID 的 APP 发布仍可确认完成，不以假 ID 补齐。`resolveChannelPrice` 统一选择启用的 ChannelPrice 或 Item 回退价，草稿与包快照记录来源/版本；报价变化、清除再恢复都会使旧包失效。Inquiry 的成交转化在 financial-journal 与 Item 锁内创建 Sale、停售、标 WON 并计划 DELIST；没有 Listing 的 APP 成功 Attempt 同样参与下架计划。AnQiCMS 标准交付合同将冻结包映射为 USD、`styleNumber` 和分开的成色等级/说明；无 archive ID 时按 tm_code 保护性查找，稳定 archive ID 才会进入 Listing。售出时只读取 TM、当前状态、Channel 和 Listing.archive ID 输出 stock=0、保留 SOLD 页面，不重验历史图片或使用包。它没有 HTTP 客户端、配置读取或外部写入。
 
-经营页不以 Attempt 条数代替业务答案。`GET /api/distribution/operations` 在读取时按 Item × Channel 组合当前 Item、Readiness、UsePackage、Attempt 和 Listing：输出 READY、BLOCKED、PENDING、HANDED_OFF、PUBLISHED、NEEDS_UPDATE、ATTENTION、NEEDS_STOP 或兼容的 CANCELLED，不落库第二套渠道库存事实。渠道、状态、品牌和 TM/商品搜索在服务端排序和分页之前完成；Dashboard 的分发异常调用同一 `scope=attention` 投影。该读取面不申请凭据、不调平台、不创建 Package、Attempt、Listing 或任务。
+经营页不以 Attempt 条数代替业务答案。`GET /api/distribution/operations` 在读取时只组合激活 Target 和历史真实 Exposure 的当前 Item、Readiness、UsePackage、Attempt 和 Listing：输出 READY、BLOCKED、PENDING、HANDED_OFF、PUBLISHED、NEEDS_UPDATE、ATTENTION、NEEDS_STOP 或兼容的 CANCELLED，并附已发布资料的健康原因，不落库第二套渠道库存事实。渠道、状态、品牌和 TM/商品搜索在服务端排序和分页之前完成；Dashboard 的分发异常调用同一 `scope=attention` 投影。该读取面不申请凭据、不调平台、不创建 Package、Attempt、Listing 或任务。

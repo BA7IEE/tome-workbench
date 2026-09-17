@@ -178,7 +178,11 @@ export function requirements(input: {
       "authentication",
       "逐件真实性复核及依据",
     );
-    need(input.price !== null, "price", "补充当前对外报价");
+    need(
+      input.price !== null && input.price > 0,
+      "price",
+      "补充大于零的当前对外报价",
+    );
     need(
       input.price === null ||
         !input.requiredCurrency ||

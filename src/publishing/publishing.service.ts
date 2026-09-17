@@ -87,7 +87,7 @@ const packageInput = z
   .strict();
 const channelPriceInput = z
   .object({
-    amount: z.number().int().min(0).max(2000000000).nullable(),
+    amount: z.number().int().min(1).max(2000000000).nullable(),
     currency: z.string().optional(),
   })
   .strict()
@@ -628,6 +628,16 @@ export class PublishingService {
       : effectivePrice.source === "ITEM";
     if (
       !allowHistorical &&
+      p.purpose === "TRADE" &&
+      p.channel.businessPurpose !== "TRADE"
+    )
+      throw new Fault(
+        "TRADE_CHANNEL_REQUIRED",
+        "交易资料不能在非交易用途的渠道账号继续交付",
+        400,
+      );
+    if (
+      !allowHistorical &&
       (p.validUntil <= new Date() ||
         i.status !== "AVAILABLE" ||
         p.cycle !== i.cycle ||
@@ -635,6 +645,13 @@ export class PublishingService {
         i.approvedId !== p.revisionId ||
         effectivePrice.amount !== s.price ||
         effectivePrice.currency !== s.currency ||
+        (p.purpose === "TRADE" &&
+          (effectivePrice.amount === null ||
+            effectivePrice.amount <= 0 ||
+            s.price === null ||
+            s.price <= 0 ||
+            effectivePrice.currency !== requiredChannelCurrency(p.channel) ||
+            s.currency !== requiredChannelCurrency(p.channel))) ||
         !samePriceBasis ||
         !p.channel.active)
     )

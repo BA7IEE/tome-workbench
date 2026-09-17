@@ -94,7 +94,7 @@ async function distributionReady(page, title) {
     position: 0,
   });
   await api(page, "/items/" + item.id + "/approve", { version: 1 });
-  return item;
+  return { ...item, assetId: asset.id };
 }
 async function find(page, name) {
   return (
@@ -614,6 +614,54 @@ test("分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人
   expect(attempts).toHaveLength(1);
   expect(attempts[0].id).toBe(attempt.id);
   expect(attempts[0].state).toBe("FAILED");
+});
+
+test("无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因", async ({
+  page,
+}) => {
+  const title = "无ID发布健康 " + randomUUID().slice(0, 8);
+  const item = await distributionReady(page, title);
+  const channel = await api(page, "/channels", {
+    name: "无ID发布健康渠道 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  const pack = await api(page, `/items/${item.id}/packages`, {
+    channelId: channel.id,
+    purpose: "TRADE",
+    confirmed: true,
+  });
+  const attempt = await api(page, "/distribution/plan", { packageId: pack.id });
+  await api(page, `/distribution/attempts/${attempt.id}/manual-result`, {
+    state: "SUCCEEDED",
+    remoteId: "",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成 APP 发布成功，可按永久 TM 核对，但没有稳定远端编号。",
+    },
+  });
+  await api(page, `/assets/${item.assetId}/review`, {
+    rights: "REVOKED",
+    verified: true,
+    sourceNote: "合成授权已撤回，不能继续公开展示。",
+    validUntil: null,
+    position: 0,
+  });
+  await page.goto(`/#/distribution?attemptId=${attempt.id}`);
+  const row = page.locator("table").filter({ hasText: title });
+  await expect(row).toContainText("需停售");
+  await expect(row).toContainText("发布图片不再具备公开使用权");
+  const attempts = await (
+    await page.request.get(`/api/distribution/attempts?itemId=${item.id}`)
+  ).json();
+  expect(attempts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: attempt.id, state: "SUCCEEDED", remoteId: "" }),
+    ]),
+  );
 });
 
 test("询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进", async ({
