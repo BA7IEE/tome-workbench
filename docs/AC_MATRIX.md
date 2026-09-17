@@ -333,6 +333,10 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 
 `test/integration.test.cjs` 使用隔离 `tome_test` 覆盖 USD 覆盖价、默认价不覆盖渠道价、清除/恢复后旧包仍 stale、Inquiry→Sale→SOLD 原子性、预留冲突、无 Listing 下架、批量批准预检和队列优先级。`test/browser/operations.spec.cjs` 用真实登录和点击覆盖确认成交、停售和分发中心显示；两个浏览器范围仍由当前文档守卫锁定。它们不证明真实账号、平台页面、AnQiCMS archive ID、支付或外部发布。
 
+### 渠道价与询盘币种交互补充
+
+`test/integration.test.cjs` 的“渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种”覆盖 AnQiCMS/闲鱼固定币种、其他账号默认币种、创建/编辑/写价后端拒绝、跨币种不复制金额及询盘 NULL/有效价默认。`test/browser/operations.spec.cjs` 在 Chromium/WebKit 以真实点击覆盖批量渠道切换时币种与金额模板同步、设置页固定平台默认币种，以及询盘表单带出有效渠道价。它们只使用 `tome_test` 合成商品，不证明汇率、真实报价、真实平台或财务结算。
+
 ## v1.1 AnQiCMS 本地 Spike 合同
 
 本增量不实现真实 Connector。受限分发会话可以为已领取的 AnQiCMS Attempt 读取 `tome.anqicms.spike/v1` 资料合同：新建先按 `tm_code` 保护性查找，已有稳定 archive ID 时更新同一页面；前 9 张公开核验实物图进入 Gallery，其余图片保留为正文图片清单，品相/瑕疵披露不能丢失。售出后的 DELIST 合同是 `STOCK_ZERO`，要求库存为 0、页面保留、SOLD、无 Checkout。

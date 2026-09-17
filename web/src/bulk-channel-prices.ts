@@ -1,4 +1,14 @@
-import { area, cents, check, form, note, request, select, text } from "./core";
+import {
+  area,
+  cents,
+  check,
+  dialog,
+  form,
+  note,
+  request,
+  select,
+  text,
+} from "./core";
 import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Channel, Item } from "./types";
 import { currencies } from "./core";
@@ -25,12 +35,35 @@ function parseRows(value: string, items: Item[]) {
   return [...rows.entries()].map(([item, amount]) => ({ item, amount }));
 }
 
+function priceTemplate(items: Item[], currency: string) {
+  return items
+    .map((item) =>
+      item.currentPrice === null || item.currency !== currency
+        ? item.code
+        : `${item.code} ${item.currentPrice / 100}`,
+    )
+    .join("\n");
+}
+
+function currencyOption(selectElement: HTMLSelectElement, currency: string) {
+  selectElement.replaceChildren(
+    new Option((currencies as Record<string, string>)[currency] || currency, currency),
+  );
+  selectElement.value = currency;
+}
+
+function channelCurrency(channel: Channel) {
+  if (channel.platform === "ANQICMS") return "USD";
+  if (channel.platform === "XIANYU") return "CNY";
+  return channel.defaultCurrency;
+}
+
 export async function bulkChannelPrices(items: Item[]) {
   const channels = (await request<Channel[]>("/channels")).filter(
     (channel) => channel.active,
   );
   if (!channels.length) throw new Error("请先创建并启用渠道账号");
-  const first = channels[0];
+  const first = channels[0], firstCurrency = channelCurrency(first);
   form(
     "批量设置渠道价格",
     note(
@@ -44,25 +77,22 @@ export async function bulkChannelPrices(items: Item[]) {
         ),
         first.id,
       ) +
-      select("currency", "币种", currencies, first.defaultCurrency) +
+      select("currency", "币种", currencies, firstCurrency) +
       area(
         "rows",
         "渠道价格",
-        items
-          .map((item) =>
-            item.currentPrice === null
-              ? item.code
-              : `${item.code} ${item.currentPrice / 100}`,
-          )
-          .join("\n"),
+        priceTemplate(items, firstCurrency),
         10,
       ) +
+      '<p class="note full" data-channel-price-template></p>' +
       check("confirmed", "我已逐件核对渠道、币种和金额"),
     async (data) => {
       if (!data.has("confirmed")) throw new Error("请先确认渠道价格");
       const rows = parseRows(text(data, "rows"), items);
       const channelId = text(data, "channelId");
-      const currency = text(data, "currency");
+      const channel = channels.find((row) => row.id === channelId);
+      if (!channel) throw new Error("所选渠道账号不存在");
+      const currency = channelCurrency(channel);
       setTimeout(
         () =>
           batchActions(
@@ -84,4 +114,26 @@ export async function bulkChannelPrices(items: Item[]) {
     },
     "确认写入渠道价",
   );
+  const channelId = dialog.querySelector<HTMLSelectElement>(
+    '[name="channelId"]',
+  );
+  const currency = dialog.querySelector<HTMLSelectElement>('[name="currency"]');
+  const rows = dialog.querySelector<HTMLTextAreaElement>('[name="rows"]');
+  const hint = dialog.querySelector<HTMLElement>("[data-channel-price-template]");
+  const sync = () => {
+    const channel = channels.find((row) => row.id === channelId?.value);
+    if (!channel || !currency || !rows || !hint) return;
+    const targetCurrency = channelCurrency(channel);
+    currencyOption(currency, targetCurrency);
+    rows.value = priceTemplate(items, targetCurrency);
+    rows.placeholder = "TM000123 1380";
+    hint.textContent = items.some(
+      (item) =>
+        item.currentPrice !== null && item.currency !== targetCurrency,
+    )
+      ? `目标账号使用 ${targetCurrency}；不同于商品默认币种的金额没有带入，请逐件填写。`
+      : `目标账号使用 ${targetCurrency}；同币种默认报价已带入，仍请逐件核对。`;
+  };
+  channelId?.addEventListener("change", sync);
+  sync();
 }

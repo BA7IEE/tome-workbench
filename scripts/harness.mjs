@@ -421,6 +421,31 @@ export function checks(
       read("docs/REAL-OPERATIONS.md").includes("询盘成交"),
   );
   check(
+    "v11-channel-price-currency-interactions",
+    () =>
+      read("src/publishing/publishing.service.ts").includes(
+        "fixedChannelCurrency",
+      ) &&
+      read("src/publishing/publishing.service.ts").includes(
+        "CHANNEL_PRICE_CURRENCY_REQUIRED",
+      ) &&
+      read("src/publishing/publishing.controller.ts").includes(
+        "CHANNEL_CURRENCY_REQUIRED",
+      ) &&
+      read("src/trading/trading.controller.ts").includes(
+        "resolveChannelPrice",
+      ) &&
+      read("web/src/bulk-channel-prices.ts").includes("priceTemplate") &&
+      read("web/src/inquiry-form.ts").includes("channelCurrency") &&
+      read("test/integration.test.cjs").includes(
+        "渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种",
+      ) &&
+      read("test/browser/operations.spec.cjs").includes(
+        "渠道账号和批量渠道价会同步目标币种",
+      ) &&
+      read("docs/REAL-OPERATIONS.md").includes("Channel.defaultCurrency"),
+  );
+  check(
     "v11-anqicms-spike",
     () =>
       read("src/distribution/anqicms-spike.ts").includes(

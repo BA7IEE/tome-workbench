@@ -1,4 +1,14 @@
-import { currencies, form, field, select, note, text, request, check } from "./core";
+import {
+  check,
+  currencies,
+  dialog,
+  field,
+  form,
+  note,
+  request,
+  select,
+  text,
+} from "./core";
 import type { Channel } from "./types";
 export const platformNames: Record<string, string> = {
   XIANYU: "闲鱼",
@@ -10,6 +20,47 @@ export const platformNames: Record<string, string> = {
   GRAILED: "Grailed",
   OTHER: "其他渠道",
 };
+function fixedCurrency(platform: string) {
+  if (platform === "ANQICMS") return "USD";
+  if (platform === "XIANYU") return "CNY";
+  return "";
+}
+function setCurrencyChoices(
+  selectElement: HTMLSelectElement,
+  value: string,
+  locked: boolean,
+) {
+  selectElement.replaceChildren(
+    ...Object.entries(
+      locked
+        ? { [value]: (currencies as Record<string, string>)[value] || value }
+        : currencies,
+    ).map(
+      ([code, label]) => new Option(label, code, false, code === value),
+    ),
+  );
+  selectElement.value = value;
+}
+function bindPlatformCurrency() {
+  const platform = dialog.querySelector<HTMLSelectElement>('[name="platform"]');
+  const currency = dialog.querySelector<HTMLSelectElement>(
+    '[name="defaultCurrency"]',
+  );
+  if (!platform || !currency) return;
+  const sync = () => {
+    const fixed = fixedCurrency(platform.value);
+    setCurrencyChoices(currency, fixed || currency.value || "CNY", !!fixed);
+  };
+  platform.addEventListener("change", sync);
+  sync();
+}
+function bindFixedCurrency(channel: Channel) {
+  const currency = dialog.querySelector<HTMLSelectElement>(
+    '[name="defaultCurrency"]',
+  );
+  const fixed = fixedCurrency(channel.platform);
+  if (currency && fixed) setCurrencyChoices(currency, fixed, true);
+}
 export function setupChannel(after?: () => Promise<void>) {
   form(
     "添加常用渠道",
@@ -54,7 +105,8 @@ export function setupChannel(after?: () => Promise<void>) {
           name: text(d, "name"),
           locale: text(d, "locale"),
           titleLimit: Number(text(d, "titleLimit")),
-          defaultCurrency: text(d, "defaultCurrency"),
+          defaultCurrency:
+            fixedCurrency(text(d, "platform")) || text(d, "defaultCurrency"),
           distributionMode: text(d, "distributionMode"),
           endpointUrl: text(d, "endpointUrl"),
         },
@@ -63,6 +115,7 @@ export function setupChannel(after?: () => Promise<void>) {
     "保存渠道",
     after,
   );
+  bindPlatformCurrency();
 }
 
 export function editChannel(c: Channel) {
@@ -110,7 +163,8 @@ export function editChannel(c: Channel) {
           locale: text(d, "locale"),
           titleLimit: Number(d.get("titleLimit")),
           active: d.has("active"),
-          defaultCurrency: text(d, "defaultCurrency"),
+          defaultCurrency:
+            fixedCurrency(c.platform) || text(d, "defaultCurrency"),
           distributionMode: text(d, "distributionMode"),
           endpointUrl: text(d, "endpointUrl"),
         },
@@ -118,4 +172,5 @@ export function editChannel(c: Channel) {
       ),
     "保存渠道设置",
   );
+  bindFixedCurrency(c);
 }

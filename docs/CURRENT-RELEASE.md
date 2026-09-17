@@ -14,6 +14,8 @@
 
 本版新增 AnQiCMS 本地资料交付合同：它将冻结使用包映射为 tm_code、USD、最多 9 张 Gallery 图片、正文图片、自定义字段与 SEO 资料，供外部 Agent 的 MCP/API 或人工取用。没有 archive ID 时只允许执行方按 tm_code 保护性查找，取得稳定 archive ID 后才可回填 Listing；售出后的 DELIST 合同要求 stock=0、保留页面、SOLD、无 Checkout。保留的受限读取接口没有 HTTP 客户端、配置或凭据读取、外部请求或数据库写入；真实 API/UAT 在 ToMe 外部完成。
 
+渠道币种交互补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。没有实时汇率、自动定价或 Sale 财务模型重写。
+
 ## 自动维护约束
 
 以下清单由实际源码目录生成，`node scripts/check-current-docs.mjs` 核对版本、迁移和双浏览器文件范围。目录新增文件时必须更新清单，不能只手填通过数。

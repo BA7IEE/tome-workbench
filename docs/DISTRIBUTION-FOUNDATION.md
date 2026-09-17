@@ -8,7 +8,7 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 `Listing` 只表示已知的稳定 `remoteId`。APP 渠道没有稳定 ID 时仍可确认资料已经交付完成，并按标题中的永久 TM 后续核对；严禁用 `MANUAL:TM...` 等伪 ID 补齐。
 
-`ChannelPrice` 是账号维度的明确报价。启用的覆盖值优先于 `Item.currentPrice/currency`，未启用时才回退默认报价；不会实时换汇或改写 Item。Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验使用同一有效价，因此改价、改回默认价或恢复覆盖都会让旧资料重新核验。
+`Channel.defaultCurrency` 是账号维度的默认币种：AnQiCMS 固定 USD、闲鱼固定 CNY、其他渠道使用账号设置；创建、编辑和写入渠道价时后端都会拒绝违反固定平台约束的值。`ChannelPrice` 是账号维度的明确报价。启用的覆盖值优先于 `Item.currentPrice/currency`，未启用时才回退默认报价；当回退价币种不同于目标账号时，它不能作为可发布价或被复制成目标金额。不会实时换汇或改写 Item。Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验使用同一有效价，因此改价、改回默认价或恢复覆盖都会让旧资料重新核验。询盘选择配置账号时，默认采用同币种有效渠道价；不具备该价格时只带目标币种并保留未知金额。
 
 ## 默认交付路径
 
