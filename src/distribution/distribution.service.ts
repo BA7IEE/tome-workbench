@@ -958,6 +958,7 @@ export class DistributionService {
         name: true,
         platform: true,
         active: true,
+        businessPurpose: true,
         locale: true,
         defaultCurrency: true,
       },
@@ -1027,6 +1028,9 @@ export class DistributionService {
             active: true,
             version: true,
           },
+        },
+        distributionTargets: {
+          select: { channelId: true, active: true },
         },
         publishingDrafts: {
           where: { purpose: "TRADE" },
@@ -1204,8 +1208,17 @@ export class DistributionService {
       for (const channel of channels) {
         const key = pair(item.id, channel.id),
           pairAttempts = attemptsByPair.get(key) || [],
-          hasHistory = pairAttempts.length > 0;
-        if (!channel.active && !hasHistory) continue;
+          pairListings = listingsByPair.get(key) || [],
+          hasHistory = pairAttempts.length > 0 || pairListings.length > 0,
+          activeTarget = item.distributionTargets.some(
+            (target) => target.channelId === channel.id && target.active,
+          );
+        // Operating rows begin with an explicit current TRADE target.  A real
+        // historic Attempt/Listing remains visible even after that intent is
+        // closed or the account changes purpose, because it can still need a
+        // local stop record.  Packages alone are not an external exposure.
+        if (!hasHistory && !(activeTarget && channel.businessPurpose === "TRADE"))
+          continue;
 
         const override = item.channelPrices.find(
           (price) => price.channelId === channel.id && price.active,

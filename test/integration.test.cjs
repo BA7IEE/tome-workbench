@@ -3549,6 +3549,13 @@ test("Distribution Intent：经营目标只记录交易意图并保留同平台�
   });
   const i = await sparse();
   assert.deepEqual(await ok(`/items/${i.id}/distribution-targets`), []);
+  const noTargetOperations = await ok(
+    `/distribution/operations?channelId=${channel.id}&q=${encodeURIComponent((await item(i.id)).code)}`,
+  );
+  assert.equal(
+    noTargetOperations.rows.some((row) => row.item.id === i.id),
+    false,
+  );
   const contentPrice = await api(
     `/items/${i.id}/channel-prices/${content.id}`,
     "POST",
@@ -3640,6 +3647,13 @@ test("Distribution Intent：经营目标只记录交易意图并保留同平台�
   assert.ok(await db.audit.findFirst({ where: { resourceId: i.id, action: "DISTRIBUTION_TARGET_CREATED" } }));
   assert.ok(await db.outbox.findFirst({ where: { itemId: i.id, kind: "DISTRIBUTION_TARGET_CHANGED" } }));
   assert.ok(await db.receipt.findFirst({ where: { actorId: admin.id, operation: "distribution.target.set", key: targetKey } }));
+  const activeTargetOperations = await ok(
+    `/distribution/operations?channelId=${channel.id}&q=${encodeURIComponent((await item(i.id)).code)}`,
+  );
+  assert.equal(
+    activeTargetOperations.rows.find((row) => row.item.id === i.id).state,
+    "BLOCKED",
+  );
 
   const samePlatform = await ok("/channels", "POST", {
     name: "闲鱼第二账号 " + randomUUID().slice(0, 8),
@@ -3672,6 +3686,13 @@ test("Distribution Intent：经营目标只记录交易意图并保留同平台�
   });
   assert.equal(stored.note, "本周停止该账号经营意图");
   assert.equal(stored.active, false);
+  const closedTargetOperations = await ok(
+    `/distribution/operations?channelId=${channel.id}&q=${encodeURIComponent((await item(i.id)).code)}`,
+  );
+  assert.equal(
+    closedTargetOperations.rows.some((row) => row.item.id === i.id),
+    false,
+  );
 });
 
 test("Distribution Foundation：渠道配置、会话令牌和同包计划保持受限且不落明文", async () => {
@@ -4925,6 +4946,12 @@ test("Distribution 经营投影：动态区分资料、交付、发布、更新�
   const named = (state) => `${prefix} ${state}`;
   const unpublished = await ready({ title: named("READY") });
   const blocked = await sparse({ title: named("BLOCKED") });
+  for (const row of [unpublished, blocked])
+    await ok(`/items/${row.id}/distribution-targets/${channel.id}`, "POST", {
+      active: true,
+      reason: "经营投影只展示已明确的交易经营目标",
+      duplicatePlatformConfirmed: false,
+    });
 
   const pendingItem = await ready({ title: named("PENDING") });
   const pending = await ok("/distribution/plan", "POST", {
