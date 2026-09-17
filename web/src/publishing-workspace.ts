@@ -87,15 +87,15 @@ export function recordPublication(p: Pack, after?: () => Promise<void>) {
       ),
     async (d, k) => {
       await checked(p);
-      const attempt = await request<{ id: string }>(
-        "/distribution/plan",
-        "POST",
-        {
-          packageId: p.id,
-          action: "PUBLISH",
-        },
-        k,
-      );
+      const attempt = await request<{
+        id: string;
+        action?: string;
+        noop?: boolean;
+      }>("/distribution/plan", "POST", { packageId: p.id }, k);
+      if (attempt.noop || attempt.action === "NOOP") {
+        toast("资料与已确认完成版本一致，已保留原分发记录");
+        return attempt;
+      }
       return request(
         `/distribution/attempts/${attempt.id}/manual-result`,
         "POST",

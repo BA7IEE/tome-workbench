@@ -328,12 +328,20 @@ export function checks(
         "RECONCILIATION_REQUIRED",
       ) &&
       read("src/distribution/distribution.service.ts").includes(
+        "DISTRIBUTION_RECONCILED",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "distributionPackageFingerprint",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
         "FAKE_REMOTE_ID_DENIED",
       ) &&
       read("prisma/migrations/202609170012_distribution_foundation/migration.sql").includes(
         "remoteId\" = '' OR \"remoteId\" !~* '^MANUAL:'",
       ) &&
       !read("web/src/publishing-workspace.ts").includes("MANUAL:") &&
+      read("web/src/distribution-center.ts").includes("handoffStates") &&
+      !read("web/src/distribution-center.ts").includes("attemptCount") &&
       read("test/integration.test.cjs").includes("Distribution Foundation："),
   );
   check(
@@ -354,7 +362,9 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "planDelistsAfterSale",
       ) &&
-      read("src/jobs/work-queue.ts").includes("商品已售，分发渠道仍待下架") &&
+      read("src/jobs/work-queue.ts").includes(
+        "商品已不宜继续出售，渠道仍待停售",
+      ) &&
       read("test/integration.test.cjs").includes("Real Operations：") &&
       read("test/browser/operations.spec.cjs").includes(
         "询盘确认成交通过原子动作停售",
@@ -381,7 +391,7 @@ export function checks(
         "受限会话以脱敏本地合同",
       ) &&
       read("docs/integrations/ANQICMS-CONTRACT.md").includes(
-        "真实 AnQiCMS API 尚未连接",
+        "ToMe 不连接真实 AnQiCMS API",
       ),
   );
   check("v1-item-center-webkit", () =>

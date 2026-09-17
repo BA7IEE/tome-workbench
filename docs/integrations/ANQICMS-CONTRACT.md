@@ -1,15 +1,15 @@
 # AnQiCMS Spike 合同 · 本地脱敏版 v1
 
-状态：**本地合同已验证，真实 AnQiCMS API 尚未连接。** 本文冻结下一阶段
-Connector 的输入、身份、图片和售出语义；不把本地模拟、脱敏回执或生成的资料
-描述为真实站点已发布。
+状态：**本地资料交付合同已验证，ToMe 不连接真实 AnQiCMS API。** 本文冻结交给
+外部 Agent MCP/API 或人工的输入、身份、图片和售出语义；不把本地模拟、脱敏回执或
+生成的资料描述为真实站点已发布。
 
 ## 已验证范围
 
-GET /api/distribution-agent/attempts/:id/anqicms-spike 只允许已领取、未过期且
-属于 AnQiCMS Channel 的分发会话读取。它无 HTTP 客户端、无外部端点调用、无凭据
-读取或数据库写入，只把当前有效使用包或售出后的历史使用包转换成
-tome.anqicms.spike/v1 本地合同。
+GET /api/distribution-agent/attempts/:id/anqicms-spike 是保留的受限高级资料读取
+接口；它无 HTTP 客户端、无外部端点调用、无凭据读取或数据库写入，只把当前有效
+使用包或售出后的历史使用包转换成 tome.anqicms.spike/v1 本地合同。默认产品路径
+不要求外部 Agent 使用领取或租约，也不把 ToMe 描述为站点执行 Runtime。
 
 test/fixtures/anqicms-spike/deidentified-20.json 包含 20 件非真实、无客户与经营
 资料的脱敏夹具。单元测试覆盖 USD、商品与自定义字段、最多 9 张 Gallery 图片、
@@ -93,5 +93,7 @@ stock=0 售出页、SEO Title/Description/Sitemap，以及失败/超时/重复�
 任何 Cookie、密码、Token、客户资料或真实经营正文都不能写入源码、测试、日志、ZIP
 或数据库明文字段。
 
-真正的 REST Connector 还未实现；它必须复用现有 DistributionAttempt、租约、结果
-回填、Audit/Receipt/Outbox 和 Listing 冲突保护，不能旁路写 Item、库存或 Sale。
+ToMe 不计划在核心 Runtime 内实现 REST Connector。外部 Agent 使用 AnQiCMS MCP/API
+完成实际操作后，只回传真实 archive ID、链接（如有）和结果；ToMe 仍用既有
+DistributionAttempt、Audit/Receipt/Outbox 和 Listing 冲突保护记录该事实，不能旁路写
+Item、库存或 Sale。

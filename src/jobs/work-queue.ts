@@ -70,7 +70,7 @@ export async function readWorkQueue(
       FROM "Observation" o JOIN "Item" i ON i.id=o."itemId" WHERE NOT o.resolved AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
       SELECT 'distribution:' || d.id::text, d.id, 'DISTRIBUTION', CASE WHEN d.action='DELIST' THEN 100 WHEN d.state='UNKNOWN' THEN 95 ELSE 70 END,
-        CASE WHEN d.action='DELIST' THEN '商品已售，分发渠道仍待下架' WHEN d.state='UNKNOWN' THEN '分发结果未知，须按TM核对' ELSE '分发执行明确失败待处理' END,
+        CASE WHEN d.action='DELIST' THEN '商品已不宜继续出售，渠道仍待停售' WHEN d.state='UNKNOWN' THEN '分发记录需要核对，须按TM核对' ELSE '分发记录需要处理' END,
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, c.name, d.action, nullif(d."errorCode", '')), d."createdAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "DistributionAttempt" d JOIN "Item" i ON i.id=d."itemId" JOIN "Channel" c ON c.id=d."channelId"

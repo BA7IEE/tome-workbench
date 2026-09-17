@@ -61,10 +61,10 @@ export async function dailyWork() {
     ...(can("publish")
       ? [
           {
-            label: "分发异常",
+            label: "分发需要核对",
             value: counts.pendingDistribution ?? 0,
             to: "#/distribution?state=UNKNOWN",
-            sub: "结果未知先按 TM 核对",
+            sub: "按永久 TM 核对原分发记录",
           },
         ]
       : []),

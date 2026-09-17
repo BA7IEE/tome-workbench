@@ -16,9 +16,9 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 ## 分发和待办
 
-售出后系统按 `Item + Channel + cycle` 查找成功的 PUBLISH/UPDATE Attempt；还没有成功 DELIST 时创建一个去重 DELIST Attempt。若发布租约在售出前已领取、成功结果在售出后才回传，回执落库时也会补建同一去重 DELIST Attempt。它不要求 Listing：APP 无稳定 remoteId 时，执行方用标题中的永久 TM 在指定账号内定位。DELIST、UNKNOWN 和 FAILED 都继续保留在原 Attempt 上，避免盲目重新发布。
+售出后系统按 `Item + Channel + cycle` 查找成功的 PUBLISH/UPDATE 分发记录；还没有成功 DELIST 时创建一个去重的需要停售记录。若旧的高级领取接口在售出前已领取、成功结果在售出后才回传，回执落库时也会补建同一去重记录。它不要求 Listing：APP 无稳定 remoteId 时，外部操作者用标题中的永久 TM 在指定账号内定位。DELIST、UNKNOWN 和 FAILED 都继续保留在原记录上，避免盲目重新发布。
 
-工作待办按经营风险排序：待下架 100、结果未知 95、库存冲突 90、询盘 85、明确分发失败 70、资料缺项 50、成交补账 30。分发中心只显示渠道统计和执行记录；它不会保存凭据或发起第三方请求。
+工作待办按经营风险排序：待停售 100、需要核对 95、库存冲突 90、询盘 85、需要处理的分发记录 70、资料缺项 50、成交补账 30。分发中心只显示渠道统计和交付/经营记录；它不会保存凭据或发起第三方请求。
 
 ## 批量操作与未做范围
 
