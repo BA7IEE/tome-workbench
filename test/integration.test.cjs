@@ -4767,6 +4767,180 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   assert.ok(queue.summary.distribution >= 1);
 });
 
+test("Distribution 经营投影：动态区分资料、交付、发布、更新、停售和异常并先筛选后分页", async () => {
+  const prefix = "OP-PROJECTION-" + randomUUID().slice(0, 8);
+  const named = (state) => `${prefix} ${state}`;
+  const unpublished = await ready({ title: named("READY") });
+  const blocked = await sparse({ title: named("BLOCKED") });
+
+  const pendingItem = await ready({ title: named("PENDING") });
+  const pending = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(pendingItem.id)).id,
+  });
+
+  const handedOffItem = await ready({ title: named("HANDED_OFF") });
+  const handedOff = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(handedOffItem.id)).id,
+  });
+  const handoffSession = await distributionSession(
+    channel.id,
+    "经营投影已交付合成会话",
+  );
+  await distributionHandoffOk(
+    `/handoffs/${handedOff.id}/package`,
+    handoffSession.token,
+    "POST",
+  );
+
+  const publishedItem = await ready({ title: named("PUBLISHED") });
+  const published = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(publishedItem.id)).id,
+  });
+  await ok(`/distribution/attempts/${published.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "projection-published-" + randomUUID(),
+    remoteUrl: "https://example.invalid/projection-published",
+    evidence: { method: "PLATFORM_RECEIPT", note: "合成发布回执。" },
+  });
+
+  const updateItem = await ready({ title: named("NEEDS_UPDATE") });
+  const updatePublished = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(updateItem.id)).id,
+  });
+  await ok(`/distribution/attempts/${updatePublished.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "projection-update-" + randomUUID(),
+    remoteUrl: "",
+    evidence: { method: "TM_SEARCH", note: "合成 TM 核对已发布。" },
+  });
+  const changedDraft = await saveChannelDraft(updateItem.id, channel, {
+    title: named("更新后的标题"),
+    body: "合成更新文案；品相仍按当前冻结事实披露。",
+  });
+  await ok(`/items/${updateItem.id}/packages`, "POST", {
+    channelId: channel.id,
+    purpose: "TRADE",
+    confirmed: true,
+    draftId: changedDraft.id,
+    draftVersion: changedDraft.version,
+  });
+
+  const stopItem = await ready({ title: named("NEEDS_STOP") });
+  const stopPublished = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(stopItem.id)).id,
+  });
+  await ok(`/distribution/attempts/${stopPublished.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId: "projection-stop-" + randomUUID(),
+    remoteUrl: "",
+    evidence: { method: "TM_SEARCH", note: "合成 TM 核对已发布。" },
+  });
+  await sold(stopItem.id);
+
+  const attentionItem = await ready({ title: named("ATTENTION") });
+  const attention = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(attentionItem.id)).id,
+  });
+  await ok(`/distribution/attempts/${attention.id}/manual-result`, "POST", {
+    state: "UNKNOWN",
+    remoteId: "",
+    remoteUrl: "",
+    errorCode: "SYNTHETIC_UNKNOWN",
+    errorMessage: "合成回执没有确认结果。",
+  });
+
+  const query = new URLSearchParams({
+    channelId: channel.id,
+    q: prefix,
+    size: "100",
+  });
+  const projection = await ok("/distribution/operations?" + query);
+  assert.equal(projection.total, 8);
+  const byTitle = new Map(projection.rows.map((row) => [row.item.title, row]));
+  assert.equal(byTitle.get(named("READY")).state, "READY");
+  assert.equal(byTitle.get(named("BLOCKED")).state, "BLOCKED");
+  assert.equal(byTitle.get(named("PENDING")).state, "PENDING");
+  assert.equal(byTitle.get(named("HANDED_OFF")).state, "HANDED_OFF");
+  assert.equal(byTitle.get(named("PUBLISHED")).state, "PUBLISHED");
+  assert.equal(byTitle.get(named("NEEDS_UPDATE")).state, "NEEDS_UPDATE");
+  assert.equal(byTitle.get(named("NEEDS_STOP")).state, "NEEDS_STOP");
+  assert.equal(byTitle.get(named("ATTENTION")).state, "ATTENTION");
+  assert.equal(byTitle.get(named("PUBLISHED")).published.remoteId.length > 0, true);
+  assert.equal(byTitle.get(named("PUBLISHED")).listing.remoteId.length > 0, true);
+  assert.equal(byTitle.get(named("PUBLISHED")).listing.desired, "LIVE");
+  assert.equal(byTitle.get(named("NEEDS_STOP")).attempt.action, "DELIST");
+  assert.equal(byTitle.get(named("ATTENTION")).attempt.state, "UNKNOWN");
+  const pinnedAttention = await ok(
+    "/distribution/operations?attemptId=" + attention.id,
+  );
+  assert.equal(pinnedAttention.total, 1);
+  assert.equal(pinnedAttention.rows[0].attempt.id, attention.id);
+  assert.equal(pinnedAttention.rows[0].item.id, attentionItem.id);
+
+  const firstPage = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({ ...Object.fromEntries(query), size: "3", page: "1" }),
+  );
+  const secondPage = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({ ...Object.fromEntries(query), size: "3", page: "2" }),
+  );
+  assert.equal(firstPage.total, 8);
+  assert.equal(firstPage.rows.length, 3);
+  assert.equal(secondPage.rows.length, 3);
+  assert.equal(
+    firstPage.rows.some((row) => row.id === secondPage.rows[0].id),
+    false,
+  );
+  const reachablePage = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({ ...Object.fromEntries(query), size: "3", page: "999" }),
+  );
+  assert.equal(reachablePage.page, 3);
+  assert.equal(reachablePage.rows.length, 2);
+  const onlyStop = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({ ...Object.fromEntries(query), scope: "needs-stop" }),
+  );
+  assert.equal(onlyStop.total, 1);
+  assert.equal(onlyStop.rows[0].item.id, stopItem.id);
+  const stopState = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({ ...Object.fromEntries(query), state: "NEEDS_STOP" }),
+  );
+  assert.equal(stopState.total, 1);
+  assert.equal(stopState.rows[0].id, onlyStop.rows[0].id);
+  assert.equal(
+    (await api(
+      "/distribution/operations?" +
+        new URLSearchParams({ ...Object.fromEntries(query), state: "NEEDS_STOP", scope: "needs-stop" }),
+    )).status,
+    400,
+  );
+  const onlyBrand = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({
+        ...Object.fromEntries(query),
+        brand: "TEST BRAND",
+      }),
+  );
+  assert.ok(onlyBrand.rows.every((row) => row.item.brand === "TEST BRAND"));
+  const stoppedTm = await item(stopItem.id);
+  const onlyTm = await ok(
+    "/distribution/operations?" +
+      new URLSearchParams({
+        channelId: channel.id,
+        q: "TM" + String(stoppedTm.serial).padStart(6, "0"),
+      }),
+  );
+  assert.equal(onlyTm.total, 1);
+  assert.equal(onlyTm.rows[0].item.id, stopItem.id);
+
+  const dashboard = await ok("/dashboard");
+  const allAttention = await ok("/distribution/operations?scope=attention&size=1");
+  assert.equal(dashboard.pendingDistribution, allAttention.total);
+});
+
 test("AnQiCMS 标准交付合同：受限会话以脱敏本地资料覆盖建页、archive ID 更新与售出保页", async () => {
   const anqicms = await ok("/channels", "POST", {
     name: "AnQiCMS 本地合同 " + randomUUID().slice(0, 8),

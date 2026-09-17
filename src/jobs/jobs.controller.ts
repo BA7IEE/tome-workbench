@@ -7,6 +7,7 @@ import { Access, AuthRequest, permission } from "../auth/auth";
 import { Commands, audit } from "../common/transaction";
 import { safeText, uuid } from "../common/domain";
 import { Fault } from "../common/errors";
+import { DistributionService } from "../distribution/distribution.service";
 import { readWorkQueue } from "./work-queue";
 import { WorkerService } from "./worker.service";
 @ApiTags("工作与可靠执行")
@@ -16,6 +17,7 @@ export class JobsController {
     private db: PrismaService,
     private commands: Commands,
     private worker: WorkerService,
+    private distribution: DistributionService,
   ) {}
   @Access("read") @Get("tasks") tasks() {
     return this.db.task.findMany({
@@ -103,6 +105,7 @@ export class JobsController {
       pendingInquiries,
       pendingSalesFinance,
       pendingDistribution,
+      pendingDistributionWork,
     ] = await Promise.all([
       this.db.item.count({
         where: { deletedAt: null, dataMode: "BUSINESS" },
@@ -141,6 +144,10 @@ export class JobsController {
           ],
         },
       }),
+      this.distribution.operationalAttentionCount(),
+      // The exception card must use the operational projection exactly. The
+      // broader work-total still includes unfinished DELIST records, which
+      // are actionable but belong to the separate "需停售" operating state.
       this.db.distributionAttempt.count({
         where: {
           OR: [
@@ -153,12 +160,13 @@ export class JobsController {
     ]);
     const visibleInquiries = canSell ? pendingInquiries : 0,
       visibleDistribution = canPublish ? pendingDistribution : 0,
+      visibleDistributionWork = canPublish ? pendingDistributionWork : 0,
       visibleSalesFinance = canFinance ? pendingSalesFinance : 0,
       actionable =
         openTasks +
         unresolved +
         pendingCandidates +
-        visibleDistribution +
+        visibleDistributionWork +
         visibleInquiries +
         visibleSalesFinance;
     return {

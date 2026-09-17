@@ -552,7 +552,7 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   await expect(page.locator("table")).toContainText(title);
 });
 
-test("分发中心只展示交付语义，UNKNOWN 可在原记录上人工核对为失败", async ({
+test("分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人工核对为失败", async ({
   page,
 }) => {
   const title = "分发核对 " + randomUUID().slice(0, 8);
@@ -577,6 +577,12 @@ test("分发中心只展示交付语义，UNKNOWN 可在原记录上人工核对
     errorMessage: "合成外部回执没有确认结果。",
   });
 
+  await page.goto("/#/dashboard");
+  await expect(page.getByRole("link", { name: /分发异常/ })).toBeVisible();
+  await page.getByRole("link", { name: /分发异常/ }).click();
+  await expect(page).toHaveURL(/#\/distribution\?scope=attention/);
+  await expect(page.locator("table")).toContainText(title);
+
   await page.goto(`/#/distribution?attemptId=${attempt.id}`);
   await expect(
     page.getByRole("heading", { name: "商品分发", exact: true }),
@@ -585,7 +591,7 @@ test("分发中心只展示交付语义，UNKNOWN 可在原记录上人工核对
   await expect(row).toContainText("需要核对");
   await expect(row).toContainText("发布资料");
   await expect(page.locator("main")).not.toContainText("租约");
-  await page.getByRole("button", { name: "核对结果", exact: true }).click();
+  await row.getByRole("button", { name: "核对结果", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("只更新这一条分发记录，不会重新发布");
   await dialog.getByLabel("结果", { exact: true }).selectOption("FAILED");

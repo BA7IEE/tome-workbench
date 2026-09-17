@@ -421,6 +421,40 @@ export function checks(
       read("docs/REAL-OPERATIONS.md").includes("询盘成交"),
   );
   check(
+    "v11-distribution-operational-projection",
+    () =>
+      read("src/distribution/distribution.controller.ts").includes(
+        'Get("operations")',
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "async operations(raw: unknown)",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "this.db.listing.findMany",
+      ) &&
+      ["READY", "BLOCKED", "NEEDS_UPDATE", "ATTENTION", "NEEDS_STOP"].every(
+        (state) => read("src/distribution/distribution.service.ts").includes(state),
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "server-side filter and sort",
+      ) &&
+      !read("prisma/schema.prisma").includes("ChannelInventoryTruth") &&
+      read("src/jobs/jobs.controller.ts").includes(
+        "operationalAttentionCount",
+      ) &&
+      read("web/src/daily-work.ts").includes(
+        "#/distribution?scope=attention",
+      ) &&
+      read("web/src/distribution-center.ts").includes("recordPaging") &&
+      read("docs/contracts/openapi.json").includes(
+        '"/api/distribution/operations"',
+      ) &&
+      read("test/integration.test.cjs").includes("Distribution 经营投影：") &&
+      read("test/browser/operations.spec.cjs").includes(
+        "分发异常",
+      ),
+  );
+  check(
     "v11-channel-price-currency-interactions",
     () =>
       read("src/publishing/publishing.service.ts").includes(

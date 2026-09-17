@@ -332,6 +332,12 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 
 `test/integration.test.cjs` 的 `Distribution stop records` 场景逐项覆盖七种不可售状态、双渠道、历史无关联记录兼容、恢复不自动重新交付及再次发布后的独立停售；`test/browser/operations.spec.cjs` 在真实登录、图片上传、资料交付、售出点击链中核对 DELIST 指向对应 PUBLISH。它们只验证隔离 `tome_test` 的经营记录与 UI 行为，不证明任何外部平台已经停售。
 
+## v1.1 分发经营投影
+
+分发中心默认读取 `GET /api/distribution/operations`，而不是将 Attempt 数量当成经营答案。它为正式、未删除 Item 与目标 Channel 动态合并 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing，给出 READY（未发布）、BLOCKED（缺资料）、PENDING（待交付）、HANDED_OFF（已交付）、PUBLISHED（已发布）、NEEDS_UPDATE（待更新）、ATTENTION（异常）和 NEEDS_STOP（需停售）。不创建 `ChannelInventoryTruth` 或任何可写渠道库存副本；读取投影不会生成 Package、Attempt、Listing、Task 或外部请求。`state/scope`、渠道、品牌和 TM/商品搜索均先在服务端过滤排序，再分页；过期页码回到可达末页。Dashboard 的“分发异常”调用相同 `scope=attention` 投影，并链接 `#/distribution?scope=attention`。
+
+`test/integration.test.cjs` 使用隔离 `tome_test` 资料覆盖八个状态、稳定远端 ID 的已发布、来源关联 DELIST 的需停售、资料变更后的待更新、品牌/TM/渠道筛选、分页及 Dashboard 统计一致；`test/browser/operations.spec.cjs` 在 Chromium/WebKit 的真实登录与点击链中覆盖 Dashboard 链接、异常投影以及 UNKNOWN 在原记录核对为失败。它们不执行外部平台操作，不证明真实账号、页面、远端上架/停售或经营 UAT。
+
 ## v1.1 Real Operations
 
 本增量把渠道报价、询盘成交和下架计划接入已有领域命令，不重写 Item、Sale、成本、库存、UsePackage、图片权利或 Agent 边界。`202609170013_real_operations_price_basis` 只给草稿增加有效价来源/版本；`202609170014_channel_price_revision_continuity` 以禁用覆盖保留版本连续性，避免清除再恢复相同金额时误复用旧使用包。两项都是独立前向 migration。

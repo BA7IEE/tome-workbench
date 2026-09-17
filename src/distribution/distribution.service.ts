@@ -21,12 +21,20 @@ import {
   Commands,
   type Tx,
 } from "../common/transaction";
-import { factsSchema, safeText, tm, uuid } from "../common/domain";
+import {
+  assetUsable,
+  factsSchema,
+  requirements,
+  safeText,
+  tm,
+  uuid,
+} from "../common/domain";
 import { PrismaService } from "../database/prisma.service";
 import { assetPath } from "../media/storage";
 import {
   packageSnapshot,
   PublishingService,
+  requiredChannelCurrency,
 } from "../publishing/publishing.service";
 import {
   buildAnqicmsSpikePayload,
@@ -90,6 +98,100 @@ const handoffAttentionInput = z
     note: safeText(2000).min(1),
   })
   .strict();
+
+const operationalState = z.enum([
+  "READY",
+  "BLOCKED",
+  "PENDING",
+  "HANDED_OFF",
+  "PUBLISHED",
+  "NEEDS_UPDATE",
+  "ATTENTION",
+  "NEEDS_STOP",
+  "CANCELLED",
+]);
+const operationalScope = z.enum([
+  "all",
+  "unpublished",
+  "ready",
+  "blocked",
+  "pending",
+  "handed-off",
+  "published",
+  "needs-update",
+  "attention",
+  "needs-stop",
+  "cancelled",
+]);
+const operationalInput = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    size: z.coerce.number().int().min(1).max(100).default(50),
+    channelId: uuid.optional(),
+    state: operationalState.optional(),
+    scope: operationalScope.default("all"),
+    q: safeText(200).default(""),
+    brand: safeText(100).default(""),
+    attemptId: uuid.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.state && value.scope !== "all")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["state"],
+        message: "状态和范围筛选只能选择其中一个",
+      });
+  });
+
+type OperationalState = z.infer<typeof operationalState>;
+type OperationalAttempt = {
+  id: string;
+  action: string;
+  state: string;
+  sourceAttemptId: string | null;
+  remoteId: string;
+  remoteUrl: string;
+  errorCode: string;
+  errorMessage: string;
+  createdAt: Date;
+  finishedAt: Date | null;
+};
+type OperationalAttemptWithPackage = OperationalAttempt & {
+  packageId: string | null;
+};
+type OperationalListing = {
+  id: string;
+  remoteId: string;
+  url: string;
+  desired: string;
+  observed: string;
+  observedAt: Date;
+};
+type OperationalRow = {
+  id: string;
+  state: OperationalState;
+  priority: number;
+  item: { id: string; serial: number; title: string; brand: string; status: string };
+  channel: { id: string; name: string; platform: string; active: boolean };
+  attempt: OperationalAttempt | null;
+  published: OperationalAttempt | null;
+  listing: OperationalListing | null;
+  missing: { code: string; title: string }[];
+  updatedAt: Date;
+};
+
+const operationalPriority: Record<OperationalState, number> = {
+  NEEDS_STOP: 100,
+  ATTENTION: 95,
+  BLOCKED: 80,
+  NEEDS_UPDATE: 75,
+  PENDING: 70,
+  HANDED_OFF: 60,
+  READY: 50,
+  PUBLISHED: 40,
+  CANCELLED: 10,
+};
 
 type AgentSession = DistributionRequest["distributionSession"];
 type ResultInput = z.infer<typeof resultInput>;
@@ -671,6 +773,545 @@ export class DistributionService {
         pendingStops.find((row) => row.channelId === channel.id)?._count._all ||
         0,
     }));
+  }
+
+  /**
+   * Read-only operating view.  It derives one current business state for an
+   * Item × Channel pair from the existing Item, frozen package and handoff
+   * facts; it deliberately does not persist a second inventory truth.
+   */
+  async operations(raw: unknown) {
+    const input = operationalInput.parse(raw), now = new Date();
+    const pinned = input.attemptId
+      ? await this.db.distributionAttempt.findUnique({
+          where: { id: input.attemptId },
+          select: { itemId: true, channelId: true },
+        })
+      : null;
+    if (input.attemptId && !pinned)
+      throw new Fault("NOT_FOUND", "分发记录不存在", 404);
+    if (pinned && input.channelId && input.channelId !== pinned.channelId)
+      throw new Fault("NOT_FOUND", "该分发记录不属于所选渠道", 404);
+
+    const channels = await this.db.channel.findMany({
+      where:
+        input.channelId || pinned?.channelId
+          ? { id: input.channelId || pinned?.channelId }
+          : undefined,
+      select: {
+        id: true,
+        name: true,
+        platform: true,
+        active: true,
+        locale: true,
+        defaultCurrency: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!channels.length)
+      return {
+        rows: [],
+        total: 0,
+        page: input.page,
+        size: input.size,
+        summary: { total: 0, states: {}, channels: [] },
+      };
+
+    const items = await this.db.item.findMany({
+      where: {
+        deletedAt: null,
+        dataMode: "BUSINESS",
+        ...(pinned
+          ? { id: pinned.itemId }
+          : {
+              OR: [
+                { status: "AVAILABLE" },
+                { distributionAttempts: { some: {} } },
+              ],
+            }),
+      },
+      select: {
+        id: true,
+        serial: true,
+        title: true,
+        brand: true,
+        category: true,
+        status: true,
+        approvedValid: true,
+        approvedId: true,
+        currentPrice: true,
+        currency: true,
+        ownership: true,
+        cycle: true,
+        facts: true,
+        updatedAt: true,
+        assets: {
+          select: {
+            id: true,
+            rights: true,
+            verified: true,
+            validUntil: true,
+            role: true,
+            origin: true,
+            archived: true,
+          },
+        },
+        offers: {
+          where: { status: "CONFIRMED", validUntil: { gt: now } },
+          select: { id: true },
+        },
+        waivers: {
+          where: { status: "ACTIVE" },
+          select: { id: true, code: true, category: true },
+        },
+        channelPrices: {
+          select: {
+            channelId: true,
+            amount: true,
+            currency: true,
+            active: true,
+            version: true,
+          },
+        },
+        publishingDrafts: {
+          where: { purpose: "TRADE" },
+          select: {
+            channelId: true,
+            title: true,
+            body: true,
+            basisRevisionId: true,
+            basisPrice: true,
+            basisCurrency: true,
+            basisPriceSource: true,
+            basisPriceVersion: true,
+          },
+        },
+      },
+      orderBy: { serial: "asc" },
+    });
+    const needle = input.q.toLocaleLowerCase(),
+      brandNeedle = input.brand.toLocaleLowerCase();
+    const selectedItems = items.filter((item) => {
+      if (pinned) return item.id === pinned.itemId;
+      const tmCode = tm(item.serial).toLocaleLowerCase();
+      return (
+        (!brandNeedle || item.brand.toLocaleLowerCase().includes(brandNeedle)) &&
+        (!needle ||
+          [item.title, item.brand, tmCode, String(item.serial)].some((value) =>
+            value.toLocaleLowerCase().includes(needle),
+          ))
+      );
+    });
+    const itemIds = selectedItems.map((item) => item.id),
+      channelIds = channels.map((channel) => channel.id);
+    if (!itemIds.length)
+      return {
+        rows: [],
+        total: 0,
+        page: input.page,
+        size: input.size,
+        summary: {
+          total: 0,
+          states: {},
+          channels: channels.map((channel) => ({
+            channel: {
+              id: channel.id,
+              name: channel.name,
+              platform: channel.platform,
+              active: channel.active,
+            },
+            counts: {},
+          })),
+        },
+      };
+
+    const [attempts, packages, listings] = await Promise.all([
+      this.db.distributionAttempt.findMany({
+        where: {
+          itemId: { in: itemIds },
+          channelId: { in: channelIds },
+        },
+        select: {
+          id: true,
+          itemId: true,
+          channelId: true,
+          packageId: true,
+          sourceAttemptId: true,
+          action: true,
+          state: true,
+          remoteId: true,
+          remoteUrl: true,
+          errorCode: true,
+          errorMessage: true,
+          createdAt: true,
+          finishedAt: true,
+        },
+      }),
+      this.db.usePackage.findMany({
+        where: {
+          itemId: { in: itemIds },
+          channelId: { in: channelIds },
+          purpose: "TRADE",
+        },
+        select: {
+          id: true,
+          itemId: true,
+          channelId: true,
+          revisionId: true,
+          cycle: true,
+          snapshot: true,
+          validUntil: true,
+          createdAt: true,
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      this.db.listing.findMany({
+        where: {
+          itemId: { in: itemIds },
+          channelId: { in: channelIds },
+        },
+        select: {
+          id: true,
+          itemId: true,
+          channelId: true,
+          remoteId: true,
+          url: true,
+          desired: true,
+          observed: true,
+          observedAt: true,
+        },
+      }),
+    ]);
+    const pair = (itemId: string, channelId: string) => `${itemId}:${channelId}`;
+    const attemptsByPair = new Map<string, OperationalAttemptWithPackage[]>();
+    for (const row of attempts) {
+      const key = pair(row.itemId, row.channelId);
+      const rows = attemptsByPair.get(key) || [];
+      rows.push({ ...row, packageId: row.packageId });
+      attemptsByPair.set(key, rows);
+    }
+    const packagesByPair = new Map<string, (typeof packages)[number][]>(),
+      packageById = new Map(packages.map((row) => [row.id, row]));
+    for (const row of packages) {
+      const key = pair(row.itemId, row.channelId);
+      const rows = packagesByPair.get(key) || [];
+      rows.push(row);
+      packagesByPair.set(key, rows);
+    }
+    const listingsByPair = new Map<string, (typeof listings)[number][]>();
+    for (const row of listings) {
+      const key = pair(row.itemId, row.channelId);
+      const rows = listingsByPair.get(key) || [];
+      rows.push(row);
+      listingsByPair.set(key, rows);
+    }
+    const toPublicAttempt = (
+      row: OperationalAttemptWithPackage | null,
+    ): OperationalAttempt | null =>
+      row
+        ? {
+            id: row.id,
+            action: row.action,
+            state: row.state,
+            sourceAttemptId: row.sourceAttemptId,
+            remoteId: row.remoteId,
+            remoteUrl: row.remoteUrl,
+            errorCode: row.errorCode,
+            errorMessage: row.errorMessage,
+            createdAt: row.createdAt,
+            finishedAt: row.finishedAt,
+          }
+        : null;
+    const timeOf = (row: OperationalAttemptWithPackage) =>
+      (row.finishedAt || row.createdAt).getTime();
+    const newest = (rows: OperationalAttemptWithPackage[]) =>
+      [...rows].sort(
+        (left, right) =>
+          timeOf(right) - timeOf(left) || right.id.localeCompare(left.id),
+      )[0] || null;
+    const newestListing = (rows: (typeof listings)[number][]) =>
+      [...rows].sort(
+        (left, right) =>
+          right.observedAt.getTime() - left.observedAt.getTime() ||
+          right.id.localeCompare(left.id),
+      )[0] || null;
+    const rows: OperationalRow[] = [];
+
+    for (const item of selectedItems) {
+      const facts = factsSchema.parse(item.facts);
+      const usableAssets = new Map(
+        item.assets.filter((asset) => assetUsable(asset)).map((asset) => [asset.id, asset]),
+      );
+      const activeWaivers = item.waivers.filter(
+        (waiver) => waiver.category === item.category,
+      );
+      const activeWaiverIds = new Set(activeWaivers.map((waiver) => waiver.id));
+      for (const channel of channels) {
+        const key = pair(item.id, channel.id),
+          pairAttempts = attemptsByPair.get(key) || [],
+          hasHistory = pairAttempts.length > 0;
+        if (!channel.active && !hasHistory) continue;
+
+        const override = item.channelPrices.find(
+          (price) => price.channelId === channel.id && price.active,
+        );
+        const price = override
+          ? {
+              amount: override.amount,
+              currency: override.currency,
+              source: "CHANNEL" as const,
+              version: override.version,
+            }
+          : {
+              amount: item.currentPrice,
+              currency: item.currency,
+              source: "ITEM" as const,
+              version: null,
+            };
+        const draft = item.publishingDrafts.find(
+          (candidate) => candidate.channelId === channel.id,
+        );
+        const sameDraftBasis =
+          !!draft &&
+          item.approvedValid &&
+          draft.basisRevisionId === item.approvedId &&
+          draft.basisPrice === price.amount &&
+          draft.basisCurrency === price.currency &&
+          draft.basisPriceSource === price.source &&
+          draft.basisPriceVersion === price.version;
+        const currentFacts = {
+          ...facts,
+          ...(sameDraftBasis && draft
+            ? channel.locale === "en"
+              ? { descriptionEn: draft.body }
+              : { descriptionZh: draft.body }
+            : {}),
+        };
+        const missing = requirements({
+          title: item.title,
+          brand: item.brand,
+          category: item.category,
+          facts: currentFacts,
+          assetCount: usableAssets.size,
+          exemptions: activeWaivers.map((waiver) => waiver.code),
+          english: channel.locale === "en",
+          trade: true,
+          offerValid: item.offers.length > 0,
+          ownership: item.ownership,
+          price: price.amount,
+          currency: price.currency,
+          requiredCurrency: requiredChannelCurrency(channel),
+          status: item.status,
+        });
+        const ready = missing.length === 0 && item.approvedValid && channel.active;
+        const currentPackage = (candidate: (typeof packages)[number]) => {
+          const snapshot = packageSnapshot.safeParse(candidate.snapshot);
+          if (!snapshot.success) return false;
+          const samePriceBasis = snapshot.data.priceBasis
+            ? snapshot.data.priceBasis.source === price.source &&
+              snapshot.data.priceBasis.version === price.version
+            : price.source === "ITEM";
+          return (
+            candidate.validUntil > now &&
+            item.status === "AVAILABLE" &&
+            item.cycle === candidate.cycle &&
+            item.approvedValid &&
+            item.approvedId === candidate.revisionId &&
+            price.amount === snapshot.data.price &&
+            price.currency === snapshot.data.currency &&
+            samePriceBasis &&
+            channel.active &&
+            snapshot.data.waivers.every((id) => activeWaiverIds.has(id)) &&
+            snapshot.data.assets.every((asset) => usableAssets.has(asset.id)) &&
+            (item.ownership !== "SUPPLIER" || item.offers.length > 0)
+          );
+        };
+        const latestUsablePackage = (packagesByPair.get(key) || []).find(
+          currentPackage,
+        );
+        const publications = pairAttempts.filter(
+          (attempt) =>
+            ["PUBLISH", "UPDATE"].includes(attempt.action) &&
+            attempt.state === "SUCCEEDED",
+        );
+        const completedStops = pairAttempts.filter(
+          (attempt) =>
+            attempt.action === "DELIST" && attempt.state === "SUCCEEDED",
+        );
+        const currentPublication = newest(
+          publications.filter((publication) => {
+            const publicationAt = timeOf(publication);
+            return !completedStops.some(
+              (stop) =>
+                stop.sourceAttemptId === publication.id ||
+                (stop.sourceAttemptId === null && timeOf(stop) > publicationAt),
+            );
+          }),
+        );
+        const openStop = newest(
+          pairAttempts.filter(
+            (attempt) =>
+              attempt.action === "DELIST" &&
+              !["SUCCEEDED", "CANCELLED"].includes(attempt.state),
+          ),
+        );
+        const outstanding = newest(
+          pairAttempts.filter(
+            (attempt) =>
+              ["PUBLISH", "UPDATE"].includes(attempt.action) &&
+              ["PENDING", "RUNNING", "UNKNOWN", "FAILED"].includes(
+                attempt.state,
+              ),
+          ),
+        );
+        const publishedPackage = currentPublication?.packageId
+          ? packageById.get(currentPublication.packageId)
+          : null;
+        let state: OperationalState | null = null,
+          attempt: OperationalAttemptWithPackage | null = null;
+        if (openStop || (currentPublication && item.status !== "AVAILABLE")) {
+          state = "NEEDS_STOP";
+          attempt = openStop;
+        } else if (outstanding) {
+          attempt = outstanding;
+          state =
+            outstanding.state === "PENDING"
+              ? "PENDING"
+              : outstanding.state === "RUNNING"
+                ? "HANDED_OFF"
+                : "ATTENTION";
+        } else if (currentPublication) {
+          if (!ready) state = "BLOCKED";
+          else if (
+            !publishedPackage ||
+            !currentPackage(publishedPackage) ||
+            (latestUsablePackage &&
+              distributionPackageFingerprint(latestUsablePackage.snapshot) !==
+                distributionPackageFingerprint(publishedPackage.snapshot))
+          )
+            state = "NEEDS_UPDATE";
+          else state = "PUBLISHED";
+        } else if (item.status === "AVAILABLE") {
+          state = ready ? "READY" : "BLOCKED";
+        } else if (input.attemptId) {
+          const cancelled = pairAttempts.find(
+            (candidate) =>
+              candidate.id === input.attemptId && candidate.state === "CANCELLED",
+          );
+          if (cancelled) {
+            state = "CANCELLED";
+            attempt = cancelled;
+          }
+        }
+        if (!state) continue;
+        const visibleAttempt = toPublicAttempt(attempt),
+          visiblePublished = toPublicAttempt(currentPublication),
+          newestFact = newest(pairAttempts),
+          listing = newestListing(listingsByPair.get(key) || []);
+        rows.push({
+          id: key,
+          state,
+          priority: operationalPriority[state],
+          item: {
+            id: item.id,
+            serial: item.serial,
+            title: item.title,
+            brand: item.brand,
+            status: item.status,
+          },
+          channel: {
+            id: channel.id,
+            name: channel.name,
+            platform: channel.platform,
+            active: channel.active,
+          },
+          attempt: visibleAttempt,
+          published: visiblePublished,
+          listing: listing
+            ? {
+                id: listing.id,
+                remoteId: listing.remoteId,
+                url: listing.url,
+                desired: listing.desired,
+                observed: listing.observed,
+                observedAt: listing.observedAt,
+              }
+            : null,
+          missing: missing.map((entry) => ({ code: entry.code, title: entry.title })),
+          updatedAt:
+            newestFact?.finishedAt ||
+            newestFact?.createdAt ||
+            listing?.observedAt ||
+            latestUsablePackage?.createdAt ||
+            item.updatedAt,
+        });
+      }
+    }
+
+    const states = rows.reduce<Record<string, number>>((counts, row) => {
+      counts[row.state] = (counts[row.state] || 0) + 1;
+      return counts;
+    }, {});
+    const channelSummary = channels.map((channel) => ({
+      channel: {
+        id: channel.id,
+        name: channel.name,
+        platform: channel.platform,
+        active: channel.active,
+      },
+      counts: rows
+        .filter((row) => row.channel.id === channel.id)
+        .reduce<Record<string, number>>((counts, row) => {
+          counts[row.state] = (counts[row.state] || 0) + 1;
+          return counts;
+        }, {}),
+    }));
+    const inScope = (state: OperationalState) => {
+      if (input.state) return state === input.state;
+      if (input.scope === "all") return state !== "CANCELLED";
+      if (input.scope === "unpublished")
+        return ["READY", "BLOCKED", "PENDING", "HANDED_OFF"].includes(state);
+      const scoped: Record<string, OperationalState> = {
+        ready: "READY",
+        blocked: "BLOCKED",
+        pending: "PENDING",
+        "handed-off": "HANDED_OFF",
+        published: "PUBLISHED",
+        "needs-update": "NEEDS_UPDATE",
+        attention: "ATTENTION",
+        "needs-stop": "NEEDS_STOP",
+        cancelled: "CANCELLED",
+      };
+      return state === scoped[input.scope];
+    };
+    const filtered = rows
+      .filter((row) => inScope(row.state))
+      .sort(
+        (left, right) =>
+          right.priority - left.priority ||
+          right.updatedAt.getTime() - left.updatedAt.getTime() ||
+          left.item.serial - right.item.serial ||
+          left.channel.name.localeCompare(right.channel.name),
+      );
+    // Keep a stale deep link usable after a filter removes the former last
+    // page. This follows the catalog convention while still applying the
+    // complete server-side filter and sort before taking the page slice.
+    const page = Math.min(
+      input.page,
+      Math.max(1, Math.ceil(filtered.length / input.size)),
+    );
+    return {
+      rows: filtered.slice((page - 1) * input.size, page * input.size),
+      total: filtered.length,
+      page,
+      size: input.size,
+      summary: { total: rows.length, states, channels: channelSummary },
+    };
+  }
+
+  async operationalAttentionCount() {
+    const result = await this.operations({ scope: "attention", size: 1 });
+    return result.total;
   }
 
   async attempts(raw: unknown) {

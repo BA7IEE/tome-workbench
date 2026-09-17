@@ -26,6 +26,21 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 分发中心把内部状态显示为：PENDING=待交付、RUNNING=已交付、SUCCEEDED=已确认完成、FAILED=需要处理、UNKNOWN=需要核对、CANCELLED=已取消。它还汇总尚未确认完成的停售记录；页面不会保存凭据或调用第三方。
 
+## 分发经营投影
+
+默认分发页不再是“前 100 条 Attempt”的日志表。`GET /api/distribution/operations` 为每一个正式、未删除的 Item 与可用（或已有历史记录的）Channel 读取 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing，计算当前唯一经营状态：
+
+- `READY`：资料已可交付但还未交付；
+- `BLOCKED`：资料、价格、批准、图片权利或有效供货条件仍不足；
+- `PENDING` / `HANDED_OFF`：原记录分别待交付或已经交给外部执行方；
+- `PUBLISHED`：当前资料已确认在线；
+- `NEEDS_UPDATE`：已确认在线，但当前冻结资料或其有效依据已变化；
+- `ATTENTION`：原记录需要处理或按永久 TM 人工核对；
+- `NEEDS_STOP`：已有确认发布而现在需要外部停售；
+- `CANCELLED`：只为按原记录定位时保留的兼容状态，不进入默认全部列表。
+
+这是读取时投影，不创建 `ChannelInventoryTruth` 或任何第二商品真相，也不在读取中创建 Package、Attempt、Listing、Task 或调用外部平台。筛选参数为 `page`、`size`、`channelId`、`state` 或 `scope`、`brand`、`q`（TM/名称/品牌）；服务端先过滤和排序，后分页，并将过期页码收回到最后一个可达页。页面渠道卡片、表格和 Dashboard 的“分发异常”来自同一投影；后者固定链接 `#/distribution?scope=attention`。
+
 ## UNKNOWN 人工核对
 
 UNKNOWN 不能直接重试，也不能新建第二条发布资料。操作者必须在原渠道按永久 TM 核对，并在**原分发记录**填写核对依据后，把它改为已确认完成或需要处理。每次这种人工核对都单独写 Audit；确认成功会清除过期的失败/未知错误文本。FAILED 仍可复用原记录重新交付，不创建第二个执行事实。
