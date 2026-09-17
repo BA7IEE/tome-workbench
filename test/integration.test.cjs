@@ -2641,6 +2641,17 @@ async function distributionAgentOk(path,token,method='GET',body){
   assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
   return r.data;
 }
+async function distributionHandoffApi(path,token,method='GET',body,key=randomUUID()){
+  const headers={'X-Distribution-Token':token,'Idempotency-Key':key};
+  if(body!==undefined)headers['Content-Type']='application/json';
+  const r=await fetch(origin+'/api/distribution-agent'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null),headers:r.headers};
+}
+async function distributionHandoffOk(path,token,method='GET',body,key){
+  const r=await distributionHandoffApi(path,token,method,body,key);
+  assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
+  return r.data;
+}
 async function distributionSession(channelId=channel.id,label='合成分发会话'){
   return ok('/distribution/sessions','POST',{channelId,label,agentName:'synthetic-distribution-agent',expiresAt:future()});
 }
@@ -2650,6 +2661,16 @@ async function mcpApi(token, body, extra={}){
 }
 async function mcpTool(token,name,args={},id=randomUUID()){
   const r=await mcpApi(token,{jsonrpc:'2.0',id,method:'tools/call',params:{name,arguments:args}});
+  assert.equal(r.status,200,JSON.stringify(r.data));
+  assert.ok(r.data?.result?.content?.[0],JSON.stringify(r.data));
+  return {isError:!!r.data.result.isError,value:JSON.parse(r.data.result.content[0].text)};
+}
+async function distributionMcpApi(token, body, extra={}){
+  const r=await fetch(origin+'/api/mcp/distribution',{method:'POST',headers:{'X-Distribution-Token':token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null)};
+}
+async function distributionMcpTool(token,name,args={},id=randomUUID()){
+  const r=await distributionMcpApi(token,{jsonrpc:'2.0',id,method:'tools/call',params:{name,arguments:args}});
   assert.equal(r.status,200,JSON.stringify(r.data));
   assert.ok(r.data?.result?.content?.[0],JSON.stringify(r.data));
   return {isError:!!r.data.result.isError,value:JSON.parse(r.data.result.content[0].text)};
@@ -3506,6 +3527,279 @@ test("Distribution Foundation：渠道配置、会话令牌和同包计划保持
     (await distributionAgentApi(`/distribution-agent/attempts/${first.id}/claim`, foreign.token, "POST")).status,
     404,
   );
+});
+
+test("标准分发交付合同：冻结资料、薄 MCP、渠道隔离与人工核对保持受控", async () => {
+  const firstItem = await ready();
+  const defect = await upload(firstItem.id, { role: "DEFECT" });
+  await assetReview(defect.id, { position: 1 });
+  const firstPackage = await pack(firstItem.id);
+  const first = await ok("/distribution/plan", "POST", {
+    packageId: firstPackage.id,
+  });
+  const session = await distributionSession(channel.id, "标准交付合成会话");
+  const pending = await distributionHandoffOk("/handoffs", session.token);
+  assert.ok(pending.some((row) => row.recordId === first.id && row.status === "PENDING"));
+
+  const foreignChannel = await ok("/channels", "POST", {
+    name: "标准交付隔离账号 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  const foreign = await distributionSession(foreignChannel.id, "标准交付隔离会话");
+  assert.deepEqual(await distributionHandoffOk("/handoffs", foreign.token), []);
+  assert.equal(
+    (
+      await distributionHandoffApi(
+        `/handoffs/${first.id}/package`,
+        foreign.token,
+        "POST",
+        undefined,
+        randomUUID(),
+      )
+    ).status,
+    404,
+  );
+
+  const packageKey = randomUUID();
+  const delivered = await distributionHandoffOk(
+    `/handoffs/${first.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    packageKey,
+  );
+  assert.equal(delivered.recordId, first.id);
+  assert.equal(delivered.action, "PUBLISH");
+  assert.equal(delivered.tm, firstItem.code);
+  assert.equal(delivered.channel.id, channel.id);
+  assert.equal(delivered.package.price, 200000);
+  assert.equal(delivered.package.currency, "CNY");
+  assert.deepEqual(delivered.package.images.map((image) => image.position), [0, 1]);
+  assert.ok(delivered.package.images.some((image) => image.role === "DEFECT"));
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({ where: { id: first.id } })
+    ).leaseUntil,
+    null,
+  );
+  assert.deepEqual(
+    await distributionHandoffOk(
+      `/handoffs/${first.id}/package`,
+      session.token,
+      "POST",
+      undefined,
+      packageKey,
+    ),
+    delivered,
+  );
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({ where: { id: first.id } })
+    ).attemptCount,
+    1,
+  );
+  assert.equal(
+    (
+      await distributionAgentApi(delivered.package.images[0].download, session.token)
+    ).status,
+    200,
+  );
+  const unrelated = await ready();
+  assert.equal(
+    (
+      await distributionAgentApi(
+        `/distribution-agent/handoffs/${first.id}/assets/${unrelated.asset}`,
+        session.token,
+      )
+    ).status,
+    403,
+  );
+
+  const tools = await distributionMcpApi(session.token, {
+    jsonrpc: "2.0",
+    id: "distribution-tools",
+    method: "tools/list",
+  });
+  assert.equal(tools.status, 200);
+  assert.deepEqual(
+    tools.data.result.tools.map((tool) => tool.name).sort(),
+    [
+      "tome_distribution_get_package",
+      "tome_distribution_list_handoffs",
+      "tome_distribution_report_attention",
+      "tome_distribution_report_published",
+    ],
+  );
+  assert.equal(
+    (await distributionMcpApi(session.token, { jsonrpc: "2.0", id: 2, method: "tools/list" }, { Origin: "https://not-tome.test" })).status,
+    403,
+  );
+  const ownMcpHandoffs = await distributionMcpTool(
+    session.token,
+    "tome_distribution_list_handoffs",
+  );
+  assert.equal(ownMcpHandoffs.isError, false);
+  assert.ok(ownMcpHandoffs.value.some((row) => row.recordId === first.id));
+
+  const confirmedItem = await ready();
+  const confirmed = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(confirmedItem.id)).id,
+  });
+  const mcpPackage = await distributionMcpTool(
+    session.token,
+    "tome_distribution_get_package",
+    { idempotencyKey: randomUUID(), recordId: confirmed.id },
+  );
+  assert.equal(mcpPackage.isError, false);
+  assert.equal(mcpPackage.value.recordId, confirmed.id);
+  const published = await distributionMcpTool(
+    session.token,
+    "tome_distribution_report_published",
+    {
+      idempotencyKey: randomUUID(),
+      recordId: confirmed.id,
+      note: "合成外部执行方已按永久 TM 确认完成，APP 未返回稳定编号。",
+    },
+  );
+  assert.equal(published.isError, false);
+  assert.equal(published.value.status, "SUCCEEDED");
+  assert.equal(
+    await db.listing.count({ where: { itemId: confirmedItem.id, channelId: channel.id } }),
+    0,
+  );
+
+  await sold(confirmedItem.id);
+  const stop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${confirmed.id}` },
+  });
+  const stopPackage = await distributionHandoffOk(
+    `/handoffs/${stop.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  assert.equal(stopPackage.action, "DELIST");
+  assert.equal(stopPackage.tm, confirmedItem.code);
+  assert.equal(stopPackage.package, null);
+  assert.equal(
+    (
+      await distributionAgentApi(
+        `/distribution-agent/handoffs/${stop.id}/assets/${confirmedItem.asset}`,
+        session.token,
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await distributionHandoffOk(
+        `/handoffs/${stop.id}/published`,
+        session.token,
+        "POST",
+        { note: "已按永久 TM 确认停售完成。" },
+        randomUUID(),
+      )
+    ).status,
+    "SUCCEEDED",
+  );
+
+  const attentionItem = await ready();
+  const attention = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(attentionItem.id)).id,
+  });
+  await distributionHandoffOk(
+    `/handoffs/${attention.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  const needsReview = await distributionMcpTool(
+    session.token,
+    "tome_distribution_report_attention",
+    {
+      idempotencyKey: randomUUID(),
+      recordId: attention.id,
+      note: "外部执行后没有明确回执，需要运营人员在原记录核对。",
+    },
+  );
+  assert.equal(needsReview.isError, false);
+  assert.equal(needsReview.value.status, "UNKNOWN");
+  const blockedPublish = await distributionMcpTool(
+    session.token,
+    "tome_distribution_report_published",
+    {
+      idempotencyKey: randomUUID(),
+      recordId: attention.id,
+      note: "外部 Agent 不能替代人工核对。",
+    },
+  );
+  assert.equal(blockedPublish.isError, true);
+  assert.equal(blockedPublish.value.code, "RECONCILIATION_REQUIRED");
+  assert.equal(
+    (
+      await distributionHandoffApi(
+        `/handoffs/${attention.id}/package`,
+        session.token,
+        "POST",
+        undefined,
+        randomUUID(),
+      )
+    ).data.error.code,
+    "RECONCILIATION_REQUIRED",
+  );
+
+  const fakeItem = await ready();
+  const fake = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(fakeItem.id)).id,
+  });
+  await distributionHandoffOk(
+    `/handoffs/${fake.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  const fakeId = await distributionHandoffApi(
+    `/handoffs/${fake.id}/published`,
+    session.token,
+    "POST",
+    { note: "不能伪造远端编号。", remoteId: "MANUAL:TM000001" },
+    randomUUID(),
+  );
+  assert.equal(fakeId.status, 400);
+  assert.equal(fakeId.data.error.code, "FAKE_REMOTE_ID_DENIED");
+
+  const delegatePassword = "Synthetic!" + randomUUID();
+  const delegateUser = await ok("/auth/users", "POST", {
+    name: "标准交付权限回归",
+    email: randomUUID() + "@tome.test",
+    password: delegatePassword,
+    role: "ADMIN",
+  });
+  const delegate = await login(delegateUser.email, delegatePassword);
+  const revokedSession = await ok(
+    "/distribution/sessions",
+    "POST",
+    {
+      channelId: channel.id,
+      label: "待撤销标准交付会话",
+      agentName: "synthetic-revocation-check",
+      expiresAt: future(),
+    },
+    delegate,
+  );
+  await ok("/auth/user-access", "POST", {
+    id: delegate.id,
+    active: true,
+    role: "VIEWER",
+  });
+  const revoked = await distributionHandoffApi("/handoffs", revokedSession.token);
+  assert.equal(revoked.status, 403);
+  assert.equal(revoked.data.error.code, "DISTRIBUTION_CREATOR_REVOKED");
 });
 
 test("Distribution Foundation：并发领取、过期租约与失败重试只复用同一执行事实", async () => {

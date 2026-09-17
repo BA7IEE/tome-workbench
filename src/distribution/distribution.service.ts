@@ -75,6 +75,18 @@ const listingReceiptInput = z
     url: remoteUrl.default(""),
   })
   .strict();
+const handoffPublishedInput = z
+  .object({
+    note: safeText(2000).min(1),
+    remoteId: safeText(300).default(""),
+    remoteUrl: remoteUrl.default(""),
+  })
+  .strict();
+const handoffAttentionInput = z
+  .object({
+    note: safeText(2000).min(1),
+  })
+  .strict();
 
 type AgentSession = DistributionRequest["distributionSession"];
 type ResultInput = z.infer<typeof resultInput>;
@@ -1197,6 +1209,409 @@ export class DistributionService {
             ? { updated: true }
             : {}),
         };
+      },
+    );
+  }
+
+  /**
+   * The standard handoff surface has the same receipt and revocation
+   * guarantees as machine ingest, without turning an external executor into
+   * a ToMe runtime worker.  In particular, a receipt replay checks the live
+   * DistributionSession and the creator's current publish right before it is
+   * returned.
+   */
+  private async machineHandoffRun<T extends Record<string, unknown>>(
+    session: AgentSession,
+    operation: string,
+    key: unknown,
+    input: unknown,
+    fn: (tx: Tx) => Promise<T>,
+  ): Promise<T> {
+    if (typeof key !== "string" || !/^[A-Za-z0-9_.:-]{12,128}$/.test(key))
+      throw new Fault(
+        "IDEMPOTENCY_REQUIRED",
+        "标准分发交付写操作需要12—128位幂等键",
+        400,
+      );
+    const receiptOperation = `machine.distribution.${session.id}.${operation}`;
+    const requestHash = hash(input);
+    return this.db.$transaction(
+      async (tx) => {
+        await lock(tx, `machine-distribution:${session.id}:${operation}:${key}`);
+        await lock(tx, `distribution-session:${session.id}`);
+        const live = await tx.distributionSession.findUnique({
+          where: { id: session.id },
+        });
+        if (
+          !live ||
+          live.revokedAt ||
+          live.expiresAt <= new Date() ||
+          live.createdBy !== session.createdBy ||
+          live.channelId !== session.channelId
+        )
+          throw new Fault(
+            "DISTRIBUTION_SESSION_EXPIRED",
+            "分发会话不存在、已撤销或已过期",
+            401,
+          );
+        const users = await tx.$queryRaw<{ active: boolean; role: string }[]>`
+          SELECT "active","role" FROM "User" WHERE "id"=${session.createdBy}::uuid FOR SHARE
+        `;
+        const account = users[0];
+        if (!account?.active || !permission(account.role as Role, "publish"))
+          throw new Fault(
+            "DISTRIBUTION_CREATOR_REVOKED",
+            "分发会话创建者已失去发布权限",
+            403,
+          );
+        const prior = await tx.receipt.findUnique({
+          where: {
+            actorId_operation_key: {
+              actorId: session.createdBy,
+              operation: receiptOperation,
+              key,
+            },
+          },
+        });
+        if (prior) {
+          if (prior.requestHash !== requestHash)
+            throw new Fault(
+              "IDEMPOTENCY_CONFLICT",
+              "相同幂等键对应不同标准分发交付内容",
+              409,
+            );
+          return prior.response as T;
+        }
+        const result = await fn(tx);
+        await tx.distributionSession.update({
+          where: { id: session.id },
+          data: { lastUsedAt: new Date() },
+        });
+        await tx.receipt.create({
+          data: {
+            actorId: session.createdBy,
+            operation: receiptOperation,
+            key,
+            requestHash,
+            response: json(result),
+          },
+        });
+        return result;
+      },
+      { maxWait: 10000, timeout: 30000 },
+    );
+  }
+
+  async handoffs(session: AgentSession) {
+    const rows = await this.db.distributionAttempt.findMany({
+      where: {
+        channelId: session.channelId,
+        OR: [
+          { state: "PENDING" },
+          { state: "RUNNING", claimedBySessionId: session.id },
+        ],
+      },
+      select: {
+        id: true,
+        action: true,
+        state: true,
+        item: { select: { serial: true } },
+        channel: { select: { id: true, name: true, platform: true } },
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 100,
+    });
+    return rows.map((row) => ({
+      recordId: row.id,
+      action: row.action,
+      status: row.state,
+      tm: tm(row.item.serial),
+      channel: row.channel,
+    }));
+  }
+
+  private async handoffPackagePayload(
+    tx: Tx,
+    attempt: {
+      id: string;
+      itemId: string;
+      channelId: string;
+      packageId: string | null;
+      action: string;
+    },
+  ) {
+    if (!attempt.packageId) {
+      const [item, channel] = await Promise.all([
+        tx.item.findUniqueOrThrow({ where: { id: attempt.itemId } }),
+        tx.channel.findUniqueOrThrow({ where: { id: attempt.channelId } }),
+      ]);
+      // A stop handoff deliberately carries only durable identity.  It must
+      // not reconstruct a stale publishing package or make old image rights
+      // a prerequisite for stopping sale.
+      return {
+        recordId: attempt.id,
+        action: attempt.action,
+        tm: tm(item.serial),
+        channel: { id: channel.id, name: channel.name, platform: channel.platform },
+        package: null,
+      };
+    }
+    const pack = await this.publishing.validPackage(tx, attempt.packageId);
+    const assets = new Map(pack.assets.map((asset) => [asset.id, asset]));
+    return {
+      recordId: attempt.id,
+      action: attempt.action,
+      tm: pack.s.code,
+      channel: {
+        id: pack.p.channel.id,
+        name: pack.p.channel.name,
+        platform: pack.p.channel.platform,
+      },
+      package: {
+        title: pack.s.title,
+        body: pack.s.body,
+        price: pack.s.price,
+        currency: pack.s.currency,
+        images: [...pack.s.assets]
+          .sort(
+            (left, right) =>
+              left.position - right.position || left.id.localeCompare(right.id),
+          )
+          .map((image) => ({
+            id: image.id,
+            role: assets.get(image.id)?.role || "PRODUCT",
+            position: image.position,
+            sha256: image.sha256,
+            download: `/api/distribution-agent/handoffs/${attempt.id}/assets/${image.id}`,
+          })),
+      },
+    };
+  }
+
+  async handoffPackage(session: AgentSession, key: unknown, id: string) {
+    return this.machineHandoffRun(
+      session,
+      "handoff.package",
+      key,
+      { recordId: id },
+      async (tx) => {
+        await lock(tx, `distribution-attempt:${id}`);
+        const attempt = await tx.distributionAttempt.findFirst({
+          where: { id, channelId: session.channelId },
+        });
+        if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+        if (attempt.state === "UNKNOWN")
+          throw new Fault(
+            "RECONCILIATION_REQUIRED",
+            "需要核对的记录只能由人工在原记录完成核对，不能再次交付",
+            409,
+          );
+        if (attempt.state === "RUNNING" && attempt.claimedBySessionId !== session.id)
+          throw new Fault("HANDOFF_OWNED", "该分发资料已交给另一受限会话", 409);
+        if (!['PENDING', 'RUNNING'].includes(attempt.state))
+          throw new Fault("HANDOFF_NOT_AVAILABLE", "当前分发记录不能交付资料", 409);
+        if (attempt.state === "RUNNING")
+          return this.handoffPackagePayload(tx, attempt);
+
+        await itemLock(tx, attempt.itemId);
+        if (attempt.packageId) {
+          try {
+            await this.publishing.validPackage(tx, attempt.packageId);
+          } catch (error) {
+            const errorCode = resultCode(error);
+            const errorMessage =
+              error instanceof Error ? error.message : "使用包不可用";
+            const failed = await tx.distributionAttempt.update({
+              where: { id: attempt.id },
+              data: {
+                state: "FAILED",
+                errorCode,
+                errorMessage,
+                leaseUntil: null,
+                finishedAt: new Date(),
+              },
+            });
+            await audit(
+              tx,
+              session.createdBy,
+              "DISTRIBUTION_HANDOFF_FAILED",
+              failed.itemId,
+              { recordId: failed.id, action: failed.action, errorCode, reason: "package-stale" },
+            );
+            await event(tx, failed.itemId, "DISTRIBUTION_ATTEMPT_RESULT", {
+              attemptId: failed.id,
+              state: failed.state,
+              channelId: failed.channelId,
+            });
+            return {
+              recordId: failed.id,
+              action: failed.action,
+              status: failed.state,
+              error: { code: errorCode, message: errorMessage },
+            };
+          }
+        }
+        const delivered = await tx.distributionAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            state: "RUNNING",
+            claimedBySessionId: session.id,
+            leaseUntil: null,
+            startedAt: attempt.startedAt || new Date(),
+            finishedAt: null,
+            attemptCount: { increment: 1 },
+          },
+        });
+        await audit(
+          tx,
+          session.createdBy,
+          "DISTRIBUTION_HANDOFF_DELIVERED",
+          delivered.itemId,
+          {
+            recordId: delivered.id,
+            action: delivered.action,
+            channelId: delivered.channelId,
+            packageId: delivered.packageId,
+          },
+        );
+        await event(tx, delivered.itemId, "DISTRIBUTION_HANDOFF_DELIVERED", {
+          attemptId: delivered.id,
+          action: delivered.action,
+          channelId: delivered.channelId,
+        });
+        return this.handoffPackagePayload(tx, delivered);
+      },
+    );
+  }
+
+  async handoffAsset(session: AgentSession, attemptId: string, assetId: string) {
+    return this.db.$transaction(async (tx) => {
+      const attempt = await tx.distributionAttempt.findFirst({
+        where: { id: attemptId, channelId: session.channelId },
+      });
+      if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+      if (
+        attempt.state !== "RUNNING" ||
+        attempt.claimedBySessionId !== session.id
+      )
+        throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+      if (!attempt.packageId)
+        throw new Fault("ASSET_UNAVAILABLE", "该停售交付只提供永久 TM 身份", 404);
+      const { s, assets } = await this.publishing.validPackage(tx, attempt.packageId);
+      if (!s.assets.some((image) => image.id === assetId))
+        throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前冻结使用包", 403);
+      const asset = assets.find((row) => row.id === assetId);
+      if (!asset)
+        throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前冻结使用包", 403);
+      return {
+        mime: asset.mime,
+        filename: `${asset.id}.${asset.mime.split("/")[1] || "bin"}`,
+        bytes: await readFile(assetPath(asset.objectKey)),
+      };
+    });
+  }
+
+  async reportHandoffPublished(
+    session: AgentSession,
+    key: unknown,
+    id: string,
+    raw: unknown,
+  ) {
+    const input = handoffPublishedInput.parse(raw);
+    noCredentialText(input.note, "交付确认说明");
+    const result = checkedResult({
+      state: "SUCCEEDED",
+      remoteId: input.remoteId,
+      remoteUrl: input.remoteUrl,
+      evidence: { method: "MANUAL_CONFIRMATION", note: input.note },
+    });
+    return this.machineHandoffRun(
+      session,
+      "handoff.report-published",
+      key,
+      { recordId: id, ...input },
+      async (tx) => {
+        await lock(tx, `distribution-attempt:${id}`);
+        const attempt = await tx.distributionAttempt.findFirst({
+          where: { id, channelId: session.channelId },
+        });
+        if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+        if (attempt.state === "UNKNOWN")
+          throw new Fault(
+            "RECONCILIATION_REQUIRED",
+            "需要核对的记录只能由人工在原记录确认成功或失败",
+            409,
+          );
+        if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(attempt.state)) {
+          if (attempt.claimedBySessionId === session.id && sameResult(attempt, result))
+            return { recordId: attempt.id, status: attempt.state, existing: true };
+          throw new Fault("ATTEMPT_RESULT_CONFLICT", "该分发记录已有不同结果", 409);
+        }
+        if (
+          attempt.state !== "RUNNING" ||
+          attempt.claimedBySessionId !== session.id
+        )
+          throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+        const finished = await this.finish(
+          tx,
+          attempt,
+          result,
+          session.createdBy,
+          "STANDARD_HANDOFF_REPORTED",
+          false,
+        );
+        return { recordId: finished.id, status: finished.state, listingId: finished.listingId };
+      },
+    );
+  }
+
+  async reportHandoffAttention(
+    session: AgentSession,
+    key: unknown,
+    id: string,
+    raw: unknown,
+  ) {
+    const input = handoffAttentionInput.parse(raw);
+    noCredentialText(input.note, "交付待处理说明");
+    const result = checkedResult({
+      state: "UNKNOWN",
+      errorCode: "EXTERNAL_ATTENTION",
+      errorMessage: input.note,
+    });
+    return this.machineHandoffRun(
+      session,
+      "handoff.report-attention",
+      key,
+      { recordId: id, ...input },
+      async (tx) => {
+        await lock(tx, `distribution-attempt:${id}`);
+        const attempt = await tx.distributionAttempt.findFirst({
+          where: { id, channelId: session.channelId },
+        });
+        if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+        if (attempt.state === "UNKNOWN")
+          throw new Fault(
+            "RECONCILIATION_REQUIRED",
+            "需要核对的记录只能由人工在原记录确认成功或失败",
+            409,
+          );
+        if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(attempt.state))
+          throw new Fault("ATTEMPT_RESULT_CONFLICT", "该分发记录已有结果", 409);
+        if (
+          attempt.state !== "RUNNING" ||
+          attempt.claimedBySessionId !== session.id
+        )
+          throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+        const finished = await this.finish(
+          tx,
+          attempt,
+          result,
+          session.createdBy,
+          "STANDARD_HANDOFF_ATTENTION",
+          false,
+        );
+        return { recordId: finished.id, status: finished.state };
       },
     );
   }

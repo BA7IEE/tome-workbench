@@ -311,6 +311,12 @@ v1-item-center.spec.cjs 保留「来源品牌成色与品相在商品常用位�
 
 ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基础上由后续 Real Operations 接入；本节只证明资料交付记录与受限高级接口。历史 migration 保持封印，新 migration 单独校验。
 
+## v1.1 标准分发交付合同
+
+`agent/skills/tome-distribution` 为 ANQICMS、XIANYU、VC、GRAILED、CAROUSELL 给出边界 Profile；它只要求外部执行方原样使用 Channel、永久 TM、冻结标题/正文/价币种和有序图片，不规定登录、验证码、selector、浏览器、ADB 或平台 API。Handoff HTTP 与 `/api/mcp/distribution` 仅提供 list/get-package/report-published/report-attention。取包才将 PENDING 记为已交付，图片下载受当前 Channel 会话和冻结包约束；回传会在 Audit/Receipt/Outbox 事务内再次核验会话与创建者发布权限。
+
+`test/integration.test.cjs` 的“标准分发交付合同”使用隔离 `tome_test` 覆盖渠道隔离、冻结价格和 DEFECT 图片顺序、无租约交付、图片范围、四个 MCP 工具、Origin 拒绝、无 remoteId 成功、source-linked DELIST 的 identity-only 交付、`ATTENTION → UNKNOWN` 的人工核对阻断、伪 `MANUAL:` ID 拒绝和创建者降权后的 Token 拒绝。它不执行平台发布，不包含任何真实账号、Cookie、验证码、archive ID 或外部经营 UAT。
+
 ## v1.1 来源关联的停售记录
 
 `202609170015_distribution_source_attempt` 只新增可空自关联 `sourceAttemptId` 和索引，不改写历史 Attempt 或 migration。`planStopDistribution` 在既有 Item 锁、Receipt、Audit、Outbox 事务内覆盖 AVAILABLE 到 RESERVED、PAUSED、SOLD、GIFTED、SELF_USE、SUPPLIER_SOLD、QUARANTINED；对每个当前周期已确认发布的渠道，用 `delist:<sourceAttemptId>` 建立一条需要停售记录。历史无关联 DELIST 保持原事实并防重；恢复 AVAILABLE 不产生 PUBLISH/UPDATE，迟到成功回执在商品已不可售时补建同一来源关联记录。

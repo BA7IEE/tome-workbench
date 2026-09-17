@@ -124,6 +124,21 @@ export class AuthGuard implements CanActivate {
           "分发会话不存在、已撤销或已过期",
           401,
         );
+      // A machine credential delegates its creator's publish authority; it is
+      // not an independent role. Keep this check here for every read as well
+      // as in the write receipt transaction, so removing the creator's access
+      // immediately stops both the standard handoff surface and compatibility
+      // endpoints.
+      const creator = await this.db.user.findUnique({
+        where: { id: session.createdBy },
+        select: { active: true, role: true },
+      });
+      if (!creator?.active || !permission(creator.role as Role, "publish"))
+        throw new Fault(
+          "DISTRIBUTION_CREATOR_REVOKED",
+          "分发会话创建者已失去发布权限",
+          403,
+        );
       const used = await this.db.distributionSession.updateMany({
         where: { id: session.id, revokedAt: null, expiresAt: { gt: now } },
         data: { lastUsedAt: now },
