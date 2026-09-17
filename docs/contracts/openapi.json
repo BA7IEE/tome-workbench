@@ -2394,6 +2394,60 @@
         ]
       }
     },
+    "/api/items/{id}/distribution-targets": {
+      "get": {
+        "operationId": "PublishingController_distributionTargets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
+    "/api/items/{id}/distribution-targets/{channelId}": {
+      "post": {
+        "operationId": "PublishingController_setDistributionTarget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "使用与分发"
+        ]
+      }
+    },
     "/api/items/{id}/readiness": {
       "get": {
         "operationId": "PublishingController_readiness",

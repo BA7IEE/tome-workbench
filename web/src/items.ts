@@ -110,14 +110,17 @@ async function channelPricePanel(i: Item, channels: Channel[]) {
     }[]
   >(`/items/${i.id}/channel-prices`);
   const overrides = new Map(rows.map((row) => [row.channelId, row]));
+  const tradeChannels = channels.filter(
+    (channel) => channel.businessPurpose === "TRADE",
+  );
   return section(
-    "各渠道报价",
+    "各交易渠道报价",
     note(
-      "当前商品报价只会在同币种时作为渠道价预填。渠道价只影响该账号的 Readiness、草稿与冻结使用包；不会自动换汇或覆盖其他渠道。",
+      "当前商品报价只会在同币种时作为渠道价预填。渠道价只适用于交易用途账号，并影响该账号的 Readiness、草稿与冻结使用包；不会自动换汇或覆盖其他渠道。",
     ) +
       table(
         ["渠道账号", "有效报价", "来源", "操作"],
-        channels.map((channel) => {
+        tradeChannels.map((channel) => {
           const override = overrides.get(channel.id);
           const targetCurrency =
             channel.platform === "ANQICMS"
@@ -125,11 +128,12 @@ async function channelPricePanel(i: Item, channels: Channel[]) {
               : channel.platform === "XIANYU"
                 ? "CNY"
                 : channel.defaultCurrency;
-          const amount = override?.currency === targetCurrency
-            ? override.amount
-            : i.currency === targetCurrency
-              ? i.currentPrice
-              : null;
+          const amount =
+            override?.currency === targetCurrency
+              ? override.amount
+              : i.currency === targetCurrency
+                ? i.currentPrice
+                : null;
           const currency = targetCurrency;
           return [
             `${esc(channel.name)}<small>${esc(channel.platform)}</small>`,
@@ -196,6 +200,120 @@ async function channelPricePanel(i: Item, channels: Channel[]) {
           ];
         }),
       ),
+  );
+}
+type DistributionTarget = {
+  id: string;
+  channelId: string;
+  active: boolean;
+  version: number;
+  note: string;
+  updatedAt: string;
+  channel: Pick<
+    Channel,
+    "id" | "name" | "platform" | "active" | "businessPurpose"
+  >;
+};
+async function distributionTargetPanel(i: Item, channels: Channel[]) {
+  const targets = await request<DistributionTarget[]>(
+    `/items/${i.id}/distribution-targets`,
+  );
+  const tradeChannels = channels.filter(
+    (channel) => channel.active && channel.businessPurpose === "TRADE",
+  );
+  const setTarget = (
+    channelId: string,
+    active: boolean,
+    reason: string,
+    duplicatePlatformConfirmed: boolean,
+    key: string,
+  ) =>
+    request(
+      `/items/${i.id}/distribution-targets/${channelId}`,
+      "POST",
+      { active, reason, duplicatePlatformConfirmed },
+      key,
+    );
+  const add =
+    can("publish") && tradeChannels.length
+      ? button("加入交易渠道", () =>
+          form(
+            "加入分发渠道",
+            note(
+              "这里只记录当前希望经营的交易渠道，不创建使用包、分发记录或远端发布动作。",
+            ) +
+              select(
+                "channelId",
+                "交易渠道账号",
+                Object.fromEntries(
+                  tradeChannels.map((channel) => [channel.id, channel.name]),
+                ),
+              ) +
+              area("reason", "经营意图说明", "", 3) +
+              check(
+                "duplicatePlatformConfirmed",
+                "如系统提示同平台已有其他账号目标，我明确确认要同时经营",
+              ),
+            (data, key) => {
+              const reason = text(data, "reason").trim();
+              if (!reason) throw new Error("请填写经营意图说明");
+              return setTarget(
+                text(data, "channelId"),
+                true,
+                reason,
+                data.has("duplicatePlatformConfirmed"),
+                key,
+              );
+            },
+            "确认加入",
+            reload,
+          ),
+        )
+      : "";
+  return section(
+    "分发经营目标",
+    note(
+      "经营目标表示当前明确希望在哪个交易账号经营这件 TM；它不等于库存、批准、冻结资料、远端发布或真实在线状态。内容和展厅渠道不会出现在新的目标选择中。",
+    ) +
+      (targets.length
+        ? table(
+            ["渠道账号", "状态", "意图说明", "最近更新", "操作"],
+            targets.map((target) => [
+              `${esc(target.channel.name)}<small>${esc(target.channel.platform)}</small>`,
+              target.active
+                ? target.channel.active
+                  ? "经营中"
+                  : "渠道已停用"
+                : "已关闭",
+              esc(target.note),
+              when(target.updatedAt),
+              can("publish") && target.active
+                ? button("关闭目标", () =>
+                    form(
+                      `关闭 ${target.channel.name} 经营目标`,
+                      note(
+                        "关闭经营目标不会改库存、不会删除历史使用包或发布记录，也不会替代仍需人工登记的实际停售。",
+                      ) + area("reason", "关闭原因", "", 3),
+                      (data, key) => {
+                        const reason = text(data, "reason").trim();
+                        if (!reason) throw new Error("请填写关闭原因");
+                        return setTarget(
+                          target.channelId,
+                          false,
+                          reason,
+                          false,
+                          key,
+                        );
+                      },
+                      "确认关闭",
+                      reload,
+                    ),
+                  )
+                : "",
+            ]),
+          )
+        : empty("尚未设置经营目标")),
+    add,
   );
 }
 function stockAction(i: Item, state: string) {
@@ -387,6 +505,7 @@ export async function detailPage(id: string) {
   if (tab === "assets") content = mediaPanel(i);
   if (tab === "use") {
     content =
+      (await distributionTargetPanel(i, channels)) +
       (await channelPricePanel(i, channels)) +
       (await publishingWorkspace(i, channels));
     content += section(

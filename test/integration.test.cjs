@@ -1422,21 +1422,21 @@ test("Channel drafts persist independently without approving or publishing a pro
     body: "只是一段未完成草稿",
   });
   const second = await ok("/channels", "POST", {
-    name: "小红书独立草稿测试",
-    platform: "XHS",
+    name: "第二交易渠道独立草稿测试",
+    platform: "OTHER",
     locale: "zh-CN",
     titleLimit: 80,
   });
   await saveChannelDraft(i.id, second, {
     title: "另一种讲法",
-    body: "小红书内容独立保存",
+    body: "第二交易渠道独立保存",
   });
   const one = await ok(
       `/items/${i.id}/publishing-space?channelId=${channel.id}`,
     ),
     two = await ok(`/items/${i.id}/publishing-space?channelId=${second.id}`);
   assert.equal(one.draft.body, "只是一段未完成草稿");
-  assert.equal(two.draft.body, "小红书内容独立保存");
+  assert.equal(two.draft.body, "第二交易渠道独立保存");
   assert.equal((await item(i.id)).approvedValid, false);
   assert.equal(await db.listing.count({ where: { itemId: i.id } }), 0);
   assert.equal(
@@ -2131,7 +2131,7 @@ test("Typed selections persist with product snapshots, filtering, and English co
     `/items?brandId=${brand.id}&conditionId=${condition.id}&colorId=${color.id}&materialId=${material.id}`,
   );
   assert.ok(result.rows.some((r) => r.id === i.id));
-  const frozen = await pack(i.id, showChannel);
+  const frozen = await pack(i.id, showChannel, "SHOWROOM");
   const pkg = await db.usePackage.findUniqueOrThrow({
     where: { id: frozen.id },
   });
@@ -3519,6 +3519,159 @@ test("登录和当前会话能力来自后端权限，角色变化撤销旧会�
     await ok("/auth/user-access", "POST", { id: user.id, active: true, role: role === "VIEWER" ? "OPERATOR" : "VIEWER" });
     assert.equal((await api("/auth/me", "GET", undefined, session)).status, 401);
   }
+});
+
+test("Distribution Intent：经营目标只记录交易意图并保留同平台确认、审计与幂等", async () => {
+  assert.equal(channel.businessPurpose, "TRADE");
+  assert.equal(showChannel.businessPurpose, "SHOWROOM");
+  const xhs = await ok("/channels", "POST", {
+    name: "内容渠道 " + randomUUID().slice(0, 8),
+    platform: "XHS",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  assert.equal(xhs.businessPurpose, "CONTENT");
+  const wrongPurpose = await api("/channels", "POST", {
+    name: "错误内容用途 " + randomUUID().slice(0, 8),
+    platform: "XHS",
+    locale: "zh-CN",
+    titleLimit: 80,
+    businessPurpose: "TRADE",
+  });
+  assert.equal(wrongPurpose.status, 400);
+  assert.equal(wrongPurpose.data.error.code, "CHANNEL_PURPOSE_REQUIRED");
+  const content = await ok("/channels", "POST", {
+    name: "非交易内容账号 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    businessPurpose: "CONTENT",
+  });
+  const i = await sparse();
+  assert.deepEqual(await ok(`/items/${i.id}/distribution-targets`), []);
+  const contentPrice = await api(
+    `/items/${i.id}/channel-prices/${content.id}`,
+    "POST",
+    { amount: 100000, currency: "CNY" },
+  );
+  assert.equal(contentPrice.status, 400);
+  assert.equal(contentPrice.data.error.code, "TRADE_CHANNEL_REQUIRED");
+  const contentReadiness = await api(
+    `/items/${i.id}/readiness?channelId=${content.id}&purpose=TRADE`,
+  );
+  assert.equal(contentReadiness.status, 400);
+  assert.equal(contentReadiness.data.error.code, "TRADE_CHANNEL_REQUIRED");
+  const contentPackage = await api(`/items/${i.id}/packages`, "POST", {
+    channelId: content.id,
+    purpose: "TRADE",
+    confirmed: true,
+  });
+  assert.equal(contentPackage.status, 400);
+  assert.equal(contentPackage.data.error.code, "TRADE_CHANNEL_REQUIRED");
+  const legacyChannel = await ok("/channels", "POST", {
+    name: "历史交易包渠道 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  const legacyItem = await ready();
+  const legacyPackage = await pack(legacyItem.id, legacyChannel);
+  await db.channel.update({
+    where: { id: legacyChannel.id },
+    data: { businessPurpose: "CONTENT" },
+  });
+  const legacyPlan = await api("/distribution/plan", "POST", {
+    packageId: legacyPackage.id,
+  });
+  assert.equal(legacyPlan.status, 400);
+  assert.equal(legacyPlan.data.error.code, "TRADE_CHANNEL_REQUIRED");
+  const contentTarget = await api(
+    `/items/${i.id}/distribution-targets/${content.id}`,
+    "POST",
+    {
+      active: true,
+      reason: "内容账号不能成为交易经营目标",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.equal(contentTarget.status, 400);
+  assert.equal(contentTarget.data.error.code, "TRADE_CHANNEL_REQUIRED");
+  const closedContentTarget = await api(
+    `/items/${i.id}/distribution-targets/${content.id}`,
+    "POST",
+    {
+      active: false,
+      reason: "内容账号不应留下关闭的交易目标",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.equal(closedContentTarget.status, 400);
+  assert.equal(closedContentTarget.data.error.code, "TRADE_CHANNEL_REQUIRED");
+
+  const targetKey = randomUUID();
+  const body = {
+    active: true,
+    reason: "本周由闲鱼主号经营，先记录意图再补发布资料",
+    duplicatePlatformConfirmed: false,
+  };
+  const first = await ok(
+    `/items/${i.id}/distribution-targets/${channel.id}`,
+    "POST",
+    body,
+    admin,
+    targetKey,
+  );
+  const replayed = await ok(
+    `/items/${i.id}/distribution-targets/${channel.id}`,
+    "POST",
+    body,
+    admin,
+    targetKey,
+  );
+  assert.deepEqual(replayed, first);
+  assert.equal(first.active, true);
+  assert.equal(first.version, 1);
+  assert.equal(await db.usePackage.count({ where: { itemId: i.id } }), 0);
+  assert.equal(await db.distributionAttempt.count({ where: { itemId: i.id } }), 0);
+  assert.equal(await db.listing.count({ where: { itemId: i.id } }), 0);
+  const targets = await ok(`/items/${i.id}/distribution-targets`);
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0].channel.businessPurpose, "TRADE");
+  assert.ok(await db.audit.findFirst({ where: { resourceId: i.id, action: "DISTRIBUTION_TARGET_CREATED" } }));
+  assert.ok(await db.outbox.findFirst({ where: { itemId: i.id, kind: "DISTRIBUTION_TARGET_CHANGED" } }));
+  assert.ok(await db.receipt.findFirst({ where: { actorId: admin.id, operation: "distribution.target.set", key: targetKey } }));
+
+  const samePlatform = await ok("/channels", "POST", {
+    name: "闲鱼第二账号 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  const needsConfirmation = await api(
+    `/items/${i.id}/distribution-targets/${samePlatform.id}`,
+    "POST",
+    { active: true, reason: "备用账号也计划经营", duplicatePlatformConfirmed: false },
+  );
+  assert.equal(needsConfirmation.status, 409);
+  assert.equal(needsConfirmation.data.error.code, "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED");
+  const second = await ok(
+    `/items/${i.id}/distribution-targets/${samePlatform.id}`,
+    "POST",
+    { active: true, reason: "备用账号也计划经营", duplicatePlatformConfirmed: true },
+  );
+  assert.equal(second.active, true);
+  const closed = await ok(
+    `/items/${i.id}/distribution-targets/${channel.id}`,
+    "POST",
+    { active: false, reason: "本周停止该账号经营意图", duplicatePlatformConfirmed: false },
+  );
+  assert.equal(closed.active, false);
+  assert.equal(closed.version, 2);
+  const stored = await db.distributionTarget.findUniqueOrThrow({
+    where: { itemId_channelId: { itemId: i.id, channelId: channel.id } },
+  });
+  assert.equal(stored.note, "本周停止该账号经营意图");
+  assert.equal(stored.active, false);
 });
 
 test("Distribution Foundation：渠道配置、会话令牌和同包计划保持受限且不落明文", async () => {

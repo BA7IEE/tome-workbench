@@ -709,6 +709,50 @@ test("批量渠道价不会用零伪造未知默认报价，必须由操作者�
   );
 });
 
+test("批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录", async ({ page }) => {
+  const title = "批量经营意图界面 " + randomUUID().slice(0, 8);
+  const created = await api(page, "/items", { title });
+  const item = await (await page.request.get(`/api/items/${created.id}`)).json();
+  const trade = await api(page, "/channels", {
+    name: "交易目标界面 " + randomUUID().slice(0, 8),
+    platform: "XIANYU",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  const content = await api(page, "/channels", {
+    name: "内容目标界面 " + randomUUID().slice(0, 8),
+    platform: "XHS",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  expect(content.businessPurpose).toBe("CONTENT");
+  await page.goto(`/#/items?q=${encodeURIComponent(title)}`);
+  await page.getByRole("checkbox", { name: `选择 ${item.code}`, exact: true }).check();
+  await page.getByText("批量操作", { exact: true }).click();
+  await page.getByRole("button", { name: "加入分发渠道", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const choices = dialog.getByLabel("交易渠道账号", { exact: true });
+  await expect(choices).toContainText(trade.name);
+  await expect(choices).not.toContainText(content.name);
+  await choices.selectOption(trade.id);
+  await dialog.getByLabel("经营意图说明", { exact: true }).fill("本周明确由该交易账号经营，发布资料稍后逐件核对。");
+  await dialog.getByLabel(`我已核对并确认加入该渠道的 1 件商品`, { exact: true }).check();
+  await dialog.getByRole("button", { name: "确认加入 1 件商品", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "加入分发渠道结果", exact: true })).toBeVisible();
+  await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+  const targets = await (await page.request.get(`/api/items/${item.id}/distribution-targets`)).json();
+  expect(targets).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      channelId: trade.id,
+      active: true,
+      channel: expect.objectContaining({ businessPurpose: "TRADE" }),
+    }),
+  ]));
+  const detail = await (await page.request.get(`/api/items/${item.id}`)).json();
+  expect(detail.packages).toEqual([]);
+  expect(detail.listings).toEqual([]);
+});
+
 test("渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元", async ({
   page,
 }) => {

@@ -15,6 +15,7 @@
     "prisma/migrations/202609170012_distribution_foundation/migration.sql": "f68f26d44f968a17a355abff51587deb27beedc0972fed7a366423d80db7d98e",
     "prisma/migrations/202609170013_real_operations_price_basis/migration.sql": "131f269f8493315f28ac00d2c908d6ccaa92c2f02ec0ebe8223757304989085f",
     "prisma/migrations/202609170014_channel_price_revision_continuity/migration.sql": "a38e6b08cb3fa74a918af8efcb85b0b24cb39521b98ca5fd9b5d2f0042db1ed1",
-    "prisma/migrations/202609170015_distribution_source_attempt/migration.sql": "c4c7cbea28fc5adc157c9b20dfe9cdf13c5cddf060371b684ebd510ac02b4b16"
+    "prisma/migrations/202609170015_distribution_source_attempt/migration.sql": "c4c7cbea28fc5adc157c9b20dfe9cdf13c5cddf060371b684ebd510ac02b4b16",
+    "prisma/migrations/202609180016_distribution_intent/migration.sql": "2bda06723f0463af43affd570af5f8b796a13be267a73473c9279c95d88a8a80"
   }
 }

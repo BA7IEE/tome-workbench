@@ -23,9 +23,11 @@ import { currency, uuid, safeText } from "../common/domain";
 import { PrismaService } from "../database/prisma.service";
 import { assetPath } from "../media/media.controller";
 import {
+  channelBusinessPurpose,
   fixedChannelCurrency,
   PublishingService,
   purpose,
+  resolveChannelBusinessPurpose,
 } from "./publishing.service";
 import { DistributionService } from "../distribution/distribution.service";
 
@@ -115,6 +117,7 @@ export class PublishingController {
         ]),
         locale: z.enum(["zh-CN", "en"]).default("zh-CN"),
         titleLimit: z.number().int().min(16).max(300).default(80),
+        businessPurpose: channelBusinessPurpose.optional(),
         defaultCurrency: currency.optional(),
         distributionMode: z
           .enum(["MANUAL", "API", "AGENT", "SCRIPT"])
@@ -123,15 +126,29 @@ export class PublishingController {
       })
       .strict()
       .parse(raw);
-    const defaultCurrency = channelCurrency(b.platform, b.defaultCurrency);
+    const defaultCurrency = channelCurrency(b.platform, b.defaultCurrency),
+      businessPurpose = resolveChannelBusinessPurpose(
+        b.platform,
+        b.businessPurpose,
+      );
     return this.commands.run(
       r.actor.id,
       "channel.create",
       r.get("Idempotency-Key"),
-      { ...b, defaultCurrency, endpointUrl: safeEndpoint(b.endpointUrl) },
+      {
+        ...b,
+        defaultCurrency,
+        businessPurpose,
+        endpointUrl: safeEndpoint(b.endpointUrl),
+      },
       async (tx) => {
         const c = await tx.channel.create({
-          data: { ...b, defaultCurrency, endpointUrl: safeEndpoint(b.endpointUrl) },
+          data: {
+            ...b,
+            defaultCurrency,
+            businessPurpose,
+            endpointUrl: safeEndpoint(b.endpointUrl),
+          },
         });
         await audit(tx, r.actor.id, "CHANNEL_CREATED", c.id);
         return c;
@@ -150,6 +167,7 @@ export class PublishingController {
         locale: z.enum(["zh-CN", "en"]),
         titleLimit: z.number().int().min(16).max(300),
         active: z.boolean(),
+        businessPurpose: channelBusinessPurpose.optional(),
         defaultCurrency: currency.optional(),
         distributionMode: z
           .enum(["MANUAL", "API", "AGENT", "SCRIPT"])
@@ -172,16 +190,27 @@ export class PublishingController {
             "渠道刚被修改，请重新读取后核对",
             409,
           );
-        const { version, ...data } = b;
+        const {
+          version,
+          businessPurpose: requestedBusinessPurpose,
+          ...data
+        } = b;
         const defaultCurrency = channelCurrency(
           before.platform,
           data.defaultCurrency ?? before.defaultCurrency,
+        );
+        const businessPurpose = resolveChannelBusinessPurpose(
+          before.platform,
+          channelBusinessPurpose.parse(
+            requestedBusinessPurpose ?? before.businessPurpose,
+          ),
         );
         const updated = await tx.channel.update({
           where: { id },
           data: {
             ...data,
             defaultCurrency,
+            businessPurpose,
             distributionMode: data.distributionMode ?? before.distributionMode,
             endpointUrl:
               data.endpointUrl === undefined
@@ -194,15 +223,40 @@ export class PublishingController {
           before,
           after: updated,
         });
-        const affected = await tx.listing.findMany({
-          where: { channelId: id },
-          select: { itemId: true },
-          distinct: ["itemId"],
+        const affected = await tx.item.findMany({
+          where: {
+            OR: [
+              { listings: { some: { channelId: id } } },
+              { distributionTargets: { some: { channelId: id } } },
+            ],
+          },
+          select: { id: true },
         });
         for (const row of affected)
-          await event(tx, row.itemId, "CHANNEL_CHANGED", { channelId: id });
+          await event(tx, row.id, "CHANNEL_CHANGED", { channelId: id });
         return { id, version: updated.version };
       },
+    );
+  }
+  @Access("read") @Get("items/:id/distribution-targets") distributionTargets(
+    @Param("id") id: string,
+  ) {
+    return this.distribution.distributionTargets(uuid.parse(id));
+  }
+  @Access("publish")
+  @Post("items/:id/distribution-targets/:channelId")
+  setDistributionTarget(
+    @Param("id") id: string,
+    @Param("channelId") channelId: string,
+    @Body() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return this.distribution.setDistributionTarget(
+      r.actor,
+      uuid.parse(id),
+      uuid.parse(channelId),
+      r.get("Idempotency-Key"),
+      raw,
     );
   }
   @Access("read") @Get("items/:id/readiness") readiness(

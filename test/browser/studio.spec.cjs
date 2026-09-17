@@ -557,7 +557,7 @@ test("渠道切换先保存各自文案，返回原账号不丢内容不串号",
   const first = await page.getByLabel("发布目标账号").inputValue();
   const second = await api(page, "/channels", {
     name: "独立第二渠道 " + randomUUID(),
-    platform: "XHS",
+    platform: "OTHER",
     locale: "zh-CN",
     titleLimit: 80,
   });

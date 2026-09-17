@@ -1,99 +1,69 @@
-import { check, esc, form, note, request, select } from "./core";
+import { area, check, form, note, request, select } from "./core";
 import { confirmedBatchActions as batchActions } from "./batch-actions";
 import type { Channel, Item } from "./types";
 
-type ReadinessRow = {
-  itemId: string;
-  ready: boolean;
-  missing: { code: string; title: string }[];
-};
+function tradeChannels(channels: Channel[]) {
+  return channels.filter(
+    (channel) => channel.active && channel.businessPurpose === "TRADE",
+  );
+}
 
-function confirmPlan(items: Item[], channel: Channel, rows: ReadinessRow[]) {
-  const byId = new Map(items.map((item) => [item.id, item]));
-  const ready = rows.filter((row) => row.ready);
-  const blocked = rows.filter((row) => !row.ready);
-  if (!ready.length)
-    throw new Error("所选商品当前都未满足发布要求，请先处理缺项");
+/**
+ * Records a current business intention only. It deliberately does not create a
+ * package, a DistributionAttempt, a Listing, or an external platform action.
+ */
+export async function addDistributionTargets(items: Item[]) {
+  const channels = tradeChannels(await request<Channel[]>("/channels"));
+  if (!channels.length) throw new Error("请先创建并启用交易用途的渠道账号");
   form(
-    "确认批量分发计划",
+    "加入分发渠道",
     note(
-      `目标为 ${channel.name}：${ready.length} 件可生成冻结使用包并准备交付，${blocked.length} 件暂时阻断。系统会根据该渠道已有资料自动判断首次发布、更新或无需重复交付；不会调用外部平台。`,
+      `将为所选 ${items.length} 件商品记录当前希望经营的交易渠道。此动作不是发布预检，不生成冻结使用包或分发记录，也不会调用外部平台；商品即使尚未批准、缺图或不可售，也可以先明确经营意图。`,
     ) +
-      `<ul>${blocked
-        .map((row) => {
-          const item = byId.get(row.itemId);
-          return `<li>${esc(item ? `${item.code} ${item.title}` : row.itemId)}：${esc(row.missing.map((missing) => missing.title).join("；"))}</li>`;
-        })
-        .join("")}</ul>` +
-      check("confirmed", `我已核对并确认计划 ${ready.length} 件商品`),
+      select(
+        "channelId",
+        "交易渠道账号",
+        Object.fromEntries(
+          channels.map((channel) => [channel.id, channel.name]),
+        ),
+      ) +
+      area("reason", "经营意图说明", "", 3) +
+      check(
+        "duplicatePlatformConfirmed",
+        "如系统提示同平台已有其他账号目标，我明确确认要同时经营",
+      ) +
+      check("confirmed", `我已核对并确认加入该渠道的 ${items.length} 件商品`),
     async (data) => {
-      if (!data.has("confirmed")) throw new Error("请先确认预检结果");
+      const channelId = String(data.get("channelId") || "");
+      const reason = String(data.get("reason") || "").trim();
+      if (!channelId) throw new Error("请选择交易渠道账号");
+      if (!reason) throw new Error("请填写经营意图说明");
+      if (!data.has("confirmed")) throw new Error("请先确认本次经营意图");
       setTimeout(
         () =>
           batchActions(
-            "批量分发计划结果",
-            ready.map((row) => {
-              const item = byId.get(row.itemId)!;
-              return {
-                label: `${item.code} ${item.title}`,
-                run: async (key: string) => {
-                  const pack = await request<{ id: string }>(
-                    `/items/${item.id}/packages`,
-                    "POST",
-                    {
-                      channelId: channel.id,
-                      purpose: "TRADE",
-                      confirmed: true,
-                    },
-                    key,
-                  );
-                  return request(
-                    "/distribution/plan",
-                    "POST",
-                    { packageId: pack.id },
-                    `${key}.plan`,
-                  );
-                },
-              };
-            }),
+            "加入分发渠道结果",
+            items.map((item) => ({
+              label: `${item.code} ${item.title}`,
+              run: (key) =>
+                request(
+                  `/items/${item.id}/distribution-targets/${channelId}`,
+                  "POST",
+                  {
+                    active: true,
+                    reason,
+                    duplicatePlatformConfirmed: data.has(
+                      "duplicatePlatformConfirmed",
+                    ),
+                  },
+                  key,
+                ),
+            })),
           ),
         0,
       );
       return { nextStep: true };
     },
-    `确认生成 ${ready.length} 件计划`,
-  );
-}
-
-export async function bulkDistributionPlan(items: Item[]) {
-  const channels = (await request<Channel[]>("/channels")).filter(
-    (channel) => channel.active,
-  );
-  if (!channels.length) throw new Error("请先创建并启用渠道账号");
-  form(
-    "批量生成分发计划",
-    note(
-      "先按目标渠道逐件执行统一 Readiness；通过的商品才会生成冻结使用包和分发记录。图片、价格、批准资料与库存都会在提交时再校验，平台操作仍由外部 Agent、脚本或人工完成。",
-    ) +
-      select(
-        "channelId",
-        "目标渠道账号",
-        Object.fromEntries(
-          channels.map((channel) => [channel.id, channel.name]),
-        ),
-      ),
-    async (data) => {
-      const channelId = String(data.get("channelId") || "");
-      const channel = channels.find((row) => row.id === channelId);
-      if (!channel) throw new Error("请选择有效渠道账号");
-      const result = await request<{ rows: ReadinessRow[] }>(
-        "/distribution/readiness",
-        "POST",
-        { channelId, itemIds: items.map((item) => item.id), purpose: "TRADE" },
-      );
-      setTimeout(() => confirmPlan(items, channel, result.rows), 0);
-      return { nextStep: true };
-    },
-    "检查可发布商品",
+    `确认加入 ${items.length} 件商品`,
   );
 }

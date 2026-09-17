@@ -19,6 +19,7 @@ import { Fault } from "../common/errors";
 import {
   packageContext,
   purpose,
+  requireTradeChannel,
   requiredChannelCurrency,
 } from "./publishing.service";
 import { channelCopy } from "./channel-copy";
@@ -84,6 +85,8 @@ export class StudioController {
         const c = await packageContext(tx, id, b.channelId, false),
           plan = await reviewBasis(tx, id),
           canReview = permission(r.actor.role, "review");
+        if (b.purpose === "TRADE")
+          requireTradeChannel(c.channel, "交易资料编辑");
         const draft = await tx.publishingDraft.findUnique({
           where: {
             itemId_channelId_purpose: {

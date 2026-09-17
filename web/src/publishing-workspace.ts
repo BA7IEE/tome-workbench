@@ -140,18 +140,25 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
       "渠道资料",
       note("此账号可以查看商品。生成发布资料需要发布权限，请联系管理员。"),
     );
-  const available = channels.filter((c) => c.active);
+  const qs = new URLSearchParams(location.hash.split("?")[1] || ""),
+    use = qs.get("purpose") || "TRADE",
+    available = channels.filter(
+      (channel) =>
+        channel.active &&
+        (use !== "TRADE" || channel.businessPurpose === "TRADE"),
+    );
   if (!available.length)
     return section(
-      "先添加你要使用的渠道",
+      use === "TRADE" ? "先添加交易用途渠道" : "先添加你要使用的渠道",
       note(
-        "例如闲鱼主号、小红书店铺、VC英文账号。每个渠道独立维护文案，不重复录入商品事实。",
+        use === "TRADE"
+          ? "交易发布只可使用交易用途账号；小红书等内容渠道和自有展厅不进入交易分发。"
+          : "例如闲鱼主号、小红书店铺、VC英文账号。每个渠道独立维护文案，不重复录入商品事实。",
       ),
       can("users") ? button("＋ 添加常用渠道", setupChannel, "primary") : "",
     );
-  const qs = new URLSearchParams(location.hash.split("?")[1] || ""),
-    channel = available.find((c) => c.id === qs.get("channel")) || available[0],
-    use = qs.get("purpose") || "TRADE";
+  const channel =
+    available.find((c) => c.id === qs.get("channel")) || available[0];
   const [space, readiness] = await Promise.all([
     request<Space>(
       `/items/${i.id}/publishing-space?channelId=${channel.id}&purpose=${use}`,

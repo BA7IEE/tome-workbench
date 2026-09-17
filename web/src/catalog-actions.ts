@@ -2,7 +2,7 @@ import { exportMaterials } from "./materials";
 import { beginCollection } from "./collection-builder";
 import { bulkPrices } from "./bulk-prices";
 import { bulkChannelPrices } from "./bulk-channel-prices";
-import { bulkDistributionPlan } from "./bulk-distribution";
+import { addDistributionTargets } from "./bulk-distribution";
 import { bulkDictionaries } from "./bulk-dictionaries";
 import { deleteProducts } from "./recycle-bin";
 import {
@@ -234,8 +234,8 @@ export function catalogActions(chosen: () => Item[]): CatalogAction[] {
         run: () => beginCollection(chosen()),
       },
       {
-        label: "批量生成分发计划",
-        run: () => bulkDistributionPlan(chosen()),
+        label: "加入分发渠道",
+        run: () => addDistributionTargets(chosen()),
       },
     );
   if (can("review"))

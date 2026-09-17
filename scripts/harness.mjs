@@ -353,6 +353,27 @@ export function checks(
       read("test/integration.test.cjs").includes("Distribution Foundation："),
   );
   check(
+    "v11-distribution-intent",
+    () =>
+      read("prisma/schema.prisma").includes("model DistributionTarget") &&
+      read("prisma/schema.prisma").includes("businessPurpose") &&
+      read(
+        "prisma/migrations/202609180016_distribution_intent/migration.sql",
+      ).includes("DistributionTarget") &&
+      read("src/publishing/publishing.controller.ts").includes(
+        "distribution-targets",
+      ) &&
+      read("src/publishing/publishing.service.ts").includes(
+        "requireTradeChannel",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
+      ) &&
+      read("web/src/bulk-distribution.ts").includes("加入分发渠道") &&
+      read("test/integration.test.cjs").includes("Distribution Intent：") &&
+      read("test/browser/operations.spec.cjs").includes("批量加入分发渠道"),
+  );
+  check(
     "v11-distribution-standard-handoff",
     () => {
       const mcp = read("src/distribution/distribution-mcp.controller.ts");
