@@ -100,9 +100,9 @@ API/Worker在data/run创建本库进程标记。进程崩溃的标记检查PID�
 
 ## v1.1 标准 Agent 接入
 
-创建短期导入会话后，只把一次性 Token 通过受控渠道交给负责采集的人或 Agent。接入方必须先读取 `/api/agent-ingest/protocol`，校验返回 Skill 和本来源 Profile 的 SHA-256；Profile 不匹配、协议主版本不兼容或标准版本低于 1.2 时停止，不要靠旧脚本猜测写法。
+创建短期导入会话后，只把一次性 Token 通过受控渠道交给负责采集的人或 Agent。接入方必须先读取 `/api/agent-ingest/protocol`，校验返回 Skill 和本来源 Profile 的 SHA-256；Profile 不匹配、协议主版本不兼容或标准版本低于 1.2 时停止，不要靠旧脚本猜测写法。每个新机器 Batch 都必须提交 `protocolVersion`、`skillVersion` 与服务器指定的 `profile`；漏传会被拒绝，不能把新采集伪装成 legacy。只有已存在的同键历史批次才保留旧合同读取/重试。
 
-推荐交付仓库内的 `tome-ingest` 命令，或把薄 MCP 地址 `/api/mcp/ingest` 配给受控 Agent。两者都只可创建批次、导入订单、写候选、查状态和封批；来源图仍须用 multipart 上传。不能把 Token 放入 `.tome-ingest-state.json`、脚本、截图、日志、数据库备注或聊天记录。状态文件只帮助同一台机器以原请求和原幂等键恢复未知结果。
+推荐交付仓库内的 `tome-ingest` 命令，或把薄 MCP 地址 `/api/mcp/ingest` 配给受控 Agent。两者都只可创建批次、导入订单、写候选、查状态和封批；来源图仍须用 multipart 上传。MCP 默认使用 `X-Ingest-Token`，无法设置该头时可用 `Authorization: Bearer <同一Token>`，不会获得更多权限。不能把 Token 放入 `.tome-ingest-state.json`、脚本、截图、日志、数据库备注或聊天记录。状态文件只帮助同一台机器以原请求和原幂等键恢复未知结果。
 
 Profile 的必查字段由服务端与 Agent 本次 `requiredFields` 合并。来源没有提供时写 `UNAVAILABLE + 原因`，不能删除检查项、填零、用常识补齐或把来源字段直接解释为本地库存、成色、成本、售价、成交或公开图片权利。封批前先看完整性报告；blocker 未清零不能封批，非阻断来源缺项仍须在人工候选确认时逐件说明。
 

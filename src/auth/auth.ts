@@ -99,7 +99,9 @@ export class AuthGuard implements CanActivate {
     const cfg = config();
     const machine = this.reflector.getAllAndOverride<boolean>("machineIngest", [ctx.getHandler(),ctx.getClass()]);
     if(machine){
-      const token=req.get("X-Ingest-Token") || "";
+      const directToken=req.get("X-Ingest-Token") || "";
+      const bearer=/^Bearer\s+([a-f0-9]{64})$/.exec(req.get("Authorization") || "")?.[1] || "";
+      const token=directToken || bearer;
       if(!/^[a-f0-9]{64}$/.test(token)) throw new Fault("INGEST_TOKEN_REQUIRED","缺少有效导入令牌",401);
       const session=await this.db.ingestSession.findUnique({where:{tokenHash:digest(token)}});
       if(!session || session.revokedAt || session.expiresAt<=new Date()) throw new Fault("INGEST_SESSION_EXPIRED","导入会话不存在、已撤销或已过期",401);

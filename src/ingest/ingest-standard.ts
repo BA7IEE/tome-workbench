@@ -128,6 +128,30 @@ export function assertStandardManifest(
   return sourceProfile;
 }
 
+/**
+ * New machine-created batches must identify the exact protocol, Skill and
+ * server-selected Profile they used.  `assertStandardManifest` intentionally
+ * remains able to describe historical rows that predate v1.2; callers that
+ * create a new row must use this stricter entry point instead.
+ */
+export function assertNewMachineBatchManifest(
+  manifest: unknown,
+  sourceProfile: IngestProfile,
+) {
+  const value = record(manifest);
+  if (
+    typeof value.protocolVersion !== "string" ||
+    typeof value.skillVersion !== "string" ||
+    typeof value.profile !== "string"
+  )
+    throw new Fault(
+      "INGEST_STANDARD_MANIFEST_REQUIRED",
+      "新机器批次必须提交 protocolVersion、skillVersion 和 profile",
+      400,
+    );
+  return assertStandardManifest(manifest, sourceProfile);
+}
+
 export function effectiveRequiredFields(manifest: unknown) {
   const value = record(manifest),
     declared = Array.isArray(value.requiredFields)

@@ -17,6 +17,81 @@ async function openNew(page) {
     4,
   );
 }
+function standardManifest(extra = {}) {
+  return {
+    ...extra,
+    protocolVersion: "1.2",
+    skillVersion: "tome-ingest/1.0",
+    profile: "GENERIC_MARKETPLACE/1.0",
+  };
+}
+const genericProfileFields = [
+  ["titleRaw", "商品名称"],
+  ["sourceItemKey", "来源货号"],
+  ["brandRaw", "来源品牌"],
+  ["categoryRaw", "来源品类"],
+  ["conditionRaw", "来源成色"],
+  ["sourceFacts.sizeLabel", "标签尺码"],
+  ["sourceFacts.productUrl", "来源页面"],
+  ["sourceFacts.description", "来源描述"],
+  ["sourceCurrentPrice", "来源当前价"],
+];
+function readCandidatePath(candidate, path) {
+  return path
+    .split(".")
+    .reduce(
+      (value, key) =>
+        value && typeof value === "object" ? value[key] : undefined,
+      candidate,
+    );
+}
+function hasCandidateValue(value) {
+  return (
+    value !== null &&
+    value !== undefined &&
+    value !== "" &&
+    (!Array.isArray(value) || value.length > 0) &&
+    (typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length > 0)
+  );
+}
+function standardizeGenericCandidate(candidate, key = candidate.externalKey) {
+  const sourceFacts =
+      candidate.sourceFacts && typeof candidate.sourceFacts === "object"
+        ? candidate.sourceFacts
+        : {},
+    existing =
+      sourceFacts.capture && typeof sourceFacts.capture === "object"
+        ? sourceFacts.capture
+        : {},
+    fields = Array.isArray(existing.fields) ? [...existing.fields] : [];
+  for (const [path, label] of genericProfileFields)
+    if (!fields.some((field) => field.path === path)) {
+      const value = readCandidatePath(candidate, path);
+      fields.push(
+        hasCandidateValue(value)
+          ? { path, label, status: "CAPTURED" }
+          : {
+              path,
+              label,
+              status: "UNAVAILABLE",
+              reason: "合成来源未提供该字段",
+            },
+      );
+    }
+  const capture = {
+    ...existing,
+    capturedAt: existing.capturedAt || "2026-09-17T00:00:00.000Z",
+    fields,
+    images: Array.isArray(existing.images) ? existing.images : [],
+  };
+  if (!capture.pageUrl && !capture.fileEvidence)
+    capture.pageUrl =
+      "https://example.invalid/ingest/" + encodeURIComponent(String(key));
+  candidate.sourceFacts = { ...sourceFacts, capture };
+  return candidate;
+}
 test.beforeEach(async ({ page }) => login(page));
 
 test("桌面商品编辑器保持清晰主栏与侧栏，不横向溢出", async ({ page }) => {
@@ -340,16 +415,16 @@ test("候选全部筛选包含已排除，空结果有恢复入口，手机筛�
     agentName: "UI synthetic",
     agentVersion: "1",
     kind: "ITEM_BATCH",
-    rawManifest: { synthetic: true },
+    rawManifest: standardManifest({ synthetic: true }),
   });
   await machine("/agent-ingest/batches/" + batch.id + "/candidates", {
     candidates: [
-      {
+      standardizeGenericCandidate({
         externalKey: suffix,
         titleRaw: "筛选候选 " + suffix,
         sourceFacts: {},
         rawPayload: { synthetic: true },
-      },
+      }),
     ],
   });
   await page.goto("/#/candidates?sourceId=" + source.id);
@@ -555,26 +630,28 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
       agentName: "Return synthetic",
       agentVersion: "1",
       kind: "ITEM_BATCH",
-      rawManifest: { synthetic: true },
+      rawManifest: standardManifest({ synthetic: true }),
     }),
     imported = await machine(
       "/agent-ingest/batches/" + batch.id + "/candidates",
       {
         candidates: [
-          {
+          standardizeGenericCandidate({
             externalKey: key,
             titleRaw: "返回商品 " + key,
             brandRaw: "非标准合成品牌",
             sourceFacts: {},
             rawPayload: { synthetic: true },
-          },
+          }),
         ],
       },
     );
+  await machine("/agent-ingest/batches/" + batch.id + "/seal", {});
   await uiApi(page, "/ingest/candidates/" + imported.rows[0].id + "/confirm", {
     version: imported.rows[0].version,
     possession: "IN_HAND",
     status: "AVAILABLE",
+    acceptIncomplete: true,
     note: "合成实物确认",
   });
   const hash =

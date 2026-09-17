@@ -6,9 +6,10 @@ ToMeBoutique 不内置网页采集机器人。Codex、WorkBuddy、自研脚本�
 后台人员在「导入记录 → 外部工具接入」（旧待确认入口仍保留）创建短期导入会话。Token 只显示一次，不等于后台账号，也不继承管理员权限。
 
 ## 请求约定
-Agent 请求使用：
+Agent 请求使用下列其中一种令牌头：
 
 - `X-Ingest-Token: <短期Token>`
+- 或 `Authorization: Bearer <同一短期Token>`（无法设置自定义头的 MCP 客户端）；同时发送时以 `X-Ingest-Token` 为准
 - 所有写请求必须带 `Idempotency-Key`
 - Base URL：`/api/agent-ingest`
 
@@ -55,6 +56,9 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "agentName": "External Collector",
   "kind": "ORDER_HISTORY",
   "rawManifest": {
+    "protocolVersion": "1.2",
+    "skillVersion": "tome-ingest/1.0",
+    "profile": "服务端 protocol.profile.id",
     "expectedCandidateKeys": ["supplier:order-001:sku-001"],
     "requiredFields": ["titleRaw", "sourceFacts.description", "sourceFacts.sizeLabel"]
   }
@@ -170,7 +174,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-`requiredFields` 仅用于增加本次采集检查。封批时实际必查字段为 **当前 Profile 的服务端必查字段 ∪ 本 Manifest 声明字段**。所有字段都需要在 `sourceFacts.capture.fields` 里记录 `CAPTURED` 或带原因的 `UNAVAILABLE`；不能用删掉检查项降低合同。带标准元数据的批次 Profile 错配、Skill 版本错误或协议不兼容时在创建时拒绝；旧批次没有这些元数据时保持历史兼容。
+`requiredFields` 仅用于增加本次采集检查。封批时实际必查字段为 **当前 Profile 的服务端必查字段 ∪ 本 Manifest 声明字段**。所有字段都需要在 `sourceFacts.capture.fields` 里记录 `CAPTURED` 或带原因的 `UNAVAILABLE`；不能用删掉检查项降低合同。新机器批次缺少三项标准元数据、Profile 错配、Skill 版本错误或协议不兼容都会在创建时拒绝。只有数据库已经存在且同一来源、批次键、清单完全相同的历史批次可以继续按旧合同读取或重放；新 Agent 不能靠省略 metadata 当作 legacy。
 
 ### 标准资料目录
 
@@ -182,7 +186,7 @@ Profile 规定字段含义，不存放网页 selector、第三方 Cookie、账�
 
 ### 薄 MCP
 
-`/api/mcp/ingest` 是无状态、受 `X-Ingest-Token` 保护的 JSON-RPC MCP 工具面。POST 接收单条请求或批次；仅通知时返回空的 HTTP 202，含请求时返回 HTTP 200 JSON。服务端校验浏览器 Origin，避免跨站页面携带 Token 调用。它不提供 SSE，已认证的 GET 明确返回 `405 Allow: POST`。只有以下六个工具：
+`/api/mcp/ingest` 是无状态、受 `X-Ingest-Token` 或同一 Token 的 `Authorization: Bearer` 保护的 JSON-RPC MCP 工具面。POST 接收单条请求或批次；仅通知时返回空的 HTTP 202，含请求时返回 HTTP 200 JSON。服务端校验浏览器 Origin，避免跨站页面携带 Token 调用。它不提供 SSE，已认证的 GET 明确返回 `405 Allow: POST`。只有以下六个工具：
 
 - `tome_ingest_get_protocol`
 - `tome_ingest_create_batch`
