@@ -3,8 +3,8 @@ import { Fault } from "../common/errors";
 import { safeText } from "../common/domain";
 
 // This module deliberately has no HTTP client, endpoint, credential, or
-// side-effect. It freezes the local/deidentified Spike contract that a later
-// deterministic connector may implement after a real API UAT is approved.
+// side-effect. It freezes the local/deidentified handoff contract that a later
+// external Agent may use after a real API UAT is separately approved.
 export const anqicmsSpikeProtocol = "tome.anqicms.spike/v1";
 
 const tmCode = z.string().regex(/^TM\d{6,}$/);
@@ -27,9 +27,18 @@ const asset = z
   })
   .strict();
 
-const payloadInput = z
+const listingInput = z
   .object({
-    action: z.enum(["PUBLISH", "UPDATE", "DELIST"]),
+    archiveId: safeText(300).min(1),
+    url: z.union([z.literal(""), z.string().url().max(2000)]).default(""),
+  })
+  .strict()
+  .nullable()
+  .default(null);
+
+const publicationInput = z
+  .object({
+    action: z.enum(["PUBLISH", "UPDATE"]),
     item: z
       .object({
         tmCode,
@@ -40,7 +49,10 @@ const payloadInput = z
         status: itemStatus,
         brand: safeText(100).min(1),
         category: safeText(100).min(1),
-        condition: safeText(3000).min(1),
+        // `conditionGrade` is a controlled dictionary code (for example
+        // VERY_GOOD); the free-text disclosure remains a separate fact.
+        conditionGrade: safeText(100).default(""),
+        conditionDescription: safeText(3000).min(1),
         size: safeText(100).default(""),
         color: safeText(100).default(""),
         material: safeText(300).default(""),
@@ -51,14 +63,23 @@ const payloadInput = z
       })
       .strict(),
     images: z.array(asset).max(40),
-    listing: z
+    listing: listingInput,
+  })
+  .strict();
+
+// A safety stop has a deliberately smaller contract than a publication.  It
+// must never make old image rights, price, text or package validity a reason
+// to leave a sold item purchasable.
+const takedownInput = z
+  .object({
+    action: z.literal("DELIST"),
+    item: z
       .object({
-        archiveId: safeText(300).min(1),
-        url: z.union([z.literal(""), z.string().url().max(2000)]).default(""),
+        tmCode,
+        status: itemStatus,
       })
-      .strict()
-      .nullable()
-      .default(null),
+      .strict(),
+    listing: listingInput,
   })
   .strict();
 
@@ -69,7 +90,8 @@ const receiptInput = z
   })
   .passthrough();
 
-export type AnqicmsSpikeInput = z.infer<typeof payloadInput>;
+export type AnqicmsSpikeInput = z.infer<typeof publicationInput>;
+export type AnqicmsTakedownProjectionInput = z.infer<typeof takedownInput>;
 
 function sensitive(value: string) {
   return /(?:bearer\s+\S+|(?:token|password|secret|cookie|authorization|api[_-]?key|access[_-]?(?:token|key)|credential|session)\s*[:=]\s*\S+)/i.test(
@@ -130,7 +152,7 @@ function sortedImages(rows: AnqicmsSpikeInput["images"]) {
   const seen = new Set<string>();
   for (const row of rows) {
     if (seen.has(row.id))
-      throw new Fault("ANQICMS_IMAGE_DUPLICATE", "Spike 图片不能重复", 400);
+      throw new Fault("ANQICMS_IMAGE_DUPLICATE", "AnQiCMS 合同图片不能重复", 400);
     seen.add(row.id);
   }
   return [...rows].sort(
@@ -138,10 +160,45 @@ function sortedImages(rows: AnqicmsSpikeInput["images"]) {
   );
 }
 
-function disclosure(body: string, condition: string) {
-  return body.includes(condition)
+function disclosure(body: string, conditionDescription: string) {
+  return body.includes(conditionDescription)
     ? body
-    : `${body}\n\nCondition / disclosed defects: ${condition}`;
+    : `${body}\n\nCondition / disclosed defects: ${conditionDescription}`;
+}
+
+/**
+ * Produce the identity-only safety-stop contract.  This is intentionally
+ * separate from publication payload creation: a stock=0 operation needs only
+ * the stable remote identity and current inventory fact.
+ */
+export function buildAnqicmsTakedownProjection(raw: unknown) {
+  const input = takedownInput.parse(raw);
+  const stable = input.listing
+    ? {
+        archiveId: archiveId(input.listing.archiveId),
+        url: checkedUrl(input.listing.url),
+      }
+    : null;
+  if (!stable)
+    throw new Fault(
+      "ANQICMS_ARCHIVE_ID_REQUIRED",
+      "AnQiCMS 售出库存同步必须已有 archive ID，不能按标题猜测页面",
+      409,
+    );
+  return {
+    protocol: anqicmsSpikeProtocol,
+    sourceAction: input.action,
+    operation: "STOCK_ZERO" as const,
+    identity: { tm_code: input.item.tmCode, archive_id: stable.archiveId },
+    fields: { stock: 0 },
+    page: {
+      retain: true,
+      displayState: input.item.status === "SOLD" ? "SOLD" : "UNAVAILABLE",
+      checkout: false,
+      inquiryOnly: true,
+    },
+    remoteUrl: stable.url,
+  };
 }
 
 /**
@@ -149,36 +206,19 @@ function disclosure(body: string, condition: string) {
  * not an AnQiCMS HTTP request and never reads configuration or credentials.
  */
 export function buildAnqicmsSpikePayload(raw: unknown) {
-  const input = payloadInput.parse(raw);
+  const action = z
+    .object({ action: z.unknown() })
+    .passthrough()
+    .safeParse(raw);
+  if (action.success && action.data.action === "DELIST")
+    return buildAnqicmsTakedownProjection(raw);
+  const input = publicationInput.parse(raw);
   const stable = input.listing
     ? {
         archiveId: archiveId(input.listing.archiveId),
         url: checkedUrl(input.listing.url),
       }
     : null;
-
-  if (input.action === "DELIST") {
-    if (!stable)
-      throw new Fault(
-        "ANQICMS_ARCHIVE_ID_REQUIRED",
-        "AnQiCMS 售出库存同步必须已有 archive ID，不能按标题猜测页面",
-        409,
-      );
-    return {
-      protocol: anqicmsSpikeProtocol,
-      sourceAction: input.action,
-      operation: "STOCK_ZERO" as const,
-      identity: { tm_code: input.item.tmCode, archive_id: stable.archiveId },
-      fields: { stock: 0 },
-      page: {
-        retain: true,
-        displayState: input.item.status === "SOLD" ? "SOLD" : "UNAVAILABLE",
-        checkout: false,
-        inquiryOnly: true,
-      },
-      remoteUrl: stable.url,
-    };
-  }
 
   if (input.item.status !== "AVAILABLE")
     throw new Fault(
@@ -190,10 +230,10 @@ export function buildAnqicmsSpikePayload(raw: unknown) {
   if (!images.length)
     throw new Fault(
       "ANQICMS_IMAGE_REQUIRED",
-      "AnQiCMS 发布 Spike 至少需要一张已授权图片",
+      "AnQiCMS 发布合同至少需要一张已授权图片",
       400,
     );
-  const content = disclosure(input.item.body, input.item.condition);
+  const content = disclosure(input.item.body, input.item.conditionDescription);
   const gallery = images.slice(0, 9);
   const bodyImages = images.slice(9);
   return {
@@ -222,14 +262,15 @@ export function buildAnqicmsSpikePayload(raw: unknown) {
       custom: {
         tm_code: input.item.tmCode,
         brand: input.item.brand,
-        condition: input.item.condition,
+        condition_grade: input.item.conditionGrade,
+        condition_description: input.item.conditionDescription,
         size: input.item.size,
         color: input.item.color,
         material: input.item.material,
         measurements: input.item.measurements,
         year: input.item.year,
         collection: input.item.collection,
-        style_number: input.item.styleNumber,
+        styleNumber: input.item.styleNumber,
       },
     },
     page: { retain: true, displayState: "LIVE" as const, checkout: false, inquiryOnly: true },

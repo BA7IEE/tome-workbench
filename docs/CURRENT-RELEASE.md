@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录、来源关联停售、Real Operations 与 AnQiCMS 本地 Spike 合同，尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录、来源关联停售、Real Operations 与 AnQiCMS 本地标准交付合同，尚未完成真实生产和经营验收。
 
 2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
 
@@ -12,7 +12,7 @@
 
 本版新增 Real Operations：前向 migrations `202609170013_real_operations_price_basis` 与 `202609170014_channel_price_revision_continuity` 让草稿和冻结 UsePackage 绑定有效渠道价的来源/版本，并保留“改回默认价”后的版本连续性。`ChannelPrice` 存在且启用时覆盖 Item 默认报价，否则回退 `Item.currentPrice/currency`；Readiness、预览、草稿、UsePackage 和有效包复核都使用同一解析。AnQiCMS 必须是 USD、闲鱼必须是 CNY；没有自动换汇。询盘的 `WON` 只由确认成交动作产生：同一事务锁定 Item、检查版本与预留、创建 Sale、停售、更新 Inquiry、写 Audit/Outbox 并为已成功分发渠道计划 DELIST。商品库提供批量批准预检、批量渠道价和批量资料交付；分发中心只记录交付、回传和需要停售的经营状态，不调用第三方。
 
-本版新增 AnQiCMS 本地资料交付合同：它将冻结使用包映射为 tm_code、USD、最多 9 张 Gallery 图片、正文图片、自定义字段与 SEO 资料，供外部 Agent 的 MCP/API 或人工取用。没有 archive ID 时只允许执行方按 tm_code 保护性查找，取得稳定 archive ID 后才可回填 Listing；售出后的 DELIST 合同要求 stock=0、保留页面、SOLD、无 Checkout。保留的受限读取接口没有 HTTP 客户端、配置或凭据读取、外部请求或数据库写入；真实 API/UAT 在 ToMe 外部完成。
+本版新增 AnQiCMS 本地标准资料交付合同：它将冻结使用包映射为 tm_code、USD、最多 9 张 Gallery 图片、正文图片、分开的 `condition_grade`/`condition_description`、统一的 `styleNumber` 与 SEO 资料，供外部 Agent 的 MCP/API 或人工取用。没有 archive ID 时只允许执行方按 tm_code 保护性查找，取得稳定 archive ID 后才可回填 Listing；售出后的 DELIST 是只读取 TM、当前状态和 archive ID 的 identity-only 投影，要求 stock=0、保留页面、SOLD、无 Checkout，不被历史图片授权或使用包失效阻塞。保留的受限读取接口没有 HTTP 客户端、配置或凭据读取、外部请求或数据库写入；真实 API/UAT 在 ToMe 外部完成，20 件真实授权商品 UAT 本次未做。
 
 渠道币种交互补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。没有实时汇率、自动定价或 Sale 财务模型重写。
 
@@ -76,7 +76,7 @@
 
 ## 本版范围
 
-- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations 与 AnQiCMS 本地 Spike 合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
+- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations 与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
 
 ## 尚未完成

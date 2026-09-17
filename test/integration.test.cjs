@@ -4767,9 +4767,9 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   assert.ok(queue.summary.distribution >= 1);
 });
 
-test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID 更新与售出保页", async () => {
+test("AnQiCMS 标准交付合同：受限会话以脱敏本地资料覆盖建页、archive ID 更新与售出保页", async () => {
   const anqicms = await ok("/channels", "POST", {
-    name: "AnQiCMS 本地 Spike " + randomUUID().slice(0, 8),
+    name: "AnQiCMS 本地合同 " + randomUUID().slice(0, 8),
     platform: "ANQICMS",
     locale: "en",
     titleLimit: 120,
@@ -4777,10 +4777,12 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
     distributionMode: "API",
     endpointUrl: "https://example.invalid/anqicms-spike",
   });
+  const condition = await dictionaryOption("CONDITION", "VERY_GOOD");
   const i = await ready({
     category: "BAG",
     currentPrice: 200000,
     currency: "CNY",
+    dictionary: { condition: condition.id },
     facts: {
       mainMaterial: "Leather",
       condition: "Synthetic corner wear is disclosed.",
@@ -4795,7 +4797,7 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
       attributes: {
         year: "2022",
         collection: "Local contract set",
-        style_number: "ANQI-SPIKE-01",
+        styleNumber: "ANQI-SPIKE-01",
       },
     },
   });
@@ -4811,7 +4813,7 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
   });
   const p = await pack(i.id, anqicms);
   const publish = await ok("/distribution/plan", "POST", { packageId: p.id });
-  const session = await distributionSession(anqicms.id, "AnQiCMS Spike 合成会话");
+  const session = await distributionSession(anqicms.id, "AnQiCMS 本地合同合成会话");
   await distributionAgentOk(
     "/distribution-agent/attempts/" + publish.id + "/claim",
     session.token,
@@ -4830,7 +4832,14 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
   assert.equal(create.payload.fields.images.length, 9);
   assert.equal(create.payload.fields.contentImages.length, 1);
   assert.equal(create.payload.fields.contentImages[0].role, "DEFECT");
-  assert.equal(create.payload.fields.custom.style_number, "ANQI-SPIKE-01");
+  assert.equal(create.payload.fields.custom.styleNumber, "ANQI-SPIKE-01");
+  assert.equal(create.payload.fields.custom.condition_grade, "VERY_GOOD");
+  assert.equal(
+    create.payload.fields.custom.condition_description,
+    "Synthetic corner wear is disclosed.",
+  );
+  assert.equal("condition" in create.payload.fields.custom, false);
+  assert.equal("style_number" in create.payload.fields.custom, false);
   assert.ok(create.payload.fields.content.includes("Synthetic corner wear is disclosed."));
   assert.equal(create.payload.page.checkout, false);
   assert.equal(JSON.stringify(create.payload).includes("cost"), false);
@@ -4892,6 +4901,12 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
     session.token,
     "POST",
   );
+  // The package's former image authorization can expire after publication.
+  // A safety stock=0 operation must not reopen that historical package.
+  await db.asset.update({
+    where: { id: i.asset },
+    data: { validUntil: new Date(Date.now() - 1000) },
+  });
   const soldPayload = await distributionAgentOk(
     "/distribution-agent/attempts/" + delist.id + "/anqicms-spike",
     session.token,
@@ -4899,6 +4914,7 @@ test("AnQiCMS Spike：受限会话以脱敏本地合同覆盖建页、archive ID
   assert.equal(soldPayload.payload.operation, "STOCK_ZERO");
   assert.equal(soldPayload.payload.identity.archive_id, archiveId);
   assert.equal(soldPayload.payload.fields.stock, 0);
+  assert.deepEqual(soldPayload.payload.fields, { stock: 0 });
   assert.equal(soldPayload.payload.page.retain, true);
   assert.equal(soldPayload.payload.page.displayState, "SOLD");
   assert.equal(soldPayload.payload.page.checkout, false);

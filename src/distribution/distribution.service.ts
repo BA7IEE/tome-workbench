@@ -28,7 +28,10 @@ import {
   packageSnapshot,
   PublishingService,
 } from "../publishing/publishing.service";
-import { buildAnqicmsSpikePayload } from "./anqicms-spike";
+import {
+  buildAnqicmsSpikePayload,
+  buildAnqicmsTakedownProjection,
+} from "./anqicms-spike";
 
 const terminalState = z.enum(["SUCCEEDED", "FAILED", "UNKNOWN"]);
 const remoteUrl = z.union([z.literal(""), z.string().url().max(2000)]);
@@ -1850,8 +1853,8 @@ export class DistributionService {
     });
   }
 
-  // This is a read-only local Spike payload, not an AnQiCMS connector. The
-  // later connector owns HTTP, credentials, retry policy and remote writes.
+  // This is a read-only local handoff payload, not an AnQiCMS connector. An
+  // external Agent owns HTTP, credentials, retry policy and remote writes.
   async agentAnqicmsSpikePayload(session: AgentSession, id: string) {
     return this.db.$transaction(async (tx) => {
       const attempt = await this.activeClaim(tx, session, id);
@@ -1861,45 +1864,50 @@ export class DistributionService {
       if (channel.platform !== "ANQICMS")
         throw new Fault(
           "ANQICMS_CHANNEL_REQUIRED",
-          "只有 AnQiCMS API 渠道可以读取 Spike 资料合同",
+          "只有 AnQiCMS API 渠道可以读取本地资料合同",
           409,
         );
 
-      const historical = attempt.action === "DELIST";
-      let packageId = attempt.packageId;
-      if (!packageId && historical) {
-        const source = await tx.distributionAttempt.findFirst({
-          where: {
-            itemId: attempt.itemId,
-            channelId: attempt.channelId,
-            action: { in: ["PUBLISH", "UPDATE"] },
-            state: "SUCCEEDED",
-            packageId: { not: null },
-          },
-          orderBy: [
-            { finishedAt: "desc" },
-            { createdAt: "desc" },
-            { id: "desc" },
-          ],
-          select: { packageId: true },
+      if (attempt.action === "DELIST") {
+        const item = await tx.item.findUniqueOrThrow({
+          where: { id: attempt.itemId },
+          select: { id: true, serial: true, status: true },
         });
-        packageId = source?.packageId || null;
+        const listing = await tx.listing.findFirst({
+          where: { itemId: item.id, channelId: attempt.channelId },
+          orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+          select: { remoteId: true, url: true },
+        });
+        const payload = buildAnqicmsTakedownProjection({
+          action: "DELIST",
+          item: { tmCode: tm(item.serial), status: item.status },
+          listing: listing
+            ? { archiveId: listing.remoteId, url: listing.url }
+            : null,
+        });
+        return {
+          attemptId: attempt.id,
+          channel: {
+            id: channel.id,
+            platform: channel.platform,
+            name: channel.name,
+            locale: channel.locale,
+          },
+          payload,
+        };
       }
-      if (!packageId)
+
+      if (!attempt.packageId)
         throw new Fault(
           "ANQICMS_PACKAGE_REQUIRED",
-          "AnQiCMS Spike 需要当前或历史发布使用包，不能凭空拼装资料",
+          "AnQiCMS 发布资料需要有效冻结使用包，不能凭空拼装资料",
           409,
         );
-      const pack = await this.publishing.validPackage(
-        tx,
-        packageId,
-        historical,
-      );
+      const pack = await this.publishing.validPackage(tx, attempt.packageId);
       if (pack.s.price === null || pack.s.currency !== "USD")
         throw new Fault(
           "ANQICMS_USD_REQUIRED",
-          "AnQiCMS Spike 只接受已冻结的 USD 渠道报价",
+          "AnQiCMS 发布合同只接受已冻结的 USD 渠道报价",
           409,
         );
       const revision = await tx.itemRevision.findUnique({
@@ -1915,10 +1923,16 @@ export class DistributionService {
       if (!approved?.brand || !approved.category || !approved.facts)
         throw new Fault(
           "ANQICMS_APPROVED_FACTS_REQUIRED",
-          "Spike 需要冻结版本中的品牌、分类和已批准商品事实",
+          "AnQiCMS 合同需要冻结版本中的品牌、分类和已批准商品事实",
           409,
         );
       const facts = factsSchema.parse(approved.facts);
+      const conditionSelection = await tx.itemDictionarySelection.findUnique({
+        where: {
+          itemId_kind: { itemId: pack.p.itemId, kind: "CONDITION" },
+        },
+        select: { code: true },
+      });
       const attribute = (key: string) => {
         const value = facts.attributes[key];
         return typeof value === "string" ||
@@ -1928,29 +1942,27 @@ export class DistributionService {
           : "";
       };
       const byId = new Map(pack.assets.map((asset) => [asset.id, asset]));
-      const images = historical
-        ? []
-        : pack.s.assets.map((image) => {
-            const asset = byId.get(image.id);
-            if (!asset)
-              throw new Fault(
-                "ANQICMS_IMAGE_REQUIRED",
-                "使用包缺少已批准图片，不能生成 Spike 资料",
-                409,
-              );
-            if (!["PRODUCT", "DETAIL", "DEFECT"].includes(asset.role))
-              throw new Fault(
-                "ANQICMS_IMAGE_ROLE_INVALID",
-                "AnQiCMS Spike 只能使用已批准的实物、细节或瑕疵图片",
-                409,
-              );
-            return {
-              id: image.id,
-              role: asset.role as "PRODUCT" | "DETAIL" | "DEFECT",
-              position: image.position,
-              download: `/api/distribution-agent/attempts/${attempt.id}/assets/${image.id}`,
-            };
-          });
+      const images = pack.s.assets.map((image) => {
+        const asset = byId.get(image.id);
+        if (!asset)
+          throw new Fault(
+            "ANQICMS_IMAGE_REQUIRED",
+            "使用包缺少已批准图片，不能生成 AnQiCMS 合同资料",
+            409,
+          );
+        if (!["PRODUCT", "DETAIL", "DEFECT"].includes(asset.role))
+          throw new Fault(
+            "ANQICMS_IMAGE_ROLE_INVALID",
+            "AnQiCMS 合同只能使用已批准的实物、细节或瑕疵图片",
+            409,
+          );
+        return {
+          id: image.id,
+          role: asset.role as "PRODUCT" | "DETAIL" | "DEFECT",
+          position: image.position,
+          download: `/api/distribution-agent/attempts/${attempt.id}/assets/${image.id}`,
+        };
+      });
       const listing = await tx.listing.findFirst({
         where: { itemId: attempt.itemId, channelId: attempt.channelId },
         orderBy: [{ observedAt: "desc" }, { id: "desc" }],
@@ -1966,14 +1978,15 @@ export class DistributionService {
           status: pack.p.item.status,
           brand: approved.brand,
           category: approved.category,
-          condition: facts.condition,
+          conditionGrade: conditionSelection?.code || "",
+          conditionDescription: facts.condition,
           size: facts.sizeLabel || attribute("size"),
           color: facts.color || attribute("color"),
           material: facts.mainMaterial || facts.material || attribute("material"),
           measurements: facts.measurements,
           year: attribute("year"),
           collection: attribute("collection"),
-          styleNumber: attribute("style_number"),
+          styleNumber: attribute("styleNumber") || attribute("style_number"),
         },
         images,
         listing: listing

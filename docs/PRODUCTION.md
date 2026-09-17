@@ -20,7 +20,7 @@ node scripts/production-config.mjs --domain=inventory.your-company.com --public
 
 镜像会随源码带入只读的 `agent/skills/tome-ingest` 标准 Skill/Profile，使 `/api/agent-ingest/skill` 与 `/api/agent-ingest/profile` 可在运行时校验内容哈希；其中不应放入第三方账号、Cookie、Token 或 selector 私密资料。`tome-ingest` CLI 是交付包内的本地客户端，不需要也不应写入生产容器的会话凭据。
 
-分发基础和运营动作都不包含任何真实平台连接器。默认路径只交付冻结资料，并记录待交付、已交付、已确认完成、需要处理、需要核对和需要停售等经营状态；平台登录、验证码、点击和页面操作都在 ToMe 外部完成。AnQiCMS Spike 也只是外部 Agent 可取用的本地资料合同，没有 HTTP 客户端、外部 endpoint 调用或凭据字段。若将来创建兼容的分发会话，Token 只在创建响应中显示一次，应由操作者用受控渠道交给执行环境；应用数据库和 Receipt 只保存哈希/是否签发，不保存 Token。不要把 Token、Cookie、密码或验证码写入 Channel 的端点字段、配置文件、日志、测试、镜像或数据库备注。
+分发基础和运营动作都不包含任何真实平台连接器。默认路径只交付冻结资料，并记录待交付、已交付、已确认完成、需要处理、需要核对和需要停售等经营状态；平台登录、验证码、点击和页面操作都在 ToMe 外部完成。AnQiCMS 标准交付合同也只是外部 Agent 可取用的本地资料投影，没有 HTTP 客户端、外部 endpoint 调用或凭据字段。若将来创建兼容的分发会话，Token 只在创建响应中显示一次，应由操作者用受控渠道交给执行环境；应用数据库和 Receipt 只保存哈希/是否签发，不保存 Token。不要把 Token、Cookie、密码或验证码写入 Channel 的端点字段、配置文件、日志、测试、镜像或数据库备注。
 
 该命令不会覆盖已有目录或重置密码。配置生成后应备份密钥至受控位置，并检查`configuration.json`中的origin、域名和rehearsal状态。
 

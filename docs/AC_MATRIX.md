@@ -346,8 +346,8 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 
 `test/integration.test.cjs` 的“渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种”覆盖 AnQiCMS/闲鱼固定币种、其他账号默认币种、创建/编辑/写价后端拒绝、跨币种不复制金额及询盘 NULL/有效价默认。`test/browser/operations.spec.cjs` 在 Chromium/WebKit 以真实点击覆盖批量渠道切换时币种与金额模板同步、设置页固定平台默认币种，以及询盘表单带出有效渠道价。它们只使用 `tome_test` 合成商品，不证明汇率、真实报价、真实平台或财务结算。
 
-## v1.1 AnQiCMS 本地 Spike 合同
+## v1.1 AnQiCMS 本地标准交付合同
 
-本增量不实现真实 Connector。受限分发会话可以为已领取的 AnQiCMS Attempt 读取 `tome.anqicms.spike/v1` 资料合同：新建先按 `tm_code` 保护性查找，已有稳定 archive ID 时更新同一页面；前 9 张公开核验实物图进入 Gallery，其余图片保留为正文图片清单，品相/瑕疵披露不能丢失。售出后的 DELIST 合同是 `STOCK_ZERO`，要求库存为 0、页面保留、SOLD、无 Checkout。
+本增量不实现真实 Connector。受限兼容读取面可以为 AnQiCMS Attempt 生成 `tome.anqicms.spike/v1` 本地资料投影：新建先按 `tm_code` 保护性查找，已有稳定 archive ID 时更新同一页面；前 9 张公开核验实物图进入 Gallery，其余图片保留为正文图片清单，成色等级与瑕疵说明分开且不能丢失。`styleNumber` 是唯一新写入/输出键，旧 `style_number` 仅兼容读取。售出后的 DELIST 是 identity-only `STOCK_ZERO`，只需 TM、当前状态、Channel 和 archive ID，要求库存为 0、页面保留、SOLD、无 Checkout，不重验历史图片或使用包。
 
-`test/fixtures/anqicms-spike/deidentified-20.json` 与单元测试覆盖 20 件脱敏夹具、全部库存状态、USD、图片分流、SEO 字段、archive ID 规范化和伪 ID 拒绝；隔离集成测试覆盖真实 UsePackage、DistributionSession、Listing 更新与售出后的保页合同。它们不连接 AnQiCMS、不验证真实 endpoint/认证/图片上传/Sitemap/页面 URL，也不构成真实 20 件 UAT。具体字段、禁止字段和进入真实 Spike 的门槛见 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)。
+`test/fixtures/anqicms-spike/deidentified-20.json` 与单元测试覆盖 20 件脱敏夹具、全部库存状态、USD、图片分流、SEO 字段、styleNumber 兼容规范化、成色双字段、archive ID 规范化和伪 ID 拒绝；隔离集成测试覆盖真实 UsePackage、DistributionSession、Listing 更新，以及历史图片授权失效后仍能输出售出保页合同。它们不连接 AnQiCMS、不验证真实 endpoint/认证/图片上传/Sitemap/页面 URL，也不构成真实 20 件 UAT。具体字段、禁止字段和进入真实 UAT 的门槛见 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)。

@@ -483,10 +483,33 @@ export function checks(
       ) &&
       read("test/unit.test.cjs").includes("20件脱敏商品冻结") &&
       read("test/integration.test.cjs").includes(
-        "受限会话以脱敏本地合同",
+        "受限会话以脱敏本地资料",
       ) &&
       read("docs/integrations/ANQICMS-CONTRACT.md").includes(
         "ToMe 不连接真实 AnQiCMS API",
+      ),
+  );
+  check(
+    "v11-anqicms-handoff-contract",
+    () =>
+      read("src/distribution/anqicms-spike.ts").includes(
+        "buildAnqicmsTakedownProjection",
+      ) &&
+      read("src/distribution/anqicms-spike.ts").includes(
+        "condition_grade",
+      ) &&
+      read("src/distribution/anqicms-spike.ts").includes(
+        "condition_description",
+      ) &&
+      read("src/distribution/anqicms-spike.ts").includes("styleNumber") &&
+      read("src/distribution/distribution.service.ts").includes(
+        'attribute("styleNumber") || attribute("style_number")',
+      ) &&
+      read("test/integration.test.cjs").includes(
+        "former image authorization can expire",
+      ) &&
+      read("docs/integrations/ANQICMS-CONTRACT.md").includes(
+        "identity-only",
       ),
   );
   check("v1-item-center-webkit", () =>
