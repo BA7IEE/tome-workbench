@@ -6644,3 +6644,167 @@ test("Distribution legacy stop：没有专用发布 Profile 的停用/内容渠�
   assert.deepEqual(rows.map((row) => row.recordId), [stop.id]);
   assert.deepEqual(rows.map((row) => row.action), ["DELIST"]);
 });
+
+
+test("Ingest credential security：Token只显示一次、Receipt不保存明文且会话列表不暴露tokenHash", async () => {
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
+  const source = await ok("/procurement/sources", "POST", {
+    code: "SEC" + suffix,
+    name: "凭据安全来源 " + suffix,
+    kind: "MARKETPLACE",
+    defaultCurrency: "USD",
+  });
+  const body = {
+    procurementSourceId: source.id,
+    label: "一次性Token " + suffix,
+    ttlMinutes: 60,
+  };
+  const key = randomUUID();
+  const session = await ok("/ingest/sessions", "POST", body, admin, key);
+  assert.match(session.token, /^[0-9a-f]{64}$/);
+
+  const receipt = await db.receipt.findUniqueOrThrow({
+    where: {
+      actorId_operation_key: {
+        actorId: admin.id,
+        operation: "ingest.session.create",
+        key,
+      },
+    },
+  });
+  assert.equal(receipt.response.tokenIssued, true);
+  assert.equal(Object.prototype.hasOwnProperty.call(receipt.response, "token"), false);
+  assert.equal(JSON.stringify(receipt.response).includes(session.token), false);
+
+  const replay = await api("/ingest/sessions", "POST", body, admin, key);
+  assert.equal(replay.status, 409);
+  assert.equal(replay.data.error.code, "TOKEN_ALREADY_ISSUED");
+
+  const listed = await ok("/ingest/sessions", "GET");
+  const row = listed.find((entry) => entry.id === session.id);
+  assert.ok(row);
+  assert.equal(Object.prototype.hasOwnProperty.call(row, "tokenHash"), false);
+  assert.equal(JSON.stringify(row).includes(session.token), false);
+});
+
+test("Ingest credential security：创建者权限或来源失效会立即撤销机器会话", async () => {
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
+  const source = await ok("/procurement/sources", "POST", {
+    code: "REV" + suffix,
+    name: "会话撤销来源 " + suffix,
+    kind: "MARKETPLACE",
+    defaultCurrency: "USD",
+  });
+  const password = "Synthetic!" + randomUUID();
+  const created = await ok("/auth/users", "POST", {
+    name: "导入权限回归 " + suffix,
+    email: randomUUID() + "@tome.test",
+    password,
+    role: "FINANCE",
+  });
+  const delegate = await login(created.email, password);
+  const session = await ok(
+    "/ingest/sessions",
+    "POST",
+    {
+      procurementSourceId: source.id,
+      label: "创建者权限撤销",
+      ttlMinutes: 60,
+    },
+    delegate,
+  );
+  assert.equal((await machineApi("/agent-ingest/protocol", session.token)).status, 200);
+
+  await ok("/auth/user-access", "POST", {
+    id: created.id,
+    active: true,
+    role: "VIEWER",
+  });
+  const revokedCreator = await machineApi("/agent-ingest/protocol", session.token);
+  assert.equal(revokedCreator.status, 403);
+  assert.equal(revokedCreator.data.error.code, "INGEST_CREATOR_REVOKED");
+
+  const source2 = await ok("/procurement/sources", "POST", {
+    code: "SRC" + suffix,
+    name: "来源停用回归 " + suffix,
+    kind: "MARKETPLACE",
+    defaultCurrency: "USD",
+  });
+  const sourceSession = await ok("/ingest/sessions", "POST", {
+    procurementSourceId: source2.id,
+    label: "来源停用会话",
+    ttlMinutes: 60,
+  });
+  await db.procurementSource.update({
+    where: { id: source2.id },
+    data: { active: false },
+  });
+  const revokedSource = await machineApi(
+    "/agent-ingest/protocol",
+    sourceSession.token,
+  );
+  assert.equal(revokedSource.status, 403);
+  assert.equal(revokedSource.data.error.code, "INGEST_SOURCE_UNAVAILABLE");
+});
+
+test("Ingest credential security：宽松来源事实拒绝凭据字段与带签名URL", async () => {
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
+  const source = await ok("/procurement/sources", "POST", {
+    code: "PAY" + suffix,
+    name: "敏感字段回归 " + suffix,
+    kind: "MARKETPLACE",
+    defaultCurrency: "USD",
+  });
+  const session = await ok("/ingest/sessions", "POST", {
+    procurementSourceId: source.id,
+    label: "敏感字段测试",
+    ttlMinutes: 60,
+  });
+  const batch = await machineOk("/agent-ingest/batches", session.token, "POST", {
+    externalBatchKey: "sensitive-" + suffix,
+    agentName: "Synthetic Credential Guard",
+    kind: "ITEM_BATCH",
+    rawManifest: standardManifest("GENERIC_MARKETPLACE/1.0", {
+      expectedCandidateKeys: ["SENSITIVE-" + suffix],
+    }),
+  });
+
+  const fixture = goldenIngestFixture().candidates[0];
+  const credentialCandidate = structuredClone(fixture);
+  credentialCandidate.externalKey = "SENSITIVE-" + suffix;
+  credentialCandidate.sourceItemKey = "SENSITIVE-" + suffix;
+  credentialCandidate.rawPayload = {
+    access_token: "synthetic-secret-value",
+  };
+  const blockedCredential = await machineApi(
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    "POST",
+    { candidates: [credentialCandidate] },
+  );
+  assert.equal(blockedCredential.status, 400);
+  assert.equal(
+    blockedCredential.data.error.code,
+    "INGEST_SENSITIVE_DATA_DENIED",
+  );
+
+  const signedUrlCandidate = structuredClone(fixture);
+  signedUrlCandidate.externalKey = "SIGNED-" + suffix;
+  signedUrlCandidate.sourceItemKey = "SIGNED-" + suffix;
+  signedUrlCandidate.sourceFacts.productUrl =
+    "https://example.invalid/product/" + suffix + "?token=synthetic";
+  const blockedUrl = await machineApi(
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    "POST",
+    { candidates: [signedUrlCandidate] },
+  );
+  assert.equal(blockedUrl.status, 400);
+  assert.equal(blockedUrl.data.error.code, "INGEST_SENSITIVE_DATA_DENIED");
+  assert.equal(
+    await db.ingestCandidate.count({
+      where: { procurementSourceId: source.id },
+    }),
+    0,
+  );
+});
