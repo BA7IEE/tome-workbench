@@ -14,7 +14,7 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 `Channel.businessPurpose` 明确账号是 `TRADE`、`CONTENT` 还是 `SHOWROOM`。XHS 固定为内容渠道，SHOWROOM 固定为展厅渠道；只有 `TRADE` 可被写为 `DistributionTarget`、写入 ChannelPrice 或用于 TRADE 的资料检查与交付。
 
-`DistributionTarget` 是一件 TM 当前明确希望在哪个交易账号经营的意图，不是 Item 库存、使用包、发布记录、Listing 或远端状态。每个 Item×Channel 只有一行，可用原因关闭；同一平台已有另一个激活目标时，运营必须明确确认才可激活第二个账号。Target 写入仍经 Item lock、Commands/Receipt、Audit 和 Outbox，但不创建 UsePackage、DistributionAttempt、Listing、Task 或外部平台动作。历史真实 Exposure 不被回填或改写。
+`DistributionTarget` 是一件 TM 当前明确希望在哪个交易账号经营的意图，不是 Item 库存、使用包、发布记录、Listing 或远端状态。每个 Item×Channel 只有一行，可用原因关闭；同一平台已有激活目标、仍在线的历史 Exposure/LIVE Listing 或另一账号尚未完成的 PUBLISH/UPDATE Handoff 时，运营必须明确确认才可激活第二个账号。Target 写入仍经 Item lock、Commands/Receipt、Audit 和 Outbox，不调用平台。关闭 Target 会在同一事务取消尚未交付的 PENDING PUBLISH/UPDATE，并为已确认在线的当前代际计划 source-linked DELIST；RUNNING/UNKNOWN 不会假装取消。历史真实 Exposure 不被回填或改写。
 
 ## 默认交付路径
 
@@ -23,10 +23,12 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 3. 把冻结资料交给外部 Agent、脚本或人工，在目标平台完成实际操作。
 4. 回填分发记录。稳定 ID 已知时才创建或更新 Listing；没有稳定 ID 时留下可按永久 TM 核对的依据。
 5. 成功资料未变化时得到 NOOP，不会创建新的平台发布或新的分发记录。
+6. 同一 Item×Channel 只要还有 PENDING/RUNNING/UNKNOWN/FAILED 的 DELIST，就禁止新一代 PUBLISH/UPDATE；必须先确认旧停售结果，避免迟到的停售动作下掉刚重新发布的商品。
+7. UPDATE 继续使用已有稳定远端身份：唯一已知 LIVE remoteId 可在回执缺省时继承；回传不同 remoteId 或发现多个 LIVE 身份时阻断并人工核对。
 
 ## 标准 Handoff 面
 
-仓库内的 `agent/skills/tome-distribution` 和[标准分发交付合同](DISTRIBUTION-HANDOFF-CONTRACT.md)是默认机器接入面。执行方先用 `X-Distribution-Token` 或同一 Token 的 Bearer 读取 `/api/distribution-agent/protocol`，下载其中声明的 Skill/Profile 并核对 SHA-256；MCP `initialize` 返回同一发现信息。`GET /api/distribution-agent/handoffs` 只列当前 Channel 待交付资料和本会话已交付资料；带幂等键的 `POST .../package` 才把记录记为已交付，并且只返回有效 UsePackage 的冻结字段和按位置排序的图片。停用或退出 TRADE 的账号只可在有未完成 DELIST 时建立 stop-only 会话，并且该会话只能列出/取得 DELIST。每次机器写入及每个 Receipt 重放都会重查 Channel 会话、创建者的当前 publish 权限、Item lock、包版本和图片权利。
+仓库内的 `agent/skills/tome-distribution` 和[标准分发交付合同](DISTRIBUTION-HANDOFF-CONTRACT.md)是默认机器接入面。执行方先用 `X-Distribution-Token` 或同一 Token 的 Bearer 读取 `/api/distribution-agent/protocol`，下载其中声明的 Skill/Profile 并核对 SHA-256；MCP `initialize` 返回同一发现信息。`GET /api/distribution-agent/handoffs` 只列当前 Channel 待交付资料和本会话已交付资料；带幂等键的 `POST .../package` 才把记录记为已交付，并且只返回有效 UsePackage 的冻结字段和按位置排序的图片。停用或退出 TRADE 的账号只可在有未完成 DELIST 时建立 stop-only 会话，并且该会话只能列出/取得 DELIST；历史渠道没有专用平台 Profile 时使用 `GENERIC_STOP/1.0` 只读停售合同完成清场，不因此开放新的 PUBLISH/UPDATE。每次机器写入及每个 Receipt 重放都会重查 Channel 会话、创建者的当前 publish 权限、Item lock、包版本和图片权利。
 
 薄 MCP `/api/mcp/distribution` 只有 `tome_distribution_list_handoffs`、`tome_distribution_get_package`、`tome_distribution_report_published`、`tome_distribution_report_attention`。APP 完成回传的 `remoteId` 可为空；AnQiCMS 的 PUBLISH/UPDATE 成功必须原样保存真实稳定 archive ID，伪造 `MANUAL:TM...`、TM 或空 archive ID 一律拒绝。AnQiCMS 包额外有 `platformData` 本地合同包装，仍不含平台请求。`ATTENTION` 把原记录转为 UNKNOWN，之后只能人工核对。DELIST 没有有效发布包时只交付永久 TM 和 Channel 身份，不能让历史图片权利成为停售阻断。
 
