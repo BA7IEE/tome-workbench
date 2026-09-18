@@ -995,26 +995,41 @@ export class DistributionService {
       };
 
     const action = published && !delistedAfterPublish ? "UPDATE" : "PUBLISH";
-    const dedupeKey = [
+    const baseDedupeKey = [
       action.toLowerCase(),
       p.itemId,
       p.channelId,
       p.id,
-      ...(target ? ["target", String(target.version)] : []),
       ...(delistedAfterPublish && completedDelist
         ? ["after", completedDelist.id]
         : []),
     ].join(":");
     const exact = await tx.distributionAttempt.findUnique({
-      where: { dedupeKey },
+      where: { dedupeKey: baseDedupeKey },
     });
-    if (exact)
+    if (exact && exact.state !== "CANCELLED")
       return {
         p,
         existing: exact,
         action: exact.action,
         reason: "SAME_PACKAGE" as const,
       };
+    const dedupeKey =
+      exact?.state === "CANCELLED" && target?.active
+        ? `${baseDedupeKey}:target:${target.version}`
+        : baseDedupeKey;
+    if (dedupeKey !== baseDedupeKey) {
+      const resumed = await tx.distributionAttempt.findUnique({
+        where: { dedupeKey },
+      });
+      if (resumed)
+        return {
+          p,
+          existing: resumed,
+          action: resumed.action,
+          reason: "SAME_PACKAGE" as const,
+        };
+    }
     return {
       p,
       action,
