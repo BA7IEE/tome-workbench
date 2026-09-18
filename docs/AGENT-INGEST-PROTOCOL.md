@@ -15,6 +15,8 @@ Agent 请求使用下列其中一种令牌头：
 
 网络回执中断时，必须使用**同一个 Idempotency-Key 和同一请求内容**重试；不要生成新请求号来猜测是否成功。
 
+创建导入会话本身是凭据签发动作：Token 只在首次成功响应中显示，服务端 Receipt 只保存 `tokenIssued=true`，不会保存明文 Token。相同创建请求如果因网络中断再次提交，服务端不会重放明文 Token，而会返回 `TOKEN_ALREADY_ISSUED`；经营人员应从会话列表确认该会话并在需要时撤销后重新创建。机器会话每次访问都会重新核验创建者仍启用且保有 `supply` 权限、来源仍启用；任一条件失效后旧 Token 立即停止使用。
+
 ## 推荐流程
 1. `GET /protocol`，读取当前协议、Skill 和本会话来源 Profile。
 2. 校验协议主版本、Skill/Profile SHA-256；不兼容时停止写入。
@@ -34,6 +36,10 @@ Agent 请求使用下列其中一种令牌头：
 图片以 multipart/form-data 上传。中台保存原文件并按 SHA 去重；确认 TM 时复用原文件，不要求 Agent 再下载一次。
 
 Agent 导入图默认转为 TM 的 `REFERENCE / INTERNAL / 未核验` 素材。公开销售前是否可使用仍由人工核对授权。
+
+## 敏感资料边界
+
+来源事实可以保留广泛的商品、订单和页面字段，但**不能把采集接口当凭据仓库**。机器写入会拒绝明显的 `password`、`token`、`cookie`、`authorization`、`api_key`、`session`、`signature` 等凭据字段，也拒绝用户名/密码 URL 及带访问签名、Token、Cookie 或密钥查询参数的 URL。外部 Agent 可以使用带签名的临时 URL 在自己的环境中下载素材，再把实际文件上传；提交给 ToMe 的来源地址必须去掉敏感访问参数。
 
 ## 权限边界
 短期 Token 只能访问 `/api/agent-ingest`。它不能访问普通 `/api/items`、成交、库存、成本、账号、发布等后台写接口。
