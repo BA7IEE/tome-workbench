@@ -6544,3 +6544,89 @@ test("Distribution target/profile guard：历史在线暴露参与同平台确�
   assert.equal(protocol.profile.id, "GENERIC_TRADE/1.0");
   assert.equal(protocol.profile.platform, "OTHER");
 });
+
+
+test("Distribution legacy edge：无Target的历史 CANCELLED 同包可安全生成新记录，同平台进行中交付也要求确认", async () => {
+  const i = await ready();
+  const p = await pack(i.id);
+  const cancelled = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await db.distributionAttempt.update({
+    where: { id: cancelled.id },
+    data: {
+      state: "CANCELLED",
+      errorCode: "SYNTHETIC_CANCELLED",
+      errorMessage: "合成历史记录取消",
+      finishedAt: new Date(),
+    },
+  });
+  const replanned = await ok("/distribution/plan", "POST", { packageId: p.id });
+  assert.notEqual(replanned.id, cancelled.id);
+  assert.equal(replanned.action, "PUBLISH");
+
+  const first = await ok("/channels", "POST", {
+    name: "历史进行中同平台账号一 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+  });
+  const second = await ok("/channels", "POST", {
+    name: "历史进行中同平台账号二 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+  });
+  const other = await ready();
+  const otherPackage = await pack(other.id, first);
+  const pending = await ok("/distribution/plan", "POST", {
+    packageId: otherPackage.id,
+  });
+  assert.equal(pending.state, "PENDING");
+  const target = await api(
+    `/items/${other.id}/distribution-targets/${second.id}`,
+    "POST",
+    {
+      active: true,
+      reason: "另一账号也准备经营",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.equal(target.status, 409);
+  assert.equal(
+    target.data.error.code,
+    "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
+  );
+});
+
+test("Distribution legacy stop：没有专用发布 Profile 的停用/内容渠道仍可取得 GENERIC_STOP 合同完成历史停售", async () => {
+  const xhs = await ok("/channels", "POST", {
+    name: "历史小红书停售 " + randomUUID().slice(0, 8),
+    platform: "XHS",
+    locale: "zh-CN",
+    titleLimit: 80,
+  });
+  assert.equal(xhs.businessPurpose, "CONTENT");
+  const i = await ready();
+  const stop = await db.distributionAttempt.create({
+    data: {
+      itemId: i.id,
+      channelId: xhs.id,
+      packageId: null,
+      action: "DELIST",
+      state: "PENDING",
+      dedupeKey: "legacy-xhs-stop:" + randomUUID(),
+      createdBy: admin.id,
+    },
+  });
+  const session = await distributionSession(xhs.id, "历史内容渠道仅停售会话");
+  assert.equal(session.stopOnly, true);
+  const protocol = await distributionAgentOk(
+    "/distribution-agent/protocol",
+    session.token,
+  );
+  assert.equal(protocol.profile.id, "GENERIC_STOP/1.0");
+  const rows = await distributionHandoffOk("/handoffs", session.token);
+  assert.deepEqual(rows.map((row) => row.id), [stop.id]);
+  assert.deepEqual(rows.map((row) => row.action), ["DELIST"]);
+});
