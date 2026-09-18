@@ -381,6 +381,12 @@ export function checks(
       read("web/src/publishing-workspace.ts").includes(
         "activate-distribution-target",
       ) &&
+      read("web/src/studio-publisher.ts").includes(
+        "studio-activate-target",
+      ) &&
+      read("web/src/studio-publisher.ts").includes(
+        'channel.businessPurpose === "TRADE"',
+      ) &&
       read("test/integration.test.cjs").includes("Distribution Intent：") &&
       read("test/browser/operations.spec.cjs").includes("批量加入分发渠道"),
   );
