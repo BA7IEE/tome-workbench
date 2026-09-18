@@ -6259,3 +6259,249 @@ test("Publication stop scope：停用渠道只交付未完成停售，回收站�
   assert.equal(unknownTrash.status, 409);
   assert.equal(unknownTrash.data.error.code, "TRASH_DISTRIBUTION_EXPOSURE");
 });
+
+
+test("Distribution generation guard：关闭经营目标会取消未交付发布，旧停售未核对前不得重新发布", async () => {
+  const i = await ready();
+  await ok(`/items/${i.id}/distribution-targets/${channel.id}`, "POST", {
+    active: true,
+    reason: "合成代际保护：开始经营",
+    duplicatePlatformConfirmed: false,
+  });
+  const p = await pack(i.id);
+  const pending = await ok("/distribution/plan", "POST", { packageId: p.id });
+  const closed = await ok(
+    `/items/${i.id}/distribution-targets/${channel.id}`,
+    "POST",
+    {
+      active: false,
+      reason: "合成代际保护：暂停经营",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.ok(closed.cancelledAttemptIds.includes(pending.id));
+  assert.equal(
+    (await db.distributionAttempt.findUniqueOrThrow({ where: { id: pending.id } }))
+      .state,
+    "CANCELLED",
+  );
+  const inactivePlan = await api("/distribution/plan", "POST", {
+    packageId: p.id,
+  });
+  assert.equal(inactivePlan.status, 409);
+  assert.equal(
+    inactivePlan.data.error.code,
+    "DISTRIBUTION_TARGET_INACTIVE",
+  );
+
+  await ok(`/items/${i.id}/distribution-targets/${channel.id}`, "POST", {
+    active: true,
+    reason: "合成代际保护：恢复经营",
+    duplicatePlatformConfirmed: false,
+  });
+  const published = await ok("/distribution/plan", "POST", { packageId: p.id });
+  assert.notEqual(published.id, pending.id);
+  const remoteId = "generation-" + randomUUID();
+  await ok(`/distribution/attempts/${published.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId,
+    evidence: {
+      method: "MANUAL_CONFIRMATION",
+      note: "合成已确认发布，用于验证停售代际屏障。",
+    },
+  });
+
+  const stopped = await ok(
+    `/items/${i.id}/distribution-targets/${channel.id}`,
+    "POST",
+    {
+      active: false,
+      reason: "合成代际保护：再次关闭并计划停售",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.equal(stopped.delistAttemptIds.length, 1);
+  const delistId = stopped.delistAttemptIds[0];
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({
+        where: { id: delistId },
+      })
+    ).sourceAttemptId,
+    published.id,
+  );
+
+  await ok(`/items/${i.id}/distribution-targets/${channel.id}`, "POST", {
+    active: true,
+    reason: "合成代际保护：停售确认前重新启用",
+    duplicatePlatformConfirmed: false,
+  });
+  const blocked = await api("/distribution/plan", "POST", { packageId: p.id });
+  assert.equal(blocked.status, 409);
+  assert.equal(
+    blocked.data.error.code,
+    "DELIST_RECONCILIATION_REQUIRED",
+  );
+
+  await ok(`/distribution/attempts/${delistId}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成旧代际已明确停售。",
+    },
+  });
+  const afterStop = await ok("/distribution/plan", "POST", { packageId: p.id });
+  assert.equal(afterStop.action, "PUBLISH");
+  assert.notEqual(afterStop.id, published.id);
+});
+
+test("Distribution remote identity guard：UPDATE 不得把同一商品静默变成第二个远端商品", async () => {
+  const i = await ready();
+  const firstPackage = await pack(i.id);
+  const first = await ok("/distribution/plan", "POST", {
+    packageId: firstPackage.id,
+  });
+  const remoteId = "stable-" + randomUUID();
+  await ok(`/distribution/attempts/${first.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId,
+    evidence: {
+      method: "PLATFORM_RECEIPT",
+      note: "合成稳定远端身份。",
+    },
+  });
+
+  let current = await item(i.id);
+  await ok(`/items/${i.id}`, "PATCH", {
+    version: current.version,
+    facts: { descriptionZh: "合成资料变化，要求对原远端身份执行更新。" },
+  });
+  current = await item(i.id);
+  await ok(`/items/${i.id}/approve`, "POST", { version: current.version });
+  const secondPackage = await pack(i.id);
+  const update = await ok("/distribution/plan", "POST", {
+    packageId: secondPackage.id,
+  });
+  assert.equal(update.action, "UPDATE");
+
+  const wrongRemoteId = "wrong-" + randomUUID();
+  const wrong = await api(
+    `/distribution/attempts/${update.id}/manual-result`,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: wrongRemoteId,
+      evidence: {
+        method: "PLATFORM_RECEIPT",
+        note: "合成错误地返回了另一个远端身份。",
+      },
+    },
+  );
+  assert.equal(wrong.status, 409);
+  assert.equal(wrong.data.error.code, "UPDATE_REMOTE_ID_CONFLICT");
+  assert.equal(
+    (await db.distributionAttempt.findUniqueOrThrow({ where: { id: update.id } }))
+      .state,
+    "PENDING",
+  );
+
+  await ok(`/distribution/attempts/${update.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    remoteId,
+    evidence: {
+      method: "PLATFORM_RECEIPT",
+      note: "合成正确更新原稳定远端身份。",
+    },
+  });
+  const live = await db.listing.findMany({
+    where: {
+      itemId: i.id,
+      channelId: channel.id,
+      desired: { not: "OFFLINE" },
+    },
+  });
+  assert.equal(live.length, 1);
+  assert.equal(live[0].remoteId, remoteId);
+});
+
+test("Distribution target/profile guard：历史在线暴露参与同平台确认，停用空目标不污染投影，OTHER 有标准 Profile", async () => {
+  const firstChannel = await ok("/channels", "POST", {
+    name: "通用渠道一 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "AGENT",
+  });
+  const secondChannel = await ok("/channels", "POST", {
+    name: "通用渠道二 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "AGENT",
+  });
+  const i = await ready();
+  const p = await pack(i.id, firstChannel);
+  const first = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await ok(`/distribution/attempts/${first.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: {
+      method: "TM_SEARCH",
+      note: "合成历史在线暴露，没有 DistributionTarget。",
+    },
+  });
+
+  const duplicate = await api(
+    `/items/${i.id}/distribution-targets/${secondChannel.id}`,
+    "POST",
+    {
+      active: true,
+      reason: "合成同平台第二账号",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  assert.equal(duplicate.status, 409);
+  assert.equal(
+    duplicate.data.error.code,
+    "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
+  );
+
+  const idle = await ready();
+  await ok(
+    `/items/${idle.id}/distribution-targets/${secondChannel.id}`,
+    "POST",
+    {
+      active: true,
+      reason: "合成空目标投影检查",
+      duplicatePlatformConfirmed: false,
+    },
+  );
+  const before = await ok(
+    `/distribution/operations?channelId=${secondChannel.id}&q=${encodeURIComponent(idle.code)}`,
+  );
+  assert.ok(before.rows.some((row) => row.item.id === idle.id));
+  await ok(`/channels/${secondChannel.id}`, "POST", {
+    version: secondChannel.version,
+    name: secondChannel.name,
+    locale: secondChannel.locale,
+    titleLimit: secondChannel.titleLimit,
+    active: false,
+    businessPurpose: secondChannel.businessPurpose,
+    defaultCurrency: secondChannel.defaultCurrency,
+    distributionMode: secondChannel.distributionMode,
+    endpointUrl: secondChannel.endpointUrl,
+  });
+  const after = await ok(
+    `/distribution/operations?channelId=${secondChannel.id}&q=${encodeURIComponent(idle.code)}`,
+  );
+  assert.equal(after.rows.some((row) => row.item.id === idle.id), false);
+
+  const session = await distributionSession(firstChannel.id, "通用 Profile 会话");
+  const protocol = await distributionAgentOk(
+    "/distribution-agent/protocol",
+    session.token,
+  );
+  assert.equal(protocol.profile.id, "GENERIC_TRADE/1.0");
+  assert.equal(protocol.profile.platform, "OTHER");
+});
