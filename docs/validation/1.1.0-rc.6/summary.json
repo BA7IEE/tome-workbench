@@ -1,0 +1,68 @@
+{
+  "version": "1.1.0-rc.6",
+  "startedAt": "2026-09-18T12:47:04.258Z",
+  "finishedAt": "2026-09-18T13:02:24.234Z",
+  "sourceSha256": "21bcaf067c0d526adbf30e12f2baede8e466ae19896933c0453173387802d9ae",
+  "fullHarnessExitCode": 0,
+  "sourceUnchanged": true,
+  "passed": true,
+  "error": "",
+  "evidence": {
+    "nodeSuites": [
+      {
+        "tests": 27,
+        "passed": 27,
+        "failed": 0
+      },
+      {
+        "tests": 30,
+        "passed": 30,
+        "failed": 0
+      },
+      {
+        "tests": 157,
+        "passed": 157,
+        "failed": 0
+      },
+      {
+        "tests": 8,
+        "passed": 8,
+        "failed": 0
+      }
+    ],
+    "browserStats": {
+      "expected": 175,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "retries": 0
+    },
+    "webkitStats": {
+      "expected": 175,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "retries": 0
+    },
+    "highAvailability": {
+      "passed": true
+    },
+    "recovery": {
+      "passed": true
+    },
+    "launchScale": {
+      "passed": true,
+      "durationsMs": {
+        "operations": 524.824037,
+        "dashboard": 501.297064,
+        "workQueue": 32.13779
+      }
+    }
+  },
+  "productionDeployment": false,
+  "ci": {
+    "runId": 35346368541,
+    "headSha": "4e46bbbaf1a1bec0275f98ea6d084711b84fdd8e",
+    "conclusion": "success"
+  }
+}

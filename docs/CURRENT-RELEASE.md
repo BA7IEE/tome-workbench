@@ -1,8 +1,10 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.5**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.6**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
+
+rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`（`cb1fe6c`），对应 main CI `35303053133` 成功。其后 PR #23 / #24 在不扩展平台执行边界的前提下补齐发布/停售代际屏障、UPDATE 远端身份一致性、历史在线 Exposure 的同平台多账号保护，以及 OTHER/历史 stop-only Profile；收口后的代码基线是 `main@7d381f9f25aed081f7be0e128894ad659d7034df`，main CI `35339741681` 成功。rc.6 只将这一收口状态形成新的可追溯候选，不代表真实平台 UAT 已完成。
 
 功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 商品分发 / 销售 / 更多六入口；商品分发按发布权限显示，销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
 
@@ -32,7 +34,7 @@ rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（
 
 ```json
 {
-  "version": "1.1.0-rc.5",
+  "version": "1.1.0-rc.6",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",

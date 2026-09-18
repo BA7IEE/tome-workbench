@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.5
+# 当前验证记录 — 1.1.0-rc.6
 
-本地完整验证完成：`2026-09-18T01:06:43.400Z`。验证源码指纹为
-`bdf0b4cab2873cb1c937c162b20a4457308e4456412eaaedf762e3169828b3c7`；
+远端完整验证完成：`2026-09-18T13:02:24.234Z`（GitHub Actions run `35346368541`）。验证源码指纹为
+`21bcaf067c0d526adbf30e12f2baede8e466ae19896933c0453173387802d9ae`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,10 +12,10 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、30/30、152/152、8/8；失败均为 0 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、30/30、157/157、8/8；失败均为 0 |
 | Chromium | 175 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 175 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 249.658ms、Dashboard 216.005ms、Work Queue 13.278ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 524.824ms、Dashboard 501.297ms、Work Queue 32.138ms，均小于 1 秒 |
 | 完整 Harness | exit 0，190 项静态守卫全部通过，sourceUnchanged=true |
 | HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 900ms、Worker 恢复 1954ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
@@ -73,6 +73,17 @@ ChannelPrice、Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 均未重�
 - 没有 FX basis 的外币对账确认以 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED` 阻断并保持 DRAFT；
   本版未实现 FX 引擎或自动折算。Chromium 与 WebKit 都实际验证了该错误、保留草稿和显式放弃表单的交互。
 - 本轮完整 gate 使用隔离 `tome_test`，未执行平台、支付、退款、消息、联网 AI、生产部署或真实经营 UAT。
+
+## v1.1-rc.6 分发代际与远端身份收口
+
+本候选在 rc.5 已成立的 Handoff / Publication Health 地基上继续收口，不增加任何平台执行器或真实第三方副作用。
+
+- 关闭经营 Target 会取消尚未交付的 PUBLISH/UPDATE，并为已确认发布代际生成 source-linked DELIST；存在未完成 DELIST 时阻止新发布，避免迟到停售击穿新代际。
+- UPDATE 不能静默切换到第二个稳定远端身份；已知稳定 remoteId 在执行方本次未重复返回时可继承，多个未停售远端身份则进入人工核对。
+- 同平台第二账号确认同时考虑 active Target、历史成功 Exposure、LIVE Listing 和尚未完成的 PUBLISH/UPDATE Handoff。
+- OTHER 交易渠道使用 `GENERIC_TRADE/1.0`；没有专用发布 Profile 的历史停用/内容渠道只允许通过 `GENERIC_STOP/1.0` 完成 DELIST 收口。
+- AnQiCMS 手工发布/更新登记在 UI 和服务端都要求真实 archive ID；APP 平台 remoteId 仍可为空。
+- 当前证据仍只证明隔离代码与浏览器/数据库行为；真实 AnQiCMS、闲鱼和海外平台 UAT 尚未执行。
 
 ## 生产与业务边界
 
