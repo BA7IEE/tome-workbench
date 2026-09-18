@@ -1,6 +1,6 @@
 # 标准分发交付合同
 
-当前版本：`1.1.0-rc.4`。ToMeBoutique 是商品事实中心：它冻结资料、按 Channel
+当前版本：`1.1.0-rc.5`。ToMeBoutique 是商品事实中心：它冻结资料、按 Channel
 交付并记录最小经营状态；外部 Agent、脚本或人工才完成平台上的实际操作。它不包含
 闲鱼、Vestiaire、Grailed、Carousell、AnQiCMS 或其他渠道的登录、验证码、页面步骤、
 浏览器/APP 自动化、HTTP Connector 或真实第三方写入。

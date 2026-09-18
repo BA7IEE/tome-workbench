@@ -1,10 +1,10 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.5**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
 
-2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
+rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
-功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 销售 / 设置五入口；销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
+功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 商品分发 / 销售 / 更多六入口；商品分发按发布权限显示，销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
 
 本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。所有新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；只对已存在、同键同清单的历史 Batch 保持旧合同兼容，不能以漏 metadata 绕过 Profile 必查项。标准 Profile 的服务端必查字段会与 Agent 自报字段合并；MCP 支持同一短期 Token 的 X 头或 Bearer 头，机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。
 
@@ -22,15 +22,17 @@
 
 渠道币种与成交补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。前向 migration `202609180017_inquiry_followup` 新增 `Inquiry.nextFollowUpAt` 与索引：FOLLOWUP 必须给出下次跟进时间，OPEN/WON/LOST 不保留日程；工作队列把逾期 FOLLOWUP 提升为 90、今天 FOLLOWUP/新 OPEN 为 85、未来 FOLLOWUP 为 55。询盘转 Sale 严格保留 `Inquiry.currency`；配置账号直接成交以有效渠道价币种或账号要求币种为准，未配置账号使用 Item 币种。只有 CNY Sale 自动冻结 CNY 成本，外币 Sale 的成本保持 NULL。没有 FX basis 的外币结算确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`，没有实时汇率、自动定价或 FX 引擎，也不改写已有外币 Sale。
 
+运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
+
 ## 自动维护约束
 
-以下清单由实际源码目录生成，`node scripts/check-current-docs.mjs` 核对版本、迁移和双浏览器文件范围。目录新增文件时必须更新清单，不能只手填通过数。
+以下清单由实际源码目录生成，`node scripts/check-current-docs.mjs` 核对版本、迁移、双浏览器文件范围，以及当前版本 validation 摘要的版本和源码指纹。目录新增文件时必须更新清单，不能只手填通过数。
 
 <!-- current-facts -->
 
 ```json
 {
-  "version": "1.1.0-rc.4",
+  "version": "1.1.0-rc.5",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
@@ -77,15 +79,14 @@
 
 实际结果见 [VALIDATION](VALIDATION.md)。旧报告不能证明新源码已验证。所有历史 migration 和封印保持不变。
 
-## 已合并的改动
+## 已核验基线
 
-- PR #2 修复原生 autofocus 延迟抢焦点造成的登录问题，以及图片保存完成前提前显示成功的问题。
-- PR #3 实现版本统一、当前文档守卫、图片补偿、后端权限能力、生产备份恢复与 PushPlus 显式启用工具。
-- PR #4 实现上述 UX 1.0.2 功能。三项 PR 的最终 CI 均通过；本地完整门禁和打包证据见 [VALIDATION](VALIDATION.md)，合并后的 CI 见上方运行记录。
+- rc.4 的 main 基线与成功 CI 见上方固定记录；它只证明当时的源码，不代替 rc.5 的当前验证。
+- 本版的完整门禁、审计和打包证据以 [VALIDATION](VALIDATION.md) 与对应版本目录为准；生产、真实平台和经营 UAT 仍由独立授权验收。
 
 ## 本版范围
 
-- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、下次跟进日程、成交币种真相、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
+- 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、下次跟进日程、成交币种真相、批量预检、来源关联的下架计划和可验证的站点资料映射。动态 Readiness、全局未批准商品待办、批量成本预览和规模基准只复用既有事实与命令。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
 - `DistributionTarget` 只增加当前交易经营意图，不能把内容/展厅渠道变成交易渠道，也不能替代真实发布、远端身份、库存或停售回执。
 - 发布安全只维护本地经营状态和来源关联 DELIST：不把 UsePackage TTL 当远端页面寿命，不删除仍可能在线的商品，也不调用平台下架、重发或浏览器自动化。

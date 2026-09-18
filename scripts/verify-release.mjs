@@ -5,9 +5,46 @@ import { sourceFingerprint } from "./source-fingerprint.mjs";
 const version = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
 if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/.test(version))
   throw new Error("Invalid release version");
+function syncCurrentValidationFacts(releaseVersion, sourceSha256) {
+  const reportPath = path.join("docs", "VALIDATION.md");
+  const report = fs.readFileSync(reportPath, "utf8");
+  const withVersion = report.replace(
+    /^# 当前验证记录 — [^\n]+$/m,
+    `# 当前验证记录 — ${releaseVersion}`,
+  );
+  if (!/^# 当前验证记录 — [^\n]+$/m.test(report))
+    throw new Error("Current validation report has no version heading");
+  const sourcePattern = /(验证源码指纹为\s*\n`)[a-f0-9]{64}(`)/m;
+  if (!sourcePattern.test(withVersion))
+    throw new Error("Current validation report has no source fingerprint");
+  const next = withVersion.replace(sourcePattern, `$1${sourceSha256}$2`);
+  fs.writeFileSync(reportPath, next);
+}
 const before = sourceFingerprint(),
   started = Date.now();
 fs.mkdirSync("reports", { recursive: true });
+const dest = path.join("docs", "validation", version),
+  summaryPath = path.join(dest, "summary.json");
+fs.mkdirSync(dest, { recursive: true });
+fs.writeFileSync(
+  summaryPath,
+  JSON.stringify(
+    {
+      version,
+      startedAt: new Date(started).toISOString(),
+      sourceSha256: before.sha256,
+      fullHarnessExitCode: null,
+      sourceUnchanged: false,
+      passed: false,
+      error: "Verification in progress",
+      evidence: {},
+      productionDeployment: false,
+    },
+    null,
+    2,
+  ) + "\n",
+);
+syncCurrentValidationFacts(version, before.sha256);
 const logPath = "reports/release-verification.log",
   stream = fs.createWriteStream(logPath, { flags: "w" });
 const child = spawn(
@@ -97,12 +134,11 @@ const summary = {
   evidence,
   productionDeployment: false,
 };
-const dest = path.join("docs", "validation", version);
-fs.mkdirSync(dest, { recursive: true });
 fs.writeFileSync(
-  path.join(dest, "summary.json"),
+  summaryPath,
   JSON.stringify(summary, null, 2) + "\n",
 );
+syncCurrentValidationFacts(version, summary.sourceSha256);
 fs.copyFileSync(logPath, path.join(dest, "verification.log"));
 console.log(
   JSON.stringify(

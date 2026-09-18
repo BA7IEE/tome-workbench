@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const currentVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
 async function run(p, transform) {
   const { checks } = await import("../scripts/harness.mjs");
   return checks((f) => {
@@ -50,6 +51,30 @@ for (const [name, p, fn, id] of [
     "docs/PRODUCTION.md",
     (s) => s.replace(/^.*\n/, "# old production\n"),
     "current-production-version",
+  ],
+  [
+    "stale validation version",
+    `docs/validation/${currentVersion}/summary.json`,
+    (s) => s.replace(`"version": "${currentVersion}"`, '"version": "0.0.0"'),
+    "current-validation-version",
+  ],
+  [
+    "stale validation source",
+    `docs/validation/${currentVersion}/summary.json`,
+    (s) => s.replace(/"sourceSha256": "[^"]+"/, '"sourceSha256": "stale"'),
+    "current-validation-source",
+  ],
+  [
+    "stale validation report version",
+    "docs/VALIDATION.md",
+    (s) => s.replace(/^# 当前验证记录 — [^\n]+$/m, "# 当前验证记录 — 0.0.0"),
+    "current-validation-report-version",
+  ],
+  [
+    "stale validation report source",
+    "docs/VALIDATION.md",
+    (s) => s.replace(/验证源码指纹为\s*\n`[a-f0-9]{64}`/m, "验证源码指纹为\n`stale`"),
+    "current-validation-report-source",
   ],
   [
     "one-off agent PR state",

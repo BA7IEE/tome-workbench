@@ -32,16 +32,18 @@ jobs:
       - run: npm run db:deploy
       - run: node scripts/prepare-test.mjs
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run harness:full
+      - run: npm run verify:release
         env:
           TOME_PG_CONTAINER: ${{ job.services.postgres.id }}
       - run: npm audit --audit-level=high
+      - run: npm run pack
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: verification-reports
           path: |
             reports/
+            release/*.zip
             data/browser-artifacts/**/*.png
             data/browser-artifacts/**/error-context.md
             data/browser-webkit-artifacts/**/*.png
