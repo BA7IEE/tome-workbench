@@ -127,6 +127,7 @@ export const required = [
   "agent/skills/tome-distribution/profiles/VC.md",
   "agent/skills/tome-distribution/profiles/GRAILED.md",
   "agent/skills/tome-distribution/profiles/CAROUSELL.md",
+  "agent/skills/tome-distribution/profiles/GENERIC.md",
   "tools/tome-ingest/cli.mjs",
   "tools/tome-ingest/client.mjs",
   "tools/tome-ingest/state.mjs",

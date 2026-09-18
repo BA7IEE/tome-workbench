@@ -68,14 +68,19 @@ export function recordPublication(p: Pack, after?: () => Promise<void>) {
     note(
       p.channel.platform === "SHOWROOM"
         ? "将这份已确认资料展示到本系统展厅。"
-        : "请先实际完成平台发布，再登记结果；没有稳定平台ID时，系统会保留发布 Attempt，不会伪造 Listing。",
+        : p.channel.platform === "ANQICMS"
+          ? "请先实际完成 AnQiCMS 发布或更新，再登记真实 archive ID；系统不会接受空 ID 或手工占位。"
+          : "请先实际完成平台发布，再登记结果；没有稳定平台ID时，系统会保留发布 Attempt，不会伪造 Listing。",
     ) +
       field("url", "平台商品链接（可稍后补充）", "", "url") +
       field(
         "remoteId",
-        "稳定平台商品ID（可留空）",
+        p.channel.platform === "ANQICMS"
+          ? "AnQiCMS archive ID（必填）"
+          : "稳定平台商品ID（可留空）",
         p.channel.platform === "SHOWROOM" ? p.id : "",
         "text",
+        p.channel.platform === "ANQICMS",
       ) +
       area(
         "evidenceNote",
@@ -87,6 +92,11 @@ export function recordPublication(p: Pack, after?: () => Promise<void>) {
       ),
     async (d, k) => {
       await checked(p);
+      if (
+        p.channel.platform === "ANQICMS" &&
+        !String(d.get("remoteId") || "").trim()
+      )
+        throw new Error("AnQiCMS 发布或更新成功必须填写真实 archive ID");
       const attempt = await request<{
         id: string;
         action?: string;

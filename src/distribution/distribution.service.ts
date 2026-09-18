@@ -368,7 +368,7 @@ function sameResult(
 // The caller already holds the item lock and runs inside the inventory command.
 export async function planStopDistribution(
   tx: Tx,
-  actorId: string,
+  actorId: string | null,
   itemId: string,
   cycle: number | null,
   reason: string,
@@ -422,7 +422,7 @@ export async function planStopDistribution(
       },
     });
     planned.push(attempt.id);
-    await audit(tx, actorId, "DISTRIBUTION_ATTEMPT_PLANNED", itemId, {
+    await audit(tx, actorId || "SYSTEM", "DISTRIBUTION_ATTEMPT_PLANNED", itemId, {
       attemptId: attempt.id,
       action: attempt.action,
       channelId: attempt.channelId,
@@ -515,22 +515,53 @@ export class DistributionService {
             );
           requireTradeChannel(channel, "分发经营目标");
           if (!existing?.active) {
-            const duplicates = await tx.distributionTarget.findMany({
-              where: {
-                itemId,
-                active: true,
-                channelId: { not: channelId },
-                channel: { is: { platform: channel.platform } },
-              },
-              select: {
-                id: true,
-                channel: { select: { id: true, name: true, platform: true } },
-              },
-            });
-            if (duplicates.length && !input.duplicatePlatformConfirmed)
+            const [duplicates, exposures, legacyListing] = await Promise.all([
+              tx.distributionTarget.findMany({
+                where: {
+                  itemId,
+                  active: true,
+                  channelId: { not: channelId },
+                  channel: { is: { platform: channel.platform } },
+                },
+                select: {
+                  id: true,
+                  channel: { select: { id: true, name: true, platform: true } },
+                },
+              }),
+              this.publicationHealth.currentPublicationExposures(tx, itemId),
+              tx.listing.findFirst({
+                where: {
+                  itemId,
+                  channelId: { not: channelId },
+                  desired: { not: "OFFLINE" },
+                  channel: { is: { platform: channel.platform } },
+                },
+                select: { id: true, channelId: true },
+              }),
+            ]);
+            const exposureChannelIds = [
+              ...new Set(
+                exposures
+                  .filter((row) => row.channelId !== channelId)
+                  .map((row) => row.channelId),
+              ),
+            ];
+            const exposureChannels = exposureChannelIds.length
+              ? await tx.channel.findMany({
+                  where: {
+                    id: { in: exposureChannelIds },
+                    platform: channel.platform,
+                  },
+                  select: { id: true },
+                })
+              : [];
+            if (
+              (duplicates.length || exposureChannels.length || legacyListing) &&
+              !input.duplicatePlatformConfirmed
+            )
               throw new Fault(
                 "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
-                `该商品已有${channel.platform}账号经营目标；请明确确认同平台多账号经营`,
+                `该商品在${channel.platform}已有经营目标或仍在线的历史暴露；请明确确认同平台多账号经营`,
                 409,
               );
           }
@@ -561,6 +592,25 @@ export class DistributionService {
                 updatedBy: actor.id,
               },
             });
+        const cancelledAttemptIds = !target.active
+          ? await this.publicationHealth.cancelPendingPublicationAttempts(
+              tx,
+              itemId,
+              actor.id,
+              "经营目标已关闭，尚未交付的发布资料已在本地取消",
+              channelId,
+            )
+          : [];
+        const delistAttemptIds = !target.active
+          ? await planStopDistribution(
+              tx,
+              actor.id,
+              itemId,
+              null,
+              "DISTRIBUTION_TARGET_CLOSED",
+              channelId,
+            )
+          : [];
         await audit(
           tx,
           actor.id,
@@ -577,6 +627,8 @@ export class DistributionService {
             version: target.version,
             reason: target.note,
             duplicatePlatformConfirmed: input.duplicatePlatformConfirmed,
+            cancelledAttemptIds,
+            delistAttemptIds,
           },
         );
         await event(tx, itemId, "DISTRIBUTION_TARGET_CHANGED", {
@@ -584,6 +636,8 @@ export class DistributionService {
           channelId,
           active: target.active,
           version: target.version,
+          cancelledAttemptIds,
+          delistAttemptIds,
         });
         return {
           id: target.id,
@@ -593,6 +647,8 @@ export class DistributionService {
           version: target.version,
           note: target.note,
           changed,
+          cancelledAttemptIds,
+          delistAttemptIds,
         };
       },
     );
@@ -833,6 +889,37 @@ export class DistributionService {
     // used to create a fresh trade handoff after the account becomes CONTENT.
     if (p.purpose === "TRADE") requireTradeChannel(p.channel, "交易分发记录");
 
+    const target = await tx.distributionTarget.findUnique({
+      where: {
+        itemId_channelId: { itemId: p.itemId, channelId: p.channelId },
+      },
+    });
+    if (target && !target.active)
+      throw new Fault(
+        "DISTRIBUTION_TARGET_INACTIVE",
+        "该商品已明确关闭此渠道经营目标；重新启用经营目标后才能生成新的发布或更新交付",
+        409,
+      );
+
+    // A stop from an older external generation must be reconciled before a
+    // newer PUBLISH/UPDATE can leave ToMe. Otherwise a late stop could take
+    // down the newly published generation.
+    const unresolvedStop = await tx.distributionAttempt.findFirst({
+      where: {
+        itemId: p.itemId,
+        channelId: p.channelId,
+        action: "DELIST",
+        state: { in: ["PENDING", "RUNNING", "UNKNOWN", "FAILED"] },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    if (unresolvedStop)
+      throw new Fault(
+        "DELIST_RECONCILIATION_REQUIRED",
+        "该渠道仍有未完成或待核对的停售记录；请先确认原停售结果，再重新发布",
+        409,
+      );
+
     // An outstanding handoff must be resolved before this account receives a
     // second external publish. It applies even when a newer package was made.
     const active = await tx.distributionAttempt.findFirst({
@@ -908,7 +995,7 @@ export class DistributionService {
       };
 
     const action = published && !delistedAfterPublish ? "UPDATE" : "PUBLISH";
-    const dedupeKey = [
+    const baseDedupeKey = [
       action.toLowerCase(),
       p.itemId,
       p.channelId,
@@ -918,15 +1005,31 @@ export class DistributionService {
         : []),
     ].join(":");
     const exact = await tx.distributionAttempt.findUnique({
-      where: { dedupeKey },
+      where: { dedupeKey: baseDedupeKey },
     });
-    if (exact)
+    if (exact && exact.state !== "CANCELLED")
       return {
         p,
         existing: exact,
         action: exact.action,
         reason: "SAME_PACKAGE" as const,
       };
+    const dedupeKey =
+      exact?.state === "CANCELLED" && target?.active
+        ? `${baseDedupeKey}:target:${target.version}`
+        : baseDedupeKey;
+    if (dedupeKey !== baseDedupeKey) {
+      const resumed = await tx.distributionAttempt.findUnique({
+        where: { dedupeKey },
+      });
+      if (resumed)
+        return {
+          p,
+          existing: resumed,
+          action: resumed.action,
+          reason: "SAME_PACKAGE" as const,
+        };
+    }
     return {
       p,
       action,
@@ -1093,7 +1196,7 @@ export class DistributionService {
           where: {
             ...scopedPair,
             active: true,
-            channel: { businessPurpose: "TRADE" },
+            channel: { businessPurpose: "TRADE", active: true },
           },
           select: { itemId: true, channelId: true },
           distinct: ["itemId", "channelId"],
@@ -1829,7 +1932,12 @@ export class DistributionService {
 
   private async upsertListing(
     tx: Tx,
-    attempt: { itemId: string; channelId: string; packageId: string | null },
+    attempt: {
+      itemId: string;
+      channelId: string;
+      packageId: string | null;
+      action: string;
+    },
     remoteId: string,
     url: string,
     actorId: string,
@@ -1839,6 +1947,31 @@ export class DistributionService {
       throw new Fault(
         "LISTING_PACKAGE_REQUIRED",
         "稳定远端身份必须关联发布使用包",
+        409,
+      );
+    const live = await tx.listing.findMany({
+      where: {
+        itemId: attempt.itemId,
+        channelId: attempt.channelId,
+        desired: { not: "OFFLINE" },
+      },
+      select: { id: true, remoteId: true },
+      orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+    });
+    if (live.length > 1)
+      throw new Fault(
+        "REMOTE_IDENTITY_AMBIGUOUS",
+        "该商品在此渠道存在多个未停售远端身份，请先人工核对并收敛后再继续发布",
+        409,
+      );
+    if (live.length === 1 && live[0].remoteId !== remoteId)
+      throw new Fault(
+        attempt.action === "UPDATE"
+          ? "UPDATE_REMOTE_ID_CONFLICT"
+          : "LIVE_REMOTE_ID_CONFLICT",
+        attempt.action === "UPDATE"
+          ? "更新必须保持原远端身份；当前回传了不同的远端编号，请核对是否误建了第二个商品"
+          : "该渠道已有未停售远端身份，不能用新的远端编号静默创建第二个在线商品",
         409,
       );
     const prior = await tx.listing.findUnique({
@@ -2033,12 +2166,39 @@ export class DistributionService {
     observed: string,
     incrementAttempt: boolean,
   ) {
-    const finalResult = await this.enforceAnqicmsSuccessReceipt(
+    let finalResult = await this.enforceAnqicmsSuccessReceipt(
       tx,
       attempt,
       result,
     );
     const item = await itemLock(tx, attempt.itemId);
+    if (
+      finalResult.state === "SUCCEEDED" &&
+      attempt.action === "UPDATE" &&
+      !finalResult.remoteId
+    ) {
+      const live = await tx.listing.findMany({
+        where: {
+          itemId: attempt.itemId,
+          channelId: attempt.channelId,
+          desired: { not: "OFFLINE" },
+        },
+        select: { remoteId: true, url: true },
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+      });
+      if (live.length > 1)
+        throw new Fault(
+          "REMOTE_IDENTITY_AMBIGUOUS",
+          "该商品在此渠道存在多个未停售远端身份，请先人工核对并收敛后再继续更新",
+          409,
+        );
+      if (live.length === 1)
+        finalResult = {
+          ...finalResult,
+          remoteId: live[0].remoteId,
+          remoteUrl: finalResult.remoteUrl || live[0].url,
+        };
+    }
     const listing =
       finalResult.state !== "SUCCEEDED"
         ? null

@@ -45,6 +45,12 @@ const profiles: readonly DistributionProfile[] = [
     platform: "CAROUSELL",
     file: "CAROUSELL.md",
   },
+  {
+    id: "GENERIC_TRADE/1.0",
+    name: "Generic trade channel",
+    platform: "OTHER",
+    file: "GENERIC.md",
+  },
 ];
 
 function profileDirectory() {

@@ -49,7 +49,7 @@ export class WorkerService {
       if (health.state !== "MUST_STOP") continue;
       await planStopDistribution(
         tx,
-        exposure.createdBy || "SYSTEM",
+        exposure.createdBy || null,
         itemId,
         null,
         `PUBLICATION_HEALTH:${health.reasons.map((reason) => reason.code).join(",")}`,
