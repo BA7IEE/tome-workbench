@@ -16,7 +16,7 @@ Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验共享
 
 ## 分发和待办
 
-`planStopDistribution` 在原库存命令的 Item 锁事务中处理 `AVAILABLE → RESERVED/PAUSED/SOLD/GIFTED/SELF_USE/SUPPLIER_SOLD/QUARANTINED`。它按 `Item + Channel + cycle` 找每个渠道最近成功的 PUBLISH/UPDATE，并创建 `delist:<sourceAttemptId>`；新 DELIST 的 `sourceAttemptId` 直接指向那条成功资料，所以发布 A 的停售不会挡住重新发布 B 后的停售。历史无关联 DELIST 不修改，仍按原时间事实防重。若旧的高级领取接口在停售前已领取、成功结果在停售后才回传，回执落库时也会补建同一来源关联记录。它不要求 Listing：APP 无稳定 remoteId 时，外部操作者用标题中的永久 TM 在指定账号内定位。DELIST、UNKNOWN 和 FAILED 都继续保留在原记录上，避免盲目重新发布；恢复 AVAILABLE 也不会自动重新交付。
+`planStopDistribution` 在原库存命令的 Item 锁事务中处理 `AVAILABLE → RESERVED/PAUSED/SOLD/GIFTED/SELF_USE/SUPPLIER_SOLD/QUARANTINED`。它按 `Item + Channel + cycle` 找每个渠道最近成功的 PUBLISH/UPDATE，并创建 `delist:<sourceAttemptId>`；新 DELIST 的 `sourceAttemptId` 直接指向那条成功资料，所以发布 A 的停售不会挡住重新发布 B 后的停售。rc.6 进一步把“重新发布”与“旧代际停售完成”串行化：同一 Item×Channel 只要还有 PENDING/RUNNING/UNKNOWN/FAILED DELIST，就拒绝新的 PUBLISH/UPDATE；关闭 DistributionTarget 时会取消尚未交付的 PENDING 发布/更新并立即计划当前成功代际的停售，RUNNING/UNKNOWN 仍必须人工核对。历史无关联 DELIST 不修改，仍按原时间事实防重。若旧的高级领取接口在停售前已领取、成功结果在停售后才回传，回执落库时也会补建同一来源关联记录。它不要求 Listing：APP 无稳定 remoteId 时，外部操作者用标题中的永久 TM 在指定账号内定位。DELIST、UNKNOWN 和 FAILED 都继续保留在原记录上，避免盲目重新发布；恢复 AVAILABLE 也不会自动重新交付。
 
 `PublicationHealthService` 同样把无稳定 remoteId 的成功 PUBLISH/UPDATE 当作可能在线的远端暴露。库存、关闭 Target、停用/退出交易用途的 Channel、失效 Offer、批准/鉴定、发布图片权利和交易价不安全时，Worker/Sweep 只计划该成功资料的来源关联 DELIST；不会调用外部平台。安全但批准版本、渠道价、文案或图片变化时标为待更新。UsePackage 的七天 TTL 仍拦住新的交付，但不单独让成功发布待更新；回收站先本地取消未交付 PENDING，仍可能在线或未完成停售的记录一律阻止删除。
 
