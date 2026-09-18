@@ -1,4 +1,4 @@
-# 标准资料交付与 Real Operations · 1.1.0-rc.5
+# 标准资料交付与 Real Operations · 1.1.0-rc.6
 
 ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并记录交付后的经营状态。闲鱼、Vestiaire、Grailed、Carousell、AnQiCMS 等平台的点击、浏览器或 APP 自动化、登录、验证码、页面步骤都由外部 Agent、脚本或人工完成；ToMe 不连接平台，也不会从系统内发起这些动作。
 
