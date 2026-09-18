@@ -52,6 +52,12 @@ legacy 名义新建批次。只有数据库已存在、且同一来源/批次键
 
 来源图默认只作为内部参考证据；下载成功不等于拥有公开发布权。
 
+## 凭据与敏感来源数据
+
+导入会话 Token 只在首次创建成功时显示，不能依赖同一个创建请求再次取回。会话创建者被停用、失去货源权限，或来源被停用后，旧 Token 必须视为立即失效。
+
+不得把第三方密码、Cookie、Authorization、Token、API Key、Session、Signature 或其他访问凭据写入 `rawPayload`、`sourceFacts`、URL、备注或字段名。遇到 signed URL 时，Agent 可以在外部执行环境用它下载真实文件，但提交到 ToMe 的来源 URL 必须去掉敏感查询参数。
+
 ## 重试与恢复
 
 所有写入都必须有 `Idempotency-Key`。结果未知时，使用**相同请求体和相同 Key**重试；不要新建 Key 猜测服务器是否写入。客户端状态文件只可保存操作 fingerprint、幂等 Key、服务器 ID 和本地状态，绝不保存 Token、Cookie 或第三方凭据。
