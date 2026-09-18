@@ -29,6 +29,13 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
   } catch {
     validation = null;
   }
+  const validationReport = read("docs/VALIDATION.md");
+  const validationReportVersion =
+    validationReport.match(/^# 当前验证记录 — ([^\n]+)$/m)?.[1]?.trim() ||
+    null;
+  const validationReportSource =
+    validationReport.match(/验证源码指纹为\s*\n`([a-f0-9]{64})`/m)?.[1] ||
+    null;
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   return [
     { id: "current-release-version", pass: facts?.version === version },
@@ -50,6 +57,18 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
     {
       id: "current-validation-source",
       pass: validation?.sourceSha256 === sourceFingerprint().sha256,
+    },
+    {
+      id: "current-validation-report-version",
+      pass:
+        validationReportVersion === version &&
+        validationReportVersion === validation?.version,
+    },
+    {
+      id: "current-validation-report-source",
+      pass:
+        validationReportSource === validation?.sourceSha256 &&
+        validationReportSource === sourceFingerprint().sha256,
     },
     {
       id: "current-production-version",

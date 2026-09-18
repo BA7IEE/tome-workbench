@@ -65,6 +65,18 @@ for (const [name, p, fn, id] of [
     "current-validation-source",
   ],
   [
+    "stale validation report version",
+    "docs/VALIDATION.md",
+    (s) => s.replace(/^# 当前验证记录 — [^\n]+$/m, "# 当前验证记录 — 0.0.0"),
+    "current-validation-report-version",
+  ],
+  [
+    "stale validation report source",
+    "docs/VALIDATION.md",
+    (s) => s.replace(/验证源码指纹为\s*\n`[a-f0-9]{64}`/m, "验证源码指纹为\n`stale`"),
+    "current-validation-report-source",
+  ],
+  [
     "one-off agent PR state",
     "AGENTS.md",
     (s) => s + "\nPR #999 尚未合并",
