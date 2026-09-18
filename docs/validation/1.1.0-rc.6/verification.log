@@ -1,0 +1,18 @@
+ToMeBoutique 1.1.0-rc.6 remote verification evidence
+GitHub Actions run: https://github.com/BA7IEE/tome-workbench/actions/runs/35346368541
+Head SHA: 4e46bbbaf1a1bec0275f98ea6d084711b84fdd8e
+Conclusion: success
+verify:release passed: true
+fullHarnessExitCode: 0
+sourceUnchanged: true
+sourceSha256: 21bcaf067c0d526adbf30e12f2baede8e466ae19896933c0453173387802d9ae
+Node suites: 27/27, 30/30, 157/157, 8/8
+Chromium expected/pass scope: 175, unexpected=0, skipped=0, flaky=0, retries=0
+WebKit expected/pass scope: 175, unexpected=0, skipped=0, flaky=0, retries=0
+Launch scale ms: operations=524.824037, dashboard=501.297064, workQueue=32.13779
+High availability passed: true
+Recovery passed: true
+npm audit: 0 vulnerabilities
+Package: release/tome-workbench-1.1.0-rc.6.zip (2089144 bytes)
+
+This file is a persisted summary of the exact successful remote run. The raw workflow logs remain in GitHub Actions.
