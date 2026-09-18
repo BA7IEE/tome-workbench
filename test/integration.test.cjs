@@ -6644,3 +6644,95 @@ test("Distribution legacy stop：没有专用发布 Profile 的停用/内容渠�
   assert.deepEqual(rows.map((row) => row.recordId), [stop.id]);
   assert.deepEqual(rows.map((row) => row.action), ["DELIST"]);
 });
+
+
+test("Operations cleanup：超时Handoff进入统一待办，外币成交显示结算依据而非人民币成本", async () => {
+  const staleItem = await ready();
+  const stalePackage = await pack(staleItem.id);
+  const staleAttempt = await ok("/distribution/plan", "POST", {
+    packageId: stalePackage.id,
+  });
+  const staleSession = await distributionSession(
+    channel.id,
+    "超时交付统一待办回归",
+  );
+  await distributionHandoffOk(
+    `/handoffs/${staleAttempt.id}/package`,
+    staleSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await db.distributionAttempt.update({
+    where: { id: staleAttempt.id },
+    data: { startedAt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+  });
+  const staleCode = (await item(staleItem.id)).code;
+  const staleQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(staleCode)}`,
+  );
+  const staleRow = staleQueue.rows.find(
+    (row) => row.entityId === staleAttempt.id,
+  );
+  assert.ok(staleRow);
+  assert.equal(staleRow.priority, 95);
+  assert.equal(staleRow.title, "已交付分发记录超时，需要核对");
+
+  const deadItem = await ready();
+  const deadPackage = await pack(deadItem.id);
+  const deadAttempt = await ok("/distribution/plan", "POST", {
+    packageId: deadPackage.id,
+  });
+  const deadSession = await distributionSession(
+    channel.id,
+    "失效会话统一待办回归",
+  );
+  await distributionHandoffOk(
+    `/handoffs/${deadAttempt.id}/package`,
+    deadSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await ok(`/distribution/sessions/${deadSession.id}/revoke`, "POST");
+  const deadCode = (await item(deadItem.id)).code;
+  const deadQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(deadCode)}`,
+  );
+  const deadRow = deadQueue.rows.find((row) => row.entityId === deadAttempt.id);
+  assert.ok(deadRow);
+  assert.equal(deadRow.priority, 95);
+  assert.equal(deadRow.title, "已交付分发会话失效，需要核对");
+
+  const usdChannel = await ok("/channels", "POST", {
+    name: "外币成交待办 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+  });
+  const foreignItem = await ready();
+  await ok(
+    `/items/${foreignItem.id}/channel-prices/${usdChannel.id}`,
+    "POST",
+    { amount: 138000, currency: "USD" },
+  );
+  const foreignSale = await sold(foreignItem.id, {
+    channelId: usdChannel.id,
+    customerRef: "合成外币成交客户",
+  });
+  const sale = await db.sale.findUniqueOrThrow({ where: { id: foreignSale.id } });
+  assert.equal(sale.currency, "USD");
+  assert.equal(sale.cost, null);
+  const foreignCode = (await item(foreignItem.id)).code;
+  const foreignQueue = await ok(
+    `/work-queue?scope=SALE_FINANCE&q=${encodeURIComponent(foreignCode)}`,
+  );
+  const financeRow = foreignQueue.rows.find(
+    (row) => row.entityId === foreignSale.id,
+  );
+  assert.ok(financeRow);
+  assert.equal(financeRow.title, "外币成交待确认结算依据");
+  assert.match(financeRow.detail, /外币结算依据/);
+  assert.doesNotMatch(financeRow.detail, /缺 [^·]*成本/);
+});
