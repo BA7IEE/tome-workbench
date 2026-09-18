@@ -74,6 +74,44 @@ interface DistributionTarget {
 async function checked(p: Pack) {
   return request<Usable>(`/packages/${p.id}/usable`);
 }
+export async function activateDistributionTarget(
+  itemId: string,
+  channel: Channel,
+  reason: string,
+  duplicateHint = false,
+) {
+  let confirmed = duplicateHint;
+  const message =
+    `这件商品在另一个 ${platformNames[channel.platform] || channel.platform} 账号已有经营目标或仍在线记录。确认还要同时加入「${channel.name}」？`;
+  if (confirmed && !window.confirm(message)) return false;
+  const submit = () =>
+    request(
+      `/items/${itemId}/distribution-targets/${channel.id}`,
+      "POST",
+      {
+        active: true,
+        reason,
+        duplicatePlatformConfirmed: confirmed,
+      },
+      crypto.randomUUID(),
+    );
+  try {
+    await submit();
+    return true;
+  } catch (error) {
+    if (
+      !confirmed &&
+      error instanceof ApiError &&
+      error.code === "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED"
+    ) {
+      if (!window.confirm(message)) return false;
+      confirmed = true;
+      await submit();
+      return true;
+    }
+    throw error;
+  }
+}
 export function recordPublication(p: Pack, after?: () => Promise<void>) {
   form(
     p.channel.platform === "SHOWROOM" ? "发布到自有展厅" : "记录已完成的发布",
@@ -571,31 +609,22 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
     targetButton?.addEventListener(
       "click",
       async () => {
-        if (
-          duplicatePlatformTarget &&
-          !window.confirm(
-            `这件商品已在另一个 ${platformNames[channel.platform] || channel.platform} 账号经营。确认还要同时加入「${channel.name}」？`,
-          )
-        )
-          return;
         if (busy) return;
         locked(true);
         try {
-          await request(
-            `/items/${i.id}/distribution-targets/${channel.id}`,
-            "POST",
-            {
-              active: true,
-              reason: "商品渠道资料页明确加入分发渠道",
-              duplicatePlatformConfirmed: duplicatePlatformTarget,
-            },
-            crypto.randomUUID(),
+          const activated = await activateDistributionTarget(
+            i.id,
+            channel,
+            "商品渠道资料页明确加入分发渠道",
+            duplicatePlatformTarget,
           );
+          if (!activated) return;
           toast("已加入此分发渠道");
           await reload();
         } catch (error) {
-          locked(false);
           showError(error);
+        } finally {
+          locked(false);
         }
       },
       { signal },
