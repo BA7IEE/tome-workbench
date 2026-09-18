@@ -99,7 +99,7 @@ function sensitive(value: string) {
   );
 }
 
-function archiveId(raw: string) {
+export function validateAnqicmsArchiveId(raw: string) {
   const value = raw.trim();
   if (
     !value ||
@@ -175,7 +175,7 @@ export function buildAnqicmsTakedownProjection(raw: unknown) {
   const input = takedownInput.parse(raw);
   const stable = input.listing
     ? {
-        archiveId: archiveId(input.listing.archiveId),
+        archiveId: validateAnqicmsArchiveId(input.listing.archiveId),
         url: checkedUrl(input.listing.url),
       }
     : null;
@@ -215,7 +215,7 @@ export function buildAnqicmsSpikePayload(raw: unknown) {
   const input = publicationInput.parse(raw);
   const stable = input.listing
     ? {
-        archiveId: archiveId(input.listing.archiveId),
+        archiveId: validateAnqicmsArchiveId(input.listing.archiveId),
         url: checkedUrl(input.listing.url),
       }
     : null;
@@ -285,7 +285,7 @@ export function buildAnqicmsSpikePayload(raw: unknown) {
 export function normalizeAnqicmsReceipt(raw: unknown, code: string) {
   const receipt = receiptInput.parse(raw);
   const tmCodeValue = tmCode.parse(code);
-  const remoteId = archiveId(String(receipt.archive_id));
+  const remoteId = validateAnqicmsArchiveId(String(receipt.archive_id));
   return {
     state: "SUCCEEDED" as const,
     remoteId,

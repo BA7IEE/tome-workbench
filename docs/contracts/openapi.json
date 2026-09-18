@@ -3168,6 +3168,34 @@
         ]
       }
     },
+    "/api/distribution-agent/skill": {
+      "get": {
+        "operationId": "DistributionAgentController_skill",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
+    "/api/distribution-agent/profile": {
+      "get": {
+        "operationId": "DistributionAgentController_profile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "分发 Agent"
+        ]
+      }
+    },
     "/api/distribution-agent/attempts": {
       "get": {
         "operationId": "DistributionAgentController_attempts",

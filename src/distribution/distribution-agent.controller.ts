@@ -2,7 +2,9 @@ import { Body, Controller, Get, Param, Post, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { DistributionRequest, MachineDistribution } from "../auth/auth";
+import { config } from "../common/config";
 import { uuid } from "../common/domain";
+import { Fault } from "../common/errors";
 import { DistributionService } from "./distribution.service";
 
 @ApiTags("分发 Agent")
@@ -10,6 +12,15 @@ import { DistributionService } from "./distribution.service";
 @Controller("api/distribution-agent")
 export class DistributionAgentController {
   constructor(private distribution: DistributionService) {}
+
+  private requireCompatRuntime() {
+    if (!config().distributionCompatRuntimeEnabled)
+      throw new Fault(
+        "COMPAT_DISTRIBUTION_RUNTIME_DISABLED",
+        "旧版领取/租约分发接口默认关闭；请使用标准 Handoff MCP 或显式启用兼容运行时",
+        410,
+      );
+  }
 
   // Standard delivery surface: a package is handed to an external executor;
   // ToMe never receives platform selectors, credentials or click steps.
@@ -84,18 +95,50 @@ export class DistributionAgentController {
     return this.distribution.agentProtocol(request.distributionSession);
   }
 
+  @Get("skill")
+  async skill(@Res() response: Response) {
+    const skill = await this.distribution.machineHandoffSkillDocument();
+    response
+      .set({
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      })
+      .send(skill.markdown);
+  }
+
+  @Get("profile")
+  async profile(
+    @Req() request: DistributionRequest,
+    @Res() response: Response,
+  ) {
+    const profile = await this.distribution.machineHandoffProfileDocument(
+      request.distributionSession,
+    );
+    response
+      .set({
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      })
+      .send(profile.markdown);
+  }
+
   @Get("attempts")
   attempts(@Req() request: DistributionRequest) {
+    this.requireCompatRuntime();
     return this.distribution.agentAttempts(request.distributionSession);
   }
 
   @Post("attempts/:id/claim")
   claim(@Param("id") id: string, @Req() request: DistributionRequest) {
+    this.requireCompatRuntime();
     return this.distribution.claim(request.distributionSession, uuid.parse(id));
   }
 
   @Get("attempts/:id/payload")
   payload(@Param("id") id: string, @Req() request: DistributionRequest) {
+    this.requireCompatRuntime();
     return this.distribution.agentPayload(
       request.distributionSession,
       uuid.parse(id),
@@ -107,6 +150,7 @@ export class DistributionAgentController {
     @Param("id") id: string,
     @Req() request: DistributionRequest,
   ) {
+    this.requireCompatRuntime();
     return this.distribution.agentAnqicmsSpikePayload(
       request.distributionSession,
       uuid.parse(id),
@@ -120,6 +164,7 @@ export class DistributionAgentController {
     @Req() request: DistributionRequest,
     @Res() response: Response,
   ) {
+    this.requireCompatRuntime();
     const asset = await this.distribution.agentAsset(
       request.distributionSession,
       uuid.parse(id),
@@ -141,6 +186,7 @@ export class DistributionAgentController {
     @Body() raw: unknown,
     @Req() request: DistributionRequest,
   ) {
+    this.requireCompatRuntime();
     return this.distribution.agentResult(
       request.distributionSession,
       uuid.parse(id),

@@ -115,6 +115,7 @@ export const required = [
   "src/distribution/distribution.controller.ts",
   "src/distribution/distribution-agent.controller.ts",
   "src/distribution/distribution-mcp.controller.ts",
+  "src/distribution/distribution-standard.ts",
   "src/distribution/anqicms-spike.ts",
   "agent/skills/tome-ingest/SKILL.md",
   "agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
@@ -438,6 +439,48 @@ export function checks(
         ) &&
         read("test/integration.test.cjs").includes(
           "标准分发交付合同",
+        )
+      );
+    },
+  );
+  check(
+    "v11-distribution-handoff-closure",
+    () => {
+      const agent = read("src/distribution/distribution-agent.controller.ts");
+      const service = read("src/distribution/distribution.service.ts");
+      const mcp = read("src/distribution/distribution-mcp.controller.ts");
+      return (
+        read(".env.example").includes(
+          "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
+        ) &&
+        read("src/common/config.ts").includes(
+          "DISTRIBUTION_HANDOFF_STALE_HOURS",
+        ) &&
+        read("src/auth/auth.ts").includes("X-Distribution-Token") &&
+        read("src/auth/auth.ts").includes('req.get("Authorization")') &&
+        read("src/distribution/distribution-standard.ts").includes(
+          "DISTRIBUTION_SKILL_ID",
+        ) &&
+        agent.includes('Get("skill")') &&
+        agent.includes('Get("profile")') &&
+        agent.includes("COMPAT_DISTRIBUTION_RUNTIME_DISABLED") &&
+        service.includes("platformDataForHandoff") &&
+        service.includes("ANQICMS_ARCHIVE_ID_REQUIRED") &&
+        service.includes("HANDOFF_STALE") &&
+        service.includes("HANDOFF_SESSION_DEAD") &&
+        mcp.includes("handoff.skill") &&
+        mcp.includes("Read and verify the advertised Skill") &&
+        read("agent/skills/tome-distribution/SKILL.md").includes(
+          "SHA-256",
+        ) &&
+        read("agent/skills/tome-distribution/profiles/ANQICMS.md").includes(
+          "archive_id",
+        ) &&
+        read("test/integration.test.cjs").includes(
+          "Distribution Handoff Closure",
+        ) &&
+        read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
+          "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
         )
       );
     },

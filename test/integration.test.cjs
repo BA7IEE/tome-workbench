@@ -18,6 +18,10 @@ process.env.PORT = "4320";
 process.env.MEDIA_DIR = "./data/test-media";
 process.env.COOKIE_SECURE = "false";
 process.env.EXTERNAL_EFFECTS_ENABLED = "false";
+// Legacy claim/lease coverage stays explicit in this isolated suite. Product
+// defaults keep that compatibility runtime off.
+process.env.DISTRIBUTION_COMPAT_RUNTIME_ENABLED = "true";
+process.env.DISTRIBUTION_HANDOFF_STALE_HOURS = "24";
 const { PrismaClient } = require("@prisma/client");
 const { createApp } = require("../dist/bootstrap");
 const { passwordHash } = require("../dist/auth/auth");
@@ -2665,6 +2669,15 @@ async function distributionAgentOk(path,token,method='GET',body){
   assert.ok(r.status>=200&&r.status<300,`${method} ${path} ${r.status}: ${JSON.stringify(r.data)}`);
   return r.data;
 }
+async function distributionBearerApi(path,token,method='GET',body){
+  const headers={Authorization:'Bearer '+token};
+  if(body!==undefined)headers['Content-Type']='application/json';
+  const r=await fetch(origin+(path.startsWith('/api/')?path:'/api'+path),{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+  const raw=await r.text();
+  let data=null;
+  try { data=JSON.parse(raw||'null'); } catch {}
+  return {status:r.status,data,raw,headers:r.headers};
+}
 async function distributionHandoffApi(path,token,method='GET',body,key=randomUUID()){
   const headers={'X-Distribution-Token':token,'Idempotency-Key':key};
   if(body!==undefined)headers['Content-Type']='application/json';
@@ -2695,6 +2708,10 @@ async function mcpTool(token,name,args={},id=randomUUID()){
 }
 async function distributionMcpApi(token, body, extra={}){
   const r=await fetch(origin+'/api/mcp/distribution',{method:'POST',headers:{'X-Distribution-Token':token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
+  return {status:r.status,data:await r.json().catch(()=>null)};
+}
+async function distributionMcpBearerApi(token, body, extra={}){
+  const r=await fetch(origin+'/api/mcp/distribution',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
   return {status:r.status,data:await r.json().catch(()=>null)};
 }
 async function distributionMcpTool(token,name,args={},id=randomUUID()){
@@ -4064,6 +4081,241 @@ test("标准分发交付合同：冻结资料、薄 MCP、渠道隔离与人工�
   const revoked = await distributionHandoffApi("/handoffs", revokedSession.token);
   assert.equal(revoked.status, 403);
   assert.equal(revoked.data.error.code, "DISTRIBUTION_CREATOR_REVOKED");
+});
+
+test("Distribution Handoff Closure：发现合同、AnQi 回执、兼容开关与动态核对均不替代外部执行", async () => {
+  const session = await distributionSession(channel.id, "Handoff Closure 闲鱼会话");
+  const protocol = await distributionBearerApi(
+    "/distribution-agent/protocol",
+    session.token,
+  );
+  assert.equal(protocol.status, 200);
+  assert.equal(protocol.data.protocolVersion, "1.0");
+  assert.equal(protocol.data.skill.id, "tome-distribution/1.0");
+  assert.equal(protocol.data.profile.id, "XIANYU/1.0");
+  assert.deepEqual(protocol.data.handoff.tools, [
+    "tome_distribution_list_handoffs",
+    "tome_distribution_get_package",
+    "tome_distribution_report_published",
+    "tome_distribution_report_attention",
+  ]);
+  const skill = await distributionBearerApi(
+    "/distribution-agent/skill",
+    session.token,
+  );
+  const profile = await distributionBearerApi(
+    "/distribution-agent/profile",
+    session.token,
+  );
+  assert.equal(skill.status, 200);
+  assert.equal(profile.status, 200);
+  assert.match(skill.raw, /^# ToMeBoutique 标准分发交付 Skill/m);
+  assert.match(profile.raw, /^# 闲鱼分发 Profile/m);
+  assert.equal(skill.headers.get("cache-control"), "private, no-store");
+  assert.equal(
+    createHash("sha256").update(skill.raw).digest("hex"),
+    protocol.data.skill.sha256,
+  );
+  assert.equal(
+    createHash("sha256").update(profile.raw).digest("hex"),
+    protocol.data.profile.sha256,
+  );
+  const initialize = await distributionMcpBearerApi(session.token, {
+    jsonrpc: "2.0",
+    id: "distribution-bearer-initialize",
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "Synthetic Bearer Handoff", version: "1.0" },
+    },
+  });
+  assert.equal(initialize.status, 200);
+  assert.equal(initialize.data.result.serverInfo.name, "tome-distribution");
+  assert.equal(initialize.data.result.skill.sha256, protocol.data.skill.sha256);
+  assert.equal(
+    initialize.data.result.profile.sha256,
+    protocol.data.profile.sha256,
+  );
+
+  delete process.env.DISTRIBUTION_COMPAT_RUNTIME_ENABLED;
+  try {
+    const disabled = await distributionAgentApi(
+      "/distribution-agent/attempts",
+      session.token,
+    );
+    assert.equal(disabled.status, 410);
+    assert.equal(
+      disabled.data.error.code,
+      "COMPAT_DISTRIBUTION_RUNTIME_DISABLED",
+    );
+    assert.equal((await distributionHandoffApi("/handoffs", session.token)).status, 200);
+  } finally {
+    process.env.DISTRIBUTION_COMPAT_RUNTIME_ENABLED = "true";
+  }
+  assert.ok(
+    (await distributionAgentApi("/distribution-agent/attempts", session.token))
+      .status < 300,
+  );
+
+  const anqicms = await ok("/channels", "POST", {
+    name: "Handoff Closure AnQi " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+    distributionMode: "API",
+  });
+  const anqiItem = await ready({ category: "BAG" });
+  await ok(`/items/${anqiItem.id}/channel-prices/${anqicms.id}`, "POST", {
+    amount: 138000,
+    currency: "USD",
+  });
+  const anqiAttempt = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(anqiItem.id, anqicms)).id,
+  });
+  const anqiSession = await distributionSession(
+    anqicms.id,
+    "Handoff Closure AnQi 会话",
+  );
+  const anqiPackage = await distributionHandoffOk(
+    `/handoffs/${anqiAttempt.id}/package`,
+    anqiSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  assert.equal(anqiPackage.platformData.schema, "tome.anqicms/v1");
+  assert.equal(anqiPackage.platformData.payload.protocol, "tome.anqicms.spike/v1");
+  assert.equal(anqiPackage.platformData.payload.identity.tm_code, anqiItem.code);
+  const missingArchive = await distributionHandoffApi(
+    `/handoffs/${anqiAttempt.id}/published`,
+    anqiSession.token,
+    "POST",
+    { note: "合成 AnQi 回执遗漏 archive ID。" },
+    randomUUID(),
+  );
+  assert.equal(missingArchive.status, 400);
+  assert.equal(missingArchive.data.error.code, "ANQICMS_ARCHIVE_ID_REQUIRED");
+  assert.equal(
+    (await db.distributionAttempt.findUniqueOrThrow({ where: { id: anqiAttempt.id } }))
+      .state,
+    "RUNNING",
+  );
+  const archiveId = "archive-" + randomUUID();
+  const anqiPublished = await distributionHandoffOk(
+    `/handoffs/${anqiAttempt.id}/published`,
+    anqiSession.token,
+    "POST",
+    {
+      note: "合成 AnQi 回执返回稳定 archive ID。",
+      remoteId: archiveId,
+      remoteUrl: "https://example.invalid/archive/" + archiveId,
+    },
+    randomUUID(),
+  );
+  assert.equal(anqiPublished.status, "SUCCEEDED");
+  assert.equal(
+    await db.listing.count({
+      where: { channelId: anqicms.id, remoteId: archiveId },
+    }),
+    1,
+  );
+  await sold(anqiItem.id, { channelId: anqicms.id });
+  const anqiDelist = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${anqiAttempt.id}` },
+  });
+  const anqiStopPackage = await distributionHandoffOk(
+    `/handoffs/${anqiDelist.id}/package`,
+    anqiSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  assert.equal(anqiStopPackage.package, null);
+  assert.equal(anqiStopPackage.platformData.schema, "tome.anqicms/v1");
+  assert.equal(anqiStopPackage.platformData.payload.operation, "STOCK_ZERO");
+  assert.equal(anqiStopPackage.platformData.payload.identity.archive_id, archiveId);
+
+  const appItem = await ready();
+  const appAttempt = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(appItem.id)).id,
+  });
+  await distributionHandoffOk(
+    `/handoffs/${appAttempt.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  assert.equal(
+    (
+      await distributionHandoffOk(
+        `/handoffs/${appAttempt.id}/published`,
+        session.token,
+        "POST",
+        { note: "合成 APP 按永久 TM 确认完成但未提供稳定远端编号。" },
+        randomUUID(),
+      )
+    ).status,
+    "SUCCEEDED",
+  );
+  assert.equal(
+    await db.listing.count({ where: { itemId: appItem.id, channelId: channel.id } }),
+    0,
+  );
+
+  const staleItem = await ready();
+  const staleAttempt = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(staleItem.id)).id,
+  });
+  await distributionHandoffOk(
+    `/handoffs/${staleAttempt.id}/package`,
+    session.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await db.distributionAttempt.update({
+    where: { id: staleAttempt.id },
+    data: { startedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+  });
+  const staleOperations = await ok(
+    `/distribution/operations?attemptId=${staleAttempt.id}`,
+  );
+  const stale = staleOperations.rows.find((row) => row.attempt?.id === staleAttempt.id);
+  assert.equal(stale.state, "ATTENTION");
+  assert.equal(stale.attempt.errorCode, "HANDOFF_STALE");
+  const staleStored = await db.distributionAttempt.findUniqueOrThrow({
+    where: { id: staleAttempt.id },
+  });
+  assert.equal(staleStored.state, "RUNNING");
+  assert.equal(staleStored.attemptCount, 1);
+
+  const deadItem = await ready();
+  const deadAttempt = await ok("/distribution/plan", "POST", {
+    packageId: (await pack(deadItem.id)).id,
+  });
+  const deadSession = await distributionSession(channel.id, "失效 Handoff 会话");
+  await distributionHandoffOk(
+    `/handoffs/${deadAttempt.id}/package`,
+    deadSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await ok(`/distribution/sessions/${deadSession.id}/revoke`, "POST", {});
+  const deadOperations = await ok(
+    `/distribution/operations?attemptId=${deadAttempt.id}`,
+  );
+  const dead = deadOperations.rows.find((row) => row.attempt?.id === deadAttempt.id);
+  assert.equal(dead.state, "ATTENTION");
+  assert.equal(dead.attempt.errorCode, "HANDOFF_SESSION_DEAD");
+  assert.equal(
+    (await db.distributionAttempt.findUniqueOrThrow({ where: { id: deadAttempt.id } }))
+      .state,
+    "RUNNING",
+  );
 });
 
 test("Distribution Foundation：并发领取、过期租约与失败重试只复用同一执行事实", async () => {
