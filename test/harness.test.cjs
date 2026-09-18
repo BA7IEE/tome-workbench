@@ -9,8 +9,13 @@ async function run(p, transform) {
     return f === p ? transform(s) : s;
   });
 }
-test("harness baseline passes", async () =>
-  assert.ok((await run("", (s) => s)).every((x) => x.pass)));
+test("harness baseline passes", async () => {
+  const result = await run("", (s) => s);
+  assert.deepEqual(
+    result.filter((x) => !x.pass).map((x) => ({ id: x.id, reason: x.reason })),
+    [],
+  );
+});
 for (const state of [
   "未合并 main",
   "尚未合并到 `main`",
