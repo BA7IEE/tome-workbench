@@ -103,9 +103,48 @@ export class AuthGuard implements CanActivate {
       const bearer=/^Bearer\s+([a-f0-9]{64})$/.exec(req.get("Authorization") || "")?.[1] || "";
       const token=directToken || bearer;
       if(!/^[a-f0-9]{64}$/.test(token)) throw new Fault("INGEST_TOKEN_REQUIRED","缺少有效导入令牌",401);
-      const session=await this.db.ingestSession.findUnique({where:{tokenHash:digest(token)}});
-      if(!session || session.revokedAt || session.expiresAt<=new Date()) throw new Fault("INGEST_SESSION_EXPIRED","导入会话不存在、已撤销或已过期",401);
-      req.ingestSession={id:session.id,createdBy:session.createdBy,procurementSourceId:session.procurementSourceId};
+      const now = new Date();
+      const session = await this.db.ingestSession.findUnique({
+        where: { tokenHash: digest(token) },
+        include: { procurementSource: { select: { active: true } } },
+      });
+      if (!session || session.revokedAt || session.expiresAt <= now)
+        throw new Fault(
+          "INGEST_SESSION_EXPIRED",
+          "导入会话不存在、已撤销或已过期",
+          401,
+        );
+      const creator = await this.db.user.findUnique({
+        where: { id: session.createdBy },
+        select: { active: true, role: true },
+      });
+      if (!creator?.active || !permission(creator.role as Role, "supply"))
+        throw new Fault(
+          "INGEST_CREATOR_REVOKED",
+          "导入会话创建者已停用或失去货源权限",
+          403,
+        );
+      if (!session.procurementSource.active)
+        throw new Fault(
+          "INGEST_SOURCE_UNAVAILABLE",
+          "导入来源已停用，现有机器会话不得继续访问",
+          403,
+        );
+      const used = await this.db.ingestSession.updateMany({
+        where: { id: session.id, revokedAt: null, expiresAt: { gt: now } },
+        data: { lastUsedAt: now },
+      });
+      if (used.count !== 1)
+        throw new Fault(
+          "INGEST_SESSION_EXPIRED",
+          "导入会话不存在、已撤销或已过期",
+          401,
+        );
+      req.ingestSession = {
+        id: session.id,
+        createdBy: session.createdBy,
+        procurementSourceId: session.procurementSourceId,
+      };
       return true;
     }
     const distribution = this.reflector.getAllAndOverride<boolean>(
