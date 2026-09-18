@@ -1,0 +1,1174 @@
+{
+  "version": "1.1.0-rc.5",
+  "startedAt": "2026-09-18T00:24:04.981Z",
+  "finishedAt": "2026-09-18T00:33:56.260Z",
+  "sourceSha256": "275b0b8ad7e353386bbef5611f713e7dfde0a72d5a460aead823095acadf6d39",
+  "fullHarnessExitCode": 0,
+  "sourceUnchanged": true,
+  "passed": true,
+  "error": "",
+  "evidence": {
+    "nodeSuites": [
+      {
+        "tests": 27,
+        "passed": 27,
+        "failed": 0
+      },
+      {
+        "tests": 28,
+        "passed": 28,
+        "failed": 0
+      },
+      {
+        "tests": 152,
+        "passed": 152,
+        "failed": 0
+      },
+      {
+        "tests": 8,
+        "passed": 8,
+        "failed": 0
+      }
+    ],
+    "browserStats": {
+      "startTime": "2026-09-18T00:25:01.659Z",
+      "duration": 224658.4,
+      "expected": 175,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "webkitStats": {
+      "startTime": "2026-09-18T00:28:48.817Z",
+      "duration": 254434.859,
+      "expected": 175,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "highAvailability": {
+      "kind": "isolated-real-process-fault-tests",
+      "externalActionsExecuted": 0,
+      "checks": {
+        "replicas": {
+          "passed": true,
+          "apiProcesses": 2,
+          "repeatedWrites": 16,
+          "physicalItemsCreated": 1
+        },
+        "apiCrash": {
+          "passed": true,
+          "observedFailoverMs": 899,
+          "successfulReadsAfterFailover": 12
+        },
+        "maintenance": {
+          "passed": true,
+          "crossDirectoryLock": true,
+          "newRuntimeDenied": true
+        },
+        "workerCrash": {
+          "passed": true,
+          "testLeaseSeconds": 2,
+          "observedRecoveryMs": 1956,
+          "attempts": 2,
+          "replacementWorkers": 2
+        },
+        "dependencyLoss": {
+          "passed": true,
+          "observedExitMs": 124,
+          "postgresServerNotStopped": true
+        },
+        "startupFailure": {
+          "passed": true,
+          "cleanExit": true
+        },
+        "noWriteRetry": {
+          "passed": true,
+          "backendExecutions": 1,
+          "responseLost": true
+        },
+        "autoRestart": {
+          "passed": true,
+          "observedReplacementMs": {
+            "api-1": 2059,
+            "worker-1": 1596
+          },
+          "allOwnedChildrenStopped": true
+        }
+      },
+      "cleanupPassed": true,
+      "passed": true,
+      "at": "2026-09-18T00:33:15.293Z"
+    },
+    "recovery": {
+      "kind": "actual-local-offline-recovery-drill",
+      "at": "2026-09-18T00:33:55.913Z",
+      "passed": true,
+      "source": "tome_test",
+      "target": "tome_restore_mu686h4j",
+      "checks": {
+        "liveProcessBlocksBackup": true,
+        "allSelectedTableHashesEqual": true,
+        "tmSequenceBeyondMaximum": true,
+        "restoredMediaChecksumsEqual": true
+      },
+      "tables": {
+        "user": {
+          "count": 26,
+          "sha256": "c4331b14e60ef6e2c6c28d041c9b20674ca56ae226075c5e6ce16ce77b1e76be"
+        },
+        "session": {
+          "count": 373,
+          "sha256": "c9a18420142abec6226aa265ea711aef55e2fded96f81df43d854a7086b1ac20"
+        },
+        "loginThrottle": {
+          "count": 10,
+          "sha256": "8f5f09558ed3a595f663eaed7ff7d4ec6971140532e1699eea4d7da5898db44b"
+        },
+        "supplier": {
+          "count": 3,
+          "sha256": "84233a5b1d448b16459625119484148e26bbfe369f24f87ec27a2c708dc2479a"
+        },
+        "source": {
+          "count": 1097,
+          "sha256": "1fef771f57ac3efb47cc51ffcfdee295ff4e9802374fab39b3cdabca78c4432e"
+        },
+        "sourceRevision": {
+          "count": 1098,
+          "sha256": "e891b3d887fd06b7b6dc08cf62ef8f97ef1ece3642c4c556e5b9d26aa43f20c1"
+        },
+        "procurementSource": {
+          "count": 89,
+          "sha256": "6b7f11797ed3db40c1aeed4646461151a81f74471322da0bcf0ffa010860479f"
+        },
+        "purchaseOrder": {
+          "count": 128,
+          "sha256": "6bb81a67b267ca4a893639aecc0b1b7c2bf057bc99ae546a23554ae122593e26"
+        },
+        "purchaseOrderRevision": {
+          "count": 134,
+          "sha256": "b97d274f0572ffd55bd8afa7ed94f3ab2b9184468b9570fae98fa3918c620d77"
+        },
+        "purchaseOrderAdjustment": {
+          "count": 339,
+          "sha256": "71e7d0ecd8cde6a46c141a6e569310f37c53ec4e8bdb5b7e5b7d53071a13a4f1"
+        },
+        "purchaseLine": {
+          "count": 464,
+          "sha256": "d1225f24c203c4c569b74c274d77202a567a7c71d42a53116b1ea82569fcdbdc"
+        },
+        "purchaseLineRevision": {
+          "count": 465,
+          "sha256": "d090fdd4ace57239519e6ecdcb87a3802b85197e8991b595a191f391bdeaaa63"
+        },
+        "purchaseShipment": {
+          "count": 112,
+          "sha256": "98db928db983881e2f1e0d55c8baaa0abaca28535e6d5942f3905a4c64f82a46"
+        },
+        "purchaseShipmentLine": {
+          "count": 392,
+          "sha256": "216e86112215ce5c2f79310d213a41dae8448b381262aecdd14ee12ba3ff452a"
+        },
+        "purchaseReturn": {
+          "count": 2,
+          "sha256": "d14db1edc21ad5e011aec9bf31ee4a7cdc328a25776810cee80c8a51fd4171f6"
+        },
+        "purchaseReturnLine": {
+          "count": 2,
+          "sha256": "4a71746dc8ddc5273ff1ca0c6b38a1a0c9b78f6fe93bca3fc1d8e3dd1d3c1906"
+        },
+        "itemPurchaseLink": {
+          "count": 114,
+          "sha256": "3e9d0123878da4df1fd5992374939916f255a9f6f8ab93be030a9a85de2cc7b5"
+        },
+        "purchaseCostConfirmation": {
+          "count": 2,
+          "sha256": "1b8279a9b7150f726fc0adf30679700856d97c96abdb5b8c8bb526338a76b43f"
+        },
+        "purchaseOrderCostBasis": {
+          "count": 13,
+          "sha256": "a45e7a1971a7867b5e8188cf26b78c2ee9c3fe0a025b071cbad81de1126ef053"
+        },
+        "purchaseOrderCostBasisRevision": {
+          "count": 23,
+          "sha256": "462c2620fb8c7d4cda912e840da8ec08a8c1d99b4680ebd256570c9e9061c81f"
+        },
+        "item": {
+          "count": 1790,
+          "sha256": "c79186e6aef83925a2b34e9ab566b7c386a87d9e08c082985082f4051c3672db"
+        },
+        "cycle": {
+          "count": 1790,
+          "sha256": "0e97fac2ee0991cedd751789277cc659a20f840c32283b9a35580d6f4b04b489"
+        },
+        "itemRevision": {
+          "count": 1896,
+          "sha256": "bb36e2ab4bb48228ddb31836e8e334f85ef159e9a73fea2e533c5c62bf08936e"
+        },
+        "offer": {
+          "count": 5,
+          "sha256": "3113dcfaab3f26ec5efc3198eef55897cde07c5a9790334299ccee18c14a1b5a"
+        },
+        "asset": {
+          "count": 313,
+          "sha256": "4fc2faa304fd969cf910b1adfcfcd40f357ef45ca4029a2ddd2078f7a8db6f1d"
+        },
+        "channel": {
+          "count": 46,
+          "sha256": "d53ea91fd27a97ebaf5e2285d78f2901b68d660e03bf344450e56d6ebcf98040"
+        },
+        "usePackage": {
+          "count": 130,
+          "sha256": "12e1b9e4d2d7eb5e697227df832d1f43cc3ff76ce4c6e831a55393af652d7d42"
+        },
+        "listing": {
+          "count": 17,
+          "sha256": "db6f2fe08bb5d5dbc948536f5e4f399b9772643e030e4814cfda26ee18f135b7"
+        },
+        "channelPrice": {
+          "count": 11,
+          "sha256": "3508f68f5dd9f91bcf45dc2dbfaa6fe12cb947c8215be54a7a9b85191f0a54c5"
+        },
+        "distributionTarget": {
+          "count": 7,
+          "sha256": "a1f168690fc3e102f48f7b91222b1053967ecd2ff55eb4c6417bb2d7a4f55c70"
+        },
+        "distributionSession": {
+          "count": 17,
+          "sha256": "dd8c69ab8fea89e702a473e2c837c0a95521c97bbe93834a9cce7e78efc4390b"
+        },
+        "distributionAttempt": {
+          "count": 121,
+          "sha256": "63851f818cffa77d673ee7f84600d91908e9973fa0519049c59394bc80973898"
+        },
+        "task": {
+          "count": 2,
+          "sha256": "9e7c1cdd522a42201031230015eae2e13e5ba7fd146f2ac6e86d52b717a95eb1"
+        },
+        "reservation": {
+          "count": 7,
+          "sha256": "9c203390d6005371e21957d04054bb5c8a30d60f5e02a0d869e671b96f03543b"
+        },
+        "exceptionIntent": {
+          "count": 1,
+          "sha256": "5268f0a7a9f7a91d8dc4cc2b3851fb8133f85824833e4e158b9ae4990c018bd2"
+        },
+        "sale": {
+          "count": 57,
+          "sha256": "b34c9740eb22c8cf41d8d51c777597bde3451906f47128c01136db55133d5fe2"
+        },
+        "adjustment": {
+          "count": 6,
+          "sha256": "6e54e3d7a3c6e054363795e79a1e144bc0132d1770ff41f27e33339d6ef32e76"
+        },
+        "observation": {
+          "count": 3,
+          "sha256": "7abf4907a916124e26c3e5c968f7a89c341acbbf7fda2d16b7fa138a4695c85f"
+        },
+        "inquiry": {
+          "count": 35,
+          "sha256": "312733a19ca80596c6f15b4c003e3ee4374118805bfa3e9af9d3dd22fea2ee40"
+        },
+        "suggestion": {
+          "count": 2,
+          "sha256": "73e21c6b0f13499fb2a9ca12ce1becf5e5f3611a9e2e1f034b125f04d5d07770"
+        },
+        "movement": {
+          "count": 2,
+          "sha256": "3ec60c3ac0c7a94fad031f46370eb31054c777883ccaf84c6242c2a7122473c7"
+        },
+        "audit": {
+          "count": 6749,
+          "sha256": "c4a2f49a7187799370d1d120b49f3634be8fd8dcd35b81cf510f98cf77092880"
+        },
+        "receipt": {
+          "count": 4027,
+          "sha256": "4e50b2b2b64bae42968b193c37f7f6139b5c2fb958e90a4abc42bb94222c8cef"
+        },
+        "outbox": {
+          "count": 1228,
+          "sha256": "b1f0622b40e22cac972e64c280bfc7623ee9cbd326cf898b7b7059b240e8caeb"
+        },
+        "costEntry": {
+          "count": 71,
+          "sha256": "824ecbab9e1283d632c1921b451500cab81ef833c09928f5466e2386fcfdd43a"
+        },
+        "runtimeHeartbeat": {
+          "count": 17,
+          "sha256": "1b3c0b16ab3a3314532d11c94a4cab21c7ce5c5bc7e517df98496e9d7d12ab53"
+        },
+        "sweepLease": {
+          "count": 1,
+          "sha256": "de70939717de857a8f827bf1d2c2c72d220ca8efb031cff7f3f3d6e8880e78fe"
+        },
+        "itemAlias": {
+          "count": 3,
+          "sha256": "1922ab9e87c3c81fa8cf9fce9e21fbbacd0736dac145e821654fb5fea6b76926"
+        },
+        "requirementWaiver": {
+          "count": 3,
+          "sha256": "f9b0d5bb0ecb5bcb33ac7da3444165e3f20eadb919a97198c5b28caf83e44e65"
+        },
+        "intakeBatch": {
+          "count": 8,
+          "sha256": "0bef43096dedf4458bc7a5614cbffaca14f72a25d4522d79b0149042d0d63b62"
+        },
+        "intakeFile": {
+          "count": 10,
+          "sha256": "2ab15e8101cfd4ff238c28a113c0509233a566166500c7bbecd06a2d741af0db"
+        },
+        "collection": {
+          "count": 5,
+          "sha256": "45b87d0cb3cbabe01caef731c21d9ca4663927fa3bfa3fa8de691ad7404c2217"
+        },
+        "collectionEntry": {
+          "count": 8,
+          "sha256": "c61911b4cde3c4717b4b69b7e841835b0a120b9d1f9fedf9c69817b28256c044"
+        },
+        "settlementRule": {
+          "count": 4,
+          "sha256": "9e83d7a6e18d6155262bf025adbad111796dbe3d6a48b659480836daa45ed778"
+        },
+        "settlementStatement": {
+          "count": 10,
+          "sha256": "1288794d691a0ef8e5fb02fa601fbe63620cc60fc544db6c3310f8c75c421080"
+        },
+        "settlementLine": {
+          "count": 9,
+          "sha256": "0776ab3d75d248a59f35c2940b2f548968a03dc9b6e6e2dcc28c82d5761e90b1"
+        },
+        "publishingDraft": {
+          "count": 42,
+          "sha256": "094cc80b20d3081c04724ae70c04063f800df7ba232a7ada55dee8d2776ae040"
+        },
+        "dictionaryEntry": {
+          "count": 161,
+          "sha256": "52a6ffbb2bd3469e85156496872f2fb3208cfadcf41135bcbb252d35a064b781"
+        },
+        "dictionaryTerm": {
+          "count": 233,
+          "sha256": "72b18d38801c47890a187953912c29defa7b3b84b242cc5058bb4ed834e14384"
+        },
+        "itemDictionarySelection": {
+          "count": 421,
+          "sha256": "87a51ecc95894b6e658da8ec859d5808a0a5d02167194067717a7d479e14458d"
+        },
+        "ingestSession": {
+          "count": 68,
+          "sha256": "93481cc618b6a36d7d992bf0ad757770e62aa08223c221165729b6584c42f94b"
+        },
+        "ingestBatch": {
+          "count": 72,
+          "sha256": "164abd9769c9a9c568a8f9631d5e9ff08e0b6d756f22f111caf93eede135c829"
+        },
+        "ingestCandidate": {
+          "count": 1226,
+          "sha256": "1cd8f1c43b7ef555b9cdc56bc476fe00124a4966a0682c086ba9247637fa2401"
+        },
+        "ingestBatchMember": {
+          "count": 1230,
+          "sha256": "478a29fa837226839f4d82818738081a0a209ebacbb6b146904f20c317ddde9a"
+        },
+        "materialExport": {
+          "count": 14,
+          "sha256": "44e9cb3a137369a35aed2e7cfd9c113e4071328e1be87c00a27fef43db458815"
+        },
+        "materialExportEntry": {
+          "count": 14,
+          "sha256": "7866302732c26d6c47fdef8509767fc90a71d25152bf47011593b64192450517"
+        },
+        "ingestCandidateRevision": {
+          "count": 1240,
+          "sha256": "10420c58b3b5a06c0baae5f16cdf29943d19beda7ca24d77d524a4e40c349b23"
+        },
+        "ingestCandidateAsset": {
+          "count": 27,
+          "sha256": "66d9faf28c7a66afef64e5f21e6de773857a4dc392cc0a23378d97863f2701eb"
+        },
+        "itemSourceLink": {
+          "count": 1041,
+          "sha256": "1ddaa7e8a27d7a957ad88fa9f1b954769efc22416b6d5d4616a64705868a437a"
+        }
+      },
+      "comparedModelCount": 69,
+      "mediaFiles": 42710,
+      "externalActionsExecuted": 0
+    },
+    "launchScale": {
+      "kind": "isolated-launch-scale-benchmark",
+      "at": "2026-09-18T00:24:21.904Z",
+      "source": "tome_test",
+      "externalActionsExecuted": 0,
+      "data": {
+        "items": 1000,
+        "channels": 8,
+        "targetPairs": 1000,
+        "historicalPairs": 1000,
+        "assets": 5000,
+        "attempts": 1200
+      },
+      "durationsMs": {
+        "operations": 227.664875,
+        "dashboard": 210.852834,
+        "workQueue": 16.806416
+      },
+      "passed": true,
+      "finishedAt": "2026-09-18T00:24:23.943Z"
+    },
+    "staticGuards": [
+      {
+        "id": "file:src/catalog/materials.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/materials.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/imports-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/work-storage.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/arco-workspace.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/product-library.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux101.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/login.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:docs/contracts/product-materials.md",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609150011_product_materials/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/test-data.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/test-data.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/bulk-dictionaries.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609120007_test_data_scope/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/trash.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/recycle-bin.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609110005_item_recycle_bin/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-entry.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-fields.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-upload-queue.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/catalog-context.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/admin-navigation.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/catalog-query.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/operations.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/product-editor.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/catalog-screen.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/publishing-workspace.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/media-uploader.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/sources-screen.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/publishing/drafts.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/media/actions.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/verify-release.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/benchmark-launch-scale.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:Dockerfile",
+        "pass": true
+      },
+      {
+        "id": "file:compose.production.yaml",
+        "pass": true
+      },
+      {
+        "id": "file:deploy/Caddyfile",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/migrate-safe.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/probe.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/supervise-container.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/validate-syntax.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/high-availability.test.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:AGENTS.md",
+        "pass": true
+      },
+      {
+        "id": "file:README.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/ARCHITECTURE.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/OPERATIONS.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/AC_MATRIX.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/PROVENANCE.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/V1-ITEM-CENTER.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/AGENT-INGEST-PROTOCOL.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/DISTRIBUTION-FOUNDATION.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/DISTRIBUTION-HANDOFF-CONTRACT.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/REAL-OPERATIONS.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/integrations/ANQICMS-CONTRACT.md",
+        "pass": true
+      },
+      {
+        "id": "file:docs/RELEASE-NOTES-1.0.md",
+        "pass": true
+      },
+      {
+        "id": "file:package-lock.json",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/schema.prisma",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609100001_initial/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:harness/sealed.json",
+        "pass": true
+      },
+      {
+        "id": "file:test/unit.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/integration.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/workbench.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/interaction.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/harness.test.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/backup.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/restore.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:scripts/package.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:.github/workflows/ci.yml",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/dictionary.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/dictionary-initializer.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/dictionaries/item-dictionaries.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/dictionary-picker.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/dictionaries-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/operations/logs.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/logs-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/dictionaries.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609110006_dictionary_catalog/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:src/catalog/approve-revision.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/publishing/studio.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-fields.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-publisher.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-media.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/studio-stock.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/studio.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ui08.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/system-review.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/ui08.css",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/reveal-section.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux2.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/dictionary-control.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux09.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux09-audit.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/quick-intake.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/quick-edit.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/ux10.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/procurement-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609120008_procurement_records/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/procurement.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest-standard.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/ingest/ingest-mcp.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/distribution.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/publication-health.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/distribution.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/distribution-agent.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/distribution-mcp.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/distribution-standard.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/distribution/anqicms-spike.ts",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-ingest/SKILL.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-ingest/profiles/GENERIC_MARKETPLACE.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-ingest/profiles/TRR.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/SKILL.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/profiles/ANQICMS.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/profiles/XIANYU.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/profiles/VC.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/profiles/GRAILED.md",
+        "pass": true
+      },
+      {
+        "id": "file:agent/skills/tome-distribution/profiles/CAROUSELL.md",
+        "pass": true
+      },
+      {
+        "id": "file:tools/tome-ingest/cli.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:tools/tome-ingest/client.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:tools/tome-ingest/state.mjs",
+        "pass": true
+      },
+      {
+        "id": "file:test/fixtures/tome-ingest/trr-v1.2-golden.json",
+        "pass": true
+      },
+      {
+        "id": "file:test/fixtures/anqicms-spike/deidentified-20.json",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.schemas.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.logic.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/costing/costing.controller.ts",
+        "pass": true
+      },
+      {
+        "id": "file:src/procurement/procurement.service.ts",
+        "pass": true
+      },
+      {
+        "id": "file:web/src/candidates-page.ts",
+        "pass": true
+      },
+      {
+        "id": "file:test/browser/v1-item-center.spec.cjs",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609130009_item_centric_v1/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "file:prisma/migrations/202609170012_distribution_foundation/migration.sql",
+        "pass": true
+      },
+      {
+        "id": "single-visual-owner",
+        "pass": true
+      },
+      {
+        "id": "no-real-external-default",
+        "pass": true
+      },
+      {
+        "id": "database-isolation",
+        "pass": true
+      },
+      {
+        "id": "test-reset-guard",
+        "pass": true
+      },
+      {
+        "id": "browser-no-reused-server",
+        "pass": true
+      },
+      {
+        "id": "no-skipped-tests",
+        "pass": true
+      },
+      {
+        "id": "inventory-database-constraints",
+        "pass": true
+      },
+      {
+        "id": "domain-has-no-network",
+        "pass": true
+      },
+      {
+        "id": "domain-has-no-prisma",
+        "pass": true
+      },
+      {
+        "id": "keep-secrets-out",
+        "pass": true
+      },
+      {
+        "id": "fixed-dependencies",
+        "pass": true
+      },
+      {
+        "id": "current-release-version",
+        "pass": true
+      },
+      {
+        "id": "current-release-no-transient-state",
+        "pass": true
+      },
+      {
+        "id": "current-migrations",
+        "pass": true
+      },
+      {
+        "id": "current-browser-scope",
+        "pass": true
+      },
+      {
+        "id": "current-validation-version",
+        "pass": true
+      },
+      {
+        "id": "current-validation-source",
+        "pass": true
+      },
+      {
+        "id": "current-production-version",
+        "pass": true
+      },
+      {
+        "id": "current-agent-contract",
+        "pass": true
+      },
+      {
+        "id": "release-version-source",
+        "pass": true
+      },
+      {
+        "id": "sealed-migrations",
+        "pass": true
+      },
+      {
+        "id": "all-migrations-sealed",
+        "pass": true
+      },
+      {
+        "id": "runtime-heartbeat-api",
+        "pass": true
+      },
+      {
+        "id": "worker-probe-uuid",
+        "pass": true
+      },
+      {
+        "id": "complete-local-installer",
+        "pass": true
+      },
+      {
+        "id": "non-root-production-image",
+        "pass": true
+      },
+      {
+        "id": "production-db-privilege-guard",
+        "pass": true
+      },
+      {
+        "id": "interaction-tests-use-real-clicks",
+        "pass": true
+      },
+      {
+        "id": "v1-agent-boundary",
+        "pass": true
+      },
+      {
+        "id": "v11-agent-standard-thin-surface",
+        "pass": true
+      },
+      {
+        "id": "v11-distribution-foundation",
+        "pass": true
+      },
+      {
+        "id": "v11-distribution-intent",
+        "pass": true
+      },
+      {
+        "id": "v11-publication-safety",
+        "pass": true
+      },
+      {
+        "id": "v11-distribution-standard-handoff",
+        "pass": true
+      },
+      {
+        "id": "v11-distribution-handoff-closure",
+        "pass": true
+      },
+      {
+        "id": "v11-real-operations",
+        "pass": true
+      },
+      {
+        "id": "v11-distribution-operational-projection",
+        "pass": true
+      },
+      {
+        "id": "v11-launch-closure-scale-workflows",
+        "pass": true
+      },
+      {
+        "id": "v11-channel-price-currency-interactions",
+        "pass": true
+      },
+      {
+        "id": "v11-inquiry-followup-and-sale-currency",
+        "pass": true
+      },
+      {
+        "id": "v11-ingest-v12-required",
+        "pass": true
+      },
+      {
+        "id": "v11-anqicms-spike",
+        "pass": true
+      },
+      {
+        "id": "v11-anqicms-handoff-contract",
+        "pass": true
+      },
+      {
+        "id": "v1-item-center-webkit",
+        "pass": true
+      },
+      {
+        "id": "v1-candidate-batch-100",
+        "pass": true
+      },
+      {
+        "id": "v1-source-facts-do-not-become-local-condition",
+        "pass": true
+      },
+      {
+        "id": "v1-cost-snapshot",
+        "pass": true
+      },
+      {
+        "id": "v1-candidate-identity-dedupe",
+        "pass": true
+      },
+      {
+        "id": "webkit-in-full-harness",
+        "pass": true
+      },
+      {
+        "id": "browser-suite-parity",
+        "pass": true
+      },
+      {
+        "id": "product-library-both-browsers",
+        "pass": true
+      },
+      {
+        "id": "arco-workspace-both-browsers",
+        "pass": true
+      }
+    ]
+  },
+  "productionDeployment": false
+}

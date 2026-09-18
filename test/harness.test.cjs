@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const currentVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
 async function run(p, transform) {
   const { checks } = await import("../scripts/harness.mjs");
   return checks((f) => {
@@ -50,6 +51,18 @@ for (const [name, p, fn, id] of [
     "docs/PRODUCTION.md",
     (s) => s.replace(/^.*\n/, "# old production\n"),
     "current-production-version",
+  ],
+  [
+    "stale validation version",
+    `docs/validation/${currentVersion}/summary.json`,
+    (s) => s.replace(`"version": "${currentVersion}"`, '"version": "0.0.0"'),
+    "current-validation-version",
+  ],
+  [
+    "stale validation source",
+    `docs/validation/${currentVersion}/summary.json`,
+    (s) => s.replace(/"sourceSha256": "[^"]+"/, '"sourceSha256": "stale"'),
+    "current-validation-source",
   ],
   [
     "one-off agent PR state",

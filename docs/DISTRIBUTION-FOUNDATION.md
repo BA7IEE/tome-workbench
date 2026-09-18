@@ -1,4 +1,4 @@
-# 标准资料交付与 Real Operations · 1.1.0-rc.4
+# 标准资料交付与 Real Operations · 1.1.0-rc.5
 
 ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并记录交付后的经营状态。闲鱼、Vestiaire、Grailed、Carousell、AnQiCMS 等平台的点击、浏览器或 APP 自动化、登录、验证码、页面步骤都由外部 Agent、脚本或人工完成；ToMe 不连接平台，也不会从系统内发起这些动作。
 
@@ -36,7 +36,7 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 ## 分发经营投影
 
-默认分发页不再是“前 100 条 Attempt”的日志表。`GET /api/distribution/operations` 只为每一个正式、未删除的 Item 的激活交易 Target 与已有真实 Exposure 的 Channel 读取 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing，计算当前唯一经营状态：
+默认分发页不再是“前 100 条 Attempt”的日志表。`GET /api/distribution/operations` 只组合激活交易 `DistributionTarget` 与已有真实 Exposure 的 Item × Channel 配对，再读取 Item、动态 Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing，计算当前唯一经营状态。它不会为所有 Item × Channel 创建笛卡尔积，也不写入持久 `PREPARE` Task：
 
 - `READY`：资料已可交付但还未交付；
 - `BLOCKED`：资料、价格、批准、图片权利或有效供货条件仍不足；

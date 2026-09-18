@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sourceFingerprint } from "./source-fingerprint.mjs";
 export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
   const version = JSON.parse(read("package.json")).version;
   const release = read("docs/CURRENT-RELEASE.md");
@@ -22,6 +23,12 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
   ]
     .map((m) => m[1])
     .sort();
+  let validation = null;
+  try {
+    validation = JSON.parse(read(`docs/validation/${version}/summary.json`));
+  } catch {
+    validation = null;
+  }
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   return [
     { id: "current-release-version", pass: facts?.version === version },
@@ -35,6 +42,14 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
     {
       id: "current-browser-scope",
       pass: equal(facts?.browserFiles, specs) && equal(specs, webkit),
+    },
+    {
+      id: "current-validation-version",
+      pass: validation?.version === version,
+    },
+    {
+      id: "current-validation-source",
+      pass: validation?.sourceSha256 === sourceFingerprint().sha256,
     },
     {
       id: "current-production-version",

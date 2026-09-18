@@ -8,6 +8,27 @@ if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/.test(version))
 const before = sourceFingerprint(),
   started = Date.now();
 fs.mkdirSync("reports", { recursive: true });
+const dest = path.join("docs", "validation", version),
+  summaryPath = path.join(dest, "summary.json");
+fs.mkdirSync(dest, { recursive: true });
+fs.writeFileSync(
+  summaryPath,
+  JSON.stringify(
+    {
+      version,
+      startedAt: new Date(started).toISOString(),
+      sourceSha256: before.sha256,
+      fullHarnessExitCode: null,
+      sourceUnchanged: false,
+      passed: false,
+      error: "Verification in progress",
+      evidence: {},
+      productionDeployment: false,
+    },
+    null,
+    2,
+  ) + "\n",
+);
 const logPath = "reports/release-verification.log",
   stream = fs.createWriteStream(logPath, { flags: "w" });
 const child = spawn(
@@ -97,10 +118,8 @@ const summary = {
   evidence,
   productionDeployment: false,
 };
-const dest = path.join("docs", "validation", version);
-fs.mkdirSync(dest, { recursive: true });
 fs.writeFileSync(
-  path.join(dest, "summary.json"),
+  summaryPath,
   JSON.stringify(summary, null, 2) + "\n",
 );
 fs.copyFileSync(logPath, path.join(dest, "verification.log"));

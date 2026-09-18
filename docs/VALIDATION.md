@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.4
+# 当前验证记录 — 1.1.0-rc.5
 
-本地完整验证完成：`2026-09-17T22:38:19.884Z`。验证源码指纹为
-`1f5bcd24093d85d06b58fc7cd1b47b3ae72f47f3dafdf504173456b83d3a39a5`；
+本地完整验证完成：`2026-09-18T00:33:56.260Z`。验证源码指纹为
+`275b0b8ad7e353386bbef5611f713e7dfde0a72d5a460aead823095acadf6d39`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -9,18 +9,19 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、26/26、150/150、8/8；失败均为 0 |
-| Chromium | 174 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 174 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 完整 Harness | exit 0，184 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 920ms、Worker 恢复 1954ms，未执行外部动作 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、28/28、152/152、8/8；失败均为 0 |
+| Chromium | 175 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 175 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 227.665ms、Dashboard 210.853ms、Work Queue 16.806ms，均小于 1 秒 |
+| 完整 Harness | exit 0，188 项静态守卫全部通过，sourceUnchanged=true |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 899ms、Worker 恢复 1956ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.4.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.5.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.4/summary.json)、
-[audit.json](validation/1.1.0-rc.4/audit.json)、[verification.log](validation/1.1.0-rc.4/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.5/summary.json)、
+[audit.json](validation/1.1.0-rc.5/audit.json)、[verification.log](validation/1.1.0-rc.5/verification.log)。
 
 ## v1.1-rc.5 发布安全
 

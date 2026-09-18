@@ -403,3 +403,9 @@ Settlement 仍可保留本地预览，但在没有 FX basis 的当前模型中�
 清空日程以及外币结算确认阻断；`test/browser/system-review.spec.cjs` 在 Chromium/WebKit
 真实填写跟进时间并覆盖并发冲突后的最新日程恢复。它们不证明真实渠道成交、汇率、结算、
 付款或经营 UAT。
+
+## v1.1-rc.5 运营工作流与规模边界
+
+渠道 Readiness 只在激活 `DistributionTarget` 与历史真实 Exposure 的 Item × Channel 配对上动态计算；不创建或更新持久 `PREPARE` Task，历史 PREPARE 也不作为当前工作队列事实。`GET /api/distribution/operations` 先限制这些配对并批量加载发布健康事实，避免全量 Item × Channel 笛卡尔积和按行 N+1；未批准的正式 TM 由分页的全局 ITEM_REVIEW 队列提供。Quick Intake 明确写入 `ownership=OWN`，成本批量页一次预览最多 100 个订单，导航将“商品分发”提升为一级入口并将“发布记录”改称“远端身份记录”。
+
+`scripts/benchmark-launch-scale.mjs` 在隔离 `tome_test` 写入 1,000 件商品、8 个交易 Channel、激活目标、历史 Exposure、5,000 个 Asset 与 1,200 条 Attempt，验证 Operations、Dashboard 和工作队列各自小于 1 秒。集成测试同时覆盖无持久 PREPARE、全局审核队列和一次批量成本预览；浏览器测试在 Chromium/WebKit 真实点击链中覆盖 OWN 边界、导航和远端身份记录文案。它们不代表真实账号、平台页面、真实商品或外部经营 UAT。

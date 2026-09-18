@@ -43,6 +43,8 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 `PublicationHealthService` 不把 `Listing` 或 UsePackage TTL 当成唯一远端事实：当前成功 PUBLISH/UPDATE（包括 APP `remoteId` 为空）都会复核库存、Target、Channel、供应商 Offer、批准/鉴定、发布图片权利及正数且币种正确的交易价。安全但资料变化时输出待更新；不安全时 Worker/Sweep 只在本地创建来源关联 DELIST，不调用平台。停用或退出 TRADE 的渠道立即取消尚未交付的 PUBLISH/UPDATE，并且只可为未完成 DELIST 建立 stop-only 会话；回收站同样以这些暴露事实保护商品。
 
+渠道 Readiness 与经营待办同样是读取投影：只对激活 Target 与历史真实 Exposure 配对计算 `missing[]`，不为 Item × Channel 建立持久 `PREPARE` Task；历史 Task 只作为历史事实保留。分发读取面先取这些配对、再批量加载健康判断，避免笛卡尔积和按行 N+1。未批准的正式 TM 由全局工作队列分页，批量成本预览一次最多读取 100 个订单且复用原成本计算；两者都不绕过领域命令、锁、Audit 或 Receipt。
+
 ## 验证环境
 
 正式 Release CI 固定 Node 22.22.3、Ubuntu 24.04 与 deploy/images.json 相同 PostgreSQL digest。compatibility.yml 为手工触发的独立非阻断任务，使用 Node 22 / PG16 最新补丁；其结果不替代发布指纹或 release gate。发布汇总同时拒绝双浏览器通过数量不等、flaky、skip 和非零 retry。
