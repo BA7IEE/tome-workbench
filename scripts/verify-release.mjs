@@ -32,7 +32,7 @@ function syncCurrentValidationEvidence(summary) {
   report = report.replace(
     completionPattern,
     runId
-      ? `远端完整验证完成：\`${summary.finishedAt}\`（GitHub Actions run \`${runId}\`，head \`${headSha}\`）。验证源码指纹为`
+      ? `远端完整验证完成：\`${summary.finishedAt}\`（GitHub Actions run \`${runId}\`，checkout \`${headSha}\`）。验证源码指纹为`
       : `本地完整验证完成：\`${summary.finishedAt}\`。验证源码指纹为`,
   );
   const replaceRow = (label, value) => {
@@ -230,7 +230,7 @@ const summary = {
     ? {
         ci: {
           runId: Number(process.env.GITHUB_RUN_ID),
-          headSha: process.env.GITHUB_SHA || "",
+          checkoutSha: process.env.GITHUB_SHA || "",
           event: process.env.GITHUB_EVENT_NAME || "",
         },
       }
