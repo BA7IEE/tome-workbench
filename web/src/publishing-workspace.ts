@@ -59,6 +59,18 @@ interface Usable {
   snapshot: Pack["snapshot"];
   validUntil: string;
 }
+interface DistributionTarget {
+  id: string;
+  channelId: string;
+  active: boolean;
+  channel: {
+    id: string;
+    name: string;
+    platform: string;
+    active: boolean;
+    businessPurpose: string;
+  };
+}
 async function checked(p: Pack) {
   return request<Usable>(`/packages/${p.id}/usable`);
 }
@@ -125,7 +137,11 @@ export function recordPublication(p: Pack, after?: () => Promise<void>) {
     after,
   );
 }
-export function packageButtons(p: Pack, afterReceipt?: () => Promise<void>) {
+export function packageButtons(
+  p: Pack,
+  afterReceipt?: () => Promise<void>,
+  allowPublication = true,
+) {
   return (
     button("复制标题", async () => {
       const fresh = await checked(p);
@@ -136,7 +152,7 @@ export function packageButtons(p: Pack, afterReceipt?: () => Promise<void>) {
       if (await copyText(fresh.snapshot.body)) toast("正文已复制");
     }) +
     button("下载JPG图片与文案", () => downloadPack(p.id)) +
-    (p.purpose !== "CUSTOMER_CARD"
+    (p.purpose !== "CUSTOMER_CARD" && allowPublication
       ? button(
           p.channel.platform === "SHOWROOM" ? "展示到自有展厅" : "登记已发布",
           () => recordPublication(p, afterReceipt),
@@ -169,7 +185,7 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
     );
   const channel =
     available.find((c) => c.id === qs.get("channel")) || available[0];
-  const [space, readiness] = await Promise.all([
+  const [space, readiness, targets] = await Promise.all([
     request<Space>(
       `/items/${i.id}/publishing-space?channelId=${channel.id}&purpose=${use}`,
     ),
@@ -178,8 +194,22 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
       approved: boolean;
       ready: boolean;
     }>(`/items/${i.id}/readiness?channelId=${channel.id}&purpose=${use}`),
+    use === "TRADE"
+      ? request<DistributionTarget[]>(`/items/${i.id}/distribution-targets`)
+      : Promise.resolve<DistributionTarget[]>([]),
   ]);
-  const root = "publish-" + crypto.randomUUID(),
+  const activeTarget =
+      use !== "TRADE" ||
+      targets.some(
+        (target) => target.channelId === channel.id && target.active,
+      ),
+    duplicatePlatformTarget = targets.some(
+      (target) =>
+        target.active &&
+        target.channelId !== channel.id &&
+        target.channel.platform === channel.platform,
+    ),
+    root = "publish-" + crypto.randomUUID(),
     draft = space.draft;
   let selected = draft
       ? [...draft.assetIds]
@@ -536,6 +566,39 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
       },
       { signal },
     );
+    const targetButton =
+      el.querySelector<HTMLButtonElement>("#activate-distribution-target");
+    targetButton?.addEventListener(
+      "click",
+      async () => {
+        if (
+          duplicatePlatformTarget &&
+          !window.confirm(
+            `这件商品已在另一个 ${platformNames[channel.platform] || channel.platform} 账号经营。确认还要同时加入「${channel.name}」？`,
+          )
+        )
+          return;
+        targetButton.disabled = true;
+        try {
+          await request(
+            `/items/${i.id}/distribution-targets/${channel.id}`,
+            "POST",
+            {
+              active: true,
+              reason: "商品渠道资料页明确加入分发渠道",
+              duplicatePlatformConfirmed: duplicatePlatformTarget,
+            },
+            crypto.randomUUID(),
+          );
+          toast("已加入此分发渠道");
+          await reload();
+        } catch (error) {
+          targetButton.disabled = false;
+          showError(error);
+        }
+      },
+      { signal },
+    );
     painted();
   });
   const missingLinks: Record<string, string> = {
@@ -544,6 +607,9 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
     availability: "supply",
   };
   const alerts =
+    (use === "TRADE" && !activeTarget
+      ? `<div class="notice warning">这件商品尚未明确加入「${esc(channel.name)}」经营。可以先准备草稿和冻结资料，但新的发布/更新交付必须先明确经营意图。 <button type="button" class="btn" id="activate-distribution-target">加入此分发渠道</button></div>`
+      : "") +
     (!space.item.approvedValid
       ? `<div class="notice warning">主资料尚未确认。可以先保存此处草稿，<a href="#/items/${i.id}?tab=facts">返回核对主资料</a>后再生成发布资料。</div>`
       : "") +
@@ -576,7 +642,11 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
         ? history
             .map(
               (p) =>
-                `<article class="release-card"><div><h3>${esc(p.snapshot.title)}</h3><small>${when(p.createdAt)} · 使用前重新核验有效性</small></div><div class="button-row">${packageButtons(p)}</div></article>`,
+                `<article class="release-card"><div><h3>${esc(p.snapshot.title)}</h3><small>${when(p.createdAt)} · 使用前重新核验有效性</small></div><div class="button-row">${packageButtons(
+                  p,
+                  undefined,
+                  use !== "TRADE" || activeTarget,
+                )}</div></article>`,
             )
             .join("")
         : note(
