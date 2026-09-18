@@ -4,11 +4,13 @@
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
+rc.5 最终已核验基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`（`cb1fe6c`）；该提交的 [main push CI 35303053133](https://github.com/BA7IEE/tome-workbench/actions/runs/35303053133) 已完成且成功。rc.5 之后的发布/停售代际安全修复先经 PR #23 合入 `main@abe6e6b129527bc75103e9a9289abc39872150a6`，其 [main push CI 35337377898](https://github.com/BA7IEE/tome-workbench/actions/runs/35337377898) 已完成且成功；后续 rc.6 仍须以自身最终源码指纹和 main CI 为准。
+
 功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 商品分发 / 销售 / 更多六入口；商品分发按发布权限显示，销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
 
 本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。所有新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；只对已存在、同键同清单的历史 Batch 保持旧合同兼容，不能以漏 metadata 绕过 Profile 必查项。标准 Profile 的服务端必查字段会与 Agent 自报字段合并；MCP 支持同一短期 Token 的 X 头或 Bearer 头，机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。
 
-本版将 Distribution Foundation 收敛为标准资料交付与轻量分发记录：已发布的 `DistributionSession`/`DistributionAttempt` 表及历史 migration 原样保留，但默认 UI 不再把它描述为平台执行 Runtime。`PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN/CANCELLED` 分别显示为待交付、已交付、已确认完成、需要处理、需要核对、已取消；`UNKNOWN` 只能在原记录填写依据后人工核对为成功或失败，并另记审计。系统比较冻结资料内容和历史记录，自动选择 PUBLISH、UPDATE 或 NOOP；未处理的交付会回到原记录，不能靠新 UsePackage 重复发布。标准 `tome-distribution/1.0` Skill 及 `/api/mcp/distribution` 只提供列出交付、取得冻结包、确认目标操作完成、报告待人工处理四项能力；取包才将记录记为“已交付”，并按 Channel、会话、当前创建者发布权限、图片权利和 UsePackage 重验。机器先从 protocol 读取并校验 Skill/Profile SHA-256，X 头与同一 Token 的 Bearer 等价；它不暴露领取、心跳、租约、浏览器步骤或任何平台动作。前向 migration `202609170015_distribution_source_attempt` 让 DELIST 用 `sourceAttemptId` 绑定具体成功资料代际；从 AVAILABLE 转为任何不可售状态时，每个已发布渠道都有一条去重的需要停售记录，恢复 AVAILABLE 不自动重新交付。只有取得稳定 `remoteId` 才创建 Listing；APP 渠道没有远端 ID 时按标题永久 TM 复核，禁止用 `MANUAL:TM...` 伪造身份；AnQiCMS 的 PUBLISH/UPDATE 成功则必须回传稳定 archive ID。受限 Token、领取和租约仍是兼容的高级接口，但默认 `DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false`；没有真实第三方连接或外部副作用。
+本版将 Distribution Foundation 收敛为标准资料交付与轻量分发记录，并在 rc.6 收严外部副作用代际：关闭经营 Target 会取消尚未交付的 PENDING 发布/更新并为当前成功代际计划来源关联 DELIST；只要旧 DELIST 仍处于 PENDING/RUNNING/UNKNOWN/FAILED，就禁止新一代 PUBLISH/UPDATE，避免迟到停售击穿重新发布。UPDATE 不能把同一 Item×Channel 静默换成第二个 LIVE remoteId；唯一已知稳定身份可在更新回执缺省时继承，冲突或多个 LIVE 身份必须人工核对。已发布的 `DistributionSession`/`DistributionAttempt` 表及历史 migration 原样保留，但默认 UI 不再把它描述为平台执行 Runtime。`PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN/CANCELLED` 分别显示为待交付、已交付、已确认完成、需要处理、需要核对、已取消；`UNKNOWN` 只能在原记录填写依据后人工核对为成功或失败，并另记审计。系统比较冻结资料内容和历史记录，自动选择 PUBLISH、UPDATE 或 NOOP；未处理的交付会回到原记录，不能靠新 UsePackage 重复发布。标准 `tome-distribution/1.0` Skill 及 `/api/mcp/distribution` 只提供列出交付、取得冻结包、确认目标操作完成、报告待人工处理四项能力；取包才将记录记为“已交付”，并按 Channel、会话、当前创建者发布权限、图片权利和 UsePackage 重验。机器先从 protocol 读取并校验 Skill/Profile SHA-256，X 头与同一 Token 的 Bearer 等价；它不暴露领取、心跳、租约、浏览器步骤或任何平台动作。前向 migration `202609170015_distribution_source_attempt` 让 DELIST 用 `sourceAttemptId` 绑定具体成功资料代际；从 AVAILABLE 转为任何不可售状态时，每个已发布渠道都有一条去重的需要停售记录，恢复 AVAILABLE 不自动重新交付。只有取得稳定 `remoteId` 才创建 Listing；APP 渠道没有远端 ID 时按标题永久 TM 复核，禁止用 `MANUAL:TM...` 伪造身份；AnQiCMS 的 PUBLISH/UPDATE 成功则必须回传稳定 archive ID。受限 Token、领取和租约仍是兼容的高级接口，但默认 `DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false`；没有真实第三方连接或外部副作用。
 
 分发中心默认页是只读的激活 Target 加历史真实 Exposure 经营投影：从 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing 计算未发布（READY）、缺资料（BLOCKED）、待交付、已交付、已发布、待更新、异常和需停售，不新增 `ChannelInventoryTruth` 一类第二商品真相表。`GET /api/distribution/operations` 先按渠道、状态、品牌、TM/商品搜索过滤并排序，再分页；返回的汇总与页面卡片来自同一份投影。Dashboard 的“分发异常”只统计 `scope=attention`，点击也精确进入 `#/distribution?scope=attention`。该读取面没有平台 Connector、自动重发或任何自动平台停售动作。
 
@@ -81,7 +83,7 @@ rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（
 
 ## 已核验基线
 
-- rc.4 的 main 基线与成功 CI 见上方固定记录；它只证明当时的源码，不代替 rc.5 的当前验证。
+- rc.4、rc.5 的 main 基线与成功 CI 见上方固定记录；它们只证明各自当时的源码，不代替 rc.6 的当前验证。
 - 本版的完整门禁、审计和打包证据以 [VALIDATION](VALIDATION.md) 与对应版本目录为准；生产、真实平台和经营 UAT 仍由独立授权验收。
 
 ## 本版范围
