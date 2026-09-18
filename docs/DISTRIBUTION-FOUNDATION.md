@@ -14,7 +14,7 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 `Channel.businessPurpose` 明确账号是 `TRADE`、`CONTENT` 还是 `SHOWROOM`。XHS 固定为内容渠道，SHOWROOM 固定为展厅渠道；只有 `TRADE` 可被写为 `DistributionTarget`、写入 ChannelPrice 或用于 TRADE 的资料检查与交付。
 
-`DistributionTarget` 是一件 TM 当前明确希望在哪个交易账号经营的意图，不是 Item 库存、使用包、发布记录、Listing 或远端状态。每个 Item×Channel 只有一行，可用原因关闭；同一平台已有另一个激活目标时，运营必须明确确认才可激活第二个账号。Target 写入仍经 Item lock、Commands/Receipt、Audit 和 Outbox，但不创建 UsePackage、DistributionAttempt、Listing、Task 或外部平台动作。历史真实 Exposure 不被回填或改写。
+`DistributionTarget` 是一件 TM 当前明确希望在哪个交易账号经营的意图，不是 Item 库存、使用包、发布记录、Listing 或远端状态。每个 Item×Channel 只有一行，可用原因关闭；同一平台已有另一个激活目标时，运营必须明确确认才可激活第二个账号。Target 写入仍经 Item lock、Commands/Receipt、Audit 和 Outbox，但不创建 UsePackage、DistributionAttempt、Listing、Task 或外部平台动作。历史真实 Exposure 不被回填或改写。 **从本版开始，新的 TRADE PUBLISH/UPDATE 或稳定 Listing 回执必须存在 active DistributionTarget；没有 Target 会返回 `DISTRIBUTION_TARGET_REQUIRED`，已关闭则返回 `DISTRIBUTION_TARGET_INACTIVE`。** 这不会改写历史 Attempt/Listing；历史 Exposure 仍可读取和停售，但继续经营前必须由运营重新明确目标。UsePackage 可以提前准备，Target 只在真正生成/补录新的交易发布事实前成为硬门禁。
 
 ## 默认交付路径
 
