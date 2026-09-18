@@ -54,6 +54,8 @@ export const required = [
   "docs/PROVENANCE.md",
   "docs/V1-ITEM-CENTER.md",
   "docs/AGENT-INGEST-PROTOCOL.md",
+  "src/ingest/ingest-security.ts",
+  "prisma/migrations/202609180018_ingest_credential_redaction/migration.sql",
   "docs/DISTRIBUTION-FOUNDATION.md",
   "docs/DISTRIBUTION-HANDOFF-CONTRACT.md",
   "docs/REAL-OPERATIONS.md",
@@ -650,6 +652,27 @@ export function checks(
       read("docs/AGENT-INGEST-PROTOCOL.md").includes(
         "新机器批次缺少三项标准元数据",
       ),
+  );
+  check(
+    "v11-ingest-credential-security",
+    () =>
+      read("src/ingest/ingest.service.ts").includes("TOKEN_ALREADY_ISSUED") &&
+      read("src/ingest/ingest.service.ts").includes("assertLiveMachineSession") &&
+      read("src/ingest/ingest.service.ts").includes("assertNoSensitiveIngestData") &&
+      read("src/auth/auth.ts").includes("INGEST_CREATOR_REVOKED") &&
+      read("src/auth/auth.ts").includes("session.procurementSource.active") &&
+      read("src/ingest/ingest.controller.ts").includes("tokenHash") === false &&
+      read("src/ingest/ingest-security.ts").includes("INGEST_SENSITIVE_DATA_DENIED") &&
+      read(
+        "prisma/migrations/202609180018_ingest_credential_redaction/migration.sql",
+      ).includes("tokenIssued") &&
+      read("test/integration.test.cjs").includes(
+        "Token只显示一次、Receipt不保存明文",
+      ) &&
+      read("test/integration.test.cjs").includes(
+        "创建者权限或来源失效会立即撤销机器会话",
+      ) &&
+      read("docs/AGENT-INGEST-PROTOCOL.md").includes("敏感资料边界"),
   );
   check(
     "v11-anqicms-spike",
