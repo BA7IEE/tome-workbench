@@ -82,6 +82,16 @@ for (const [name, p, fn, id] of [
     "current-validation-report-source",
   ],
   [
+    "stale validation artifact version",
+    "docs/VALIDATION.md",
+    (s) =>
+      s.replace(
+        `validation/${currentVersion}/summary.json`,
+        "validation/0.0.0/summary.json",
+      ),
+    "current-validation-artifact-version",
+  ],
+  [
     "one-off agent PR state",
     "AGENTS.md",
     (s) => s + "\nPR #999 尚未合并",
