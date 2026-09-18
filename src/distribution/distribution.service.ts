@@ -911,6 +911,12 @@ export class DistributionService {
         itemId_channelId: { itemId: p.itemId, channelId: p.channelId },
       },
     });
+    if (p.purpose === "TRADE" && !target)
+      throw new Fault(
+        "DISTRIBUTION_TARGET_REQUIRED",
+        "新的交易发布或更新必须先明确此商品的渠道经营目标",
+        409,
+      );
     if (target && !target.active)
       throw new Fault(
         "DISTRIBUTION_TARGET_INACTIVE",
