@@ -36,6 +36,12 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
   const validationReportSource =
     validationReport.match(/验证源码指纹为\s*\n`([a-f0-9]{64})`/m)?.[1] ||
     null;
+  const validationPathVersions = [
+    ...validationReport.matchAll(/validation\/(\d+\.\d+\.\d+(?:-[a-z0-9.]+)?)\//gi),
+  ].map((match) => match[1]);
+  const packageArtifactVersions = [
+    ...validationReport.matchAll(/tome-workbench-(\d+\.\d+\.\d+(?:-[a-z0-9.]+)?)\.zip/gi),
+  ].map((match) => match[1]);
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   return [
     { id: "current-release-version", pass: facts?.version === version },
@@ -69,6 +75,16 @@ export function currentDocsChecks(read = (p) => fs.readFileSync(p, "utf8")) {
       pass:
         validationReportSource === validation?.sourceSha256 &&
         validationReportSource === sourceFingerprint().sha256,
+    },
+    {
+      id: "current-validation-artifact-version",
+      pass:
+        validationReport.includes(`validation/${version}/summary.json`) &&
+        validationReport.includes(`validation/${version}/audit.json`) &&
+        validationReport.includes(`validation/${version}/verification.log`) &&
+        validationReport.includes(`tome-workbench-${version}.zip`) &&
+        validationPathVersions.every((value) => value === version) &&
+        packageArtifactVersions.every((value) => value === version),
     },
     {
       id: "current-production-version",
