@@ -630,16 +630,16 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await basic(page, "本页发布回执 " + randomUUID());
   await tradeFacts(page);
   await revealPublishing(page);
+  await page
+    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .click();
+  await expect(page.locator("#studio-publish-form")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "加入此分发渠道", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "加入此分发渠道", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
-    .click();
-  await expect(page.locator("#studio-publish-form")).toBeVisible();
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();
