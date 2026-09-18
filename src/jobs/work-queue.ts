@@ -97,7 +97,7 @@ export async function readWorkQueue(
         OR (d.action<>'DELIST' AND d.state IN ('UNKNOWN','FAILED'))
         OR (
           d.action<>'DELIST' AND d.state='RUNNING' AND (
-            (d."startedAt" IS NOT NULL AND d."startedAt" <= CURRENT_TIMESTAMP - make_interval(hours=>${staleHours}))
+            (d."startedAt" IS NOT NULL AND d."startedAt" <= CURRENT_TIMESTAMP - (${staleHours}::int * INTERVAL '1 hour'))
             OR ds."revokedAt" IS NOT NULL
             OR ds."expiresAt" <= CURRENT_TIMESTAMP
           )
