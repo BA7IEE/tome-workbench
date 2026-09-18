@@ -12,7 +12,10 @@ import {
 } from "./core";
 import { WriteAttempt } from "./write-attempt";
 import { lockControls } from "./form-support";
-import { packageButtons } from "./publishing-workspace";
+import {
+  activateDistributionTarget,
+  packageButtons,
+} from "./publishing-workspace";
 import { setupChannel, platformNames } from "./channel-setup";
 import { focusStudioField } from "./studio-fields";
 import type { Item, Channel, Pack } from "./types";
@@ -49,6 +52,18 @@ interface Plan {
   canReview: boolean;
   outdated: boolean;
 }
+interface DistributionTarget {
+  id: string;
+  channelId: string;
+  active: boolean;
+  channel: {
+    id: string;
+    name: string;
+    platform: string;
+    active: boolean;
+    businessPurpose: string;
+  };
+}
 interface ReleaseInput {
   title: string;
   body: string;
@@ -76,6 +91,7 @@ export class StudioPublisher {
   private host: HTMLElement;
   private item!: Item;
   private channels: Channel[] = [];
+  private targets: DistributionTarget[] = [];
   private channelId = "";
   private use = "TRADE";
   private plan: Plan | null = null;
@@ -151,7 +167,9 @@ export class StudioPublisher {
     const g = ++this.generation;
     try {
       this.channels = (await request<Channel[]>("/channels")).filter(
-        (c) => c.active,
+        (channel) =>
+          channel.active &&
+          (this.use !== "TRADE" || channel.businessPurpose === "TRADE"),
       );
       if (this.o.signal.aborted || g !== this.generation) return;
       if (!this.channels.length) {
@@ -175,6 +193,12 @@ export class StudioPublisher {
       this.channelId =
         this.channels.find((c) => c.id === this.channelId)?.id ||
         this.channels[0].id;
+      this.targets =
+        this.use === "TRADE"
+          ? await request<DistributionTarget[]>(
+              `/items/${item.id}/distribution-targets`,
+            )
+          : [];
       const freshPlan = await request<Plan>(
         `/items/${item.id}/studio?channelId=${this.channelId}&purpose=${this.use}`,
       );
@@ -250,12 +274,24 @@ export class StudioPublisher {
     const p = this.plan!,
       draft = p.draft,
       title = previous?.title ?? draft?.title ?? p.preview.title,
-      body = previous?.body ?? draft?.body ?? p.preview.body;
+      body = previous?.body ?? draft?.body ?? p.preview.body,
+      hasActiveTarget =
+        this.use !== "TRADE" ||
+        this.targets.some(
+          (target) => target.channelId === this.channelId && target.active,
+        ),
+      duplicatePlatformTarget = this.targets.some(
+        (target) =>
+          target.active &&
+          target.channelId !== this.channelId &&
+          target.channel.platform === p.channel.platform,
+      );
     const ownPhotoNote = "本人拍摄，已核对所选图片为本商品实拍并拥有公开使用权";
     const selectedUsesSupplierImages = () =>
       this.selected.some((id) => p.assets.find((a) => a.id === id)?.origin !== "OWN");
     const note = previous?.note || (selectedUsesSupplierImages() ? "" : ownPhotoNote);
     this.host.innerHTML = `<header class="studio-publish-head"><div><h2>准备发布</h2><small>${esc(this.item.code)} · ${money(p.price, p.currency)}</small></div><button type="button" class="btn" id="studio-close">收起</button></header><div class="studio-publish-scroll"><form id="studio-publish-form"><div class="studio-target"><label>目标账号<select name="studioChannel" aria-label="发布目标账号">${this.channels.map((c) => `<option value="${c.id}" ${c.id === this.channelId ? "selected" : ""}>${esc(platformNames[c.platform] || c.platform)} · ${esc(c.name)}</option>`).join("")}</select></label><label>使用场景<select name="studioPurpose" aria-label="使用场景"><option value="TRADE" ${this.use === "TRADE" ? "selected" : ""}>发布到平台</option><option value="CUSTOMER_CARD" ${this.use === "CUSTOMER_CARD" ? "selected" : ""}>发给客户</option></select></label></div>
+   ${this.use === "TRADE" && !hasActiveTarget ? `<div class="notice warning studio-target-warning">这件商品尚未明确加入「${esc(p.channel.name)}」经营。可以先准备资料，但登记发布前必须明确经营目标。 <button type="button" class="btn" id="studio-activate-target">加入此分发渠道</button></div>` : ""}
    ${this.conflictDraft ? `<section class="studio-draft-conflict"><strong>渠道文案被其他人更新了</strong><p>你的编辑已保留。请先比较，不会自动覆盖对方的新内容。</p><details><summary>查看服务器文案</summary><h4>${esc(this.conflictDraft.title)}</h4><div class="copy">${esc(this.conflictDraft.body)}</div></details>${check("studioConflictAck", "已比较双方文案和选图，确认处理方式")}<button type="button" class="btn" id="studio-use-remote">使用服务器文案</button><button type="button" class="btn" id="studio-keep-local">核对后保留我的文案</button></section>` : ""}
    <div class="studio-missing" role="status">${p.missing.length ? "<strong>还需补充：</strong>" + p.missing.map((m) => `<button class="btn subtle" type="button" data-studio-fix="${m.code}">${esc(m.title)}</button>`).join("") : "<span>资料已齐，核对文案和图片即可。</span>"}</div><button type="button" class="btn" id="studio-refresh">保存商品并重新检查</button>
    ${field("studioTitle", "发布标题", title)}<small class="studio-title-count"></small>${area("studioBody", "发布正文", body, 8)}<div class="studio-copy-actions"><button class="btn subtle" type="button" id="studio-refill">恢复系统建议</button><button class="btn" type="submit">保存草稿</button></div><small>生成后仍需到对应平台发布；英文内容请人工核对。</small>
@@ -326,6 +362,30 @@ export class StudioPublisher {
       .querySelector("#studio-refresh")!
       .addEventListener("click", () => {
         void this.refreshFromEditor();
+      });
+    this.host
+      .querySelector<HTMLButtonElement>("#studio-activate-target")
+      ?.addEventListener("click", async () => {
+        if (this.busy || this.pending) return;
+        const unlock = lockControls(this.host);
+        this.busy = true;
+        let activated = false;
+        try {
+          activated = await activateDistributionTarget(
+            this.item.id,
+            p.channel,
+            "商品编辑工作室明确加入分发渠道",
+            duplicatePlatformTarget,
+          );
+          if (activated)
+            this.feedback("已加入此分发渠道；发布资料仍需实际执行后再登记。");
+        } catch (e) {
+          this.error(e);
+        } finally {
+          this.busy = false;
+          unlock();
+        }
+        if (activated) await this.open(this.o.getItem(), true);
       });
     this.host.querySelector("#studio-refill")!.addEventListener("click", () => {
       if (
@@ -673,6 +733,11 @@ export class StudioPublisher {
               "已记录人工发布执行结果。稳定远端ID才会建立 Listing；后续渠道核对以这条执行记录为准。",
             );
           },
+          this.use !== "TRADE" ||
+            this.targets.some(
+              (target) =>
+                target.channelId === this.channelId && target.active,
+            ),
         )}</div><details><summary>查看最终文案</summary><h4>${esc(fresh.snapshot.title)}</h4><div class="copy">${esc(fresh.snapshot.body)}</div></details></section>`;
       this.feedback("已完成核对和资料生成；没有冒充平台已发布。");
       this.host

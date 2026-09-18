@@ -506,6 +506,12 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
     .click();
   await expect(page.locator(".photo-card")).toContainText("可公开使用");
   await page.getByRole("link", { name: "发布资料", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "加入此分发渠道", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "加入此分发渠道", exact: true })
+    .click();
   await page
     .getByLabel("已核对本次文案、图片、品相及报价，确认可以使用")
     .click();
@@ -565,6 +571,15 @@ test("分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人
     defaultCurrency: "CNY",
     distributionMode: "MANUAL",
   });
+  await api(
+    page,
+    `/items/${item.id}/distribution-targets/${channel.id}`,
+    {
+      active: true,
+      reason: "浏览器分发核对场景明确经营目标",
+      duplicatePlatformConfirmed: false,
+    },
+  );
   const pack = await api(page, `/items/${item.id}/packages`, {
     channelId: channel.id,
     purpose: "TRADE",
@@ -629,6 +644,15 @@ test("无稳定远端ID的成功发布在图片权利失效后明确显示需停
     defaultCurrency: "CNY",
     distributionMode: "MANUAL",
   });
+  await api(
+    page,
+    `/items/${item.id}/distribution-targets/${channel.id}`,
+    {
+      active: true,
+      reason: "浏览器无ID发布健康场景明确经营目标",
+      duplicatePlatformConfirmed: false,
+    },
+  );
   const pack = await api(page, `/items/${item.id}/packages`, {
     channelId: channel.id,
     purpose: "TRADE",

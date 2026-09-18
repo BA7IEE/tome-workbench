@@ -625,6 +625,62 @@ test("点击可见上传区域就打开文件选择器，不需要寻找隐藏�
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".studio-photo")).toHaveCount(1);
 });
+test("服务端发现同平台历史暴露时可二次确认加入分发渠道", async ({
+  page,
+}) => {
+  await start(page);
+  await basic(page, "服务端经营确认 " + randomUUID());
+  await tradeFacts(page);
+  await revealPublishing(page);
+  await page
+    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .click();
+  await expect(page.locator("#studio-publish-form")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "加入此分发渠道", exact: true }),
+  ).toBeVisible();
+
+  let posts = 0;
+  await page.route("**/api/items/*/distribution-targets/*", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    const body = JSON.parse(route.request().postData() || "{}");
+    posts += 1;
+    if (posts === 1) {
+      expect(body.duplicatePlatformConfirmed).toBe(false);
+      await route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: {
+            code: "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
+            message: "该商品在同平台仍有历史在线暴露，需要明确确认",
+          },
+        }),
+      });
+      return;
+    }
+    expect(body.duplicatePlatformConfirmed).toBe(true);
+    await route.continue();
+  });
+
+  let confirmation = "";
+  page.once("dialog", (dialog) => {
+    confirmation = dialog.message();
+    void dialog.accept();
+  });
+  await page
+    .getByRole("button", { name: "加入此分发渠道", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "加入此分发渠道", exact: true }),
+  ).toHaveCount(0);
+  expect(posts).toBe(2);
+  expect(confirmation).toContain("仍在线记录");
+});
+
 test("登记已发布使用本页回执，不跳转或重载工作区", async ({ page }) => {
   await start(page);
   await basic(page, "本页发布回执 " + randomUUID());
@@ -634,6 +690,12 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
     .getByRole("button", { name: "保存并准备发布", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "加入此分发渠道", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "加入此分发渠道", exact: true })
+    .click();
   await page
     .getByLabel("我已核对商品信息、瑕疵和图片，确认可用于本次发布")
     .check();

@@ -91,7 +91,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 - 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、下次跟进日程、成交币种真相、批量预检、来源关联的下架计划和可验证的站点资料映射。动态 Readiness、全局未批准商品待办、批量成本预览和规模基准只复用既有事实与命令。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
-- `DistributionTarget` 只增加当前交易经营意图，不能把内容/展厅渠道变成交易渠道，也不能替代真实发布、远端身份、库存或停售回执。
+- `DistributionTarget` 只增加当前交易经营意图，不能把内容/展厅渠道变成交易渠道，也不能替代真实发布、远端身份、库存或停售回执。 新的 TRADE PUBLISH/UPDATE 与稳定 Listing 回执必须先有 active Target；旧历史 Exposure 保持可见和可停售，但不能在缺少当前经营意图时继续生成新的发布事实。
 - 发布安全只维护本地经营状态和来源关联 DELIST：不把 UsePackage TTL 当远端页面寿命，不删除仍可能在线的商品，也不调用平台下架、重发或浏览器自动化。
 
 ## 尚未完成

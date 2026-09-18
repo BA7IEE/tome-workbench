@@ -376,7 +376,19 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
       ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "DISTRIBUTION_TARGET_REQUIRED",
+      ) &&
       read("web/src/bulk-distribution.ts").includes("加入分发渠道") &&
+      read("web/src/publishing-workspace.ts").includes(
+        "activate-distribution-target",
+      ) &&
+      read("web/src/studio-publisher.ts").includes(
+        "studio-activate-target",
+      ) &&
+      read("web/src/studio-publisher.ts").includes(
+        'channel.businessPurpose === "TRADE"',
+      ) &&
       read("test/integration.test.cjs").includes("Distribution Intent：") &&
       read("test/browser/operations.spec.cjs").includes("批量加入分发渠道"),
   );
