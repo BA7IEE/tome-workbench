@@ -1031,23 +1031,52 @@ export class DistributionService {
         action: exact.action,
         reason: "SAME_PACKAGE" as const,
       };
-    const dedupeKey =
-      exact?.state === "CANCELLED"
-        ? target?.active
-          ? `${baseDedupeKey}:target:${target.version}`
-          : `${baseDedupeKey}:after-cancel:${exact.id}`
-        : baseDedupeKey;
-    if (dedupeKey !== baseDedupeKey) {
-      const resumed = await tx.distributionAttempt.findUnique({
-        where: { dedupeKey },
-      });
-      if (resumed)
-        return {
-          p,
-          existing: resumed,
-          action: resumed.action,
-          reason: "SAME_PACKAGE" as const,
-        };
+    let dedupeKey = baseDedupeKey;
+    if (exact?.state === "CANCELLED") {
+      if (target?.active) {
+        dedupeKey = `${baseDedupeKey}:target:${target.version}`;
+        const resumed = await tx.distributionAttempt.findUnique({
+          where: { dedupeKey },
+        });
+        if (resumed)
+          return {
+            p,
+            existing: resumed,
+            action: resumed.action,
+            reason: "SAME_PACKAGE" as const,
+          };
+      } else {
+        const prefix = `${baseDedupeKey}:after-cancel:`;
+        const [liveLegacyRetry, cancelledRetries] = await Promise.all([
+          tx.distributionAttempt.findFirst({
+            where: {
+              itemId: p.itemId,
+              channelId: p.channelId,
+              action,
+              state: { not: "CANCELLED" },
+              dedupeKey: { startsWith: prefix },
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          }),
+          tx.distributionAttempt.count({
+            where: {
+              itemId: p.itemId,
+              channelId: p.channelId,
+              action,
+              state: "CANCELLED",
+              dedupeKey: { startsWith: prefix },
+            },
+          }),
+        ]);
+        if (liveLegacyRetry)
+          return {
+            p,
+            existing: liveLegacyRetry,
+            action: liveLegacyRetry.action,
+            reason: "SAME_PACKAGE" as const,
+          };
+        dedupeKey = `${prefix}${cancelledRetries + 1}`;
+      }
     }
     return {
       p,
