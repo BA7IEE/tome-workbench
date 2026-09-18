@@ -10,7 +10,7 @@
 | catalog | Item(TM)、Cycle、Revision、Movement、MaterialExport | 唯一商品事实；版本冲突和冻结资料 |
 | dictionaries | 标准 ID、别名、停用状态 | 来源原文不自动成为标准字典 |
 | media | Asset、IntakeFile | 原图不可覆盖，授权独立 |
-| costing / trading | 成本依据、成交、预留、询盘、调整、账期 | 未知金额 NULL、按币种；成交成本冻结 |
+| costing / trading | 成本依据、成交、预留、带下次跟进时间的询盘、调整、账期 | 未知金额 NULL、按币种；成交成本冻结 |
 | publishing / distribution | Channel（含 businessPurpose）、DistributionTarget、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、PublicationHealth、Collection、AnQiCMS 标准交付合同 | Target 仅表达当前交易经营意图；成功资料无论是否有 Listing 都按当前安全事实复核；默认路径交付冻结资料并记录经营状态；合同只读本地投影，不含 Connector |
 | jobs | Outbox、Task | PG 租约、重试、失败持久化；无外部副作用 |
 | operations | work-queue、运行健康、审计视图 | 只读投影，不复制第二套可写经营事实 |
@@ -39,7 +39,7 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 `Channel.businessPurpose` 是账号层经营用途：`TRADE` 才能承载交易资料、交易报价和 `DistributionTarget`；XHS 固定 `CONTENT`，SHOWROOM 固定 `SHOWROOM`，不能通过 UI 或 API 改成交易渠道。`DistributionTarget` 是 Item×Channel 的可关闭经营意图，保留创建/更新人、版本和原因；它不镜像 Item 库存、不回填历史 Listing/Attempt、不创建 Package 或任何外部动作。启用同平台第二个 Target 前必须明确确认，避免误把同平台多账号经营当作默认行为。
 
-`Channel.defaultCurrency` 是 Channel 账号层的默认币种。`fixedChannelCurrency` 对 AnQiCMS/闲鱼分别强制 USD/CNY，其他平台返回账号默认值；Channel 创建、编辑、ChannelPrice 写入和发布 Readiness 共用这一要求。`resolveChannelPrice` 仍只解析 ChannelPrice 或 Item 回退价，不做 FX；回退价币种不等于目标账号时只能作为待补信息，不能复制金额。询盘创建在已配置账号下默认同币种有效渠道价；没有该价时金额 NULL、币种仍为目标账号。Sale 多币种财务结构没有改变。
+`Channel.defaultCurrency` 是 Channel 账号层的默认币种。`fixedChannelCurrency` 对 AnQiCMS/闲鱼分别强制 USD/CNY，其他平台返回账号默认值；Channel 创建、编辑、ChannelPrice 写入和发布 Readiness 共用这一要求。`resolveChannelPrice` 仍只解析 ChannelPrice 或 Item 回退价，不做 FX；回退价币种不等于目标账号时只能作为待补信息，不能复制金额。询盘创建在已配置账号下默认同币种有效渠道价；没有该价时金额 NULL、币种仍为目标账号。询盘转成交使用已记录的 `Inquiry.currency`，直接成交使用已配置账号的有效/要求币种或未配置账号的 Item 币种；仅 CNY Sale 自动冻结 CNY 成本，外币 Sale 不写入 CNY 成本。`Inquiry.nextFollowUpAt` 是 FOLLOWUP 的必填日程事实，工作队列按上海自然日计算逾期、今日与未来优先级。外币账期在没有 FX basis 时只能预览，确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`；没有 FX 引擎、自动换汇或历史 Sale 改写。
 
 `PublicationHealthService` 不把 `Listing` 或 UsePackage TTL 当成唯一远端事实：当前成功 PUBLISH/UPDATE（包括 APP `remoteId` 为空）都会复核库存、Target、Channel、供应商 Offer、批准/鉴定、发布图片权利及正数且币种正确的交易价。安全但资料变化时输出待更新；不安全时 Worker/Sweep 只在本地创建来源关联 DELIST，不调用平台。停用或退出 TRADE 的渠道立即取消尚未交付的 PUBLISH/UPDATE，并且只可为未完成 DELIST 建立 stop-only 会话；回收站同样以这些暴露事实保护商品。
 

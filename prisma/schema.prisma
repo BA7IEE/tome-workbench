@@ -716,8 +716,11 @@ model Inquiry {
   quote          Int?
   currency       String   @default("CNY")
   state          String   @default("OPEN")
+  nextFollowUpAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([nextFollowUpAt, state])
 }
 
 model Suggestion {

@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.4
 
-本地完整验证完成：`2026-09-17T21:43:54.358Z`。验证源码指纹为
-`03217e923de1c4f186ff04eb849792a7be3714dde699b69d52726ab9dad18471`；
+本地完整验证完成：`2026-09-17T22:38:19.884Z`。验证源码指纹为
+`1f5bcd24093d85d06b58fc7cd1b47b3ae72f47f3dafdf504173456b83d3a39a5`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -9,15 +9,15 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、25/25、148/148、8/8；失败均为 0 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 27/27、26/26、150/150、8/8；失败均为 0 |
 | Chromium | 174 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 174 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 完整 Harness | exit 0，183 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 938ms、Worker 恢复 1956ms，未执行外部动作 |
+| 完整 Harness | exit 0，184 项静态守卫全部通过，sourceUnchanged=true |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 920ms、Worker 恢复 1954ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功：`release/tome-workbench-1.1.0-rc.4.zip`（1.9 MB）；426 个源文件加 SHA256 manifest 共 427 个 ZIP 条目，未含实际 `.env`、`data/`、`node_modules/`、session、backup 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.4.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup 或私钥产物 |
 
 完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.4/summary.json)、
 [audit.json](validation/1.1.0-rc.4/audit.json)、[verification.log](validation/1.1.0-rc.4/verification.log)。
@@ -36,7 +36,7 @@ Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 的边界上增量实现�
   TRADE 时仅允许未解决 DELIST 使用 stop-only 会话。
 - Trash 会本地取消未交付的 PENDING 发布 Attempt，并阻止仍可能在线的 Handoff、UNKNOWN、
   SUCCEEDED 或未解决 DELIST 暴露；交易价必须大于零。
-- 未新增 migration，未执行平台动作、生产部署或真实经营 UAT。
+- 未改写历史 migration；本轮的询盘日程使用独立 forward migration，未执行平台动作、生产部署或真实经营 UAT。
 
 ## v1.1-rc.5 Handoff 合同闭环
 
@@ -53,6 +53,22 @@ sourceAttemptId 或 Agent Ingest v1.2。
   `HANDOFF_SESSION_DEAD`，没有自动重发、外部操作或 Attempt 改写。
 - 新增集成场景用隔离 `tome_test` 校验上述路径；无 migration、平台 Connector、真实账号、
   凭据或业务 UAT。
+
+## v1.1-rc.5 询盘日程、成交币种与结算安全
+
+本次完成询盘与交易事实闭环切片，新增的
+`202609180017_inquiry_followup` 是唯一 forward migration；既有 TM、来源、Candidate
+人工确认、库存锁、Cost、Sale、UsePackage、图片权利、Commands/Receipt、Audit/Outbox、
+ChannelPrice、Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 均未重写。
+
+- `FOLLOWUP` 必须保存 `nextFollowUpAt`，工作队列按遗漏、逾期、当日和未来日程排序；OPEN、LOST
+  与确认成交都会清空日程，界面冲突恢复会读回最新日程。
+- 询盘转成交严格写入 `Inquiry.currency`；已配置渠道的直接成交采用有效渠道价币种或账号要求币种，
+  未配置渠道才采用 Item 币种。审计同时保留成交币种快照。
+- 仅人民币成交会冻结已确认的人民币成本；外币 Sale 的 `cost` 保持 NULL，不能把人民币成本混入外币账。
+- 没有 FX basis 的外币对账确认以 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED` 阻断并保持 DRAFT；
+  本版未实现 FX 引擎或自动折算。Chromium 与 WebKit 都实际验证了该错误、保留草稿和显式放弃表单的交互。
+- 本轮完整 gate 使用隔离 `tome_test`，未执行平台、支付、退款、消息、联网 AI、生产部署或真实经营 UAT。
 
 ## 生产与业务边界
 

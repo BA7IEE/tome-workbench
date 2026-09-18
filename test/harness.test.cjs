@@ -117,6 +117,16 @@ for (const [name, p, fn, id] of [
     "no-skipped-tests",
   ],
   [
+    "sales truth",
+    "src/trading/trading.service.ts",
+    (s) =>
+      s.replace(
+        "const saleCurrency = inquiry.currency",
+        "const saleCurrency = item.currency",
+      ),
+    "v11-inquiry-followup-and-sale-currency",
+  ],
+  [
     "network in domain",
     "src/common/domain.ts",
     (s) => s + '\nfetch("untrusted");',

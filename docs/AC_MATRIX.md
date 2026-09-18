@@ -384,3 +384,22 @@ MCP 固定只有 list/get-package/report-published/report-attention 四工具。
 Skill/Profile SHA、Bearer、四工具、兼容开关、AnQi `platformData`、archive ID 缺失拒绝、
 identity-only DELIST、超时和撤销会话的无写入 ATTENTION 投影。它不请求任何第三方平台，
 不使用真实 Token、账号、Cookie、archive ID 或经营数据，也不构成真实 AnQiCMS/API/UAT。
+
+## v1.1-rc.5 询盘日程、成交币种与外币结算边界
+
+`202609180017_inquiry_followup` 只给 Inquiry 增加可空 `nextFollowUpAt` 与
+`(nextFollowUpAt,state)` 索引，不回填、不重写历史询盘或其他 migration。FOLLOWUP 必须提交
+下一次跟进时间；OPEN、WON、LOST 不保留日程。工作队列以该事实动态排序：逾期或历史遗漏
+日程的 FOLLOWUP 为 90，上海当天 FOLLOWUP 与新 OPEN 为 85，未来 FOLLOWUP 为 55。
+
+成交币种不再从 Item 推断：Inquiry 转 Sale 严格保留 Inquiry.currency；配置 Channel 的直接
+成交使用有效渠道价币种，不符合该 Channel 固定/默认币种时使用其要求币种；未配置 Channel
+才使用 Item.currency。只有 CNY Sale 自动冻结 CNY 成本，外币 Sale 保持 NULL 成本。外币
+Settlement 仍可保留本地预览，但在没有 FX basis 的当前模型中确认返回
+`FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`，不自动换汇、不执行付款，也不改写既有外币 Sale。
+
+`test/integration.test.cjs` 使用隔离 `tome_test` 覆盖 USD/CNY 询盘转 Sale、AnQiCMS/闲鱼
+直接成交、未配置 Channel、外币不写 CNY 成本、FOLLOWUP 时间校验、待办优先级、WON/LOST
+清空日程以及外币结算确认阻断；`test/browser/system-review.spec.cjs` 在 Chromium/WebKit
+真实填写跟进时间并覆盖并发冲突后的最新日程恢复。它们不证明真实渠道成交、汇率、结算、
+付款或经营 UAT。

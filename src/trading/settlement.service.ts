@@ -223,6 +223,12 @@ export class SettlementService {
         if (row.digest !== b.digest)
           throw new Fault("PREVIEW_MISMATCH", "确认的不是当前这份预览");
         if (row.status === "CONFIRMED") return { id, existing: true };
+        if (row.currency !== "CNY")
+          throw new Fault(
+            "FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED",
+            "外币结算尚无经确认的汇率基础，不能确认；本版不自动换汇或折算。",
+            409,
+          );
         const current = await this.calculate(tx, {
           ruleId: row.ruleId,
           periodStart: row.periodStart.toISOString(),

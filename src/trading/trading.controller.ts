@@ -247,8 +247,17 @@ export class TradingController {
         version: z.number().int().positive(),
         state: z.enum(["OPEN", "FOLLOWUP", "LOST"]),
         notes: safeText(4000),
+        nextFollowUpAt: z.string().datetime().nullable().optional(),
       })
       .strict()
+      .superRefine((value, context) => {
+        if (value.state === "FOLLOWUP" && !value.nextFollowUpAt)
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["nextFollowUpAt"],
+            message: "跟进中的询盘必须明确下一次跟进时间",
+          });
+      })
       .parse(raw);
     return this.commands.run(
       r.actor.id,
@@ -276,6 +285,8 @@ export class TradingController {
           data: {
             state: b.state,
             notes: b.notes || current.notes,
+            nextFollowUpAt:
+              b.state === "FOLLOWUP" ? new Date(b.nextFollowUpAt!) : null,
             version: { increment: 1 },
           },
         });
@@ -285,10 +296,16 @@ export class TradingController {
           version: i.version,
           previousNotes: current.notes,
           previousState: current.state,
+          previousNextFollowUpAt: current.nextFollowUpAt?.toISOString() ?? null,
           state: b.state,
           notes: b.notes,
+          nextFollowUpAt: i.nextFollowUpAt?.toISOString() ?? null,
         });
-        return { id, version: i.version };
+        return {
+          id,
+          version: i.version,
+          nextFollowUpAt: i.nextFollowUpAt?.toISOString() ?? null,
+        };
       },
     );
   }

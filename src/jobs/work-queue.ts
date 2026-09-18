@@ -79,8 +79,20 @@ export async function readWorkQueue(
         OR (d.action<>'DELIST' AND d.state IN ('UNKNOWN','FAILED'))
       ) AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
-      SELECT 'inquiry:' || n.id::text, n.id, 'INQUIRY', 85,
-        CASE WHEN n.state='FOLLOWUP' THEN '客户询盘跟进中' ELSE '新询盘待跟进' END,
+      SELECT 'inquiry:' || n.id::text, n.id, 'INQUIRY',
+        CASE
+          WHEN n.state='FOLLOWUP' AND (n."nextFollowUpAt" IS NULL OR n."nextFollowUpAt" <= CURRENT_TIMESTAMP) THEN 90
+          WHEN n.state='FOLLOWUP' AND n."nextFollowUpAt" < ((date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai') + interval '1 day') AT TIME ZONE 'Asia/Shanghai') THEN 85
+          WHEN n.state='OPEN' THEN 85
+          ELSE 55
+        END,
+        CASE
+          WHEN n.state='FOLLOWUP' AND n."nextFollowUpAt" IS NULL THEN '客户询盘待补下次跟进时间'
+          WHEN n.state='FOLLOWUP' AND n."nextFollowUpAt" <= CURRENT_TIMESTAMP THEN '客户询盘跟进已逾期'
+          WHEN n.state='FOLLOWUP' AND n."nextFollowUpAt" < ((date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai') + interval '1 day') AT TIME ZONE 'Asia/Shanghai') THEN '客户询盘今日待跟进'
+          WHEN n.state='FOLLOWUP' THEN '客户询盘后续跟进'
+          ELSE '新询盘待跟进'
+        END,
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, n.channel, n."customerRef"), n."updatedAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Inquiry" n JOIN "Item" i ON i.id=n."itemId" WHERE ${sell} AND n.state IN ('OPEN','FOLLOWUP') AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
