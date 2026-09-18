@@ -12,7 +12,9 @@
 响应出现一次。每个机器请求使用 `X-Distribution-Token` 或同一 Token 的 Bearer 头，系统会核验会话未撤销/过期、
 创建者仍启用且仍具 `publish` 权限。停用或退出 `TRADE` 的 Channel 不再交付新的
 PUBLISH/UPDATE；只有仍有未完成 DELIST 时可以创建 stop-only Session，且其列表和取包
-只能处理 DELIST，全部确认停售后不能再创建会话。
+只能处理 DELIST，全部确认停售后不能再创建会话。历史渠道没有专用发布 Profile 时，
+stop-only Session 使用 `GENERIC_STOP/1.0` 合同，只允许按永久 TM / 已知远端身份完成
+DELIST，不因此开放新的交易发布能力。
 
 同一 Token 也可用 `Authorization: Bearer <token>`。这是两种等价的机器认证写法，不是
 额外凭据，也不得同时扩展为平台登录或执行权限。
@@ -96,9 +98,12 @@ Idempotency-Key: <12-128 chars>
 ```
 
 APP 没有稳定编号时，`remoteId` 可留空，并在 `note` 中说明以永久 TM 的核对依据。禁止
-`MANUAL:TM...` 等伪造 ID。AnQiCMS 的 `PUBLISH` 和 `UPDATE` 成功必须把外部 MCP/API
-真实返回的稳定 `archive_id` 原样回传为 `remoteId`；空值、TM、手工占位或凭据文本都会
-拒绝，不能生成“无 ID 成功”。对 `DELIST`，`published` 表示停售目标已确认完成。
+`MANUAL:TM...` 等伪造 ID。若同一 Item×Channel 已有唯一 LIVE 稳定远端身份，`UPDATE`
+必须继续指向该身份；本次不重复返回 ID 时系统可继承唯一已知身份，但返回不同 ID 或存在
+多个 LIVE 身份会被阻断并要求人工核对，不能把 UPDATE 静默变成第二个远端商品。AnQiCMS 的
+`PUBLISH` 和 `UPDATE` 成功必须把外部 MCP/API 真实返回的稳定 `archive_id` 原样回传为
+`remoteId`；空值、TM、手工占位或凭据文本都会拒绝，不能生成“无 ID 成功”。对 `DELIST`，
+`published` 表示停售目标已确认完成。
 
 外部结果不明或需要人工处理：
 
