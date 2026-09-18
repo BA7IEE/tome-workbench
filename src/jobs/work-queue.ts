@@ -3,6 +3,7 @@ import { z } from "zod";
 import { permission, type Role } from "../auth/auth";
 import { PrismaService } from "../database/prisma.service";
 import { safeText } from "../common/domain";
+import { config } from "../common/config";
 
 const querySchema = z
   .object({
@@ -49,7 +50,8 @@ export async function readWorkQueue(
   const q = querySchema.parse(raw),
     sell = permission(role, "sell"),
     publish = permission(role, "publish"),
-    finance = permission(role, "finance");
+    finance = permission(role, "finance"),
+    staleHours = config().distributionHandoffStaleHours;
   const [result] = await db.$queryRaw<
     { rows: Row[]; total: number; summary: Record<string, number> }[]
   >(Prisma.sql`
@@ -75,14 +77,31 @@ export async function readWorkQueue(
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Observation" o JOIN "Item" i ON i.id=o."itemId" WHERE NOT o.resolved AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
-      SELECT 'distribution:' || d.id::text, d.id, 'DISTRIBUTION', CASE WHEN d.action='DELIST' THEN 100 WHEN d.state='UNKNOWN' THEN 95 ELSE 70 END,
-        CASE WHEN d.action='DELIST' THEN '商品已不宜继续出售，渠道仍待停售' WHEN d.state='UNKNOWN' THEN '分发记录需要核对，须按TM核对' ELSE '分发记录需要处理' END,
+      SELECT 'distribution:' || d.id::text, d.id, 'DISTRIBUTION',
+        CASE WHEN d.action='DELIST' THEN 100 WHEN d.state IN ('UNKNOWN','RUNNING') THEN 95 ELSE 70 END,
+        CASE
+          WHEN d.action='DELIST' THEN '商品已不宜继续出售，渠道仍待停售'
+          WHEN d.state='UNKNOWN' THEN '分发记录需要核对，须按TM核对'
+          WHEN d.state='RUNNING' AND (ds."revokedAt" IS NOT NULL OR ds."expiresAt" <= CURRENT_TIMESTAMP) THEN '已交付分发会话失效，需要核对'
+          WHEN d.state='RUNNING' THEN '已交付分发记录超时，需要核对'
+          ELSE '分发记录需要处理'
+        END,
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, c.name, d.action, nullif(d."errorCode", '')), d."createdAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
-      FROM "DistributionAttempt" d JOIN "Item" i ON i.id=d."itemId" JOIN "Channel" c ON c.id=d."channelId"
+      FROM "DistributionAttempt" d
+      JOIN "Item" i ON i.id=d."itemId"
+      JOIN "Channel" c ON c.id=d."channelId"
+      LEFT JOIN "DistributionSession" ds ON ds.id=d."claimedBySessionId"
       WHERE ${publish} AND (
         (d.action='DELIST' AND d.state IN ('PENDING','RUNNING','UNKNOWN','FAILED'))
         OR (d.action<>'DELIST' AND d.state IN ('UNKNOWN','FAILED'))
+        OR (
+          d.action<>'DELIST' AND d.state='RUNNING' AND (
+            (d."startedAt" IS NOT NULL AND d."startedAt" <= CURRENT_TIMESTAMP - make_interval(hours=>${staleHours}))
+            OR ds."revokedAt" IS NOT NULL
+            OR ds."expiresAt" <= CURRENT_TIMESTAMP
+          )
+        )
       ) AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
       SELECT 'inquiry:' || n.id::text, n.id, 'INQUIRY',
@@ -103,9 +122,19 @@ export async function readWorkQueue(
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Inquiry" n JOIN "Item" i ON i.id=n."itemId" WHERE ${sell} AND n.state IN ('OPEN','FOLLOWUP') AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
-      SELECT 'sale:' || s.id::text, s.id, 'SALE_FINANCE', 30, '成交记录待补收支',
+      SELECT 'sale:' || s.id::text, s.id, 'SALE_FINANCE', 30,
+        CASE
+          WHEN s.currency<>'CNY' AND s.cost IS NULL THEN '外币成交待确认结算依据'
+          ELSE '成交记录待补收支'
+        END,
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title,
-          '缺 ' || concat_ws('、', CASE WHEN s.amount IS NULL THEN '成交额' END, CASE WHEN s.cost IS NULL THEN '成本' END, CASE WHEN s.fees IS NULL THEN '费用' END, CASE WHEN NOT s.paid THEN '到账确认' END)), s."soldAt",
+          '缺 ' || concat_ws('、',
+            CASE WHEN s.amount IS NULL THEN '成交额' END,
+            CASE WHEN s.cost IS NULL AND s.currency='CNY' THEN '成本' END,
+            CASE WHEN s.cost IS NULL AND s.currency<>'CNY' THEN '外币结算依据' END,
+            CASE WHEN s.fees IS NULL THEN '费用' END,
+            CASE WHEN NOT s.paid THEN '到账确认' END
+          )), s."soldAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Sale" s JOIN "Item" i ON i.id=s."itemId" WHERE ${finance} AND (s.amount IS NULL OR s.cost IS NULL OR s.fees IS NULL OR NOT s.paid) AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
     ), filtered AS (
