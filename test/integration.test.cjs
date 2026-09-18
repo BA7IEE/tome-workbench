@@ -5605,6 +5605,11 @@ test("Operations cleanup：超时Handoff进入统一待办，外币成交显示�
   assert.equal(financeRow.title, "外币成交待确认结算依据");
   assert.match(financeRow.detail, /外币结算依据/);
   assert.doesNotMatch(financeRow.detail, /缺 [^·]*成本/);
+
+  const unifiedQueue = await ok("/work-queue");
+  const dashboard = await ok("/dashboard");
+  assert.ok(dashboard.pendingDistribution >= 2);
+  assert.ok(dashboard.actionable >= unifiedQueue.summary.total);
 });
 
 test("Distribution 经营投影：动态区分资料、交付、发布、更新、停售和异常并先筛选后分页", async () => {
