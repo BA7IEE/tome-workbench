@@ -157,18 +157,14 @@ export class JobsController {
         },
       }),
       this.distribution.operationalAttentionCount(),
-      // The exception card must use the operational projection exactly. The
-      // broader work-total still includes unfinished DELIST records, which
-      // are actionable but belong to the separate "需停售" operating state.
-      this.db.distributionAttempt.count({
-        where: {
-          OR: [
-            { state: { in: ["UNKNOWN", "FAILED"] } },
-            { action: "DELIST", state: { in: ["PENDING", "RUNNING"] } },
-          ],
-          item: { deletedAt: null, dataMode: "BUSINESS" },
-        },
-      }),
+      // Use the same read-only queue projection as the workbench so stale or
+      // dead-session handoffs cannot appear on one operating surface but be
+      // absent from the dashboard action total.
+      readWorkQueue(this.db, r.actor.role, {
+        scope: "DISTRIBUTION",
+        page: 1,
+        size: 1,
+      }).then((queue) => queue.total),
     ]);
     const visibleInquiries = canSell ? pendingInquiries : 0,
       visibleDistribution = canPublish ? pendingDistribution : 0,
