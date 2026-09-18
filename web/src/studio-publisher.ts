@@ -12,7 +12,10 @@ import {
 } from "./core";
 import { WriteAttempt } from "./write-attempt";
 import { lockControls } from "./form-support";
-import { packageButtons } from "./publishing-workspace";
+import {
+  activateDistributionTarget,
+  packageButtons,
+} from "./publishing-workspace";
 import { setupChannel, platformNames } from "./channel-setup";
 import { focusStudioField } from "./studio-fields";
 import type { Item, Channel, Pack } from "./types";
@@ -363,29 +366,26 @@ export class StudioPublisher {
     this.host
       .querySelector<HTMLButtonElement>("#studio-activate-target")
       ?.addEventListener("click", async () => {
-        if (
-          duplicatePlatformTarget &&
-          !window.confirm(
-            `这件商品已在另一个 ${platformNames[p.channel.platform] || p.channel.platform} 账号经营。确认还要同时加入「${p.channel.name}」？`,
-          )
-        )
-          return;
+        if (this.busy || this.pending) return;
+        const unlock = lockControls(this.host);
+        this.busy = true;
+        let activated = false;
         try {
-          await request(
-            `/items/${this.item.id}/distribution-targets/${this.channelId}`,
-            "POST",
-            {
-              active: true,
-              reason: "商品编辑工作室明确加入分发渠道",
-              duplicatePlatformConfirmed: duplicatePlatformTarget,
-            },
-            crypto.randomUUID(),
+          activated = await activateDistributionTarget(
+            this.item.id,
+            p.channel,
+            "商品编辑工作室明确加入分发渠道",
+            duplicatePlatformTarget,
           );
-          this.feedback("已加入此分发渠道；发布资料仍需实际执行后再登记。");
-          await this.open(this.o.getItem(), true);
+          if (activated)
+            this.feedback("已加入此分发渠道；发布资料仍需实际执行后再登记。");
         } catch (e) {
           this.error(e);
+        } finally {
+          this.busy = false;
+          unlock();
         }
+        if (activated) await this.open(this.o.getItem(), true);
       });
     this.host.querySelector("#studio-refill")!.addEventListener("click", () => {
       if (
