@@ -10,7 +10,7 @@ import {
   type Role,
 } from "../auth/auth";
 import { authorizationContext } from "../auth/request-context";
-import { itemLock } from "../catalog/catalog.service";
+import { getItem, itemLock } from "../catalog/catalog.service";
 import { Fault } from "../common/errors";
 import {
   hash,
@@ -34,6 +34,7 @@ import { assetPath } from "../media/storage";
 import {
   packageSnapshot,
   PublishingService,
+  requireTradeChannel,
   requiredChannelCurrency,
 } from "../publishing/publishing.service";
 import {
@@ -77,6 +78,13 @@ const sessionInput = z
 const planInput = z
   .object({
     packageId: uuid,
+  })
+  .strict();
+const distributionTargetInput = z
+  .object({
+    active: z.boolean(),
+    reason: safeText(2000).min(1),
+    duplicatePlatformConfirmed: z.boolean().default(false),
   })
   .strict();
 const listingReceiptInput = z
@@ -407,6 +415,149 @@ export class DistributionService {
     private publishing: PublishingService,
   ) {}
 
+  async distributionTargets(itemId: string) {
+    return this.db.$transaction(async (tx) => {
+      await getItem(tx, itemId);
+      return tx.distributionTarget.findMany({
+        where: { itemId },
+        select: {
+          id: true,
+          itemId: true,
+          channelId: true,
+          active: true,
+          version: true,
+          note: true,
+          createdAt: true,
+          updatedAt: true,
+          channel: {
+            select: {
+              id: true,
+              name: true,
+              platform: true,
+              active: true,
+              businessPurpose: true,
+              locale: true,
+              defaultCurrency: true,
+            },
+          },
+        },
+        orderBy: [{ channel: { createdAt: "asc" } }, { id: "asc" }],
+      });
+    });
+  }
+
+  setDistributionTarget(
+    actor: Actor,
+    itemId: string,
+    channelId: string,
+    key: unknown,
+    raw: unknown,
+  ) {
+    const input = distributionTargetInput.parse(raw);
+    return this.commands.run(
+      actor.id,
+      "distribution.target.set",
+      key,
+      { itemId, channelId, ...input },
+      async (tx) => {
+        await itemLock(tx, itemId);
+        const channel = await tx.channel.findUnique({ where: { id: channelId } });
+        if (!channel)
+          throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 404);
+        const existing = await tx.distributionTarget.findUnique({
+          where: { itemId_channelId: { itemId, channelId } },
+        });
+        // A historical target may still need closing after a later channel
+        // purpose change. New targets, however, are always TRADE-only.
+        if (!existing) requireTradeChannel(channel, "分发经营目标");
+        if (input.active) {
+          if (!channel.active)
+            throw new Fault("CHANNEL_UNAVAILABLE", "渠道账号未启用，不能设为经营目标", 400);
+          requireTradeChannel(channel, "分发经营目标");
+          if (!existing?.active) {
+            const duplicates = await tx.distributionTarget.findMany({
+              where: {
+                itemId,
+                active: true,
+                channelId: { not: channelId },
+                channel: { is: { platform: channel.platform } },
+              },
+              select: {
+                id: true,
+                channel: { select: { id: true, name: true, platform: true } },
+              },
+            });
+            if (duplicates.length && !input.duplicatePlatformConfirmed)
+              throw new Fault(
+                "DUPLICATE_PLATFORM_TARGET_CONFIRMATION_REQUIRED",
+                `该商品已有${channel.platform}账号经营目标；请明确确认同平台多账号经营`,
+                409,
+              );
+          }
+        }
+        const changed =
+          !existing ||
+          existing.active !== input.active ||
+          existing.note !== input.reason;
+        const target = existing
+          ? changed
+            ? await tx.distributionTarget.update({
+                where: { id: existing.id },
+                data: {
+                  active: input.active,
+                  note: input.reason,
+                  updatedBy: actor.id,
+                  version: { increment: 1 },
+                },
+              })
+            : existing
+          : await tx.distributionTarget.create({
+              data: {
+                itemId,
+                channelId,
+                active: input.active,
+                note: input.reason,
+                createdBy: actor.id,
+                updatedBy: actor.id,
+              },
+            });
+        await audit(
+          tx,
+          actor.id,
+          existing
+            ? changed
+              ? "DISTRIBUTION_TARGET_UPDATED"
+              : "DISTRIBUTION_TARGET_RECONFIRMED"
+            : "DISTRIBUTION_TARGET_CREATED",
+          itemId,
+          {
+            targetId: target.id,
+            channelId,
+            active: target.active,
+            version: target.version,
+            reason: target.note,
+            duplicatePlatformConfirmed: input.duplicatePlatformConfirmed,
+          },
+        );
+        await event(tx, itemId, "DISTRIBUTION_TARGET_CHANGED", {
+          targetId: target.id,
+          channelId,
+          active: target.active,
+          version: target.version,
+        });
+        return {
+          id: target.id,
+          itemId: target.itemId,
+          channelId: target.channelId,
+          active: target.active,
+          version: target.version,
+          note: target.note,
+          changed,
+        };
+      },
+    );
+  }
+
   private leaseSeconds() {
     const value = Number(process.env.DISTRIBUTION_LEASE_SECONDS || 120);
     const min = process.env.APP_ENV === "test" ? 1 : 30;
@@ -575,6 +726,10 @@ export class DistributionService {
     const { p, s } = await this.publishing.validPackage(tx, packageId);
     if (p.purpose === "CUSTOMER_CARD")
       throw new Fault("CARD_NOT_LISTING", "客户资料卡不能作为交易发布", 400);
+    // Legacy packages may predate Channel.businessPurpose. They cannot be
+    // used to create a fresh trade handoff after the account becomes CONTENT.
+    if (p.purpose === "TRADE")
+      requireTradeChannel(p.channel, "交易分发记录");
 
     // An outstanding handoff must be resolved before this account receives a
     // second external publish. It applies even when a newer package was made.
@@ -803,6 +958,7 @@ export class DistributionService {
         name: true,
         platform: true,
         active: true,
+        businessPurpose: true,
         locale: true,
         defaultCurrency: true,
       },
@@ -872,6 +1028,9 @@ export class DistributionService {
             active: true,
             version: true,
           },
+        },
+        distributionTargets: {
+          select: { channelId: true, active: true },
         },
         publishingDrafts: {
           where: { purpose: "TRADE" },
@@ -1049,8 +1208,17 @@ export class DistributionService {
       for (const channel of channels) {
         const key = pair(item.id, channel.id),
           pairAttempts = attemptsByPair.get(key) || [],
-          hasHistory = pairAttempts.length > 0;
-        if (!channel.active && !hasHistory) continue;
+          pairListings = listingsByPair.get(key) || [],
+          hasHistory = pairAttempts.length > 0 || pairListings.length > 0,
+          activeTarget = item.distributionTargets.some(
+            (target) => target.channelId === channel.id && target.active,
+          );
+        // Operating rows begin with an explicit current TRADE target.  A real
+        // historic Attempt/Listing remains visible even after that intent is
+        // closed or the account changes purpose, because it can still need a
+        // local stop record.  Packages alone are not an external exposure.
+        if (!hasHistory && !(activeTarget && channel.businessPurpose === "TRADE"))
+          continue;
 
         const override = item.channelPrices.find(
           (price) => price.channelId === channel.id && price.active,

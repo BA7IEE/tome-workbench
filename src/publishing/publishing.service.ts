@@ -16,6 +16,39 @@ import {
 } from "../common/domain";
 import { getItem, itemLock } from "../catalog/catalog.service";
 export const purpose = z.enum(["TRADE", "SHOWROOM", "CUSTOMER_CARD"]);
+export const channelBusinessPurpose = z.enum(["TRADE", "CONTENT", "SHOWROOM"]);
+
+export function fixedChannelBusinessPurpose(platform: string) {
+  if (platform === "XHS") return "CONTENT" as const;
+  if (platform === "SHOWROOM") return "SHOWROOM" as const;
+  return null;
+}
+
+export function resolveChannelBusinessPurpose(
+  platform: string,
+  requested?: z.infer<typeof channelBusinessPurpose>,
+) {
+  const fixed = fixedChannelBusinessPurpose(platform);
+  if (fixed && requested && requested !== fixed)
+    throw new Fault(
+      "CHANNEL_PURPOSE_REQUIRED",
+      `${platform === "XHS" ? "小红书" : "自有展厅"}只能作为${fixed === "CONTENT" ? "内容" : "展示"}渠道`,
+      400,
+    );
+  return requested || fixed || "TRADE";
+}
+
+export function requireTradeChannel(
+  channel: { businessPurpose: string },
+  action = "交易分发",
+) {
+  if (channel.businessPurpose !== "TRADE")
+    throw new Fault(
+      "TRADE_CHANNEL_REQUIRED",
+      `${action}只适用于交易用途的渠道账号`,
+      400,
+    );
+}
 export const packageSnapshot = z.object({
   code: z.string(),
   title: z.string(),
@@ -200,11 +233,9 @@ export class PublishingService {
         });
         if (!channel)
           throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 400);
+        requireTradeChannel(channel, "渠道报价");
         const expectedCurrency = requiredChannelCurrency(channel);
-        if (
-          input.amount !== null &&
-          input.currency !== expectedCurrency
-        )
+        if (input.amount !== null && input.currency !== expectedCurrency)
           throw new Fault(
             "CHANNEL_PRICE_CURRENCY_REQUIRED",
             `该渠道账号只能使用 ${expectedCurrency} 报价`,
@@ -272,6 +303,7 @@ export class PublishingService {
     p: string,
   ) {
     const c = await packageContext(tx, itemId, channelId, false);
+    if (p === "TRADE") requireTradeChannel(c.channel, "交易资料检查");
     const draft = await tx.publishingDraft.findUnique({
       where: { itemId_channelId_purpose: { itemId, channelId, purpose: p } },
     });
@@ -326,6 +358,8 @@ export class PublishingService {
       async (tx) => {
         await itemLock(tx, itemId);
         const c = await packageContext(tx, itemId, b.channelId, false);
+        if (b.purpose === "TRADE")
+          requireTradeChannel(c.channel, "交易资料检查");
         const missing = requirements({
           title: c.item.title,
           brand: c.item.brand,
@@ -388,6 +422,12 @@ export class PublishingService {
       { itemId, ...b },
       async (tx) => {
         await itemLock(tx, itemId);
+        if (b.purpose === "TRADE") {
+          const channel = await tx.channel.findUnique({
+            where: { id: b.channelId },
+          });
+          if (channel) requireTradeChannel(channel, "交易资料交付");
+        }
         const c = await packageContext(tx, itemId, b.channelId, true);
         const draft = b.draftId
           ? await tx.publishingDraft.findUnique({ where: { id: b.draftId } })

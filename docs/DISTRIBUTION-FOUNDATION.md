@@ -10,6 +10,12 @@ ToMeBoutique 只准备标准资料、冻结 UsePackage、维护渠道报价并�
 
 `Channel.defaultCurrency` 是账号维度的默认币种：AnQiCMS 固定 USD、闲鱼固定 CNY、其他渠道使用账号设置；创建、编辑和写入渠道价时后端都会拒绝违反固定平台约束的值。`ChannelPrice` 是账号维度的明确报价。启用的覆盖值优先于 `Item.currentPrice/currency`，未启用时才回退默认报价；当回退价币种不同于目标账号时，它不能作为可发布价或被复制成目标金额。不会实时换汇或改写 Item。Readiness、预览、PublishingDraft、UsePackage 创建和有效包校验使用同一有效价，因此改价、改回默认价或恢复覆盖都会让旧资料重新核验。询盘选择配置账号时，默认采用同币种有效渠道价；不具备该价格时只带目标币种并保留未知金额。
 
+## 经营目标与渠道用途
+
+`Channel.businessPurpose` 明确账号是 `TRADE`、`CONTENT` 还是 `SHOWROOM`。XHS 固定为内容渠道，SHOWROOM 固定为展厅渠道；只有 `TRADE` 可被写为 `DistributionTarget`、写入 ChannelPrice 或用于 TRADE 的资料检查与交付。
+
+`DistributionTarget` 是一件 TM 当前明确希望在哪个交易账号经营的意图，不是 Item 库存、使用包、发布记录、Listing 或远端状态。每个 Item×Channel 只有一行，可用原因关闭；同一平台已有另一个激活目标时，运营必须明确确认才可激活第二个账号。Target 写入仍经 Item lock、Commands/Receipt、Audit 和 Outbox，但不创建 UsePackage、DistributionAttempt、Listing、Task 或外部平台动作。历史真实 Exposure 不被回填或改写。
+
 ## 默认交付路径
 
 1. 用已批准资料生成 UsePackage。

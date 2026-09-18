@@ -25,6 +25,16 @@ function fixedCurrency(platform: string) {
   if (platform === "XIANYU") return "CNY";
   return "";
 }
+const businessPurposeNames: Record<string, string> = {
+  TRADE: "交易经营",
+  CONTENT: "内容展示",
+  SHOWROOM: "自有展厅展示",
+};
+function fixedBusinessPurpose(platform: string) {
+  if (platform === "XHS") return "CONTENT";
+  if (platform === "SHOWROOM") return "SHOWROOM";
+  return "";
+}
 function setCurrencyChoices(
   selectElement: HTMLSelectElement,
   value: string,
@@ -35,9 +45,7 @@ function setCurrencyChoices(
       locked
         ? { [value]: (currencies as Record<string, string>)[value] || value }
         : currencies,
-    ).map(
-      ([code, label]) => new Option(label, code, false, code === value),
-    ),
+    ).map(([code, label]) => new Option(label, code, false, code === value)),
   );
   selectElement.value = value;
 }
@@ -46,10 +54,16 @@ function bindPlatformCurrency() {
   const currency = dialog.querySelector<HTMLSelectElement>(
     '[name="defaultCurrency"]',
   );
-  if (!platform || !currency) return;
+  const businessPurpose = dialog.querySelector<HTMLSelectElement>(
+    '[name="businessPurpose"]',
+  );
+  if (!platform || !currency || !businessPurpose) return;
   const sync = () => {
     const fixed = fixedCurrency(platform.value);
     setCurrencyChoices(currency, fixed || currency.value || "CNY", !!fixed);
+    const fixedPurpose = fixedBusinessPurpose(platform.value);
+    businessPurpose.value = fixedPurpose || businessPurpose.value || "TRADE";
+    businessPurpose.disabled = !!fixedPurpose;
   };
   platform.addEventListener("change", sync);
   sync();
@@ -58,17 +72,26 @@ function bindFixedCurrency(channel: Channel) {
   const currency = dialog.querySelector<HTMLSelectElement>(
     '[name="defaultCurrency"]',
   );
+  const businessPurpose = dialog.querySelector<HTMLSelectElement>(
+    '[name="businessPurpose"]',
+  );
   const fixed = fixedCurrency(channel.platform);
   if (currency && fixed) setCurrencyChoices(currency, fixed, true);
+  const fixedPurpose = fixedBusinessPurpose(channel.platform);
+  if (businessPurpose) {
+    businessPurpose.value = fixedPurpose || channel.businessPurpose;
+    businessPurpose.disabled = !!fixedPurpose;
+  }
 }
 export function setupChannel(after?: () => Promise<void>) {
   form(
     "添加常用渠道",
     note(
-      "这里记录实际账号、内容规格和非敏感站点地址，不会注册账号、自动登录平台或保存密码/Token。",
+      "这里记录实际账号、经营用途和非敏感站点地址，不会注册账号、自动登录平台或保存密码/Token。小红书固定为内容渠道，自有展厅固定为展厅渠道，不能作为交易分发目标。",
     ) +
       select("platform", "平台", platformNames, "XIANYU") +
       field("name", "账号名称", "", "text", true) +
+      select("businessPurpose", "经营用途", businessPurposeNames, "TRADE") +
       select("locale", "内容语言", { "zh-CN": "中文", en: "英文" }, "zh-CN") +
       select("defaultCurrency", "渠道默认币种", currencies, "CNY") +
       select(
@@ -82,12 +105,7 @@ export function setupChannel(after?: () => Promise<void>) {
         },
         "MANUAL",
       ) +
-      field(
-        "endpointUrl",
-        "站点地址（可留空，不填账号或密钥）",
-        "",
-        "url",
-      ) +
+      field("endpointUrl", "站点地址（可留空，不填账号或密钥）", "", "url") +
       field(
         "titleLimit",
         "标题字数上限（包含商品编号）",
@@ -105,6 +123,9 @@ export function setupChannel(after?: () => Promise<void>) {
           name: text(d, "name"),
           locale: text(d, "locale"),
           titleLimit: Number(text(d, "titleLimit")),
+          businessPurpose:
+            fixedBusinessPurpose(text(d, "platform")) ||
+            text(d, "businessPurpose"),
           defaultCurrency:
             fixedCurrency(text(d, "platform")) || text(d, "defaultCurrency"),
           distributionMode: text(d, "distributionMode"),
@@ -122,9 +143,15 @@ export function editChannel(c: Channel) {
   form(
     "维护渠道",
     note(
-      "修改用于后续资料制作；历史发布快照保留原样。停用后不能再取用该渠道资料，实际平台下架仍须登记。",
+      "修改用于后续资料制作；历史发布快照保留原样。停用后不能再取用该渠道资料，实际平台下架仍须登记。内容和展厅渠道不能改作交易分发。",
     ) +
       field("name", "账号显示名称", c.name, "text", true) +
+      select(
+        "businessPurpose",
+        "经营用途",
+        businessPurposeNames,
+        c.businessPurpose,
+      ) +
       select("locale", "内容语言", { "zh-CN": "中文", en: "英文" }, c.locale) +
       select("defaultCurrency", "渠道默认币种", currencies, c.defaultCurrency) +
       select(
@@ -163,6 +190,8 @@ export function editChannel(c: Channel) {
           locale: text(d, "locale"),
           titleLimit: Number(d.get("titleLimit")),
           active: d.has("active"),
+          businessPurpose:
+            fixedBusinessPurpose(c.platform) || text(d, "businessPurpose"),
           defaultCurrency:
             fixedCurrency(c.platform) || text(d, "defaultCurrency"),
           distributionMode: text(d, "distributionMode"),

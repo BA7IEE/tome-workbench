@@ -10,6 +10,7 @@ import {
   packageContext,
   PublishingService,
   purpose,
+  requireTradeChannel,
   resolveChannelPrice,
 } from "./publishing.service";
 import { channelCopy } from "./channel-copy";
@@ -28,7 +29,7 @@ export class PublishingDraftsController {
   ) {
     uuid.parse(id);
     uuid.parse(ch);
-    purpose.parse(use);
+    const usePurpose = purpose.parse(use);
     return this.db.$transaction(async (tx) => {
       const c = await packageContext(tx, id, ch, false),
         draft = await tx.publishingDraft.findUnique({
@@ -40,6 +41,8 @@ export class PublishingDraftsController {
             },
           },
         });
+      if (usePurpose === "TRADE")
+        requireTradeChannel(c.channel, "交易资料编辑");
       const revision = c.item.approvedId
         ? await tx.itemRevision.findUnique({ where: { id: c.item.approvedId } })
         : null;
@@ -131,6 +134,7 @@ export class PublishingDraftsController {
         });
         if (!channel?.active)
           throw new Fault("CHANNEL_UNAVAILABLE", "渠道尚未启用");
+        if (b.purpose === "TRADE") requireTradeChannel(channel, "交易资料编辑");
         const price = await resolveChannelPrice(tx, item, b.channelId);
         if (b.basisPrice !== price.amount || b.basisCurrency !== price.currency)
           throw new Fault(

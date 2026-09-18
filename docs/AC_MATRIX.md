@@ -357,3 +357,7 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 本增量不实现真实 Connector。受限兼容读取面可以为 AnQiCMS Attempt 生成 `tome.anqicms.spike/v1` 本地资料投影：新建先按 `tm_code` 保护性查找，已有稳定 archive ID 时更新同一页面；前 9 张公开核验实物图进入 Gallery，其余图片保留为正文图片清单，成色等级与瑕疵说明分开且不能丢失。`styleNumber` 是唯一新写入/输出键，旧 `style_number` 仅兼容读取。售出后的 DELIST 是 identity-only `STOCK_ZERO`，只需 TM、当前状态、Channel 和 archive ID，要求库存为 0、页面保留、SOLD、无 Checkout，不重验历史图片或使用包。
 
 `test/fixtures/anqicms-spike/deidentified-20.json` 与单元测试覆盖 20 件脱敏夹具、全部库存状态、USD、图片分流、SEO 字段、styleNumber 兼容规范化、成色双字段、archive ID 规范化和伪 ID 拒绝；隔离集成测试覆盖真实 UsePackage、DistributionSession、Listing 更新，以及历史图片授权失效后仍能输出售出保页合同。它们不连接 AnQiCMS、不验证真实 endpoint/认证/图片上传/Sitemap/页面 URL，也不构成真实 20 件 UAT。具体字段、禁止字段和进入真实 UAT 的门槛见 [ANQICMS-CONTRACT](integrations/ANQICMS-CONTRACT.md)。
+
+## v1.1-rc.5 交易经营意图
+
+`DistributionTarget` 只表达 TM 当前希望在哪个 `TRADE` Channel 经营，不建立第二套库存或远端发布真相。`test/integration.test.cjs` 的 “Distribution Intent” 场景覆盖 XHS/SHOWROOM 固定用途、内容账号拒绝交易报价/Readiness/Target、同平台多账号的显式确认、关闭目标，以及 Item lock、Receipt、Audit/Outbox 和不创建 UsePackage/Attempt/Listing。`test/browser/operations.spec.cjs` 在 Chromium/WebKit 真实选择商品、填写原因、确认批量“加入分发渠道”，并验证内容账号不在选择中。它们只使用 `tome_test` 合成资料，不证明任何平台发布、在线状态、真实多账号经营或外部 UAT。

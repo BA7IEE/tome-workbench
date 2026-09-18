@@ -364,6 +364,7 @@ model Item {
   ingestCandidates     IngestCandidate[]
   materialExports      MaterialExportEntry[]
   channelPrices        ChannelPrice[]
+  distributionTargets  DistributionTarget[]
   distributionAttempts DistributionAttempt[]
 
   @@index([deletedAt, serial])
@@ -448,12 +449,14 @@ model Channel {
   locale               String                @default("zh-CN")
   titleLimit           Int                   @default(80)
   active               Boolean               @default(true)
+  businessPurpose      String                @default("TRADE")
   defaultCurrency      String                @default("CNY")
   distributionMode     String                @default("MANUAL")
   endpointUrl          String                @default("")
   packages             UsePackage[]
   listings             Listing[]
   channelPrices        ChannelPrice[]
+  distributionTargets  DistributionTarget[]
   distributionSessions DistributionSession[]
   distributionAttempts DistributionAttempt[]
   sales                Sale[]                @relation("SaleChannel")
@@ -522,6 +525,28 @@ model ChannelPrice {
 
   @@unique([itemId, channelId])
   @@index([channelId])
+}
+
+// A current, explicit operating intention. It never mirrors inventory or a
+// remote listing: Item remains the inventory fact and DistributionAttempt is
+// the handoff/result fact.
+model DistributionTarget {
+  id        String   @id @default(uuid()) @db.Uuid
+  itemId    String   @db.Uuid
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  channelId String   @db.Uuid
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  note      String   @default("")
+  createdBy String   @db.Uuid
+  updatedBy String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, channelId])
+  @@index([channelId, active])
+  @@index([itemId, active])
 }
 
 // An opaque, revocable machine credential scoped to exactly one concrete Channel account.

@@ -49,6 +49,7 @@ export interface Channel {
   locale: string;
   titleLimit: number;
   active: boolean;
+  businessPurpose: "TRADE" | "CONTENT" | "SHOWROOM";
   defaultCurrency: string;
   distributionMode: "MANUAL" | "API" | "AGENT" | "SCRIPT";
   endpointUrl: string;

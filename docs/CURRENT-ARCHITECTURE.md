@@ -11,7 +11,7 @@
 | dictionaries | 标准 ID、别名、停用状态 | 来源原文不自动成为标准字典 |
 | media | Asset、IntakeFile | 原图不可覆盖，授权独立 |
 | costing / trading | 成本依据、成交、预留、询盘、调整、账期 | 未知金额 NULL、按币种；成交成本冻结 |
-| publishing / distribution | Channel、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、Collection、AnQiCMS 标准交付合同 | 默认路径交付冻结资料并记录经营状态；稳定远端 ID 才有 Listing；合同只读本地投影，不含 Connector |
+| publishing / distribution | Channel（含 businessPurpose）、DistributionTarget、ChannelPrice、Draft、UsePackage、DistributionAttempt、Listing、Collection、AnQiCMS 标准交付合同 | Target 仅表达当前交易经营意图；默认路径交付冻结资料并记录经营状态；稳定远端 ID 才有 Listing；合同只读本地投影，不含 Connector |
 | jobs | Outbox、Task | PG 租约、重试、失败持久化；无外部副作用 |
 | operations | work-queue、运行健康、审计视图 | 只读投影，不复制第二套可写经营事实 |
 
@@ -35,7 +35,9 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 详细业务不变量见 [CURRENT-BUSINESS-RULES](CURRENT-BUSINESS-RULES.md)，阶段演进见 [历史架构](archive/ARCHITECTURE-through-1.0.1-rc.1.md)。
 
-## 渠道币种约束
+## 渠道用途、经营目标与币种约束
+
+`Channel.businessPurpose` 是账号层经营用途：`TRADE` 才能承载交易资料、交易报价和 `DistributionTarget`；XHS 固定 `CONTENT`，SHOWROOM 固定 `SHOWROOM`，不能通过 UI 或 API 改成交易渠道。`DistributionTarget` 是 Item×Channel 的可关闭经营意图，保留创建/更新人、版本和原因；它不镜像 Item 库存、不回填历史 Listing/Attempt、不创建 Package 或任何外部动作。启用同平台第二个 Target 前必须明确确认，避免误把同平台多账号经营当作默认行为。
 
 `Channel.defaultCurrency` 是 Channel 账号层的默认币种。`fixedChannelCurrency` 对 AnQiCMS/闲鱼分别强制 USD/CNY，其他平台返回账号默认值；Channel 创建、编辑、ChannelPrice 写入和发布 Readiness 共用这一要求。`resolveChannelPrice` 仍只解析 ChannelPrice 或 Item 回退价，不做 FX；回退价币种不等于目标账号时只能作为待补信息，不能复制金额。询盘创建在已配置账号下默认同币种有效渠道价；没有该价时金额 NULL、币种仍为目标账号。Sale 多币种财务结构没有改变。
 
