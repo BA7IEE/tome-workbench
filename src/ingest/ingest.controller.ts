@@ -70,8 +70,25 @@ export class IngestAdminController {
     return this.db.ingestSession.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
-      include: {
-        procurementSource: true,
+      select: {
+        id: true,
+        procurementSourceId: true,
+        label: true,
+        createdBy: true,
+        expiresAt: true,
+        revokedAt: true,
+        lastUsedAt: true,
+        createdAt: true,
+        procurementSource: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            kind: true,
+            defaultCurrency: true,
+            active: true,
+          },
+        },
         _count: { select: { batches: true } },
       },
     });
