@@ -5574,6 +5574,57 @@ test("Operations cleanup：超时Handoff进入统一待办，外币成交显示�
   assert.equal(deadRow.priority, 95);
   assert.equal(deadRow.title, "已交付分发会话失效，需要核对");
 
+  const orphanItem = await ready();
+  const orphanPackage = await pack(orphanItem.id);
+  const orphanAttempt = await ok("/distribution/plan", "POST", {
+    packageId: orphanPackage.id,
+  });
+  await db.distributionAttempt.update({
+    where: { id: orphanAttempt.id },
+    data: {
+      state: "RUNNING",
+      startedAt: new Date(),
+      leaseUntil: null,
+      claimedBySessionId: null,
+    },
+  });
+  const orphanCode = (await item(orphanItem.id)).code;
+  const orphanQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(orphanCode)}`,
+  );
+  const orphanRow = orphanQueue.rows.find(
+    (row) => row.entityId === orphanAttempt.id,
+  );
+  assert.ok(orphanRow);
+  assert.equal(orphanRow.title, "已交付分发会话失效，需要核对");
+
+  const leasedItem = await ready();
+  const leasedPackage = await pack(leasedItem.id);
+  const leasedAttempt = await ok("/distribution/plan", "POST", {
+    packageId: leasedPackage.id,
+  });
+  const leasedSession = await distributionSession(
+    channel.id,
+    "仍在有效租约中的兼容 Agent",
+  );
+  await db.distributionAttempt.update({
+    where: { id: leasedAttempt.id },
+    data: {
+      state: "RUNNING",
+      startedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+      leaseUntil: new Date(Date.now() + 60 * 1000),
+      claimedBySessionId: leasedSession.id,
+    },
+  });
+  const leasedCode = (await item(leasedItem.id)).code;
+  const leasedQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(leasedCode)}`,
+  );
+  assert.equal(
+    leasedQueue.rows.some((row) => row.entityId === leasedAttempt.id),
+    false,
+  );
+
   const usdChannel = await ok("/channels", "POST", {
     name: "外币成交待办 " + randomUUID().slice(0, 8),
     platform: "ANQICMS",
