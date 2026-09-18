@@ -6515,6 +6515,16 @@ test("Distribution target/profile guard：历史在线暴露参与同平台确�
     missingTarget.data.error.code,
     "DISTRIBUTION_TARGET_REQUIRED",
   );
+  const missingTargetReceipt = await api("/listings", "POST", {
+    packageId: p.id,
+    remoteId: "historical-target-" + randomUUID(),
+    url: "",
+  });
+  assert.equal(missingTargetReceipt.status, 409);
+  assert.equal(
+    missingTargetReceipt.data.error.code,
+    "DISTRIBUTION_TARGET_REQUIRED",
+  );
   await db.distributionAttempt.create({
     data: {
       itemId: i.id,
@@ -6537,14 +6547,6 @@ test("Distribution target/profile guard：历史在线暴露参与同平台确�
     },
     orderBy: { createdAt: "desc" },
   });
-  await ok(`/distribution/attempts/${first.id}/manual-result`, "POST", {
-    state: "SUCCEEDED",
-    evidence: {
-      method: "TM_SEARCH",
-      note: "合成历史在线暴露，没有 DistributionTarget。",
-    },
-  });
-
   const duplicate = await api(
     `/items/${i.id}/distribution-targets/${secondChannel.id}`,
     "POST",
