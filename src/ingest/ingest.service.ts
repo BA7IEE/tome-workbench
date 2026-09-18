@@ -30,7 +30,8 @@ import {
   lock,
   type Tx,
 } from "../common/transaction";
-import { digest, type Actor } from "../auth/auth";
+import { digest, permission, type Actor, type Role } from "../auth/auth";
+import { authorizationContext } from "../auth/request-context";
 import { Fault } from "../common/errors";
 import {
   createItemInTx,
@@ -41,6 +42,7 @@ import { factsSchema, tm } from "../common/domain";
 import { proposalFor } from "./ingest.logic";
 import type { z } from "zod";
 import { ingestCandidateInput } from "./ingest.schemas";
+import { assertNoSensitiveIngestData } from "./ingest-security";
 
 type CandidateInput = z.infer<typeof ingestCandidateInput>;
 type MachineSession = {
@@ -69,6 +71,103 @@ export class IngestService {
     private db: PrismaService,
     private commands: Commands,
   ) {}
+
+  private async credentialCommand<T extends Record<string, unknown>>(
+    actor: Actor,
+    operation: string,
+    key: unknown,
+    input: unknown,
+    fn: (tx: Tx) => Promise<{ response: T; receipt: Record<string, unknown> }>,
+  ) {
+    if (typeof key !== "string" || !/^[A-Za-z0-9_.:-]{12,128}$/.test(key))
+      throw new Fault("IDEMPOTENCY_REQUIRED", "写操作需要12—128位幂等键", 400);
+    const requestHash = hash(input);
+    return this.db.$transaction(async (tx) => {
+      await lock(tx, `cmd:${actor.id}:${operation}:${key}`);
+      const context = authorizationContext.getStore();
+      if (
+        !context?.action ||
+        context.actorId !== actor.id ||
+        !context.sessionId
+      )
+        throw new Fault("AUTH_CONTEXT_REQUIRED", "缺少受控写入上下文", 403);
+      const users = await tx.$queryRaw<{ active: boolean; role: string }[]>`
+        SELECT "active","role" FROM "User" WHERE "id"=${actor.id}::uuid FOR SHARE
+      `;
+      const account = users[0];
+      const session = await tx.session.findUnique({
+        where: { id: context.sessionId },
+      });
+      if (
+        !account?.active ||
+        !permission(account.role as Role, context.action) ||
+        !session ||
+        session.userId !== actor.id ||
+        session.expiresAt <= new Date()
+      )
+        throw new Fault("ACCOUNT_REVOKED", "权限或会话已变化，请重新登录", 403);
+      const prior = await tx.receipt.findUnique({
+        where: { actorId_operation_key: { actorId: actor.id, operation, key } },
+      });
+      if (prior) {
+        if (prior.requestHash !== requestHash)
+          throw new Fault("IDEMPOTENCY_CONFLICT", "相同幂等键对应不同内容", 409);
+        throw new Fault(
+          "TOKEN_ALREADY_ISSUED",
+          "导入令牌仅在首次创建时显示。请撤销旧会话后创建新的会话。",
+          409,
+        );
+      }
+      const result = await fn(tx);
+      await tx.receipt.create({
+        data: {
+          actorId: actor.id,
+          operation,
+          key,
+          requestHash,
+          response: json(result.receipt),
+        },
+      });
+      return result.response;
+    });
+  }
+
+  private async assertLiveMachineSession(tx: Tx, session: MachineSession) {
+    const live = await tx.ingestSession.findUnique({
+      where: { id: session.id },
+    });
+    if (
+      !live ||
+      live.revokedAt ||
+      live.expiresAt <= new Date() ||
+      live.createdBy !== session.createdBy ||
+      live.procurementSourceId !== session.procurementSourceId
+    )
+      throw new Fault("INGEST_SESSION_EXPIRED", "导入会话已失效", 401);
+    const [users, sources] = await Promise.all([
+      tx.$queryRaw<{ active: boolean; role: string }[]>`
+        SELECT "active","role" FROM "User"
+        WHERE "id"=${session.createdBy}::uuid FOR SHARE
+      `,
+      tx.$queryRaw<{ active: boolean }[]>`
+        SELECT "active" FROM "ProcurementSource"
+        WHERE "id"=${session.procurementSourceId}::uuid FOR SHARE
+      `,
+    ]);
+    if (!users[0]?.active || !permission(users[0].role as Role, "supply"))
+      throw new Fault(
+        "INGEST_CREATOR_REVOKED",
+        "导入会话创建者已停用或失去货源权限",
+        403,
+      );
+    if (!sources[0]?.active)
+      throw new Fault(
+        "INGEST_SOURCE_UNAVAILABLE",
+        "导入来源已停用，现有机器会话不得继续写入",
+        403,
+      );
+    return live;
+  }
 
   private async sourceProfile(session: MachineSession): Promise<IngestProfile> {
     const source = await this.db.procurementSource.findUnique({
@@ -149,10 +248,11 @@ export class IngestService {
     key: unknown,
     input: { procurementSourceId: string; label: string; ttlMinutes: number },
   ) {
+    assertNoSensitiveIngestData(input, "导入会话");
     const token = randomBytes(32).toString("hex"),
       tokenHash = digest(token);
-    return this.commands.run(
-      actor.id,
+    return this.credentialCommand(
+      actor,
       "ingest.session.create",
       key,
       input,
@@ -181,10 +281,18 @@ export class IngestService {
           expiresAt: row.expiresAt,
         });
         return {
-          id: row.id,
-          token,
-          expiresAt: row.expiresAt,
-          source: { id: source.id, code: source.code, name: source.name },
+          response: {
+            id: row.id,
+            token,
+            expiresAt: row.expiresAt,
+            source: { id: source.id, code: source.code, name: source.name },
+          },
+          receipt: {
+            id: row.id,
+            sourceId: source.id,
+            expiresAt: row.expiresAt.toISOString(),
+            tokenIssued: true,
+          },
         };
       },
     );
@@ -203,16 +311,13 @@ export class IngestService {
         "机器导入写操作需要12—128位幂等键",
         400,
       );
+    assertNoSensitiveIngestData(input, "机器导入请求");
     const op = `machine.ingest.${session.id}.${operation}`,
       requestHash = hash(input);
     return this.db.$transaction(
       async (tx) => {
         await lock(tx, `machine-ingest:${session.id}:${key}`);
-        const live = await tx.ingestSession.findUnique({
-          where: { id: session.id },
-        });
-        if (!live || live.revokedAt || live.expiresAt <= new Date())
-          throw new Fault("INGEST_SESSION_EXPIRED", "导入会话已失效", 401);
+        await this.assertLiveMachineSession(tx, session);
         const old = await tx.receipt.findUnique({
           where: {
             actorId_operation_key: {
