@@ -6562,6 +6562,20 @@ test("Distribution legacy edge：无Target的历史 CANCELLED 同包可安全生
   const replanned = await ok("/distribution/plan", "POST", { packageId: p.id });
   assert.notEqual(replanned.id, cancelled.id);
   assert.equal(replanned.action, "PUBLISH");
+  await db.distributionAttempt.update({
+    where: { id: replanned.id },
+    data: {
+      state: "CANCELLED",
+      errorCode: "SYNTHETIC_CANCELLED_AGAIN",
+      errorMessage: "合成历史记录再次取消",
+      finishedAt: new Date(),
+    },
+  });
+  const replannedAgain = await ok("/distribution/plan", "POST", {
+    packageId: p.id,
+  });
+  assert.notEqual(replannedAgain.id, replanned.id);
+  assert.equal(replannedAgain.action, "PUBLISH");
 
   const first = await ok("/channels", "POST", {
     name: "历史进行中同平台账号一 " + randomUUID().slice(0, 8),
