@@ -587,6 +587,9 @@ export function checks(
       read("scripts/check-current-docs.mjs").includes(
         "current-validation-artifact-version",
       ) &&
+      read("scripts/verify-release.mjs").includes(
+        "syncCurrentValidationEvidence",
+      ) &&
       read("test/integration.test.cjs").includes(
         "超时Handoff进入统一待办",
       ),
