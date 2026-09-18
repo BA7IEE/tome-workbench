@@ -6422,6 +6422,45 @@ test("Distribution remote identity guard：UPDATE 不得把同一商品静默变
   });
   assert.equal(live.length, 1);
   assert.equal(live[0].remoteId, remoteId);
+
+  current = await item(i.id);
+  await ok(`/items/${i.id}`, "PATCH", {
+    version: current.version,
+    facts: { descriptionZh: "第二次合成资料变化，验证已知远端ID可自动继承。" },
+  });
+  current = await item(i.id);
+  await ok(`/items/${i.id}/approve`, "POST", { version: current.version });
+  const thirdPackage = await pack(i.id);
+  const inheritedUpdate = await ok("/distribution/plan", "POST", {
+    packageId: thirdPackage.id,
+  });
+  assert.equal(inheritedUpdate.action, "UPDATE");
+  await ok(
+    `/distribution/attempts/${inheritedUpdate.id}/manual-result`,
+    "POST",
+    {
+      state: "SUCCEEDED",
+      remoteId: "",
+      evidence: {
+        method: "TM_SEARCH",
+        note: "合成更新完成；执行方本次未重复返回已知稳定编号。",
+      },
+    },
+  );
+  const inheritedAttempt = await db.distributionAttempt.findUniqueOrThrow({
+    where: { id: inheritedUpdate.id },
+  });
+  assert.equal(inheritedAttempt.remoteId, remoteId);
+  const inheritedLive = await db.listing.findMany({
+    where: {
+      itemId: i.id,
+      channelId: channel.id,
+      desired: { not: "OFFLINE" },
+    },
+  });
+  assert.equal(inheritedLive.length, 1);
+  assert.equal(inheritedLive[0].remoteId, remoteId);
+  assert.equal(inheritedLive[0].packageId, thirdPackage.id);
 });
 
 test("Distribution target/profile guard：历史在线暴露参与同平台确认，停用空目标不污染投影，OTHER 有标准 Profile", async () => {
