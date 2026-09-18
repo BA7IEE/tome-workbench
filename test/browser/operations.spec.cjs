@@ -580,15 +580,6 @@ test("分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人
       duplicatePlatformConfirmed: false,
     },
   );
-  await api(
-    page,
-    `/items/${item.id}/distribution-targets/${channel.id}`,
-    {
-      active: true,
-      reason: "浏览器无ID发布健康场景明确经营目标",
-      duplicatePlatformConfirmed: false,
-    },
-  );
   const pack = await api(page, `/items/${item.id}/packages`, {
     channelId: channel.id,
     purpose: "TRADE",
@@ -653,6 +644,15 @@ test("无稳定远端ID的成功发布在图片权利失效后明确显示需停
     defaultCurrency: "CNY",
     distributionMode: "MANUAL",
   });
+  await api(
+    page,
+    `/items/${item.id}/distribution-targets/${channel.id}`,
+    {
+      active: true,
+      reason: "浏览器无ID发布健康场景明确经营目标",
+      duplicatePlatformConfirmed: false,
+    },
+  );
   const pack = await api(page, `/items/${item.id}/packages`, {
     channelId: channel.id,
     purpose: "TRADE",
