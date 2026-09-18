@@ -3866,6 +3866,27 @@ test("Distribution Intent：经营目标只记录交易意图并保留同平台�
   assert.equal(closedContentTarget.status, 400);
   assert.equal(closedContentTarget.data.error.code, "TRADE_CHANNEL_REQUIRED");
 
+  const historicalShowroomItem = await ready();
+  await db.distributionTarget.create({
+    data: {
+      itemId: historicalShowroomItem.id,
+      channelId: showChannel.id,
+      active: false,
+      note: "历史交易目标已关闭；当前账号只作为展厅使用",
+      createdBy: admin.id,
+      updatedBy: admin.id,
+    },
+  });
+  const historicalShowroomPackage = await pack(
+    historicalShowroomItem.id,
+    showChannel,
+    "SHOWROOM",
+  );
+  const historicalShowroomPlan = await ok("/distribution/plan", "POST", {
+    packageId: historicalShowroomPackage.id,
+  });
+  assert.equal(historicalShowroomPlan.action, "PUBLISH");
+
   const targetKey = randomUUID();
   const body = {
     active: true,
