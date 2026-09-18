@@ -82,7 +82,7 @@ export async function readWorkQueue(
         CASE
           WHEN d.action='DELIST' THEN '商品已不宜继续出售，渠道仍待停售'
           WHEN d.state='UNKNOWN' THEN '分发记录需要核对，须按TM核对'
-          WHEN d.state='RUNNING' AND (ds."revokedAt" IS NOT NULL OR ds."expiresAt" <= CURRENT_TIMESTAMP) THEN '已交付分发会话失效，需要核对'
+          WHEN d.state='RUNNING' AND (d."claimedBySessionId" IS NULL OR ds.id IS NULL OR ds."revokedAt" IS NOT NULL OR ds."expiresAt" <= CURRENT_TIMESTAMP) THEN '已交付分发会话失效，需要核对'
           WHEN d.state='RUNNING' THEN '已交付分发记录超时，需要核对'
           ELSE '分发记录需要处理'
         END,
@@ -96,8 +96,10 @@ export async function readWorkQueue(
         (d.action='DELIST' AND d.state IN ('PENDING','RUNNING','UNKNOWN','FAILED'))
         OR (d.action<>'DELIST' AND d.state IN ('UNKNOWN','FAILED'))
         OR (
-          d.action<>'DELIST' AND d.state='RUNNING' AND (
-            (d."startedAt" IS NOT NULL AND d."startedAt" <= CURRENT_TIMESTAMP - (${staleHours}::int * INTERVAL '1 hour'))
+          d.action<>'DELIST' AND d.state='RUNNING' AND d."leaseUntil" IS NULL AND (
+            d."claimedBySessionId" IS NULL
+            OR ds.id IS NULL
+            OR (d."startedAt" IS NOT NULL AND d."startedAt" <= CURRENT_TIMESTAMP - (${staleHours}::int * INTERVAL '1 hour'))
             OR ds."revokedAt" IS NOT NULL
             OR ds."expiresAt" <= CURRENT_TIMESTAMP
           )
