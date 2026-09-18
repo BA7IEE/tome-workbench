@@ -48,6 +48,7 @@ import { DistributionService } from "./distribution/distribution.service";
 import { DistributionController } from "./distribution/distribution.controller";
 import { DistributionAgentController } from "./distribution/distribution-agent.controller";
 import { DistributionMcpController } from "./distribution/distribution-mcp.controller";
+import { PublicationHealthService } from "./distribution/publication-health.service";
 @Module({
   imports: [DatabaseModule],
   providers: [
@@ -59,6 +60,7 @@ import { DistributionMcpController } from "./distribution/distribution-mcp.contr
     Commands,
     CatalogService,
     PublishingService,
+    PublicationHealthService,
     DistributionService,
     TradingService,
     SettlementService,

@@ -111,6 +111,7 @@ export const required = [
   "src/ingest/ingest-standard.ts",
   "src/ingest/ingest-mcp.controller.ts",
   "src/distribution/distribution.service.ts",
+  "src/distribution/publication-health.service.ts",
   "src/distribution/distribution.controller.ts",
   "src/distribution/distribution-agent.controller.ts",
   "src/distribution/distribution-mcp.controller.ts",
@@ -372,6 +373,38 @@ export function checks(
       read("web/src/bulk-distribution.ts").includes("加入分发渠道") &&
       read("test/integration.test.cjs").includes("Distribution Intent：") &&
       read("test/browser/operations.spec.cjs").includes("批量加入分发渠道"),
+  );
+  check(
+    "v11-publication-safety",
+    () =>
+      read("src/distribution/publication-health.service.ts").includes(
+        "evaluatePublicationHealth",
+      ) &&
+      read("src/distribution/publication-health.service.ts").includes(
+        "distributionExposureBlockers",
+      ) &&
+      read("src/jobs/worker.service.ts").includes(
+        "currentPublicationExposures",
+      ) &&
+      read("src/catalog/trash.controller.ts").includes(
+        "TRASH_DISTRIBUTION_EXPOSURE",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "CHANNEL_STOP_SESSION_UNAVAILABLE",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "handoffScope",
+      ) &&
+      read("src/common/domain.ts").includes(
+        "补充大于零的当前对外报价",
+      ) &&
+      read("web/src/distribution-center.ts").includes("row.health") &&
+      read("test/integration.test.cjs").includes("Publication Health：") &&
+      read("test/integration.test.cjs").includes("Publication stop scope：") &&
+      read("test/browser/operations.spec.cjs").includes(
+        "无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因",
+      ) &&
+      read("docs/DISTRIBUTION-FOUNDATION.md").includes("PublicationHealth"),
   );
   check(
     "v11-distribution-standard-handoff",

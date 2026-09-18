@@ -29,7 +29,12 @@ import {
   purpose,
   resolveChannelBusinessPurpose,
 } from "./publishing.service";
-import { DistributionService } from "../distribution/distribution.service";
+import {
+  DistributionService,
+  planStopDistribution,
+} from "../distribution/distribution.service";
+import { PublicationHealthService } from "../distribution/publication-health.service";
+import { itemLock } from "../catalog/catalog.service";
 
 const endpointUrl = z.union([z.literal(""), z.string().url().max(2000)]);
 const bulkReadinessInput = z
@@ -94,6 +99,7 @@ export class PublishingController {
     private service: PublishingService,
     private commands: Commands,
     private distribution: DistributionService,
+    private publicationHealth: PublicationHealthService,
   ) {}
   @Access("read") @Get("channels") channels() {
     return this.db.channel.findMany({ orderBy: { createdAt: "asc" } });
@@ -223,17 +229,61 @@ export class PublishingController {
           before,
           after: updated,
         });
+        const becameStopOnly =
+          (before.active && !updated.active) ||
+          (before.businessPurpose === "TRADE" &&
+            updated.businessPurpose !== "TRADE");
         const affected = await tx.item.findMany({
           where: {
             OR: [
               { listings: { some: { channelId: id } } },
               { distributionTargets: { some: { channelId: id } } },
+              {
+                distributionAttempts: {
+                  some: {
+                    channelId: id,
+                    action: { in: ["PUBLISH", "UPDATE"] },
+                    state: {
+                      in: ["PENDING", "RUNNING", "UNKNOWN", "SUCCEEDED"],
+                    },
+                  },
+                },
+              },
             ],
           },
           select: { id: true },
         });
-        for (const row of affected)
-          await event(tx, row.id, "CHANNEL_CHANGED", { channelId: id });
+        for (const row of affected) {
+          let cancelledAttemptIds: string[] = [];
+          let delistAttemptIds: string[] = [];
+          if (becameStopOnly) {
+            await itemLock(tx, row.id, true);
+            cancelledAttemptIds =
+              await this.publicationHealth.cancelPendingPublicationAttempts(
+                tx,
+                row.id,
+                r.actor.id,
+                "渠道已停用或退出交易用途，未交付发布已在本地取消",
+                id,
+              );
+            delistAttemptIds = await planStopDistribution(
+              tx,
+              r.actor.id,
+              row.id,
+              null,
+              updated.active
+                ? "CHANNEL_PURPOSE_NO_LONGER_TRADE"
+                : "CHANNEL_DEACTIVATED",
+              id,
+            );
+          }
+          await event(tx, row.id, "CHANNEL_CHANGED", {
+            channelId: id,
+            ...(becameStopOnly
+              ? { cancelledAttemptIds, delistAttemptIds, stopOnly: true }
+              : {}),
+          });
+        }
         return { id, version: updated.version };
       },
     );

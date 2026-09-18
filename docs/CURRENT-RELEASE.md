@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、Real Operations 与 AnQiCMS 本地标准交付合同，另有明确交易经营意图 `DistributionTarget`；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.4**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
 
 2026-09-16 核验：PR #2、#3、#4 已依次合并到 main，合并后的提交为 `0be151ce47ca5eed282bbb1f5ce4c75276c4cc83`（`0be151c`）。该提交的 [main push CI 35079989770](https://github.com/BA7IEE/tome-workbench/actions/runs/35079989770) 已成功。这是已核验的提交与运行记录，不是动态分支指针；后续提交的验证以对应 CI 为准。
 
@@ -10,13 +10,15 @@
 
 本版将 Distribution Foundation 收敛为标准资料交付与轻量分发记录：已发布的 `DistributionSession`/`DistributionAttempt` 表及历史 migration 原样保留，但默认 UI 不再把它描述为平台执行 Runtime。`PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN/CANCELLED` 分别显示为待交付、已交付、已确认完成、需要处理、需要核对、已取消；`UNKNOWN` 只能在原记录填写依据后人工核对为成功或失败，并另记审计。系统比较冻结资料内容和历史记录，自动选择 PUBLISH、UPDATE 或 NOOP；未处理的交付会回到原记录，不能靠新 UsePackage 重复发布。标准 `tome-distribution/1.0` Skill 及 `/api/mcp/distribution` 只提供列出交付、取得冻结包、确认目标操作完成、报告待人工处理四项能力；取包才将记录记为“已交付”，并按 Channel、会话、当前创建者发布权限、图片权利和 UsePackage 重验。它不暴露领取、心跳、租约、浏览器步骤或任何平台动作。前向 migration `202609170015_distribution_source_attempt` 让 DELIST 用 `sourceAttemptId` 绑定具体成功资料代际；从 AVAILABLE 转为任何不可售状态时，每个已发布渠道都有一条去重的需要停售记录，恢复 AVAILABLE 不自动重新交付。只有取得稳定 `remoteId` 才创建 Listing；APP 渠道没有远端 ID 时按标题永久 TM 复核，禁止用 `MANUAL:TM...` 伪造身份。受限 Token、领取和租约仍是兼容的高级接口，默认操作路径不依赖它们；没有真实第三方连接或外部副作用。
 
-分发中心默认页是只读的 Item × Channel 经营投影：从 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing 计算未发布（READY）、缺资料（BLOCKED）、待交付、已交付、已发布、待更新、异常和需停售，不新增 `ChannelInventoryTruth` 一类第二商品真相表。`GET /api/distribution/operations` 先按渠道、状态、品牌、TM/商品搜索过滤并排序，再分页；返回的汇总与页面卡片来自同一份投影。Dashboard 的“分发异常”只统计 `scope=attention`，点击也精确进入 `#/distribution?scope=attention`。该 PR 没有 migration、没有平台 Connector 或任何自动重发/停售动作。
+分发中心默认页是只读的激活 Target 加历史真实 Exposure 经营投影：从 Item、Readiness、冻结 UsePackage、DistributionAttempt 和已知 Listing 计算未发布（READY）、缺资料（BLOCKED）、待交付、已交付、已发布、待更新、异常和需停售，不新增 `ChannelInventoryTruth` 一类第二商品真相表。`GET /api/distribution/operations` 先按渠道、状态、品牌、TM/商品搜索过滤并排序，再分页；返回的汇总与页面卡片来自同一份投影。Dashboard 的“分发异常”只统计 `scope=attention`，点击也精确进入 `#/distribution?scope=attention`。该读取面没有平台 Connector、自动重发或任何自动平台停售动作。
 
 本版新增 Real Operations：前向 migrations `202609170013_real_operations_price_basis` 与 `202609170014_channel_price_revision_continuity` 让草稿和冻结 UsePackage 绑定有效渠道价的来源/版本，并保留“改回默认价”后的版本连续性。`ChannelPrice` 存在且启用时覆盖 Item 默认报价，否则回退 `Item.currentPrice/currency`；Readiness、预览、草稿、UsePackage 和有效包复核都使用同一解析。AnQiCMS 必须是 USD、闲鱼必须是 CNY；没有自动换汇。询盘的 `WON` 只由确认成交动作产生：同一事务锁定 Item、检查版本与预留、创建 Sale、停售、更新 Inquiry、写 Audit/Outbox 并为已成功分发渠道计划 DELIST。商品库提供批量批准预检、批量渠道价和批量资料交付；分发中心只记录交付、回传和需要停售的经营状态，不调用第三方。
 
 本版新增 AnQiCMS 本地标准资料交付合同：它将冻结使用包映射为 tm_code、USD、最多 9 张 Gallery 图片、正文图片、分开的 `condition_grade`/`condition_description`、统一的 `styleNumber` 与 SEO 资料，供外部 Agent 的 MCP/API 或人工取用。没有 archive ID 时只允许执行方按 tm_code 保护性查找，取得稳定 archive ID 后才可回填 Listing；售出后的 DELIST 是只读取 TM、当前状态和 archive ID 的 identity-only 投影，要求 stock=0、保留页面、SOLD、无 Checkout，不被历史图片授权或使用包失效阻塞。保留的受限读取接口没有 HTTP 客户端、配置或凭据读取、外部请求或数据库写入；真实 API/UAT 在 ToMe 外部完成，20 件真实授权商品 UAT 本次未做。
 
 当前源码新增 `Channel.businessPurpose` 与 `DistributionTarget`。`TRADE` 是唯一可以设为交易经营目标、写 ChannelPrice 或走 TRADE Readiness/资料交付的用途；XHS 固定为 `CONTENT`，SHOWROOM 固定为 `SHOWROOM`。Target 仅记录“当前希望在哪个交易账号经营此 TM”，每个 Item×Channel 唯一、可关闭、同平台多账号激活须明确确认；它在 Item lock、Receipt、Audit 与 Outbox 同一事务中写入，不创建 UsePackage、DistributionAttempt、Listing 或外部平台动作。
+
+当前源码还新增 `PublicationHealthService`。它以成功 PUBLISH/UPDATE 为远端暴露事实，不要求 APP 有 stable `remoteId` 或 Listing；库存不可售、关闭 Target、停用/退出 TRADE 的 Channel、失效 Offer、批准/鉴定、发布图片权利以及缺失、非正数或错币种的交易价都会显示为需停售，并由 Worker/Sweep 仅计划来源关联 DELIST。批准版本、渠道报价、文案或图片变化显示为待更新。UsePackage 的七天 TTL 仍拦住新交付，却不会单独改变已确认发布的状态。停用渠道会在本地取消未交付的 PUBLISH/UPDATE，且仅在仍有 DELIST 时允许 stop-only 会话；回收站同样阻止已交付、未知、成功或未完成停售的远端暴露。没有新增 migration、第三方动作或自动重发。
 
 渠道币种交互补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。没有实时汇率、自动定价或 Sale 财务模型重写。
 
@@ -85,6 +87,7 @@
 - 标准 Agent Ingest 只扩展候选采集入口和运营侧接入说明；Distribution Foundation、Real Operations、经营投影与 AnQiCMS 本地标准交付合同建立标准资料交付、轻量经营状态、渠道报价、询盘成交转化、批量预检、来源关联的下架计划和可验证的站点资料映射。既有 Item、Sale、成本、库存、UsePackage、图片权利、审计和历史 migration 封印保持不动。
 - ChannelPrice 不自动换汇或覆盖 Item 默认报价；批量动作逐件复用原批准、使用包和分发命令，不用批量数据库写绕过 item lock、版本、Audit 或 Receipt。APP 无稳定 ID 的已发布商品售出后仍以永久 TM 计划下架，不能因为没有 Listing 漏掉。
 - `DistributionTarget` 只增加当前交易经营意图，不能把内容/展厅渠道变成交易渠道，也不能替代真实发布、远端身份、库存或停售回执。
+- 发布安全只维护本地经营状态和来源关联 DELIST：不把 UsePackage TTL 当远端页面寿命，不删除仍可能在线的商品，也不调用平台下架、重发或浏览器自动化。
 
 ## 尚未完成
 

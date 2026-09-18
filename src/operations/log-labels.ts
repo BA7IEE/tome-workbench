@@ -12,6 +12,7 @@ export const actionLabels: Record<string, string> = {
   CUSTODY_MOVED: "登记实物交接",
   DICTIONARY_CREATED: "新增字典选项",
   DICTIONARY_UPDATED: "修改字典选项",
+  DISTRIBUTION_ATTEMPT_CANCELLED: "取消未交付分发资料",
   EXCEPTION_INTENT: "登记交易例外",
   IMAGE_ORDER_CHANGED: "调整图片顺序",
   INQUIRY_CREATED: "登记客户询盘",

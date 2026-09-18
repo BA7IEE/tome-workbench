@@ -23,6 +23,7 @@ const { createApp } = require("../dist/bootstrap");
 const { passwordHash } = require("../dist/auth/auth");
 const { WorkerService } = require("../dist/jobs/worker.service");
 const { PublishingService } = require("../dist/publishing/publishing.service");
+const { PublicationHealthService } = require("../dist/distribution/publication-health.service");
 const { contribution } = require("../dist/common/domain");
 const sharp = require("sharp");
 const db = new PrismaClient();
@@ -502,7 +503,7 @@ test("Manual listing receipt is explicitly MANUAL, not API-confirmed", async () 
   assert.equal(record.observed, "MANUAL_REPORTED_LIVE");
   assert.equal(record.desired, "LIVE");
 });
-test("Sold with incomplete finances stops inventory immediately and queues real manual work", async () => {
+test("Sold with incomplete finances stops inventory immediately with a real source-linked delist", async () => {
   const i = await ready(),
     l = await listed(i.id);
   await sold(i.id);
@@ -510,25 +511,28 @@ test("Sold with incomplete finances stops inventory immediately and queues real 
   let record = await db.listing.findUnique({ where: { id: l.listing } });
   assert.equal(record.desired, "OFFLINE");
   assert.equal(record.observed, "MANUAL_REPORTED_LIVE");
-  await sweepAllItems();
-  const task = await db.task.findFirst({
-    where: { listingId: l.listing, kind: "DELIST" },
+  const source = await db.distributionAttempt.findFirstOrThrow({
+    where: {
+      itemId: i.id,
+      channelId: channel.id,
+      action: { in: ["PUBLISH", "UPDATE"] },
+      state: "SUCCEEDED",
+    },
   });
-  assert.ok(task);
-  assert.equal(task.status, "OPEN");
+  const stop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${source.id}` },
+  });
+  assert.equal(stop.action, "DELIST");
+  assert.equal(stop.sourceAttemptId, source.id);
+  assert.equal(stop.state, "PENDING");
+  await sweepAllItems();
   assert.equal(
-    (
-      await api(`/tasks/${task.id}`, "POST", {
-        status: "DONE",
-        assignee: "me",
-        note: "fake",
-      })
-    ).status,
-    409,
+    await db.task.count({ where: { listingId: l.listing, kind: "DELIST" } }),
+    0,
   );
-  await ok(`/listings/${l.listing}/observe`, "POST", {
-    state: "OFFLINE",
-    note: "人工实际核对的合成回执",
+  await ok(`/distribution/attempts/${stop.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "人工实际核对的合成停售回执" },
   });
   record = await db.listing.findUnique({ where: { id: l.listing } });
   assert.equal(record.observed, "MANUAL_REPORTED_OFFLINE");
@@ -788,19 +792,28 @@ test("Showroom dynamically removes sold goods before worker catches up", async (
     ),
   );
 });
-test("Withdrawal or expiry of rights blocks packages and creates downstream work", async () => {
+test("Withdrawal or expiry of rights creates a local source-linked stop even with a Listing", async () => {
   const i = await ready(),
     l = await listed(i.id);
   await assetReview(i.asset, { rights: "REVOKED" });
   await sweepAllItems();
+  const source = await db.distributionAttempt.findFirstOrThrow({
+    where: {
+      itemId: i.id,
+      channelId: channel.id,
+      action: { in: ["PUBLISH", "UPDATE"] },
+      state: "SUCCEEDED",
+    },
+  });
+  const stop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${source.id}` },
+  });
+  assert.equal(stop.action, "DELIST");
+  assert.equal(stop.sourceAttemptId, source.id);
+  assert.equal(stop.state, "PENDING");
   assert.equal(
     (await db.listing.findUnique({ where: { id: l.listing } })).desired,
-    "OFFLINE",
-  );
-  assert.ok(
-    await db.task.findFirst({
-      where: { listingId: l.listing, kind: "DELIST" },
-    }),
+    "LIVE",
   );
   const j = await ready(),
     p = await pack(j.id);
@@ -819,7 +832,7 @@ test("Old worker event cannot resurrect a sold item; persisted jobs finish after
   await db.outbox.create({
     data: { itemId: i.id, kind: "OLD_CONTENT_CHANGED", payload: {} },
   });
-  const fresh = new WorkerService(db, app.get(PublishingService));
+  const fresh = new WorkerService(db, app.get(PublicationHealthService));
   for (let n = 0; n < 250 && (await fresh.tick()); n++) {}
   assert.equal((await item(i.id)).status, "SOLD");
   assert.equal(
@@ -1903,12 +1916,12 @@ test("Active reservations and listings block deletion until actually resolved", 
   );
   await ok(`/items/${i.id}/release`, "POST", {});
   await ok(`/items/${i.id}/trash`, "POST", await deleteInput(i.id));
-  const live = await ready(),
-    l = await listed(live.id);
+  const live = await ready();
+  await listed(live.id);
   assert.equal(
     (await api(`/items/${live.id}/trash`, "POST", await deleteInput(live.id)))
       .data.error.code,
-    "TRASH_LISTING_ACTIVE",
+    "TRASH_DISTRIBUTION_EXPOSURE",
   );
   await ok(`/items/${live.id}/state`, "POST", {
     state: "PAUSED",
@@ -1917,14 +1930,25 @@ test("Active reservations and listings block deletion until actually resolved", 
   assert.equal(
     (await api(`/items/${live.id}/trash`, "POST", await deleteInput(live.id)))
       .data.error.code,
-    "TRASH_LISTING_ACTIVE",
+    "TRASH_DISTRIBUTION_EXPOSURE",
   );
-  await ok(`/listings/${l.listing}/observe`, "POST", {
-    state: "OFFLINE",
-    note: "合成下架回执",
+  const source = await db.distributionAttempt.findFirstOrThrow({
+    where: {
+      itemId: live.id,
+      channelId: channel.id,
+      action: { in: ["PUBLISH", "UPDATE"] },
+      state: "SUCCEEDED",
+    },
+  });
+  const stop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${source.id}` },
+  });
+  await ok(`/distribution/attempts/${stop.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成来源关联下架回执" },
   });
   await ok(`/items/${live.id}/trash`, "POST", await deleteInput(live.id));
-  assert.ok(await db.listing.findUnique({ where: { id: l.listing } }));
+  assert.ok(await db.listing.findFirst({ where: { itemId: live.id } }));
 });
 test("Deleting versus recording a sale cannot leave a sold item hidden in the recycle bin", async () => {
   const i = await sparse(),
@@ -5291,4 +5315,396 @@ test("AnQiCMS 标准交付合同：受限会话以脱敏本地资料覆盖建页
     ).desired,
     "OFFLINE",
   );
+});
+
+test("Publication Health：无稳定远端ID的成功发布按当前经营事实判定，而非使用包TTL", async () => {
+  const healthService = app.get(PublicationHealthService);
+  const hasReason = (health, code) =>
+    health.reasons.some((reason) => reason.code === code);
+  async function publishedWithoutRemoteId(itemId, ch = channel) {
+    const packageRow = await pack(itemId, ch);
+    const attempt = await ok("/distribution/plan", "POST", {
+      packageId: packageRow.id,
+    });
+    await ok(`/distribution/attempts/${attempt.id}/manual-result`, "POST", {
+      state: "SUCCEEDED",
+      remoteId: "",
+      evidence: {
+        method: "TM_SEARCH",
+        note: "合成渠道中按永久 TM 确认完成，APP 未返回稳定远端编号。",
+      },
+    });
+    return db.distributionAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+  }
+  async function healthOf(source) {
+    return db.$transaction((tx) =>
+      healthService.evaluatePublicationHealth(
+        tx,
+        source.itemId,
+        source.channelId,
+        source.id,
+      ),
+    );
+  }
+
+  const ttlItem = await ready();
+  const initialTtlSource = await publishedWithoutRemoteId(ttlItem.id);
+  const initialPackage = await db.usePackage.findUniqueOrThrow({
+    where: { id: initialTtlSource.packageId },
+  });
+  // Frozen packages are append-only. A historical record can nevertheless
+  // have an elapsed handoff window, so create an isolated synthetic historic
+  // package/Attempt rather than mutating the published fact.
+  const expiredPackage = await db.usePackage.create({
+    data: {
+      itemId: initialPackage.itemId,
+      channelId: initialPackage.channelId,
+      revisionId: initialPackage.revisionId,
+      cycle: initialPackage.cycle,
+      purpose: initialPackage.purpose,
+      snapshot: initialPackage.snapshot,
+      createdBy: admin.id,
+      validUntil: new Date(1),
+    },
+  });
+  const ttlSource = await db.distributionAttempt.create({
+    data: {
+      itemId: ttlItem.id,
+      channelId: channel.id,
+      packageId: expiredPackage.id,
+      action: "UPDATE",
+      state: "SUCCEEDED",
+      dedupeKey: "expired-ttl-health:" + randomUUID(),
+      createdBy: admin.id,
+      finishedAt: new Date(Date.now() + 1000),
+      evidence: {},
+    },
+  });
+  assert.equal(ttlSource.remoteId, "");
+  assert.equal(
+    await db.listing.count({ where: { itemId: ttlItem.id, channelId: channel.id } }),
+    0,
+  );
+  assert.equal((await healthOf(ttlSource)).state, "CURRENT");
+  const ttlOperation = await ok(
+    `/distribution/operations?channelId=${channel.id}&attemptId=${ttlSource.id}`,
+  );
+  assert.equal(ttlOperation.rows[0].state, "PUBLISHED");
+
+  await ok(`/items/${ttlItem.id}/channel-prices/${channel.id}`, "POST", {
+    amount: 201000,
+    currency: "CNY",
+  });
+  const repriced = await healthOf(ttlSource);
+  assert.equal(repriced.state, "NEEDS_UPDATE");
+  assert.ok(hasReason(repriced, "CHANNEL_PRICE_CHANGED"));
+  await db.channelPrice.update({
+    where: { itemId_channelId: { itemId: ttlItem.id, channelId: channel.id } },
+    data: { amount: 0, currency: "USD" },
+  });
+  const invalidPrice = await healthOf(ttlSource);
+  assert.equal(invalidPrice.state, "MUST_STOP");
+  assert.ok(hasReason(invalidPrice, "TRADE_PRICE_NON_POSITIVE"));
+  assert.ok(hasReason(invalidPrice, "TRADE_PRICE_CURRENCY_INVALID"));
+  await db.$transaction((tx) => worker.reconcile(tx, ttlItem.id));
+  const ttlStop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${ttlSource.id}` },
+  });
+  assert.equal(ttlStop.sourceAttemptId, ttlSource.id);
+  assert.equal(ttlStop.state, "PENDING");
+
+  const revisedItem = await ready();
+  const revisedSource = await publishedWithoutRemoteId(revisedItem.id);
+  let revised = await item(revisedItem.id);
+  await ok(`/items/${revisedItem.id}`, "PATCH", {
+    version: revised.version,
+    facts: { descriptionZh: "合成资料批准后更新的渠道文案。" },
+  });
+  revised = await item(revisedItem.id);
+  await ok(`/items/${revisedItem.id}/approve`, "POST", { version: revised.version });
+  const revisedHealth = await healthOf(revisedSource);
+  assert.equal(revisedHealth.state, "NEEDS_UPDATE");
+  assert.ok(hasReason(revisedHealth, "APPROVED_REVISION_CHANGED"));
+
+  const draftItem = await ready();
+  const draftSource = await publishedWithoutRemoteId(draftItem.id);
+  const draftBase = await db.item.findUniqueOrThrow({
+    where: { id: draftItem.id },
+    select: { approvedId: true, currentPrice: true, currency: true, facts: true },
+  });
+  await ok(`/items/${draftItem.id}/publishing-draft`, "POST", {
+    channelId: channel.id,
+    purpose: "TRADE",
+    version: 0,
+    title: "人工改过的合成标题",
+    body: draftBase.facts.descriptionZh,
+    assetIds: [draftItem.asset],
+    basisRevisionId: draftBase.approvedId,
+    basisPrice: draftBase.currentPrice,
+    basisCurrency: draftBase.currency,
+  });
+  const draftHealth = await healthOf(draftSource);
+  assert.equal(draftHealth.state, "NEEDS_UPDATE");
+  assert.ok(hasReason(draftHealth, "CHANNEL_DRAFT_CHANGED"));
+
+  const imageItem = await ready();
+  const imageSource = await publishedWithoutRemoteId(imageItem.id);
+  const addedImage = await upload(imageItem.id);
+  await assetReview(addedImage.id, { position: 1 });
+  const imageHealth = await healthOf(imageSource);
+  assert.equal(imageHealth.state, "NEEDS_UPDATE");
+  assert.ok(hasReason(imageHealth, "PUBLICATION_IMAGES_CHANGED"));
+
+  const authenticationItem = await ready();
+  const authenticationSource = await publishedWithoutRemoteId(authenticationItem.id);
+  const authenticationCurrent = await db.item.findUniqueOrThrow({
+    where: { id: authenticationItem.id },
+    select: { facts: true },
+  });
+  const invalidFacts = structuredClone(authenticationCurrent.facts);
+  // Keep the fixture inside the persisted facts contract. UNKNOWN is already
+  // an invalid publication authentication state and will not poison the
+  // later browser suite, which reads the same isolated database after this
+  // integration run.
+  invalidFacts.authentication = { status: "UNKNOWN", evidence: "" };
+  await db.item.update({
+    where: { id: authenticationItem.id },
+    data: { facts: invalidFacts },
+  });
+  const authenticationHealth = await healthOf(authenticationSource);
+  assert.equal(authenticationHealth.state, "MUST_STOP");
+  assert.ok(hasReason(authenticationHealth, "AUTHENTICATION_INVALID"));
+
+  const invalidApprovalItem = await ready();
+  const invalidApprovalSource = await publishedWithoutRemoteId(invalidApprovalItem.id);
+  await db.item.update({
+    where: { id: invalidApprovalItem.id },
+    data: { approvedValid: false },
+  });
+  const invalidApprovalHealth = await healthOf(invalidApprovalSource);
+  assert.equal(invalidApprovalHealth.state, "MUST_STOP");
+  assert.ok(hasReason(invalidApprovalHealth, "APPROVAL_INVALID"));
+
+  const assetItem = await ready();
+  const assetSource = await publishedWithoutRemoteId(assetItem.id);
+  await db.asset.update({
+    where: { id: assetItem.asset },
+    data: { rights: "REVOKED" },
+  });
+  const assetHealth = await healthOf(assetSource);
+  assert.equal(assetHealth.state, "MUST_STOP");
+  assert.ok(hasReason(assetHealth, "PUBLICATION_ASSET_RIGHTS_INVALID"));
+
+  const supplierItem = await ready({ ownership: "SUPPLIER" });
+  const offer = await ok("/supply/offers", "POST", {
+    itemId: supplierItem.id,
+    supplierId: supplier.id,
+    amount: 150000,
+    currency: "CNY",
+    validUntil: future(),
+    canReserve: true,
+  });
+  const supplierSource = await publishedWithoutRemoteId(supplierItem.id);
+  await db.offer.update({ where: { id: offer.id }, data: { validUntil: new Date(1) } });
+  const supplierHealth = await healthOf(supplierSource);
+  assert.equal(supplierHealth.state, "MUST_STOP");
+  assert.ok(hasReason(supplierHealth, "SUPPLIER_OFFER_EXPIRED"));
+
+  const targetItem = await ready();
+  await ok(`/items/${targetItem.id}/distribution-targets/${channel.id}`, "POST", {
+    active: true,
+    reason: "合成健康检查经营目标",
+    duplicatePlatformConfirmed: false,
+  });
+  const targetSource = await publishedWithoutRemoteId(targetItem.id);
+  await ok(`/items/${targetItem.id}/distribution-targets/${channel.id}`, "POST", {
+    active: false,
+    reason: "合成健康检查关闭经营目标",
+    duplicatePlatformConfirmed: false,
+  });
+  const targetHealth = await healthOf(targetSource);
+  assert.equal(targetHealth.state, "MUST_STOP");
+  assert.ok(hasReason(targetHealth, "DISTRIBUTION_TARGET_CLOSED"));
+});
+
+test("Publication stop scope：停用渠道只交付未完成停售，回收站不忽略无ID远端暴露", async () => {
+  async function publishedWithoutRemoteId(itemId, ch) {
+    const packageRow = await pack(itemId, ch);
+    const attempt = await ok("/distribution/plan", "POST", {
+      packageId: packageRow.id,
+    });
+    await ok(`/distribution/attempts/${attempt.id}/manual-result`, "POST", {
+      state: "SUCCEEDED",
+      evidence: {
+        method: "TM_SEARCH",
+        note: "合成渠道内按永久 TM 确认完成，未取得稳定远端编号。",
+      },
+    });
+    return db.distributionAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+  }
+
+  const stoppedChannel = await ok("/channels", "POST", {
+    name: "停用渠道健康检查 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  const stoppedItem = await ready();
+  const stoppedSource = await publishedWithoutRemoteId(stoppedItem.id, stoppedChannel);
+  await ok(`/channels/${stoppedChannel.id}`, "POST", {
+    version: stoppedChannel.version,
+    name: stoppedChannel.name,
+    locale: stoppedChannel.locale,
+    titleLimit: stoppedChannel.titleLimit,
+    active: false,
+    businessPurpose: "TRADE",
+    defaultCurrency: stoppedChannel.defaultCurrency,
+    distributionMode: stoppedChannel.distributionMode,
+    endpointUrl: stoppedChannel.endpointUrl,
+  });
+  const stoppedAttempt = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${stoppedSource.id}` },
+  });
+  assert.equal(stoppedAttempt.sourceAttemptId, stoppedSource.id);
+  const stoppedOperations = await ok(
+    `/distribution/operations?channelId=${stoppedChannel.id}&attemptId=${stoppedSource.id}`,
+  );
+  assert.equal(stoppedOperations.rows[0].state, "NEEDS_STOP");
+  const stopSession = await distributionSession(stoppedChannel.id, "仅停售交付会话");
+  assert.equal(stopSession.stopOnly, true);
+  const handoffs = await distributionHandoffOk("/handoffs", stopSession.token);
+  assert.deepEqual(handoffs.map((row) => row.action), ["DELIST"]);
+  const stopPackage = await distributionHandoffOk(
+    `/handoffs/${stoppedAttempt.id}/package`,
+    stopSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  assert.equal(stopPackage.action, "DELIST");
+  assert.equal(stopPackage.package, null);
+  await ok(`/distribution/attempts/${stoppedAttempt.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成渠道已确认停售。" },
+  });
+  const noStopSession = await api("/distribution/sessions", "POST", {
+    channelId: stoppedChannel.id,
+    label: "没有停售时不能建立会话",
+    agentName: "synthetic-stop-only",
+    expiresAt: future(),
+  });
+  assert.equal(noStopSession.status, 409);
+  assert.equal(noStopSession.data.error.code, "CHANNEL_STOP_SESSION_UNAVAILABLE");
+
+  const contentChannel = await ok("/channels", "POST", {
+    name: "改内容用途渠道 " + randomUUID().slice(0, 8),
+    platform: "OTHER",
+    locale: "zh-CN",
+    titleLimit: 80,
+    defaultCurrency: "CNY",
+    distributionMode: "MANUAL",
+  });
+  const contentItem = await ready();
+  const contentSource = await publishedWithoutRemoteId(contentItem.id, contentChannel);
+  await ok(`/channels/${contentChannel.id}`, "POST", {
+    version: contentChannel.version,
+    name: contentChannel.name,
+    locale: contentChannel.locale,
+    titleLimit: contentChannel.titleLimit,
+    active: true,
+    businessPurpose: "CONTENT",
+    defaultCurrency: contentChannel.defaultCurrency,
+    distributionMode: contentChannel.distributionMode,
+    endpointUrl: contentChannel.endpointUrl,
+  });
+  assert.equal(
+    (
+      await db.distributionAttempt.findUniqueOrThrow({
+        where: { dedupeKey: `delist:${contentSource.id}` },
+      })
+    ).state,
+    "PENDING",
+  );
+
+  const pendingItem = await ready();
+  const pendingPackage = await pack(pendingItem.id);
+  const pending = await ok("/distribution/plan", "POST", {
+    packageId: pendingPackage.id,
+  });
+  const pendingVersion = (await item(pendingItem.id)).version;
+  await ok(`/items/${pendingItem.id}/trash`, "POST", {
+    version: pendingVersion,
+    reason: "合成未交付发布可在本地取消",
+    confirmed: true,
+  });
+  assert.equal(
+    (await db.distributionAttempt.findUniqueOrThrow({ where: { id: pending.id } })).state,
+    "CANCELLED",
+  );
+
+  const onlineItem = await ready();
+  const onlineSource = await publishedWithoutRemoteId(onlineItem.id, channel);
+  const onlineVersion = (await item(onlineItem.id)).version;
+  const onlineTrash = await api(`/items/${onlineItem.id}/trash`, "POST", {
+    version: onlineVersion,
+    reason: "无稳定远端ID也不能忽略可能在线状态",
+    confirmed: true,
+  });
+  assert.equal(onlineTrash.status, 409);
+  assert.equal(onlineTrash.data.error.code, "TRASH_DISTRIBUTION_EXPOSURE");
+  await db.asset.update({ where: { id: onlineItem.asset }, data: { rights: "REVOKED" } });
+  await db.$transaction((tx) => worker.reconcile(tx, onlineItem.id));
+  const onlineStop = await db.distributionAttempt.findUniqueOrThrow({
+    where: { dedupeKey: `delist:${onlineSource.id}` },
+  });
+  await ok(`/distribution/attempts/${onlineStop.id}/manual-result`, "POST", {
+    state: "SUCCEEDED",
+    evidence: { method: "TM_SEARCH", note: "合成渠道已确认下架。" },
+  });
+  await ok(`/items/${onlineItem.id}/trash`, "POST", {
+    version: (await item(onlineItem.id)).version,
+    reason: "来源关联停售完成后可进入回收站",
+    confirmed: true,
+  });
+
+  const runningItem = await ready();
+  const runningPackage = await pack(runningItem.id);
+  const running = await ok("/distribution/plan", "POST", {
+    packageId: runningPackage.id,
+  });
+  const runningSession = await distributionSession(channel.id, "回收站交付中阻断");
+  await distributionHandoffOk(
+    `/handoffs/${running.id}/package`,
+    runningSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  const runningTrash = await api(`/items/${runningItem.id}/trash`, "POST", {
+    version: (await item(runningItem.id)).version,
+    reason: "已交付资料仍可能被外部执行",
+    confirmed: true,
+  });
+  assert.equal(runningTrash.status, 409);
+  assert.equal(runningTrash.data.error.code, "TRASH_DISTRIBUTION_EXPOSURE");
+
+  const unknownItem = await ready();
+  const unknownPackage = await pack(unknownItem.id);
+  const unknown = await ok("/distribution/plan", "POST", {
+    packageId: unknownPackage.id,
+  });
+  await ok(`/distribution/attempts/${unknown.id}/manual-result`, "POST", {
+    state: "UNKNOWN",
+    errorCode: "SYNTHETIC_UNKNOWN",
+    errorMessage: "合成外部结果未知，必须先核对。",
+  });
+  const unknownTrash = await api(`/items/${unknownItem.id}/trash`, "POST", {
+    version: (await item(unknownItem.id)).version,
+    reason: "结果未知时不能删除可能在线的商品",
+    confirmed: true,
+  });
+  assert.equal(unknownTrash.status, 409);
+  assert.equal(unknownTrash.data.error.code, "TRASH_DISTRIBUTION_EXPOSURE");
 });

@@ -41,6 +41,10 @@ import {
   buildAnqicmsSpikePayload,
   buildAnqicmsTakedownProjection,
 } from "./anqicms-spike";
+import {
+  PublicationHealthService,
+  type PublicationHealth,
+} from "./publication-health.service";
 
 const terminalState = z.enum(["SUCCEEDED", "FAILED", "UNKNOWN"]);
 const remoteUrl = z.union([z.literal(""), z.string().url().max(2000)]);
@@ -186,6 +190,7 @@ type OperationalRow = {
   published: OperationalAttempt | null;
   listing: OperationalListing | null;
   missing: { code: string; title: string }[];
+  health: PublicationHealth | null;
   updatedAt: Date;
 };
 
@@ -339,15 +344,17 @@ export async function planStopDistribution(
   tx: Tx,
   actorId: string,
   itemId: string,
-  cycle: number,
+  cycle: number | null,
   reason: string,
+  channelId?: string,
 ) {
   const published = await tx.distributionAttempt.findMany({
     where: {
       itemId,
+      ...(channelId ? { channelId } : {}),
       action: { in: ["PUBLISH", "UPDATE"] },
       state: "SUCCEEDED",
-      package: { is: { cycle } },
+      ...(cycle === null ? {} : { package: { is: { cycle } } }),
     },
     select: { id: true, channelId: true, createdAt: true, finishedAt: true },
     orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
@@ -413,6 +420,7 @@ export class DistributionService {
     private db: PrismaService,
     private commands: Commands,
     private publishing: PublishingService,
+    private publicationHealth: PublicationHealthService,
   ) {}
 
   async distributionTargets(itemId: string) {
@@ -566,6 +574,23 @@ export class DistributionService {
     return value;
   }
 
+  private async handoffScope(
+    tx: Tx,
+    channelId: string,
+    action?: string,
+  ) {
+    const channel = await tx.channel.findUnique({ where: { id: channelId } });
+    if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
+    const stopOnly = !channel.active || channel.businessPurpose !== "TRADE";
+    if (action && stopOnly && action !== "DELIST")
+      throw new Fault(
+        "STOP_ONLY_SESSION",
+        "该渠道已停用或退出交易用途，只能处理未完成的停售交付",
+        409,
+      );
+    return { channel, stopOnly };
+  }
+
   private async credentialCommand<T extends Record<string, unknown>>(
     actor: Actor,
     operation: string,
@@ -645,8 +670,25 @@ export class DistributionService {
         const channel = await tx.channel.findUnique({
           where: { id: input.channelId },
         });
-        if (!channel?.active)
-          throw new Fault("CHANNEL_UNAVAILABLE", "渠道账号未启用", 400);
+        if (!channel)
+          throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
+        const stopOnly =
+          !channel.active || channel.businessPurpose !== "TRADE";
+        if (stopOnly) {
+          const unresolvedStops = await tx.distributionAttempt.count({
+            where: {
+              channelId: input.channelId,
+              action: "DELIST",
+              state: { notIn: ["SUCCEEDED", "CANCELLED"] },
+            },
+          });
+          if (!unresolvedStops)
+            throw new Fault(
+              "CHANNEL_STOP_SESSION_UNAVAILABLE",
+              "该渠道没有待处理的停售交付，不能创建新的分发会话",
+              409,
+            );
+        }
         const session = await tx.distributionSession.create({
           data: {
             channelId: input.channelId,
@@ -661,6 +703,7 @@ export class DistributionService {
           channelId: session.channelId,
           label: session.label,
           expiresAt: session.expiresAt.toISOString(),
+          stopOnly,
         });
         return {
           response: {
@@ -668,12 +711,14 @@ export class DistributionService {
             channelId: session.channelId,
             expiresAt: session.expiresAt,
             token,
+            stopOnly,
           },
           receipt: {
             id: session.id,
             channelId: session.channelId,
             expiresAt: session.expiresAt.toISOString(),
             tokenIssued: true,
+            stopOnly,
           },
         };
       },
@@ -1271,7 +1316,11 @@ export class DistributionService {
           requiredCurrency: requiredChannelCurrency(channel),
           status: item.status,
         });
-        const ready = missing.length === 0 && item.approvedValid && channel.active;
+        const ready =
+          missing.length === 0 &&
+          item.approvedValid &&
+          channel.active &&
+          channel.businessPurpose === "TRADE";
         const currentPackage = (candidate: (typeof packages)[number]) => {
           const snapshot = packageSnapshot.safeParse(candidate.snapshot);
           if (!snapshot.success) return false;
@@ -1280,7 +1329,6 @@ export class DistributionService {
               snapshot.data.priceBasis.version === price.version
             : price.source === "ITEM";
           return (
-            candidate.validUntil > now &&
             item.status === "AVAILABLE" &&
             item.cycle === candidate.cycle &&
             item.approvedValid &&
@@ -1288,7 +1336,6 @@ export class DistributionService {
             price.amount === snapshot.data.price &&
             price.currency === snapshot.data.currency &&
             samePriceBasis &&
-            channel.active &&
             snapshot.data.waivers.every((id) => activeWaiverIds.has(id)) &&
             snapshot.data.assets.every((asset) => usableAssets.has(asset.id)) &&
             (item.ownership !== "SUPPLIER" || item.offers.length > 0)
@@ -1316,6 +1363,16 @@ export class DistributionService {
             );
           }),
         );
+        const health = currentPublication
+          ? await this.db.$transaction((tx) =>
+              this.publicationHealth.evaluatePublicationHealth(
+                tx,
+                item.id,
+                channel.id,
+                currentPublication.id,
+              ),
+            )
+          : null;
         const openStop = newest(
           pairAttempts.filter(
             (attempt) =>
@@ -1337,7 +1394,7 @@ export class DistributionService {
           : null;
         let state: OperationalState | null = null,
           attempt: OperationalAttemptWithPackage | null = null;
-        if (openStop || (currentPublication && item.status !== "AVAILABLE")) {
+        if (openStop || health?.state === "MUST_STOP") {
           state = "NEEDS_STOP";
           attempt = openStop;
         } else if (outstanding) {
@@ -1349,7 +1406,8 @@ export class DistributionService {
                 ? "HANDED_OFF"
                 : "ATTENTION";
         } else if (currentPublication) {
-          if (!ready) state = "BLOCKED";
+          if (health?.state === "NEEDS_UPDATE") state = "NEEDS_UPDATE";
+          else if (!ready) state = "BLOCKED";
           else if (
             !publishedPackage ||
             !currentPackage(publishedPackage) ||
@@ -1406,6 +1464,7 @@ export class DistributionService {
               }
             : null,
           missing: missing.map((entry) => ({ code: entry.code, title: entry.title })),
+          health,
           updatedAt:
             newestFact?.finishedAt ||
             newestFact?.createdAt ||
@@ -1541,6 +1600,7 @@ export class DistributionService {
           where: { id },
         });
         await itemLock(tx, attempt.itemId);
+        await this.handoffScope(tx, attempt.channelId, attempt.action);
         if (attempt.state === "UNKNOWN")
           throw new Fault(
             "RECONCILIATION_REQUIRED",
@@ -1791,16 +1851,30 @@ export class DistributionService {
     // An item can stop being saleable while an external handoff is still in
     // flight. A late successful PUBLISH/UPDATE must therefore create the same
     // source-linked stop fact as the inventory transition would have created.
+    const health =
+      result.state === "SUCCEEDED" &&
+      ["PUBLISH", "UPDATE"].includes(row.action)
+        ? await this.publicationHealth.evaluatePublicationHealth(
+            tx,
+            row.itemId,
+            row.channelId,
+            row.id,
+          )
+        : null;
+    const mustStop = item.status !== "AVAILABLE" || health?.state === "MUST_STOP";
     const delistAttemptIds =
       result.state === "SUCCEEDED" &&
       ["PUBLISH", "UPDATE"].includes(row.action) &&
-      item.status !== "AVAILABLE"
+      mustStop
         ? await planStopDistribution(
             tx,
             actorId,
             row.itemId,
-            item.cycle,
-            `LATE_HANDOFF_AFTER_${item.status}`,
+            null,
+            item.status !== "AVAILABLE"
+              ? `LATE_HANDOFF_AFTER_${item.status}`
+              : `PUBLICATION_HEALTH:${health?.reasons.map((reason) => reason.code).join(",") || "MUST_STOP"}`,
+            item.status !== "AVAILABLE" ? undefined : row.channelId,
           )
         : [];
     await audit(
@@ -1816,6 +1890,7 @@ export class DistributionService {
         remoteId: row.remoteId || null,
         listingId: listing?.id || null,
         errorCode: row.errorCode || null,
+        health,
         delistAttemptIds,
       },
     );
@@ -1824,6 +1899,7 @@ export class DistributionService {
       state: row.state,
       channelId: row.channelId,
       listingId: listing?.id || null,
+      health,
       delistAttemptIds,
     });
     return {
@@ -2115,9 +2191,16 @@ export class DistributionService {
   }
 
   async handoffs(session: AgentSession) {
+    const channel = await this.db.channel.findUnique({
+      where: { id: session.channelId },
+      select: { active: true, businessPurpose: true },
+    });
+    if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
+    const stopOnly = !channel.active || channel.businessPurpose !== "TRADE";
     const rows = await this.db.distributionAttempt.findMany({
       where: {
         channelId: session.channelId,
+        ...(stopOnly ? { action: "DELIST" } : {}),
         OR: [
           { state: "PENDING" },
           { state: "RUNNING", claimedBySessionId: session.id },
@@ -2153,6 +2236,7 @@ export class DistributionService {
       action: string;
     },
   ) {
+    await this.handoffScope(tx, attempt.channelId, attempt.action);
     if (!attempt.packageId) {
       const [item, channel] = await Promise.all([
         tx.item.findUniqueOrThrow({ where: { id: attempt.itemId } }),
@@ -2213,6 +2297,7 @@ export class DistributionService {
           where: { id, channelId: session.channelId },
         });
         if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+        await this.handoffScope(tx, attempt.channelId, attempt.action);
         if (attempt.state === "UNKNOWN")
           throw new Fault(
             "RECONCILIATION_REQUIRED",
@@ -2303,6 +2388,7 @@ export class DistributionService {
         where: { id: attemptId, channelId: session.channelId },
       });
       if (!attempt) throw new Fault("NOT_FOUND", "分发交付记录不存在", 404);
+      await this.handoffScope(tx, attempt.channelId, attempt.action);
       if (
         attempt.state !== "RUNNING" ||
         attempt.claimedBySessionId !== session.id
@@ -2440,9 +2526,16 @@ export class DistributionService {
   }
 
   async agentAttempts(session: AgentSession) {
+    const channel = await this.db.channel.findUnique({
+      where: { id: session.channelId },
+      select: { active: true, businessPurpose: true },
+    });
+    if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
+    const stopOnly = !channel.active || channel.businessPurpose !== "TRADE";
     return this.db.distributionAttempt.findMany({
       where: {
         channelId: session.channelId,
+        ...(stopOnly ? { action: "DELIST" } : {}),
         OR: [
           { state: { in: ["PENDING", "UNKNOWN"] } },
           { state: "RUNNING", claimedBySessionId: session.id },
@@ -2471,6 +2564,7 @@ export class DistributionService {
         where: { id, channelId: session.channelId },
       });
       if (!attempt) throw new Fault("NOT_FOUND", "分发执行记录不存在", 404);
+      await this.handoffScope(tx, attempt.channelId, attempt.action);
       const now = new Date();
       if (
         attempt.state === "RUNNING" &&
@@ -2565,6 +2659,7 @@ export class DistributionService {
       where: { id, channelId: session.channelId },
     });
     if (!attempt) throw new Fault("NOT_FOUND", "分发执行记录不存在", 404);
+    await this.handoffScope(tx, attempt.channelId, attempt.action);
     if (
       attempt.state !== "RUNNING" ||
       attempt.claimedBySessionId !== session.id ||

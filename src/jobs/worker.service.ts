@@ -3,15 +3,16 @@ import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../database/prisma.service";
 import { itemLock } from "../catalog/catalog.service";
-import { PublishingService } from "../publishing/publishing.service";
 import { Fault } from "../common/errors";
 import { Tx, audit } from "../common/transaction";
 import { assetUsable, factsSchema } from "../common/domain";
+import { planStopDistribution } from "../distribution/distribution.service";
+import { PublicationHealthService } from "../distribution/publication-health.service";
 @Injectable()
 export class WorkerService {
   constructor(
     private db: PrismaService,
-    private publishing: PublishingService,
+    private publicationHealth: PublicationHealthService,
   ) {}
   async reconcile(tx: Tx, itemId: string) {
     const item = await itemLock(tx, itemId, true);
@@ -30,47 +31,30 @@ export class WorkerService {
         data: { status: "PAUSED" },
       });
     }
-    const listings = await tx.listing.findMany({
-      where: { itemId },
-      include: { channel: true },
-    });
-    for (const l of listings) {
-      let invalid = l.desired === "OFFLINE";
-      if (!invalid) {
-        try {
-          await this.publishing.validPackage(tx, l.packageId);
-        } catch (e) {
-          if (e instanceof Fault) invalid = true;
-          else throw e;
-        }
-      }
-      if (invalid) {
-        await tx.listing.update({
-          where: { id: l.id },
-          data: {
-            desired: "OFFLINE",
-            ...(l.channel.platform === "SHOWROOM"
-              ? { observed: "SYSTEM_OFFLINE", observedAt: new Date() }
-              : {}),
-          },
-        });
-        if (
-          l.channel.platform !== "SHOWROOM" &&
-          !["MANUAL_REPORTED_OFFLINE", "SYSTEM_OFFLINE"].includes(l.observed)
-        ) {
-          await tx.task.upsert({
-            where: { dedupeKey: "delist:" + l.id },
-            create: {
-              itemId,
-              listingId: l.id,
-              dedupeKey: "delist:" + l.id,
-              kind: "DELIST",
-              title: `请在 ${l.channel.name} 核对并下架`,
-            },
-            update: { status: "OPEN" },
-          });
-        }
-      }
+    // A stable Listing is optional for APP handoffs.  Sweep publication facts
+    // directly so an acknowledged publish without remoteId gets the same local,
+    // source-linked DELIST record as a Listing-backed publication.  This only
+    // records intent for an external executor; it never calls a platform.
+    const exposures = await this.publicationHealth.currentPublicationExposures(
+      tx,
+      itemId,
+    );
+    for (const exposure of exposures) {
+      const health = await this.publicationHealth.evaluatePublicationHealth(
+        tx,
+        itemId,
+        exposure.channelId,
+        exposure.id,
+      );
+      if (health.state !== "MUST_STOP") continue;
+      await planStopDistribution(
+        tx,
+        exposure.createdBy || "SYSTEM",
+        itemId,
+        null,
+        `PUBLICATION_HEALTH:${health.reasons.map((reason) => reason.code).join(",")}`,
+        exposure.channelId,
+      );
     }
     const current = await tx.item.findUniqueOrThrow({ where: { id: itemId } }),
       f = factsSchema.parse(current.facts);
@@ -95,7 +79,7 @@ export class WorkerService {
         !!measurementWaiver || (!!f.measurements && !!f.measurementSource),
       authentication:
         f.authentication.status === "PASSED" && !!f.authentication.evidence,
-      price: current.currentPrice !== null,
+      price: current.currentPrice !== null && current.currentPrice > 0,
       supply: current.ownership === "OWN" || !!offer,
       availability: current.status === "AVAILABLE",
       english: !!f.descriptionEn,

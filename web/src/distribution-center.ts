@@ -44,6 +44,10 @@ type Operation = {
     observedAt: string;
   } | null;
   missing: { code: string; title: string }[];
+  health: {
+    state: "CURRENT" | "NEEDS_UPDATE" | "MUST_STOP";
+    reasons: { code: string; title: string }[];
+  } | null;
   updatedAt: string;
 };
 
@@ -194,6 +198,11 @@ function operationAction(row: Operation) {
 }
 
 function resultSummary(row: Operation) {
+  if (
+    row.health?.reasons.length &&
+    ["NEEDS_STOP", "NEEDS_UPDATE"].includes(row.state)
+  )
+    return row.health.reasons.map((reason) => esc(reason.title)).join("；");
   const attempt = row.attempt || row.published;
   if (!attempt)
     return row.missing.length

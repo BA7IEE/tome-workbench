@@ -361,3 +361,9 @@ ChannelPrice、Sale/Inquiry 的可空 `channelId` 和 `Sale.inquiryId` 在本基
 ## v1.1-rc.5 交易经营意图
 
 `DistributionTarget` 只表达 TM 当前希望在哪个 `TRADE` Channel 经营，不建立第二套库存或远端发布真相。`test/integration.test.cjs` 的 “Distribution Intent” 场景覆盖 XHS/SHOWROOM 固定用途、内容账号拒绝交易报价/Readiness/Target、同平台多账号的显式确认、关闭目标，以及 Item lock、Receipt、Audit/Outbox 和不创建 UsePackage/Attempt/Listing。`test/browser/operations.spec.cjs` 在 Chromium/WebKit 真实选择商品、填写原因、确认批量“加入分发渠道”，并验证内容账号不在选择中。它们只使用 `tome_test` 合成资料，不证明任何平台发布、在线状态、真实多账号经营或外部 UAT。
+
+## v1.1-rc.5 发布安全
+
+`PublicationHealthService` 以每个当前成功 PUBLISH/UPDATE 作为远端暴露依据，`remoteId` 为空和没有 Listing 的 APP 成功记录同样进入检查。库存、关闭 Target、停用/退出交易用途的 Channel、供应商 Offer、批准/鉴定、发布图片权利，以及缺失、非正数或错币种的交易价会得到 MUST_STOP；Worker/Sweep 只创建来源关联 DELIST，不执行平台动作。批准版本、渠道报价、文案或图片变化得到 NEEDS_UPDATE。UsePackage 七天 TTL 仅限制新的 Handoff，不能单独改变成功发布的健康状态。
+
+Channel 停用或退出交易用途时，本地取消未交付 PUBLISH/UPDATE，并为当前成功资料生成 DELIST；只要存在未完成 DELIST，才可建 stop-only Session，且只列出 DELIST。Trash 允许本地取消从未交付的 PENDING，却会阻止 HANDED_OFF、UNKNOWN、SUCCEEDED 和未完成停售。`test/integration.test.cjs` 的 “Publication Health” 与 “Publication stop scope” 以隔离 `tome_test` 覆盖无稳定 remoteId、TTL 分离、全部关键安全原因、渠道安全清场和回收站边界；`test/browser/operations.spec.cjs` 在 Chromium/WebKit 以真实登录和图片权利变更显示具体需停售原因。没有新增 migration、平台 Connector、自动重发或外部停售。

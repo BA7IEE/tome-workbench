@@ -8,6 +8,7 @@ import { Commands, audit, event, json } from "../common/transaction";
 import { expectedVersion, safeText, tm, uuid } from "../common/domain";
 import { Fault } from "../common/errors";
 import { itemLock, snapshot, versionMatch } from "./catalog.service";
+import { PublicationHealthService } from "../distribution/publication-health.service";
 const mutation = z
   .object({
     version: expectedVersion,
@@ -21,6 +22,7 @@ export class TrashController {
   constructor(
     private db: PrismaService,
     private commands: Commands,
+    private publicationHealth: PublicationHealthService,
   ) {}
   @Access("delete") @Get("recycle-bin/items") async list(
     @Query() raw: unknown,
@@ -128,28 +130,22 @@ export class TrashController {
             "TRASH_STATE_PROTECTED",
             "已售出、赠出、自留或退货中的商品不能直接删除，请保留实际经营记录",
           );
-        if (
-          await tx.listing.count({
-            where: {
-              itemId: id,
-              OR: [
-                { desired: { not: "OFFLINE" } },
-                {
-                  observed: {
-                    notIn: [
-                      "MANUAL_REPORTED_OFFLINE",
-                      "SYSTEM_OFFLINE",
-                      "VERIFIED_OFFLINE",
-                    ],
-                  },
-                },
-              ],
-            },
-          })
-        )
+        // PENDING has not left ToMe and may be cancelled locally. Every
+        // handed-off, unknown, successful or unresolved stop fact is a
+        // possible remote exposure and must be settled before deletion.
+        const cancelledAttemptIds =
+          await this.publicationHealth.cancelPendingPublicationAttempts(
+            tx,
+            id,
+            r.actor.id,
+            "商品移入回收站前取消尚未交付的发布资料",
+          );
+        const distributionBlockers =
+          await this.publicationHealth.distributionExposureBlockers(tx, id);
+        if (distributionBlockers.length)
           throw new Fault(
-            "TRASH_LISTING_ACTIVE",
-            "该商品有尚未完成下架的渠道，请先暂停推广并登记下架结果，再删除",
+            "TRASH_DISTRIBUTION_EXPOSURE",
+            "该商品仍可能在线或有未完成停售交付；请先登记来源关联的下架结果，再删除",
           );
         await tx.reservation.updateMany({
           where: {
@@ -189,6 +185,7 @@ export class TrashController {
           reason: b.reason,
           previousStatus: item.status,
           code: tm(item.serial),
+          cancelledAttemptIds,
         });
         await event(tx, id, "ITEM_TRASHED");
         return {
