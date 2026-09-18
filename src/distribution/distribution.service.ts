@@ -1000,6 +1000,7 @@ export class DistributionService {
       p.itemId,
       p.channelId,
       p.id,
+      ...(target ? ["target", String(target.version)] : []),
       ...(delistedAfterPublish && completedDelist
         ? ["after", completedDelist.id]
         : []),
