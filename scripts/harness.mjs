@@ -573,6 +573,25 @@ export function checks(
       read("test/integration.test.cjs").includes("Launch Closure workflow scale："),
   );
   check(
+    "v11-operations-truth-cleanup",
+    () =>
+      read("src/jobs/work-queue.ts").includes(
+        "已交付分发记录超时，需要核对",
+      ) &&
+      read("src/jobs/work-queue.ts").includes(
+        "已交付分发会话失效，需要核对",
+      ) &&
+      read("src/jobs/work-queue.ts").includes(
+        "外币成交待确认结算依据",
+      ) &&
+      read("scripts/check-current-docs.mjs").includes(
+        "current-validation-artifact-version",
+      ) &&
+      read("test/integration.test.cjs").includes(
+        "超时Handoff进入统一待办",
+      ),
+  );
+  check(
     "v11-channel-price-currency-interactions",
     () =>
       read("src/publishing/publishing.service.ts").includes(
