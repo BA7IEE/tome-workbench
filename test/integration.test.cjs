@@ -5559,6 +5559,153 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   assert.ok(queue.summary.distribution >= 1);
 });
 
+test("Operations cleanup：超时Handoff进入统一待办，外币成交显示结算依据而非人民币成本", async () => {
+  const staleItem = await ready();
+  const stalePackage = await pack(staleItem.id);
+  const staleAttempt = await ok("/distribution/plan", "POST", {
+    packageId: stalePackage.id,
+  });
+  const staleSession = await distributionSession(
+    channel.id,
+    "超时交付统一待办回归",
+  );
+  await distributionHandoffOk(
+    `/handoffs/${staleAttempt.id}/package`,
+    staleSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await db.distributionAttempt.update({
+    where: { id: staleAttempt.id },
+    data: { startedAt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+  });
+  const staleCode = (await item(staleItem.id)).code;
+  const staleQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(staleCode)}`,
+  );
+  const staleRow = staleQueue.rows.find(
+    (row) => row.entityId === staleAttempt.id,
+  );
+  assert.ok(staleRow);
+  assert.equal(staleRow.priority, 95);
+  assert.equal(staleRow.title, "已交付分发记录超时，需要核对");
+
+  const deadItem = await ready();
+  const deadPackage = await pack(deadItem.id);
+  const deadAttempt = await ok("/distribution/plan", "POST", {
+    packageId: deadPackage.id,
+  });
+  const deadSession = await distributionSession(
+    channel.id,
+    "失效会话统一待办回归",
+  );
+  await distributionHandoffOk(
+    `/handoffs/${deadAttempt.id}/package`,
+    deadSession.token,
+    "POST",
+    undefined,
+    randomUUID(),
+  );
+  await ok(`/distribution/sessions/${deadSession.id}/revoke`, "POST");
+  const deadCode = (await item(deadItem.id)).code;
+  const deadQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(deadCode)}`,
+  );
+  const deadRow = deadQueue.rows.find((row) => row.entityId === deadAttempt.id);
+  assert.ok(deadRow);
+  assert.equal(deadRow.priority, 95);
+  assert.equal(deadRow.title, "已交付分发会话失效，需要核对");
+
+  const orphanItem = await ready();
+  const orphanPackage = await pack(orphanItem.id);
+  const orphanAttempt = await ok("/distribution/plan", "POST", {
+    packageId: orphanPackage.id,
+  });
+  await db.distributionAttempt.update({
+    where: { id: orphanAttempt.id },
+    data: {
+      state: "RUNNING",
+      startedAt: new Date(),
+      leaseUntil: null,
+      claimedBySessionId: null,
+    },
+  });
+  const orphanCode = (await item(orphanItem.id)).code;
+  const orphanQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(orphanCode)}`,
+  );
+  const orphanRow = orphanQueue.rows.find(
+    (row) => row.entityId === orphanAttempt.id,
+  );
+  assert.ok(orphanRow);
+  assert.equal(orphanRow.title, "已交付分发会话失效，需要核对");
+
+  const leasedItem = await ready();
+  const leasedPackage = await pack(leasedItem.id);
+  const leasedAttempt = await ok("/distribution/plan", "POST", {
+    packageId: leasedPackage.id,
+  });
+  const leasedSession = await distributionSession(
+    channel.id,
+    "仍在有效租约中的兼容 Agent",
+  );
+  await db.distributionAttempt.update({
+    where: { id: leasedAttempt.id },
+    data: {
+      state: "RUNNING",
+      startedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+      leaseUntil: new Date(Date.now() + 60 * 1000),
+      claimedBySessionId: leasedSession.id,
+    },
+  });
+  const leasedCode = (await item(leasedItem.id)).code;
+  const leasedQueue = await ok(
+    `/work-queue?scope=DISTRIBUTION&q=${encodeURIComponent(leasedCode)}`,
+  );
+  assert.equal(
+    leasedQueue.rows.some((row) => row.entityId === leasedAttempt.id),
+    false,
+  );
+
+  const usdChannel = await ok("/channels", "POST", {
+    name: "外币成交待办 " + randomUUID().slice(0, 8),
+    platform: "ANQICMS",
+    locale: "en",
+    titleLimit: 120,
+    defaultCurrency: "USD",
+  });
+  const foreignItem = await ready();
+  await ok(
+    `/items/${foreignItem.id}/channel-prices/${usdChannel.id}`,
+    "POST",
+    { amount: 138000, currency: "USD" },
+  );
+  const foreignSale = await sold(foreignItem.id, {
+    channelId: usdChannel.id,
+    customerRef: "合成外币成交客户",
+  });
+  const sale = await db.sale.findUniqueOrThrow({ where: { id: foreignSale.id } });
+  assert.equal(sale.currency, "USD");
+  assert.equal(sale.cost, null);
+  const foreignCode = (await item(foreignItem.id)).code;
+  const foreignQueue = await ok(
+    `/work-queue?scope=SALE_FINANCE&q=${encodeURIComponent(foreignCode)}`,
+  );
+  const financeRow = foreignQueue.rows.find(
+    (row) => row.entityId === foreignSale.id,
+  );
+  assert.ok(financeRow);
+  assert.equal(financeRow.title, "外币成交待确认结算依据");
+  assert.match(financeRow.detail, /外币结算依据/);
+  assert.doesNotMatch(financeRow.detail, /缺 [^·]*成本/);
+
+  const unifiedQueue = await ok("/work-queue");
+  const dashboard = await ok("/dashboard");
+  assert.ok(dashboard.pendingDistribution >= 2);
+  assert.ok(dashboard.actionable >= unifiedQueue.summary.total);
+});
+
 test("Distribution 经营投影：动态区分资料、交付、发布、更新、停售和异常并先筛选后分页", async () => {
   const prefix = "OP-PROJECTION-" + randomUUID().slice(0, 8);
   const named = (state) => `${prefix} ${state}`;
