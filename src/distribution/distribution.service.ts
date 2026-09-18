@@ -2166,12 +2166,39 @@ export class DistributionService {
     observed: string,
     incrementAttempt: boolean,
   ) {
-    const finalResult = await this.enforceAnqicmsSuccessReceipt(
+    let finalResult = await this.enforceAnqicmsSuccessReceipt(
       tx,
       attempt,
       result,
     );
     const item = await itemLock(tx, attempt.itemId);
+    if (
+      finalResult.state === "SUCCEEDED" &&
+      attempt.action === "UPDATE" &&
+      !finalResult.remoteId
+    ) {
+      const live = await tx.listing.findMany({
+        where: {
+          itemId: attempt.itemId,
+          channelId: attempt.channelId,
+          desired: { not: "OFFLINE" },
+        },
+        select: { remoteId: true, url: true },
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+      });
+      if (live.length > 1)
+        throw new Fault(
+          "REMOTE_IDENTITY_AMBIGUOUS",
+          "该商品在此渠道存在多个未停售远端身份，请先人工核对并收敛后再继续更新",
+          409,
+        );
+      if (live.length === 1)
+        finalResult = {
+          ...finalResult,
+          remoteId: live[0].remoteId,
+          remoteUrl: finalResult.remoteUrl || live[0].url,
+        };
+    }
     const listing =
       finalResult.state !== "SUCCEEDED"
         ? null
