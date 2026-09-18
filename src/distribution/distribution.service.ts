@@ -906,11 +906,17 @@ export class DistributionService {
     // used to create a fresh trade handoff after the account becomes CONTENT.
     if (p.purpose === "TRADE") requireTradeChannel(p.channel, "交易分发记录");
 
-    const target = await tx.distributionTarget.findUnique({
-      where: {
-        itemId_channelId: { itemId: p.itemId, channelId: p.channelId },
-      },
-    });
+    // DistributionTarget is authoritative only for TRADE. Historical target
+    // rows may survive a later channel-purpose change so history remains
+    // interpretable; they must not block SHOWROOM handoffs.
+    const target =
+      p.purpose === "TRADE"
+        ? await tx.distributionTarget.findUnique({
+            where: {
+              itemId_channelId: { itemId: p.itemId, channelId: p.channelId },
+            },
+          })
+        : null;
     if (p.purpose === "TRADE" && !target)
       throw new Fault(
         "DISTRIBUTION_TARGET_REQUIRED",
