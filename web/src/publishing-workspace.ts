@@ -578,7 +578,8 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
           )
         )
           return;
-        targetButton.disabled = true;
+        if (busy) return;
+        locked(true);
         try {
           await request(
             `/items/${i.id}/distribution-targets/${channel.id}`,
@@ -593,7 +594,7 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
           toast("已加入此分发渠道");
           await reload();
         } catch (error) {
-          targetButton.disabled = false;
+          locked(false);
           showError(error);
         }
       },
