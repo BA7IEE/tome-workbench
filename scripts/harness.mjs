@@ -604,6 +604,8 @@ export function checks(
       read("scripts/verify-release.mjs").includes(
         "syncCurrentValidationEvidence",
       ) &&
+      read("scripts/verify-release.mjs").includes("GITHUB_RUN_ID") &&
+      read("scripts/verify-release.mjs").includes("GITHUB_SHA") &&
       read("test/integration.test.cjs").includes(
         "超时Handoff进入统一待办",
       ),
