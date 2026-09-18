@@ -731,9 +731,11 @@ export class StudioPublisher {
               "已记录人工发布执行结果。稳定远端ID才会建立 Listing；后续渠道核对以这条执行记录为准。",
             );
           },
-        ),
-          undefined,
-          this.use !== "TRADE" || hasActiveTarget,
+          this.use !== "TRADE" ||
+            this.targets.some(
+              (target) =>
+                target.channelId === this.channelId && target.active,
+            ),
         )}</div><details><summary>查看最终文案</summary><h4>${esc(fresh.snapshot.title)}</h4><div class="copy">${esc(fresh.snapshot.body)}</div></details></section>`;
       this.feedback("已完成核对和资料生成；没有冒充平台已发布。");
       this.host
