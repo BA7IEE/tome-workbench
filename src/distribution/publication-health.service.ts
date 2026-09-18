@@ -42,10 +42,7 @@ function occurredAt(row: Pick<TimedAttempt, "createdAt" | "finishedAt">) {
   return (row.finishedAt || row.createdAt).getTime();
 }
 
-function sourceStopped(
-  source: TimedAttempt,
-  stops: TimedAttempt[],
-) {
+function sourceStopped(source: TimedAttempt, stops: TimedAttempt[]) {
   const sourceAt = occurredAt(source);
   return stops.some(
     (stop) =>
@@ -82,6 +79,231 @@ function withConditionDisclosure(
 }
 
 /**
+ * The operational projection already has the Item × Channel facts in hand.
+ * Keep the safety decision here pure so that projection can reuse exactly the
+ * same rules without opening one transaction per successful publication.
+ */
+export type LoadedPublicationHealthInput = {
+  now: Date;
+  item: {
+    id: string;
+    deletedAt: Date | null;
+    status: string;
+    approvedValid: boolean;
+    approvedId: string | null;
+    facts: unknown;
+    ownership: string;
+    cycle: number;
+  };
+  channel: {
+    active: boolean;
+    businessPurpose: string;
+    platform: string;
+    defaultCurrency: string;
+    locale: string;
+    titleLimit: number;
+  };
+  target: { active: boolean } | null;
+  packageRow: {
+    revisionId: string;
+    cycle: number;
+    snapshot: unknown;
+  } | null;
+  price: {
+    amount: number | null;
+    currency: string;
+    source: "ITEM" | "CHANNEL";
+    version: number | null;
+  };
+  assets: {
+    id: string;
+    position: number;
+    createdAt: Date;
+    archived: boolean;
+    rights: string;
+    verified: boolean;
+    validUntil: Date | null;
+    origin: string;
+    role: string;
+  }[];
+  validSupplierOffer: boolean;
+  draft: {
+    title: string;
+    body: string;
+    assetIds: unknown;
+    basisRevisionId: string | null;
+    basisPrice: number | null;
+    basisCurrency: string;
+    basisPriceSource: string;
+    basisPriceVersion: number | null;
+  } | null;
+};
+
+export function evaluateLoadedPublicationHealth(
+  input: LoadedPublicationHealthInput,
+): PublicationHealth {
+  const { item, channel, target, packageRow, price, assets, draft, now } =
+    input;
+  const stop: PublicationHealthReason[] = [];
+  const update: PublicationHealthReason[] = [];
+  const addStop = (code: string, title: string) => stop.push({ code, title });
+  const addUpdate = (code: string, title: string) =>
+    update.push({ code, title });
+
+  if (item.deletedAt) addStop("ITEM_DELETED", "商品已移入回收站");
+  if (item.status !== "AVAILABLE")
+    addStop("ITEM_NOT_AVAILABLE", "商品当前不可继续出售");
+  if (target && !target.active)
+    addStop("DISTRIBUTION_TARGET_CLOSED", "该渠道经营目标已关闭");
+  if (!channel.active) addStop("CHANNEL_INACTIVE", "渠道账号已停用");
+  if (channel.businessPurpose !== "TRADE")
+    addStop("CHANNEL_NOT_TRADE", "渠道已不是交易用途");
+  if (!item.approvedValid || !item.approvedId)
+    addStop("APPROVAL_INVALID", "商品资料不再处于有效批准状态");
+  const facts = factsSchema.safeParse(item.facts);
+  if (
+    !facts.success ||
+    facts.data.authentication.status !== "PASSED" ||
+    !facts.data.authentication.evidence
+  )
+    addStop("AUTHENTICATION_INVALID", "真实性复核或依据已失效");
+
+  let snapshot: ReturnType<typeof packageSnapshot.parse> | null = null;
+  if (!packageRow) {
+    addStop("PUBLICATION_PACKAGE_MISSING", "发布资料缺少冻结使用包");
+  } else {
+    const parsed = packageSnapshot.safeParse(packageRow.snapshot);
+    if (!parsed.success)
+      addStop("PUBLICATION_PACKAGE_INVALID", "发布使用包无法安全复核");
+    else snapshot = parsed.data;
+  }
+
+  const requiredCurrency = requiredChannelCurrency(channel);
+  if (price.amount === null) addStop("TRADE_PRICE_MISSING", "交易报价缺失");
+  else if (price.amount <= 0)
+    addStop("TRADE_PRICE_NON_POSITIVE", "交易报价必须大于零");
+  if (price.currency !== requiredCurrency)
+    addStop(
+      "TRADE_PRICE_CURRENCY_INVALID",
+      `交易报价必须使用 ${requiredCurrency}`,
+    );
+
+  if (snapshot && packageRow) {
+    if (snapshot.price === null || snapshot.price <= 0)
+      addStop("PUBLICATION_PRICE_INVALID", "已发布资料的交易报价无效");
+    if (snapshot.currency !== requiredCurrency)
+      addStop(
+        "PUBLICATION_PRICE_CURRENCY_INVALID",
+        `已发布资料不是 ${requiredCurrency} 交易报价`,
+      );
+
+    const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+    for (const publishedAsset of snapshot.assets) {
+      const asset = assetsById.get(publishedAsset.id);
+      if (!asset) {
+        addStop("PUBLICATION_ASSET_MISSING", "发布使用的图片已不存在");
+        continue;
+      }
+      if (asset.archived)
+        addStop("PUBLICATION_ASSET_ARCHIVED", "发布使用的图片已归档");
+      if (asset.rights !== "PUBLIC")
+        addStop(
+          "PUBLICATION_ASSET_RIGHTS_INVALID",
+          "发布图片不再具备公开使用权",
+        );
+      if (!asset.verified)
+        addStop("PUBLICATION_ASSET_UNVERIFIED", "发布图片不再通过核验");
+      if (asset.validUntil && asset.validUntil <= now)
+        addStop("PUBLICATION_ASSET_RIGHTS_EXPIRED", "发布图片授权已过期");
+      if (!assetUsable(asset, now))
+        addStop("PUBLICATION_ASSET_INVALID", "发布图片不再是可用实物素材");
+    }
+
+    if (item.ownership === "SUPPLIER" && !input.validSupplierOffer)
+      addStop("SUPPLIER_OFFER_EXPIRED", "供应商当前供货确认已失效");
+
+    if (packageRow.cycle !== item.cycle)
+      addStop("PUBLICATION_CYCLE_CHANGED", "商品经营周期已变化");
+
+    const samePriceBasis = snapshot.priceBasis
+      ? snapshot.priceBasis.source === price.source &&
+        snapshot.priceBasis.version === price.version
+      : price.source === "ITEM";
+    if (
+      snapshot.price !== price.amount ||
+      snapshot.currency !== price.currency ||
+      !samePriceBasis
+    )
+      addUpdate("CHANNEL_PRICE_CHANGED", "渠道报价或版本已变化");
+    if (item.approvedId !== packageRow.revisionId)
+      addUpdate("APPROVED_REVISION_CHANGED", "已批准商品版本已变化");
+
+    const expectedAssets = snapshot.assets
+      .slice()
+      .sort(
+        (left, right) =>
+          left.position - right.position || left.id.localeCompare(right.id),
+      )
+      .map((asset) => ({ id: asset.id, position: asset.position }));
+    if (draft) {
+      const draftSameBasis =
+        draft.basisRevisionId === item.approvedId &&
+        draft.basisPrice === price.amount &&
+        draft.basisCurrency === price.currency &&
+        draft.basisPriceSource === price.source &&
+        draft.basisPriceVersion === price.version;
+      if (!draftSameBasis) {
+        addUpdate(
+          "CHANNEL_DRAFT_BASIS_CHANGED",
+          "渠道草稿的资料或报价基础已变化",
+        );
+      } else {
+        const selectedIds = Array.isArray(draft.assetIds)
+          ? draft.assetIds.filter((id): id is string => typeof id === "string")
+          : [];
+        const draftAssets = selectedIds.map((id, position) => ({
+          id,
+          position,
+        }));
+        const expectedTitle = titleWithCode(
+          draft.title || snapshot.title,
+          snapshot.code,
+          channel.titleLimit,
+        );
+        const expectedBody = withConditionDisclosure(
+          draft.body,
+          facts.success ? facts.data.condition : "",
+          channel.locale,
+        );
+        if (
+          snapshot.title !== expectedTitle ||
+          snapshot.body !== expectedBody ||
+          !sameAssetOrder(expectedAssets, draftAssets)
+        )
+          addUpdate("CHANNEL_DRAFT_CHANGED", "渠道文案或图片选择已变化");
+      }
+    } else {
+      const currentAssets = assets
+        .slice()
+        .sort(
+          (left, right) =>
+            left.position - right.position ||
+            left.createdAt.getTime() - right.createdAt.getTime() ||
+            left.id.localeCompare(right.id),
+        )
+        .filter((asset) => assetUsable(asset, now))
+        .map((asset, position) => ({ id: asset.id, position }));
+      if (!sameAssetOrder(expectedAssets, currentAssets))
+        addUpdate("PUBLICATION_IMAGES_CHANGED", "发布图片集合或顺序已变化");
+    }
+  }
+
+  if (stop.length) return { state: "MUST_STOP", reasons: stop };
+  if (update.length) return { state: "NEEDS_UPDATE", reasons: update };
+  return { state: "CURRENT", reasons: [] };
+}
+
+/**
  * Stateless publication-safety rules.  Every read is explicitly supplied
  * through the caller's transaction so this service never owns a second
  * publication truth, a timer, or any external side effect.
@@ -115,7 +337,11 @@ export class PublicationHealthService {
           createdAt: true,
           finishedAt: true,
         },
-        orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+        orderBy: [
+          { finishedAt: "desc" },
+          { createdAt: "desc" },
+          { id: "desc" },
+        ],
       }),
       tx.distributionAttempt.findMany({
         where: {
@@ -135,7 +361,8 @@ export class PublicationHealthService {
     ]);
     const latestByChannel = new Map<string, (typeof published)[number]>();
     for (const row of published)
-      if (!latestByChannel.has(row.channelId)) latestByChannel.set(row.channelId, row);
+      if (!latestByChannel.has(row.channelId))
+        latestByChannel.set(row.channelId, row);
     return [...latestByChannel.values()].filter(
       (source) =>
         !sourceStopped(
@@ -178,7 +405,11 @@ export class PublicationHealthService {
       !["PUBLISH", "UPDATE"].includes(source.action) ||
       source.state !== "SUCCEEDED"
     )
-      throw new Fault("PUBLICATION_SOURCE_REQUIRED", "需要已确认完成的发布资料代际", 409);
+      throw new Fault(
+        "PUBLICATION_SOURCE_REQUIRED",
+        "需要已确认完成的发布资料代际",
+        409,
+      );
 
     const now = new Date();
     const [item, channel, target] = await Promise.all([
@@ -188,68 +419,14 @@ export class PublicationHealthService {
         where: { itemId_channelId: { itemId, channelId } },
       }),
     ]);
-    const stop: PublicationHealthReason[] = [];
-    const update: PublicationHealthReason[] = [];
-    const addStop = (code: string, title: string) => stop.push({ code, title });
-    const addUpdate = (code: string, title: string) =>
-      update.push({ code, title });
-
-    if (item.deletedAt) addStop("ITEM_DELETED", "商品已移入回收站");
-    if (item.status !== "AVAILABLE")
-      addStop("ITEM_NOT_AVAILABLE", "商品当前不可继续出售");
-    if (target && !target.active)
-      addStop("DISTRIBUTION_TARGET_CLOSED", "该渠道经营目标已关闭");
-    if (!channel.active) addStop("CHANNEL_INACTIVE", "渠道账号已停用");
-    if (channel.businessPurpose !== "TRADE")
-      addStop("CHANNEL_NOT_TRADE", "渠道已不是交易用途");
-    if (!item.approvedValid || !item.approvedId)
-      addStop("APPROVAL_INVALID", "商品资料不再处于有效批准状态");
-    const facts = factsSchema.safeParse(item.facts);
-    if (
-      !facts.success ||
-      facts.data.authentication.status !== "PASSED" ||
-      !facts.data.authentication.evidence
-    )
-      addStop("AUTHENTICATION_INVALID", "真实性复核或依据已失效");
-
-    const packageRow = source.package;
-    let snapshot: ReturnType<typeof packageSnapshot.parse> | null = null;
-    if (!packageRow) {
-      addStop("PUBLICATION_PACKAGE_MISSING", "发布资料缺少冻结使用包");
-    } else {
-      const parsed = packageSnapshot.safeParse(packageRow.snapshot);
-      if (!parsed.success)
-        addStop("PUBLICATION_PACKAGE_INVALID", "发布使用包无法安全复核");
-      else snapshot = parsed.data;
-    }
-
-    const price = await resolveChannelPrice(tx, item, channelId);
-    const requiredCurrency = requiredChannelCurrency(channel);
-    if (price.amount === null)
-      addStop("TRADE_PRICE_MISSING", "交易报价缺失");
-    else if (price.amount <= 0)
-      addStop("TRADE_PRICE_NON_POSITIVE", "交易报价必须大于零");
-    if (price.currency !== requiredCurrency)
-      addStop(
-        "TRADE_PRICE_CURRENCY_INVALID",
-        `交易报价必须使用 ${requiredCurrency}`,
-      );
-
-    if (snapshot && packageRow) {
-      if (snapshot.price === null || snapshot.price <= 0)
-        addStop("PUBLICATION_PRICE_INVALID", "已发布资料的交易报价无效");
-      if (snapshot.currency !== requiredCurrency)
-        addStop(
-          "PUBLICATION_PRICE_CURRENCY_INVALID",
-          `已发布资料不是 ${requiredCurrency} 交易报价`,
-        );
-
-      const assets = await tx.asset.findMany({
-        where: { itemId, id: { in: snapshot.assets.map((asset) => asset.id) } },
+    const [price, assets, offer, draft] = await Promise.all([
+      resolveChannelPrice(tx, item, channelId),
+      tx.asset.findMany({
+        where: { itemId },
         select: {
           id: true,
-          sha256: true,
           position: true,
+          createdAt: true,
           archived: true,
           rights: true,
           verified: true,
@@ -257,55 +434,18 @@ export class PublicationHealthService {
           origin: true,
           role: true,
         },
-      });
-      const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
-      for (const publishedAsset of snapshot.assets) {
-        const asset = assetsById.get(publishedAsset.id);
-        if (!asset) {
-          addStop("PUBLICATION_ASSET_MISSING", "发布使用的图片已不存在");
-          continue;
-        }
-        if (asset.archived)
-          addStop("PUBLICATION_ASSET_ARCHIVED", "发布使用的图片已归档");
-        if (asset.rights !== "PUBLIC")
-          addStop("PUBLICATION_ASSET_RIGHTS_INVALID", "发布图片不再具备公开使用权");
-        if (!asset.verified)
-          addStop("PUBLICATION_ASSET_UNVERIFIED", "发布图片不再通过核验");
-        if (asset.validUntil && asset.validUntil <= now)
-          addStop("PUBLICATION_ASSET_RIGHTS_EXPIRED", "发布图片授权已过期");
-        if (!assetUsable(asset, now))
-          addStop("PUBLICATION_ASSET_INVALID", "发布图片不再是可用实物素材");
-      }
-
-      if (item.ownership === "SUPPLIER") {
-        const offer = await tx.offer.findFirst({
-          where: {
-            itemId,
-            status: "CONFIRMED",
-            validUntil: { gt: now },
-          },
-        });
-        if (!offer)
-          addStop("SUPPLIER_OFFER_EXPIRED", "供应商当前供货确认已失效");
-      }
-
-      if (packageRow.cycle !== item.cycle)
-        addStop("PUBLICATION_CYCLE_CHANGED", "商品经营周期已变化");
-
-      const samePriceBasis = snapshot.priceBasis
-        ? snapshot.priceBasis.source === price.source &&
-          snapshot.priceBasis.version === price.version
-        : price.source === "ITEM";
-      if (
-        snapshot.price !== price.amount ||
-        snapshot.currency !== price.currency ||
-        !samePriceBasis
-      )
-        addUpdate("CHANNEL_PRICE_CHANGED", "渠道报价或版本已变化");
-      if (item.approvedId !== packageRow.revisionId)
-        addUpdate("APPROVED_REVISION_CHANGED", "已批准商品版本已变化");
-
-      const draft = await tx.publishingDraft.findUnique({
+      }),
+      item.ownership === "SUPPLIER"
+        ? tx.offer.findFirst({
+            where: {
+              itemId,
+              status: "CONFIRMED",
+              validUntil: { gt: now },
+            },
+            select: { id: true },
+          })
+        : null,
+      tx.publishingDraft.findUnique({
         where: {
           itemId_channelId_purpose: {
             itemId,
@@ -313,69 +453,29 @@ export class PublicationHealthService {
             purpose: "TRADE",
           },
         },
-      });
-      const expectedAssets = snapshot.assets
-        .slice()
-        .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
-        .map((asset) => ({ id: asset.id, position: asset.position }));
-      if (draft) {
-        const draftSameBasis =
-          draft.basisRevisionId === item.approvedId &&
-          draft.basisPrice === price.amount &&
-          draft.basisCurrency === price.currency &&
-          draft.basisPriceSource === price.source &&
-          draft.basisPriceVersion === price.version;
-        if (!draftSameBasis) {
-          addUpdate("CHANNEL_DRAFT_BASIS_CHANGED", "渠道草稿的资料或报价基础已变化");
-        } else {
-          const selectedIds = Array.isArray(draft.assetIds)
-            ? draft.assetIds.filter((id): id is string => typeof id === "string")
-            : [];
-          const draftAssets = selectedIds.map((id, position) => ({ id, position }));
-          const expectedTitle = titleWithCode(
-            draft.title || snapshot.title,
-            snapshot.code,
-            channel.titleLimit,
-          );
-          const expectedBody = withConditionDisclosure(
-            draft.body,
-            facts.success ? facts.data.condition : "",
-            channel.locale,
-          );
-          if (
-            snapshot.title !== expectedTitle ||
-            snapshot.body !== expectedBody ||
-            !sameAssetOrder(expectedAssets, draftAssets)
-          )
-            addUpdate("CHANNEL_DRAFT_CHANGED", "渠道文案或图片选择已变化");
-        }
-      } else {
-        const currentAssets = (
-          await tx.asset.findMany({
-            where: { itemId },
-            select: {
-              id: true,
-              position: true,
-              archived: true,
-              rights: true,
-              verified: true,
-              validUntil: true,
-              origin: true,
-              role: true,
-            },
-            orderBy: [{ position: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-          })
-        )
-          .filter((asset) => assetUsable(asset, now))
-          .map((asset, position) => ({ id: asset.id, position }));
-        if (!sameAssetOrder(expectedAssets, currentAssets))
-          addUpdate("PUBLICATION_IMAGES_CHANGED", "发布图片集合或顺序已变化");
-      }
-    }
-
-    if (stop.length) return { state: "MUST_STOP", reasons: stop };
-    if (update.length) return { state: "NEEDS_UPDATE", reasons: update };
-    return { state: "CURRENT", reasons: [] };
+        select: {
+          title: true,
+          body: true,
+          assetIds: true,
+          basisRevisionId: true,
+          basisPrice: true,
+          basisCurrency: true,
+          basisPriceSource: true,
+          basisPriceVersion: true,
+        },
+      }),
+    ]);
+    return evaluateLoadedPublicationHealth({
+      now,
+      item,
+      channel,
+      target,
+      packageRow: source.package,
+      price,
+      assets,
+      validSupplierOffer: !!offer,
+      draft,
+    });
   }
 
   async cancelPendingPublicationAttempts(

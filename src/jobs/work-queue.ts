@@ -17,6 +17,7 @@ const querySchema = z
         "DISTRIBUTION",
         "INQUIRY",
         "SALE_FINANCE",
+        "ITEM_REVIEW",
       ])
       .default("ALL"),
     q: safeText(150).default(""),
@@ -62,7 +63,12 @@ export async function readWorkQueue(
       SELECT 'task:' || t.id::text, t.id, 'TASK', CASE WHEN t.kind='DELIST' THEN 100 ELSE 50 END,
         t.title, 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0') || ' · ' || i.title, t."createdAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), jsonb_build_object('kind',t.kind,'assignee',t.assignee,'note',t.note), NULL, NULL
-      FROM "Task" t JOIN "Item" i ON i.id=t."itemId" WHERE t.status='OPEN' AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
+      FROM "Task" t JOIN "Item" i ON i.id=t."itemId" WHERE t.status='OPEN' AND t.kind <> 'PREPARE' AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
+      UNION ALL
+      SELECT 'item-review:' || i.id::text, i.id, 'ITEM_REVIEW', 50, '商品资料待确认',
+        'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0') || ' · ' || i.title, i."updatedAt",
+        jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
+      FROM "Item" i WHERE NOT i."approvedValid" AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
       UNION ALL
       SELECT 'observation:' || o.id::text, o.id, 'OBSERVATION', 90, '商品事实存在冲突待核对',
         'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0') || ' · ' || i.title, o."createdAt",
@@ -110,7 +116,7 @@ export async function readWorkQueue(
     ) SELECT coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.priority DESC,p."createdAt",p.id) FROM page_rows p),'[]'::jsonb) AS rows,
       (SELECT count(*)::int FROM filtered) AS total,
       (SELECT jsonb_build_object('total',count(*),'candidates',count(*) FILTER(WHERE kind='CANDIDATE'),'tasks',count(*) FILTER(WHERE kind='TASK'),
-        'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'distribution',count(*) FILTER(WHERE kind='DISTRIBUTION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY'),'saleFinance',count(*) FILTER(WHERE kind='SALE_FINANCE')) FROM all_rows) AS summary
+        'itemReviews',count(*) FILTER(WHERE kind='ITEM_REVIEW'),'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'distribution',count(*) FILTER(WHERE kind='DISTRIBUTION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY'),'saleFinance',count(*) FILTER(WHERE kind='SALE_FINANCE')) FROM all_rows) AS summary
   `);
   for (const row of result.rows) {
     const item = row.item;
@@ -121,6 +127,10 @@ export async function readWorkQueue(
     if (row.kind === "TASK") {
       row.href = `#/items/${item!.id}?tab=${row.task?.kind === "DELIST" ? "use" : "facts"}`;
       row.action = row.task?.kind === "DELIST" ? "去下架" : "去处理";
+    }
+    if (row.kind === "ITEM_REVIEW") {
+      row.href = `#/items/${item!.id}?tab=facts&returnTo=${encodeURIComponent("#/tasks?scope=ITEM_REVIEW")}`;
+      row.action = "去确认";
     }
     if (row.kind === "OBSERVATION") {
       row.href = `#/items/${item!.id}`;

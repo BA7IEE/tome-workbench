@@ -376,18 +376,11 @@ export class PublishingService {
           requiredCurrency: requiredChannelCurrency(c.channel),
           status: c.item.status,
         });
-        for (const m of missing) {
-          await tx.task.upsert({
-            where: { dedupeKey: `req:${itemId}:${m.code}` },
-            create: {
-              itemId,
-              kind: "PREPARE",
-              dedupeKey: `req:${itemId}:${m.code}`,
-              title: m.title,
-            },
-            update: { status: "OPEN" },
-          });
-        }
+        // Readiness is now a target × channel projection.  Persisting its
+        // channel-specific gaps as Item-only PREPARE tasks loses that scope
+        // and turns routine reads into stale work. Historical PREPARE tasks
+        // remain untouched for audit compatibility, but new evaluations only
+        // return the current missing fields.
         await audit(tx, actor.id, "PREPARATION_EVALUATED", itemId, {
           missing: missing.map((m) => m.code),
         });

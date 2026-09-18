@@ -292,7 +292,7 @@ async function distributionTargetPanel(i: Item, channels: Channel[]) {
                     form(
                       `关闭 ${target.channel.name} 经营目标`,
                       note(
-                        "关闭经营目标不会改库存、不会删除历史使用包或发布记录，也不会替代仍需人工登记的实际停售。",
+                        "关闭经营目标不会改库存、不会删除历史使用包或远端身份记录，也不会替代仍需人工登记的实际停售。",
                       ) + area("reason", "关闭原因", "", 3),
                       (data, key) => {
                         const reason = text(data, "reason").trim();
@@ -440,7 +440,7 @@ export async function detailPage(id: string) {
             form(
               "批准当前资料",
               note(
-                `批准草稿 v${i.version}，后续发布将使用这个版本。不会自动生成平台发布记录。`,
+                `批准草稿 v${i.version}，后续发布将使用这个版本。不会自动生成远端身份记录。`,
               ),
               (d, k) => {
                 void d;
@@ -509,7 +509,7 @@ export async function detailPage(id: string) {
       (await channelPricePanel(i, channels)) +
       (await publishingWorkspace(i, channels));
     content += section(
-      "各渠道的发布与停售记录",
+      "各渠道的远端身份记录",
       table(
         ["渠道", "目标状态", "最近实际观察", "操作"],
         i.listings.map((l) => [

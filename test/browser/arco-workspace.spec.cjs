@@ -14,7 +14,7 @@ async function login(page) {
   await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(
-    page.getByRole("link", { name: "设置", exact: true }),
+    page.getByRole("link", { name: "更多", exact: true }),
   ).toBeVisible();
 }
 async function command(page, path, body, method = "POST") {
@@ -346,10 +346,10 @@ for (const width of [1440, 390]) {
           expect(geometry.actionsWidth).toBeGreaterThan(350);
         }
         await page
-          .getByRole("button", { name: "手工录货", exact: true })
+          .getByRole("button", { name: "＋ 快速录入我方现货", exact: true })
           .click();
         await expect(
-          page.getByRole("dialog", { name: "快速录货", exact: true }),
+          page.getByRole("dialog", { name: "快速录入我方现货", exact: true }),
         ).toBeVisible();
         await expect(
           page.getByLabel("商品名称", { exact: true }),

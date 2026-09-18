@@ -54,6 +54,7 @@ import {
   type DistributionProfile,
 } from "./distribution-standard";
 import {
+  evaluateLoadedPublicationHealth,
   PublicationHealthService,
   type PublicationHealth,
 } from "./publication-health.service";
@@ -203,7 +204,13 @@ type OperationalRow = {
   id: string;
   state: OperationalState;
   priority: number;
-  item: { id: string; serial: number; title: string; brand: string; status: string };
+  item: {
+    id: string;
+    serial: number;
+    title: string;
+    brand: string;
+    status: string;
+  };
   channel: { id: string; name: string; platform: string; active: boolean };
   attempt: OperationalAttempt | null;
   published: OperationalAttempt | null;
@@ -488,7 +495,9 @@ export class DistributionService {
       { itemId, channelId, ...input },
       async (tx) => {
         await itemLock(tx, itemId);
-        const channel = await tx.channel.findUnique({ where: { id: channelId } });
+        const channel = await tx.channel.findUnique({
+          where: { id: channelId },
+        });
         if (!channel)
           throw new Fault("CHANNEL_NOT_FOUND", "所选渠道账号不存在", 404);
         const existing = await tx.distributionTarget.findUnique({
@@ -499,7 +508,11 @@ export class DistributionService {
         if (!existing) requireTradeChannel(channel, "分发经营目标");
         if (input.active) {
           if (!channel.active)
-            throw new Fault("CHANNEL_UNAVAILABLE", "渠道账号未启用，不能设为经营目标", 400);
+            throw new Fault(
+              "CHANNEL_UNAVAILABLE",
+              "渠道账号未启用，不能设为经营目标",
+              400,
+            );
           requireTradeChannel(channel, "分发经营目标");
           if (!existing?.active) {
             const duplicates = await tx.distributionTarget.findMany({
@@ -610,7 +623,8 @@ export class DistributionService {
     )
       return {
         code: "HANDOFF_SESSION_DEAD",
-        message: "已交付资料绑定的分发会话已撤销、过期或不存在，需要人工按永久 TM 核对",
+        message:
+          "已交付资料绑定的分发会话已撤销、过期或不存在，需要人工按永久 TM 核对",
       };
     if (
       attempt.startedAt &&
@@ -623,11 +637,7 @@ export class DistributionService {
     return null;
   }
 
-  private async handoffScope(
-    tx: Tx,
-    channelId: string,
-    action?: string,
-  ) {
+  private async handoffScope(tx: Tx, channelId: string, action?: string) {
     const channel = await tx.channel.findUnique({ where: { id: channelId } });
     if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
     const stopOnly = !channel.active || channel.businessPurpose !== "TRADE";
@@ -721,8 +731,7 @@ export class DistributionService {
         });
         if (!channel)
           throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
-        const stopOnly =
-          !channel.active || channel.businessPurpose !== "TRADE";
+        const stopOnly = !channel.active || channel.businessPurpose !== "TRADE";
         if (stopOnly) {
           const unresolvedStops = await tx.distributionAttempt.count({
             where: {
@@ -822,8 +831,7 @@ export class DistributionService {
       throw new Fault("CARD_NOT_LISTING", "客户资料卡不能作为交易发布", 400);
     // Legacy packages may predate Channel.businessPurpose. They cannot be
     // used to create a fresh trade handoff after the account becomes CONTENT.
-    if (p.purpose === "TRADE")
-      requireTradeChannel(p.channel, "交易分发记录");
+    if (p.purpose === "TRADE") requireTradeChannel(p.channel, "交易分发记录");
 
     // An outstanding handoff must be resolved before this account receives a
     // second external publish. It applies even when a newer package was made.
@@ -1028,7 +1036,7 @@ export class DistributionService {
    * Read-only operating view.  It derives one current business state for an
    * Item × Channel pair from the existing Item, frozen package and handoff
    * facts; it deliberately does not persist a second inventory truth.
-  */
+   */
   async operations(raw: unknown) {
     const input = operationalInput.parse(raw),
       now = new Date(),
@@ -1056,6 +1064,7 @@ export class DistributionService {
         active: true,
         businessPurpose: true,
         locale: true,
+        titleLimit: true,
         defaultCurrency: true,
       },
       orderBy: { createdAt: "asc" },
@@ -1069,97 +1078,54 @@ export class DistributionService {
         summary: { total: 0, states: {}, channels: [] },
       };
 
-    const items = await this.db.item.findMany({
-      where: {
-        deletedAt: null,
-        dataMode: "BUSINESS",
-        ...(pinned
-          ? { id: pinned.itemId }
-          : {
-              OR: [
-                { status: "AVAILABLE" },
-                { distributionAttempts: { some: {} } },
-              ],
-            }),
-      },
-      select: {
-        id: true,
-        serial: true,
-        title: true,
-        brand: true,
-        category: true,
-        status: true,
-        approvedValid: true,
-        approvedId: true,
-        currentPrice: true,
-        currency: true,
-        ownership: true,
-        cycle: true,
-        facts: true,
-        updatedAt: true,
-        assets: {
-          select: {
-            id: true,
-            rights: true,
-            verified: true,
-            validUntil: true,
-            role: true,
-            origin: true,
-            archived: true,
-          },
-        },
-        offers: {
-          where: { status: "CONFIRMED", validUntil: { gt: now } },
-          select: { id: true },
-        },
-        waivers: {
-          where: { status: "ACTIVE" },
-          select: { id: true, code: true, category: true },
-        },
-        channelPrices: {
-          select: {
-            channelId: true,
-            amount: true,
-            currency: true,
+    const channelIds = channels.map((channel) => channel.id);
+    // An operating pair exists only when there is an active TRADE intent or
+    // an actual historical Attempt/Listing.  Do not manufacture Item × Channel
+    // rows from inventory, packages, or inactive content channels.
+    const scopedPair = {
+      channelId: { in: channelIds },
+      item: { deletedAt: null, dataMode: "BUSINESS" },
+      ...(pinned ? { itemId: pinned.itemId, channelId: pinned.channelId } : {}),
+    };
+    const [activeTargets, historicalAttempts, historicalListings] =
+      await Promise.all([
+        this.db.distributionTarget.findMany({
+          where: {
+            ...scopedPair,
             active: true,
-            version: true,
+            channel: { businessPurpose: "TRADE" },
           },
-        },
-        distributionTargets: {
-          select: { channelId: true, active: true },
-        },
-        publishingDrafts: {
-          where: { purpose: "TRADE" },
-          select: {
-            channelId: true,
-            title: true,
-            body: true,
-            basisRevisionId: true,
-            basisPrice: true,
-            basisCurrency: true,
-            basisPriceSource: true,
-            basisPriceVersion: true,
-          },
-        },
-      },
-      orderBy: { serial: "asc" },
-    });
-    const needle = input.q.toLocaleLowerCase(),
-      brandNeedle = input.brand.toLocaleLowerCase();
-    const selectedItems = items.filter((item) => {
-      if (pinned) return item.id === pinned.itemId;
-      const tmCode = tm(item.serial).toLocaleLowerCase();
-      return (
-        (!brandNeedle || item.brand.toLocaleLowerCase().includes(brandNeedle)) &&
-        (!needle ||
-          [item.title, item.brand, tmCode, String(item.serial)].some((value) =>
-            value.toLocaleLowerCase().includes(needle),
-          ))
-      );
-    });
-    const itemIds = selectedItems.map((item) => item.id),
-      channelIds = channels.map((channel) => channel.id);
-    if (!itemIds.length)
+          select: { itemId: true, channelId: true },
+          distinct: ["itemId", "channelId"],
+        }),
+        this.db.distributionAttempt.findMany({
+          where: scopedPair,
+          select: { itemId: true, channelId: true },
+          distinct: ["itemId", "channelId"],
+        }),
+        this.db.listing.findMany({
+          where: scopedPair,
+          select: { itemId: true, channelId: true },
+          distinct: ["itemId", "channelId"],
+        }),
+      ]);
+    const pair = (itemId: string, channelId: string) =>
+      `${itemId}:${channelId}`;
+    const pairRows = new Map<string, { itemId: string; channelId: string }>();
+    const activeTargetKeys = new Set<string>(),
+      historyKeys = new Set<string>();
+    for (const row of activeTargets) {
+      const key = pair(row.itemId, row.channelId);
+      activeTargetKeys.add(key);
+      pairRows.set(key, row);
+    }
+    for (const row of [...historicalAttempts, ...historicalListings]) {
+      const key = pair(row.itemId, row.channelId);
+      historyKeys.add(key);
+      pairRows.set(key, row);
+    }
+    const scopedPairs = [...pairRows.values()];
+    if (!scopedPairs.length)
       return {
         rows: [],
         total: 0,
@@ -1179,13 +1145,67 @@ export class DistributionService {
           })),
         },
       };
-
-    const [attempts, packages, listings] = await Promise.all([
-      this.db.distributionAttempt.findMany({
+    const pairWhere = {
+      OR: scopedPairs.map(({ itemId, channelId }) => ({ itemId, channelId })),
+    };
+    const scopedItemIds = [...new Set(scopedPairs.map((row) => row.itemId))];
+    const [
+      items,
+      attempts,
+      packages,
+      listings,
+      channelPrices,
+      targets,
+      drafts,
+    ] = await Promise.all([
+      this.db.item.findMany({
         where: {
-          itemId: { in: itemIds },
-          channelId: { in: channelIds },
+          id: { in: scopedItemIds },
+          deletedAt: null,
+          dataMode: "BUSINESS",
         },
+        select: {
+          id: true,
+          deletedAt: true,
+          serial: true,
+          title: true,
+          brand: true,
+          category: true,
+          status: true,
+          approvedValid: true,
+          approvedId: true,
+          currentPrice: true,
+          currency: true,
+          ownership: true,
+          cycle: true,
+          facts: true,
+          updatedAt: true,
+          assets: {
+            select: {
+              id: true,
+              position: true,
+              createdAt: true,
+              rights: true,
+              verified: true,
+              validUntil: true,
+              role: true,
+              origin: true,
+              archived: true,
+            },
+          },
+          offers: {
+            where: { status: "CONFIRMED", validUntil: { gt: now } },
+            select: { id: true },
+          },
+          waivers: {
+            where: { status: "ACTIVE" },
+            select: { id: true, code: true, category: true },
+          },
+        },
+        orderBy: { serial: "asc" },
+      }),
+      this.db.distributionAttempt.findMany({
+        where: pairWhere,
         select: {
           id: true,
           itemId: true,
@@ -1209,15 +1229,12 @@ export class DistributionService {
         },
       }),
       this.db.usePackage.findMany({
-        where: {
-          itemId: { in: itemIds },
-          channelId: { in: channelIds },
-          purpose: "TRADE",
-        },
+        where: pairWhere,
         select: {
           id: true,
           itemId: true,
           channelId: true,
+          purpose: true,
           revisionId: true,
           cycle: true,
           snapshot: true,
@@ -1227,10 +1244,7 @@ export class DistributionService {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.db.listing.findMany({
-        where: {
-          itemId: { in: itemIds },
-          channelId: { in: channelIds },
-        },
+        where: pairWhere,
         select: {
           id: true,
           itemId: true,
@@ -1242,8 +1256,73 @@ export class DistributionService {
           observedAt: true,
         },
       }),
+      this.db.channelPrice.findMany({
+        where: pairWhere,
+        select: {
+          itemId: true,
+          channelId: true,
+          amount: true,
+          currency: true,
+          active: true,
+          version: true,
+        },
+      }),
+      this.db.distributionTarget.findMany({
+        where: pairWhere,
+        select: { itemId: true, channelId: true, active: true },
+      }),
+      this.db.publishingDraft.findMany({
+        where: { ...pairWhere, purpose: "TRADE" },
+        select: {
+          itemId: true,
+          channelId: true,
+          title: true,
+          body: true,
+          assetIds: true,
+          basisRevisionId: true,
+          basisPrice: true,
+          basisCurrency: true,
+          basisPriceSource: true,
+          basisPriceVersion: true,
+        },
+      }),
     ]);
-    const pair = (itemId: string, channelId: string) => `${itemId}:${channelId}`;
+    const needle = input.q.toLocaleLowerCase(),
+      brandNeedle = input.brand.toLocaleLowerCase();
+    const selectedItems = items.filter((item) => {
+      if (pinned) return item.id === pinned.itemId;
+      const tmCode = tm(item.serial).toLocaleLowerCase();
+      return (
+        (!brandNeedle ||
+          item.brand.toLocaleLowerCase().includes(brandNeedle)) &&
+        (!needle ||
+          [item.title, item.brand, tmCode, String(item.serial)].some((value) =>
+            value.toLocaleLowerCase().includes(needle),
+          ))
+      );
+    });
+    const itemIds = selectedItems.map((item) => item.id);
+    if (!itemIds.length)
+      return {
+        rows: [],
+        total: 0,
+        page: input.page,
+        size: input.size,
+        summary: {
+          total: 0,
+          states: {},
+          channels: channels.map((channel) => ({
+            channel: {
+              id: channel.id,
+              name: channel.name,
+              platform: channel.platform,
+              active: channel.active,
+            },
+            counts: {},
+          })),
+        },
+      };
+
     const attemptsByPair = new Map<string, OperationalAttemptWithPackage[]>();
     for (const row of attempts) {
       const key = pair(row.itemId, row.channelId);
@@ -1265,6 +1344,24 @@ export class DistributionService {
       const rows = listingsByPair.get(key) || [];
       rows.push(row);
       listingsByPair.set(key, rows);
+    }
+    const channelById = new Map(
+      channels.map((channel) => [channel.id, channel]),
+    );
+    const priceByPair = new Map(
+      channelPrices.map((row) => [pair(row.itemId, row.channelId), row]),
+    );
+    const targetByPair = new Map(
+      targets.map((row) => [pair(row.itemId, row.channelId), row]),
+    );
+    const draftByPair = new Map(
+      drafts.map((row) => [pair(row.itemId, row.channelId), row]),
+    );
+    const channelsByItem = new Map<string, string[]>();
+    for (const scopedPair of scopedPairs) {
+      const rows = channelsByItem.get(scopedPair.itemId) || [];
+      rows.push(scopedPair.channelId);
+      channelsByItem.set(scopedPair.itemId, rows);
     }
     const toPublicAttempt = (
       row: OperationalAttemptWithPackage | null,
@@ -1302,46 +1399,53 @@ export class DistributionService {
     for (const item of selectedItems) {
       const facts = factsSchema.parse(item.facts);
       const usableAssets = new Map(
-        item.assets.filter((asset) => assetUsable(asset)).map((asset) => [asset.id, asset]),
+        item.assets
+          .filter((asset) => assetUsable(asset))
+          .map((asset) => [asset.id, asset]),
       );
       const activeWaivers = item.waivers.filter(
         (waiver) => waiver.category === item.category,
       );
       const activeWaiverIds = new Set(activeWaivers.map((waiver) => waiver.id));
-      for (const channel of channels) {
+      for (const channelId of channelsByItem.get(item.id) || []) {
+        const channel = channelById.get(channelId);
+        if (!channel) continue;
         const key = pair(item.id, channel.id),
           pairAttempts = attemptsByPair.get(key) || [],
-          pairListings = listingsByPair.get(key) || [],
-          hasHistory = pairAttempts.length > 0 || pairListings.length > 0,
-          activeTarget = item.distributionTargets.some(
-            (target) => target.channelId === channel.id && target.active,
-          );
+          hasHistory = historyKeys.has(key),
+          activeTarget = activeTargetKeys.has(key);
         // Operating rows begin with an explicit current TRADE target.  A real
         // historic Attempt/Listing remains visible even after that intent is
         // closed or the account changes purpose, because it can still need a
         // local stop record.  Packages alone are not an external exposure.
-        if (!hasHistory && !(activeTarget && channel.businessPurpose === "TRADE"))
+        if (
+          !hasHistory &&
+          !(activeTarget && channel.businessPurpose === "TRADE")
+        )
           continue;
 
-        const override = item.channelPrices.find(
-          (price) => price.channelId === channel.id && price.active,
-        );
+        const override = priceByPair.get(key);
         const price = override
-          ? {
-              amount: override.amount,
-              currency: override.currency,
-              source: "CHANNEL" as const,
-              version: override.version,
-            }
+          ? override.active
+            ? {
+                amount: override.amount,
+                currency: override.currency,
+                source: "CHANNEL" as const,
+                version: override.version,
+              }
+            : {
+                amount: item.currentPrice,
+                currency: item.currency,
+                source: "ITEM" as const,
+                version: null,
+              }
           : {
               amount: item.currentPrice,
               currency: item.currency,
               source: "ITEM" as const,
               version: null,
             };
-        const draft = item.publishingDrafts.find(
-          (candidate) => candidate.channelId === channel.id,
-        );
+        const draft = draftByPair.get(key) || null;
         const sameDraftBasis =
           !!draft &&
           item.approvedValid &&
@@ -1380,6 +1484,7 @@ export class DistributionService {
           channel.active &&
           channel.businessPurpose === "TRADE";
         const currentPackage = (candidate: (typeof packages)[number]) => {
+          if (candidate.purpose !== "TRADE") return false;
           const snapshot = packageSnapshot.safeParse(candidate.snapshot);
           if (!snapshot.success) return false;
           const samePriceBasis = snapshot.data.priceBasis
@@ -1421,15 +1526,21 @@ export class DistributionService {
             );
           }),
         );
+        const healthPackage = currentPublication?.packageId
+          ? packageById.get(currentPublication.packageId) || null
+          : null;
         const health = currentPublication
-          ? await this.db.$transaction((tx) =>
-              this.publicationHealth.evaluatePublicationHealth(
-                tx,
-                item.id,
-                channel.id,
-                currentPublication.id,
-              ),
-            )
+          ? evaluateLoadedPublicationHealth({
+              now,
+              item,
+              channel,
+              target: targetByPair.get(key) || null,
+              packageRow: healthPackage,
+              price,
+              assets: item.assets,
+              validSupplierOffer: item.offers.length > 0,
+              draft,
+            })
           : null;
         const openStop = newest(
           pairAttempts.filter(
@@ -1460,9 +1571,8 @@ export class DistributionService {
               staleHours,
             )
           : null;
-        const publishedPackage = currentPublication?.packageId
-          ? packageById.get(currentPublication.packageId)
-          : null;
+        const publishedPackage =
+          healthPackage?.purpose === "TRADE" ? healthPackage : null;
         let state: OperationalState | null = null,
           attempt: OperationalAttemptWithPackage | null = null;
         if (activeStandardHandoff && handoffAttention) {
@@ -1500,7 +1610,8 @@ export class DistributionService {
         } else if (input.attemptId) {
           const cancelled = pairAttempts.find(
             (candidate) =>
-              candidate.id === input.attemptId && candidate.state === "CANCELLED",
+              candidate.id === input.attemptId &&
+              candidate.state === "CANCELLED",
           );
           if (cancelled) {
             state = "CANCELLED";
@@ -1541,7 +1652,10 @@ export class DistributionService {
                 observedAt: listing.observedAt,
               }
             : null,
-          missing: missing.map((entry) => ({ code: entry.code, title: entry.title })),
+          missing: missing.map((entry) => ({
+            code: entry.code,
+            title: entry.title,
+          })),
           health,
           updatedAt:
             newestFact?.finishedAt ||
@@ -1968,7 +2082,8 @@ export class DistributionService {
             row.id,
           )
         : null;
-    const mustStop = item.status !== "AVAILABLE" || health?.state === "MUST_STOP";
+    const mustStop =
+      item.status !== "AVAILABLE" || health?.state === "MUST_STOP";
     const delistAttemptIds =
       finalResult.state === "SUCCEEDED" &&
       ["PUBLISH", "UPDATE"].includes(row.action) &&
@@ -2232,7 +2347,10 @@ export class DistributionService {
     const requestHash = hash(input);
     return this.db.$transaction(
       async (tx) => {
-        await lock(tx, `machine-distribution:${session.id}:${operation}:${key}`);
+        await lock(
+          tx,
+          `machine-distribution:${session.id}:${operation}:${key}`,
+        );
         await lock(tx, `distribution-session:${session.id}`);
         const live = await tx.distributionSession.findUnique({
           where: { id: session.id },
@@ -2515,7 +2633,11 @@ export class DistributionService {
         recordId: attempt.id,
         action: attempt.action,
         tm: tm(item.serial),
-        channel: { id: channel.id, name: channel.name, platform: channel.platform },
+        channel: {
+          id: channel.id,
+          name: channel.name,
+          platform: channel.platform,
+        },
         package: null,
         platformData: await this.platformDataForHandoff(tx, attempt),
       };
@@ -2572,10 +2694,17 @@ export class DistributionService {
             "需要核对的记录只能由人工在原记录完成核对，不能再次交付",
             409,
           );
-        if (attempt.state === "RUNNING" && attempt.claimedBySessionId !== session.id)
+        if (
+          attempt.state === "RUNNING" &&
+          attempt.claimedBySessionId !== session.id
+        )
           throw new Fault("HANDOFF_OWNED", "该分发资料已交给另一受限会话", 409);
-        if (!['PENDING', 'RUNNING'].includes(attempt.state))
-          throw new Fault("HANDOFF_NOT_AVAILABLE", "当前分发记录不能交付资料", 409);
+        if (!["PENDING", "RUNNING"].includes(attempt.state))
+          throw new Fault(
+            "HANDOFF_NOT_AVAILABLE",
+            "当前分发记录不能交付资料",
+            409,
+          );
         if (attempt.state === "RUNNING")
           return this.handoffPackagePayload(tx, attempt);
 
@@ -2602,7 +2731,12 @@ export class DistributionService {
               session.createdBy,
               "DISTRIBUTION_HANDOFF_FAILED",
               failed.itemId,
-              { recordId: failed.id, action: failed.action, errorCode, reason: "package-stale" },
+              {
+                recordId: failed.id,
+                action: failed.action,
+                errorCode,
+                reason: "package-stale",
+              },
             );
             await event(tx, failed.itemId, "DISTRIBUTION_ATTEMPT_RESULT", {
               attemptId: failed.id,
@@ -2650,7 +2784,11 @@ export class DistributionService {
     );
   }
 
-  async handoffAsset(session: AgentSession, attemptId: string, assetId: string) {
+  async handoffAsset(
+    session: AgentSession,
+    attemptId: string,
+    assetId: string,
+  ) {
     return this.db.$transaction(async (tx) => {
       const attempt = await tx.distributionAttempt.findFirst({
         where: { id: attemptId, channelId: session.channelId },
@@ -2661,15 +2799,34 @@ export class DistributionService {
         attempt.state !== "RUNNING" ||
         attempt.claimedBySessionId !== session.id
       )
-        throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+        throw new Fault(
+          "HANDOFF_REQUIRED",
+          "请先取得当前会话的标准交付资料",
+          409,
+        );
       if (!attempt.packageId)
-        throw new Fault("ASSET_UNAVAILABLE", "该停售交付只提供永久 TM 身份", 404);
-      const { s, assets } = await this.publishing.validPackage(tx, attempt.packageId);
+        throw new Fault(
+          "ASSET_UNAVAILABLE",
+          "该停售交付只提供永久 TM 身份",
+          404,
+        );
+      const { s, assets } = await this.publishing.validPackage(
+        tx,
+        attempt.packageId,
+      );
       if (!s.assets.some((image) => image.id === assetId))
-        throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前冻结使用包", 403);
+        throw new Fault(
+          "ASSET_NOT_IN_PACKAGE",
+          "图片不属于当前冻结使用包",
+          403,
+        );
       const asset = assets.find((row) => row.id === assetId);
       if (!asset)
-        throw new Fault("ASSET_NOT_IN_PACKAGE", "图片不属于当前冻结使用包", 403);
+        throw new Fault(
+          "ASSET_NOT_IN_PACKAGE",
+          "图片不属于当前冻结使用包",
+          403,
+        );
       return {
         mime: asset.mime,
         filename: `${asset.id}.${asset.mime.split("/")[1] || "bin"}`,
@@ -2710,15 +2867,30 @@ export class DistributionService {
             409,
           );
         if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(attempt.state)) {
-          if (attempt.claimedBySessionId === session.id && sameResult(attempt, result))
-            return { recordId: attempt.id, status: attempt.state, existing: true };
-          throw new Fault("ATTEMPT_RESULT_CONFLICT", "该分发记录已有不同结果", 409);
+          if (
+            attempt.claimedBySessionId === session.id &&
+            sameResult(attempt, result)
+          )
+            return {
+              recordId: attempt.id,
+              status: attempt.state,
+              existing: true,
+            };
+          throw new Fault(
+            "ATTEMPT_RESULT_CONFLICT",
+            "该分发记录已有不同结果",
+            409,
+          );
         }
         if (
           attempt.state !== "RUNNING" ||
           attempt.claimedBySessionId !== session.id
         )
-          throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+          throw new Fault(
+            "HANDOFF_REQUIRED",
+            "请先取得当前会话的标准交付资料",
+            409,
+          );
         const finished = await this.finish(
           tx,
           attempt,
@@ -2727,7 +2899,11 @@ export class DistributionService {
           "STANDARD_HANDOFF_REPORTED",
           false,
         );
-        return { recordId: finished.id, status: finished.state, listingId: finished.listingId };
+        return {
+          recordId: finished.id,
+          status: finished.state,
+          listingId: finished.listingId,
+        };
       },
     );
   }
@@ -2768,7 +2944,11 @@ export class DistributionService {
           attempt.state !== "RUNNING" ||
           attempt.claimedBySessionId !== session.id
         )
-          throw new Fault("HANDOFF_REQUIRED", "请先取得当前会话的标准交付资料", 409);
+          throw new Fault(
+            "HANDOFF_REQUIRED",
+            "请先取得当前会话的标准交付资料",
+            409,
+          );
         const finished = await this.finish(
           tx,
           attempt,
@@ -2782,7 +2962,9 @@ export class DistributionService {
     );
   }
 
-  private async distributionProfile(session: AgentSession): Promise<DistributionProfile> {
+  private async distributionProfile(
+    session: AgentSession,
+  ): Promise<DistributionProfile> {
     const channel = await this.db.channel.findUnique({
       where: { id: session.channelId },
       select: { platform: true },

@@ -305,7 +305,7 @@ test("有模拟成交也能从删除窗口清理，保留历史金额并显示�
     .getByLabel("我确认关联成交、费用和退款仅为测试，没有真实交易和资金往来")
     .check();
   await page
-    .getByLabel("我确认没有仍在对外销售的真实商品，关联发布记录仅为测试")
+    .getByLabel("我确认没有仍在对外销售的真实商品，关联远端身份记录仅为测试")
     .check();
   await page
     .getByRole("button", { name: "确认清理测试数据", exact: true })

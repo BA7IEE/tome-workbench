@@ -173,10 +173,6 @@ export class TrashController {
             snapshot: json(await snapshot(tx, updated)),
           },
         });
-        await tx.task.updateMany({
-          where: { itemId: id, kind: "PREPARE", status: "OPEN" },
-          data: { status: "CANCELLED" },
-        });
         await tx.exceptionIntent.updateMany({
           where: { itemId: id, status: "ACTIVE" },
           data: { status: "CANCELLED" },

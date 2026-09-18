@@ -152,15 +152,18 @@ test("手机顶级业务导航全部可达", async ({ page }) => {
     page.getByRole("link", { name: "导入记录", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "设置", exact: true }),
+    page.getByRole("link", { name: "更多", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "设置", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "商品分发", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "更多", exact: true }).click();
   await page.getByText("其他业务记录与维护工具", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "经营待办", exact: true }),
   ).toBeVisible();
   await page.locator(".library-tools details.nav-group > summary").filter({ hasText: /^销售$/ }).click();
-  await page.getByRole("link", { name: "发布记录", exact: true }).click();
+  await page.getByRole("link", { name: "远端身份记录", exact: true }).click();
   await expect(page).toHaveURL(/#\/listings/);
 });
 
@@ -170,7 +173,7 @@ test("正式商品列表状态标签克制，页头只保留一个主动作", as
     page.getByRole("heading", { name: "商品", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "＋ 快速录货", exact: true }),
+    page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "从货源导入", exact: true }),
@@ -701,7 +704,7 @@ test("最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖", as
       .left,
   }));
   expect(layout.aside).toBe(layout.workspace);
-  await page.getByRole("button", { name: "＋ 快速录货", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
   const d = page.getByRole("dialog");
   const margins = await d.evaluate((el) => ({
     head: getComputedStyle(el.querySelector("header")).marginBottom,

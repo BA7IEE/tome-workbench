@@ -43,8 +43,8 @@ export function quickIntake(
   const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
     <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>最多100张；单张20MB以内；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div><p class="quick-intake-upload-status" role="status" aria-live="polite"></p></section>`;
   form(
-    "快速录货",
-    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">先把货记下来。尺寸、材质、鉴定、英文和发布资料以后再补。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
+    "快速录入我方现货",
+    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">这里只录入已经实际在手的我方现货。尺寸、材质、鉴定、英文和发布资料以后再补。</p><p class="quick-intake-boundary">供应商持有、寄售或远端货源请到 <a href="#/sources" data-quick-source>货源与供应商</a> 处理；“图片来源＝供应商提供”只说明图片出处，不会把商品变成供应商持有。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
     async (d, key) => {
       if (!formEl) throw new Error("录货窗口尚未准备完成");
       const files = d
@@ -73,6 +73,7 @@ export function quickIntake(
         category: text(d, "category"),
         currentPrice: cents(d.get("price")),
         currency: text(d, "currency"),
+        ownership: "OWN",
         facts: { conditionGrade: picked.labels.condition || "" },
       };
       if (statusEl)
@@ -112,8 +113,8 @@ export function quickIntake(
               [
                 "sourceNote",
                 origin === "SUPPLIER"
-                  ? "快速录货上传的供应商图片，待核对授权"
-                  : "快速录货上传的自有实拍，待核对实物",
+                  ? "快速录入我方现货时附带的供应商图片，待核对授权"
+                  : "快速录入我方现货时附带的自有实拍，待核对实物",
               ],
             ],
           };
@@ -225,6 +226,9 @@ export function quickIntake(
   const input = formEl.elements.namedItem("photos") as HTMLInputElement,
     preview = formEl.querySelector<HTMLElement>(".quick-intake-previews")!,
     drop = formEl.querySelector<HTMLElement>(".quick-intake-drop")!;
+  formEl
+    .querySelector<HTMLAnchorElement>("[data-quick-source]")
+    ?.addEventListener("click", () => dialog.close(), { signal: scope.signal });
   let urls: string[] = [];
   const fileList = () => [...(input.files || [])];
   const replaceFiles = (files: File[]) => {

@@ -41,7 +41,7 @@ test("无hash登录后默认进入工作台而不是全量商品库", async ({ p
 test("快速录货先校验图片，坏文件不会留下半成品TM", async ({ page }) => {
   const title = "预校验不建档 " + randomUUID();
   await page.goto("/#/items");
-  await page.getByRole("button", { name: "＋ 快速录货", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("商品名称", { exact: true }).fill(title);
   await dialog.getByLabel("商品图片", { exact: true }).setInputFiles({
@@ -240,7 +240,7 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
       await expect(other.getByRole("link", { name: "销售", exact: true })).toHaveCount(permission(role, "sell") ? 1 : 0);
       await other.goto("/#/items");
       await expect(other.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
-      await expect(other.getByRole("button", { name: "＋ 快速录货", exact: true })).toHaveCount(permission(role, "edit") ? 1 : 0);
+      await expect(other.getByRole("button", { name: "＋ 快速录入我方现货", exact: true })).toHaveCount(permission(role, "edit") ? 1 : 0);
       const users = await other.request.get("/api/auth/users");
       expect(users.status()).toBe(permission(role, "users") ? 200 : 403);
     } finally { await account.close(); }

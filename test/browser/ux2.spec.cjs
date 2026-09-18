@@ -38,7 +38,7 @@ test("新建商品首屏提供保存和下载资料，发布从更多进入", as
 });
 test("次要保存动作放入更多菜单，不和主动作抢界面", async ({ page }) => {
   await page.goto("/#/items/new");
-  await page.getByText("更多", { exact: true }).click();
+  await page.locator("#content").getByText("更多", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "保存并返回", exact: true }),
   ).toBeVisible();

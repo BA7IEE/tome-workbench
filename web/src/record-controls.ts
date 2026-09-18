@@ -58,7 +58,7 @@ export function recordFilters(
       { signal },
     ),
   );
-  return `<form id="${id}" class="admin-filter-form">${field("q", kind === "sales" ? "搜索成交商品" : "搜索商品", qs.get("q") || "", "text", false, 'placeholder="商品编号或名称"')}${field("channel", "渠道", qs.get("channel") || "")}${kind !== "listings" ? field("customer", "客户", qs.get("customer") || "") : ""}${kind === "inquiries" ? select("state", "跟进状态", { "": "全部状态", OPEN: "待跟进", FOLLOWUP: "跟进中", WON: "已转化", LOST: "未成交" }, qs.get("state") || "") : ""}${kind === "listings" ? select("listingState", "发布状态", { "": "全部状态", LIVE: "保持在线", OFFLINE: "要求下架" }, qs.get("listingState") || "") : ""}${kind === "sales" && can("finance") ? select("pending", "收支核对", { "": "全部记录", "1": "待补收支" }, qs.get("pending") || "") : ""}${kind !== "inquiries" && can("users") ? select("dataMode", kind === "sales" ? "成交记录类型" : "发布记录类型", { BUSINESS: "正式记录", TEST: "模拟记录（含已清理）" }, qs.get("dataMode") || "BUSINESS") : ""}${field("dateFrom", "开始日期", qs.get("dateFrom") || "", "date")}${field("dateTo", "结束日期", qs.get("dateTo") || "", "date")}<button class="btn primary">查询</button><a class="btn" href="${esc(contextHref(route, qs, true))}">重置</a></form>`;
+  return `<form id="${id}" class="admin-filter-form">${field("q", kind === "sales" ? "搜索成交商品" : "搜索商品", qs.get("q") || "", "text", false, 'placeholder="商品编号或名称"')}${field("channel", "渠道", qs.get("channel") || "")}${kind !== "listings" ? field("customer", "客户", qs.get("customer") || "") : ""}${kind === "inquiries" ? select("state", "跟进状态", { "": "全部状态", OPEN: "待跟进", FOLLOWUP: "跟进中", WON: "已转化", LOST: "未成交" }, qs.get("state") || "") : ""}${kind === "listings" ? select("listingState", "远端状态", { "": "全部状态", LIVE: "保持在线", OFFLINE: "要求下架" }, qs.get("listingState") || "") : ""}${kind === "sales" && can("finance") ? select("pending", "收支核对", { "": "全部记录", "1": "待补收支" }, qs.get("pending") || "") : ""}${kind !== "inquiries" && can("users") ? select("dataMode", kind === "sales" ? "成交记录类型" : "远端身份记录类型", { BUSINESS: "正式记录", TEST: "模拟记录（含已清理）" }, qs.get("dataMode") || "BUSINESS") : ""}${field("dateFrom", "开始日期", qs.get("dateFrom") || "", "date")}${field("dateTo", "结束日期", qs.get("dateTo") || "", "date")}<button class="btn primary">查询</button><a class="btn" href="${esc(contextHref(route, qs, true))}">重置</a></form>`;
 }
 export function recordPaging(
   route: string,
@@ -74,7 +74,9 @@ export function recordPaging(
 }
 export function safeReturn(value: string | null) {
   return value &&
-    /^#\/(items|candidates|procurement|tasks|collections|sales|inquiries|listings)(?:[/?]|$)/.test(value)
+    /^#\/(items|candidates|procurement|tasks|collections|sales|inquiries|listings)(?:[/?]|$)/.test(
+      value,
+    )
     ? value
     : "";
 }

@@ -47,6 +47,20 @@
         ]
       }
     },
+    "/api/costing/orders/previews": {
+      "post": {
+        "operationId": "CostingController_previews",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "商品取得成本"
+        ]
+      }
+    },
     "/api/costing/orders/{id}/basis": {
       "post": {
         "operationId": "CostingController_basis",

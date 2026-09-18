@@ -69,7 +69,7 @@ export async function cleanupTestData(
     ) +
     check(
       "noRealPublication",
-      "我确认没有仍在对外销售的真实商品，关联发布记录仅为测试",
+      "我确认没有仍在对外销售的真实商品，关联远端身份记录仅为测试",
     ) +
     (confirmed.length
       ? check(
