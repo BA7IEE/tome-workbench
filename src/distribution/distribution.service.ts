@@ -48,6 +48,7 @@ import {
   DISTRIBUTION_SKILL_ID,
   DISTRIBUTION_SKILL_NAME,
   DISTRIBUTION_SKILL_VERSION,
+  GENERIC_STOP_PROFILE,
   profileForPlatform,
   readDistributionProfileDocument,
   readDistributionSkillDocument,
@@ -515,7 +516,8 @@ export class DistributionService {
             );
           requireTradeChannel(channel, "分发经营目标");
           if (!existing?.active) {
-            const [duplicates, exposures, legacyListing] = await Promise.all([
+            const [duplicates, exposures, legacyListing, outstandingHandoff] =
+              await Promise.all([
               tx.distributionTarget.findMany({
                 where: {
                   itemId,
@@ -538,6 +540,16 @@ export class DistributionService {
                 },
                 select: { id: true, channelId: true },
               }),
+              tx.distributionAttempt.findFirst({
+                where: {
+                  itemId,
+                  channelId: { not: channelId },
+                  action: { in: ["PUBLISH", "UPDATE"] },
+                  state: { in: ["PENDING", "RUNNING", "UNKNOWN"] },
+                  channel: { is: { platform: channel.platform } },
+                },
+                select: { id: true, channelId: true },
+              }),
             ]);
             const exposureChannelIds = [
               ...new Set(
@@ -556,7 +568,12 @@ export class DistributionService {
                 })
               : [];
             if (
-              (duplicates.length || exposureChannels.length || legacyListing) &&
+              (
+                duplicates.length ||
+                exposureChannels.length ||
+                legacyListing ||
+                outstandingHandoff
+              ) &&
               !input.duplicatePlatformConfirmed
             )
               throw new Fault(
@@ -1014,21 +1031,52 @@ export class DistributionService {
         action: exact.action,
         reason: "SAME_PACKAGE" as const,
       };
-    const dedupeKey =
-      exact?.state === "CANCELLED" && target?.active
-        ? `${baseDedupeKey}:target:${target.version}`
-        : baseDedupeKey;
-    if (dedupeKey !== baseDedupeKey) {
-      const resumed = await tx.distributionAttempt.findUnique({
-        where: { dedupeKey },
-      });
-      if (resumed)
-        return {
-          p,
-          existing: resumed,
-          action: resumed.action,
-          reason: "SAME_PACKAGE" as const,
-        };
+    let dedupeKey = baseDedupeKey;
+    if (exact?.state === "CANCELLED") {
+      if (target?.active) {
+        dedupeKey = `${baseDedupeKey}:target:${target.version}`;
+        const resumed = await tx.distributionAttempt.findUnique({
+          where: { dedupeKey },
+        });
+        if (resumed)
+          return {
+            p,
+            existing: resumed,
+            action: resumed.action,
+            reason: "SAME_PACKAGE" as const,
+          };
+      } else {
+        const prefix = `${baseDedupeKey}:after-cancel:`;
+        const [liveLegacyRetry, cancelledRetries] = await Promise.all([
+          tx.distributionAttempt.findFirst({
+            where: {
+              itemId: p.itemId,
+              channelId: p.channelId,
+              action,
+              state: { not: "CANCELLED" },
+              dedupeKey: { startsWith: prefix },
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          }),
+          tx.distributionAttempt.count({
+            where: {
+              itemId: p.itemId,
+              channelId: p.channelId,
+              action,
+              state: "CANCELLED",
+              dedupeKey: { startsWith: prefix },
+            },
+          }),
+        ]);
+        if (liveLegacyRetry)
+          return {
+            p,
+            existing: liveLegacyRetry,
+            action: liveLegacyRetry.action,
+            reason: "SAME_PACKAGE" as const,
+          };
+        dedupeKey = `${prefix}${cancelledRetries + 1}`;
+      }
     }
     return {
       p,
@@ -3127,10 +3175,14 @@ export class DistributionService {
   ): Promise<DistributionProfile> {
     const channel = await this.db.channel.findUnique({
       where: { id: session.channelId },
-      select: { platform: true },
+      select: { platform: true, active: true, businessPurpose: true },
     });
     if (!channel) throw new Fault("CHANNEL_NOT_FOUND", "渠道账号不存在", 404);
-    const profile = profileForPlatform(channel.platform);
+    const stopOnly =
+      !channel.active || channel.businessPurpose !== "TRADE";
+    const profile =
+      profileForPlatform(channel.platform) ||
+      (stopOnly ? GENERIC_STOP_PROFILE : undefined);
     if (!profile)
       throw new Fault(
         "DISTRIBUTION_PROFILE_UNAVAILABLE",

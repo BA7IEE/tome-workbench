@@ -128,6 +128,7 @@ export const required = [
   "agent/skills/tome-distribution/profiles/GRAILED.md",
   "agent/skills/tome-distribution/profiles/CAROUSELL.md",
   "agent/skills/tome-distribution/profiles/GENERIC.md",
+  "agent/skills/tome-distribution/profiles/GENERIC_STOP.md",
   "tools/tome-ingest/cli.mjs",
   "tools/tome-ingest/client.mjs",
   "tools/tome-ingest/state.mjs",
