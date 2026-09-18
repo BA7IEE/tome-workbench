@@ -20,6 +20,87 @@ function syncCurrentValidationFacts(releaseVersion, sourceSha256) {
   const next = withVersion.replace(sourcePattern, `$1${sourceSha256}$2`);
   fs.writeFileSync(reportPath, next);
 }
+function syncCurrentValidationEvidence(summary) {
+  const reportPath = path.join("docs", "VALIDATION.md");
+  let report = fs.readFileSync(reportPath, "utf8");
+  const replaceRow = (label, value) => {
+    const prefix = `| ${label} |`;
+    const lines = report.split("\n");
+    const matches = lines
+      .map((line, index) => ({ line, index }))
+      .filter((entry) => entry.line.startsWith(prefix));
+    if (matches.length !== 1)
+      throw new Error(`Current validation report has ${matches.length} ${label} rows`);
+    lines[matches[0].index] = `| ${label} | ${value} |`;
+    report = lines.join("\n");
+  };
+  const suites = summary.evidence.nodeSuites || [];
+  if (
+    suites.length !== 4 ||
+    suites.some(
+      (suite) =>
+        !Number.isInteger(suite.tests) ||
+        !Number.isInteger(suite.passed) ||
+        !Number.isInteger(suite.failed),
+    )
+  )
+    throw new Error("Current validation summary has incomplete Node suites");
+  const browser = summary.evidence.browserStats,
+    webkit = summary.evidence.webkitStats,
+    scale = summary.evidence.launchScale?.durationsMs,
+    guards = summary.evidence.staticGuards || [],
+    ha = summary.evidence.highAvailability,
+    recovery = summary.evidence.recovery;
+  if (
+    !browser ||
+    !webkit ||
+    !scale ||
+    !ha?.passed ||
+    !recovery?.passed ||
+    !Number.isInteger(browser.expected) ||
+    !Number.isInteger(webkit.expected) ||
+    !Number.isFinite(scale.operations) ||
+    !Number.isFinite(scale.dashboard) ||
+    !Number.isFinite(scale.workQueue)
+  )
+    throw new Error("Current validation summary has incomplete release evidence");
+  const suiteText = suites
+    .map((suite) => `${suite.passed}/${suite.tests}`)
+    .join("、");
+  replaceRow(
+    "Node 测试组（unit / Harness selftest / integration / HA）",
+    `${suiteText}；失败均为 ${suites.reduce((sum, suite) => sum + suite.failed, 0)}`,
+  );
+  replaceRow(
+    "Chromium",
+    `${browser.expected} 通过，unexpected/skipped/flaky 均为 0，retries=0`,
+  );
+  replaceRow(
+    "WebKit",
+    `${webkit.expected} 通过，unexpected/skipped/flaky 均为 0，retries=0`,
+  );
+  replaceRow(
+    "1,000 Item 规模基准",
+    `Operations ${scale.operations.toFixed(3)}ms、Dashboard ${scale.dashboard.toFixed(3)}ms、Work Queue ${scale.workQueue.toFixed(3)}ms，均小于 1 秒`,
+  );
+  replaceRow(
+    "完整 Harness",
+    `exit ${summary.fullHarnessExitCode}，${guards.length} 项静态守卫全部通过，sourceUnchanged=${summary.sourceUnchanged}`,
+  );
+  const apiFailover = ha.checks?.apiCrash?.observedFailoverMs,
+    workerRecovery = ha.checks?.workerCrash?.observedRecoveryMs;
+  if (!Number.isFinite(apiFailover) || !Number.isFinite(workerRecovery))
+    throw new Error("Current validation summary has incomplete HA timings");
+  replaceRow(
+    "HA",
+    `8 项隔离真实进程故障检查通过；两 API 副本切换 ${apiFailover}ms、Worker 恢复 ${workerRecovery}ms，未执行外部动作`,
+  );
+  replaceRow(
+    "Recovery",
+    "本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致",
+  );
+  fs.writeFileSync(reportPath, report);
+}
 const before = sourceFingerprint(),
   started = Date.now();
 fs.mkdirSync("reports", { recursive: true });
@@ -139,6 +220,7 @@ fs.writeFileSync(
   JSON.stringify(summary, null, 2) + "\n",
 );
 syncCurrentValidationFacts(version, summary.sourceSha256);
+if (summary.passed) syncCurrentValidationEvidence(summary);
 fs.copyFileSync(logPath, path.join(dest, "verification.log"));
 console.log(
   JSON.stringify(

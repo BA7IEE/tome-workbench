@@ -24,7 +24,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 渠道币种与成交补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。前向 migration `202609180017_inquiry_followup` 新增 `Inquiry.nextFollowUpAt` 与索引：FOLLOWUP 必须给出下次跟进时间，OPEN/WON/LOST 不保留日程；工作队列把逾期 FOLLOWUP 提升为 90、今天 FOLLOWUP/新 OPEN 为 85、未来 FOLLOWUP 为 55。询盘转 Sale 严格保留 `Inquiry.currency`；配置账号直接成交以有效渠道价币种或账号要求币种为准，未配置账号使用 Item 币种。只有 CNY Sale 自动冻结 CNY 成本，外币 Sale 的成本保持 NULL。没有 FX basis 的外币结算确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`，没有实时汇率、自动定价或 FX 引擎，也不改写已有外币 Sale。
 
-运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
+运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。 主工作队列现在与分发经营投影保持一致：已交付超过时限或其分发会话失效的记录也进入 DISTRIBUTION 待办；外币 Sale 的空成本不再被描述为缺人民币成本，而明确显示为待确认外币结算依据。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
 
 ## 自动维护约束
 

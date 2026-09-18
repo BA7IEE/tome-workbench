@@ -21,10 +21,10 @@
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.5.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.6.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.5/summary.json)、
-[audit.json](validation/1.1.0-rc.5/audit.json)、[verification.log](validation/1.1.0-rc.5/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.6/summary.json)、
+[audit.json](validation/1.1.0-rc.6/audit.json)、[verification.log](validation/1.1.0-rc.6/verification.log)。
 
 ## v1.1-rc.5 发布安全
 
