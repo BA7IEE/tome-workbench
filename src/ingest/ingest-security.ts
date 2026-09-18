@@ -15,14 +15,18 @@ const sensitiveKeys = new Set([
   "sessionid",
   "apikey",
   "authkey",
-  "signature",
 ]);
 
 const sensitiveUrlKeys = new Set([
   ...sensitiveKeys,
+  "signature",
   "sig",
   "xamzsignature",
+  "xamzcredential",
+  "xamzsecuritytoken",
   "xgoogsignature",
+  "xgoogcredential",
+  "keypairid",
   "signedtoken",
 ]);
 
