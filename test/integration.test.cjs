@@ -6801,10 +6801,43 @@ test("Ingest credential security：宽松来源事实拒绝凭据字段与带签
   );
   assert.equal(blockedUrl.status, 400);
   assert.equal(blockedUrl.data.error.code, "INGEST_SENSITIVE_DATA_DENIED");
+
+  const signedCdnCandidate = structuredClone(fixture);
+  signedCdnCandidate.externalKey = "SIGNED-CDN-" + suffix;
+  signedCdnCandidate.sourceItemKey = "SIGNED-CDN-" + suffix;
+  signedCdnCandidate.sourceFacts.productUrl =
+    "https://example.invalid/product/" +
+    suffix +
+    "?X-Amz-Credential=synthetic&X-Amz-Signature=synthetic";
+  const blockedSignedCdn = await machineApi(
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    "POST",
+    { candidates: [signedCdnCandidate] },
+  );
+  assert.equal(blockedSignedCdn.status, 400);
+  assert.equal(
+    blockedSignedCdn.data.error.code,
+    "INGEST_SENSITIVE_DATA_DENIED",
+  );
+
+  const legitimateSignatureFact = structuredClone(fixture);
+  legitimateSignatureFact.externalKey = "LEGIT-SIGNATURE-" + suffix;
+  legitimateSignatureFact.sourceItemKey = "LEGIT-SIGNATURE-" + suffix;
+  legitimateSignatureFact.rawPayload = {
+    signature: "Signature canvas product family",
+  };
+  const accepted = await machineOk(
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    "POST",
+    { candidates: [legitimateSignatureFact] },
+  );
+  assert.equal(accepted.rows.length, 1);
   assert.equal(
     await db.ingestCandidate.count({
       where: { procurementSourceId: source.id },
     }),
-    0,
+    1,
   );
 });
