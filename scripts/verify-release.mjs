@@ -147,6 +147,15 @@ console.log(
       passed: summary.passed,
       fullHarnessExitCode: exitCode,
       sourceUnchanged: summary.sourceUnchanged,
+      sourceSha256: summary.sourceSha256,
+      nodeSuites: summary.evidence.nodeSuites || [],
+      browserExpected: summary.evidence.browserStats?.expected ?? null,
+      webkitExpected: summary.evidence.webkitStats?.expected ?? null,
+      launchScaleDurationsMs:
+        summary.evidence.launchScale?.durationsMs || null,
+      highAvailabilityPassed:
+        summary.evidence.highAvailability?.passed ?? null,
+      recoveryPassed: summary.evidence.recovery?.passed ?? null,
       error,
       log: logPath,
       summary: path.join(dest, "summary.json"),
