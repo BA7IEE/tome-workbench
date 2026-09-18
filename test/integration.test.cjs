@@ -166,6 +166,28 @@ async function ready(extra = {}) {
   return { ...r, asset: a.id };
 }
 async function pack(id, ch = channel, purpose = "TRADE") {
+  if (purpose === "TRADE") {
+    const targetChannel = await db.channel.findUniqueOrThrow({
+      where: { id: ch.id },
+    });
+    if (targetChannel.active && targetChannel.businessPurpose === "TRADE")
+      await db.distributionTarget.upsert({
+        where: { itemId_channelId: { itemId: id, channelId: ch.id } },
+        create: {
+          itemId: id,
+          channelId: ch.id,
+          active: true,
+          note: "合成测试 fixture 明确交易经营目标",
+          createdBy: admin.id,
+          updatedBy: admin.id,
+        },
+        update: {
+          active: true,
+          note: "合成测试 fixture 明确交易经营目标",
+          updatedBy: admin.id,
+        },
+      });
+  }
   return ok(`/items/${id}/packages`, "POST", {
     channelId: ch.id,
     purpose,
@@ -6482,7 +6504,39 @@ test("Distribution target/profile guard：历史在线暴露参与同平台确�
   });
   const i = await ready();
   const p = await pack(i.id, firstChannel);
-  const first = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await db.distributionTarget.delete({
+    where: { itemId_channelId: { itemId: i.id, channelId: firstChannel.id } },
+  });
+  const missingTarget = await api("/distribution/plan", "POST", {
+    packageId: p.id,
+  });
+  assert.equal(missingTarget.status, 409);
+  assert.equal(
+    missingTarget.data.error.code,
+    "DISTRIBUTION_TARGET_REQUIRED",
+  );
+  await db.distributionAttempt.create({
+    data: {
+      itemId: i.id,
+      channelId: firstChannel.id,
+      packageId: p.id,
+      action: "PUBLISH",
+      state: "SUCCEEDED",
+      dedupeKey: "legacy-no-target:" + randomUUID(),
+      createdBy: admin.id,
+      finishedAt: new Date(),
+      evidence: { method: "TM_SEARCH", note: "合成历史在线暴露，没有经营目标。" },
+    },
+  });
+  const first = await db.distributionAttempt.findFirstOrThrow({
+    where: {
+      itemId: i.id,
+      channelId: firstChannel.id,
+      action: "PUBLISH",
+      state: "SUCCEEDED",
+    },
+    orderBy: { createdAt: "desc" },
+  });
   await ok(`/distribution/attempts/${first.id}/manual-result`, "POST", {
     state: "SUCCEEDED",
     evidence: {
@@ -6546,10 +6600,44 @@ test("Distribution target/profile guard：历史在线暴露参与同平台确�
 });
 
 
-test("Distribution legacy edge：无Target的历史 CANCELLED 同包可安全生成新记录，同平台进行中交付也要求确认", async () => {
+test("Distribution legacy edge：历史 CANCELLED 事实保留但新的发布仍须明确Target，同平台进行中交付也要求确认", async () => {
   const i = await ready();
   const p = await pack(i.id);
-  const cancelled = await ok("/distribution/plan", "POST", { packageId: p.id });
+  await db.distributionTarget.delete({
+    where: { itemId_channelId: { itemId: i.id, channelId: channel.id } },
+  });
+  const cancelled = await db.distributionAttempt.create({
+    data: {
+      itemId: i.id,
+      channelId: channel.id,
+      packageId: p.id,
+      action: "PUBLISH",
+      state: "CANCELLED",
+      dedupeKey: "legacy-cancelled:" + randomUUID(),
+      createdBy: admin.id,
+      finishedAt: new Date(),
+      errorCode: "SYNTHETIC_CANCELLED",
+      errorMessage: "合成历史记录取消",
+    },
+  });
+  const withoutTarget = await api("/distribution/plan", "POST", {
+    packageId: p.id,
+  });
+  assert.equal(withoutTarget.status, 409);
+  assert.equal(
+    withoutTarget.data.error.code,
+    "DISTRIBUTION_TARGET_REQUIRED",
+  );
+  await db.distributionTarget.create({
+    data: {
+      itemId: i.id,
+      channelId: channel.id,
+      active: true,
+      note: "合成历史数据重新明确经营目标",
+      createdBy: admin.id,
+      updatedBy: admin.id,
+    },
+  });
   await db.distributionAttempt.update({
     where: { id: cancelled.id },
     data: {
