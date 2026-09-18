@@ -44,6 +44,8 @@ jobs:
           path: |
             reports/
             release/*.zip
+            docs/VALIDATION.md
+            docs/validation/
             data/browser-artifacts/**/*.png
             data/browser-artifacts/**/error-context.md
             data/browser-webkit-artifacts/**/*.png
