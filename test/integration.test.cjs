@@ -6641,6 +6641,6 @@ test("Distribution legacy stop：没有专用发布 Profile 的停用/内容渠�
   );
   assert.equal(protocol.profile.id, "GENERIC_STOP/1.0");
   const rows = await distributionHandoffOk("/handoffs", session.token);
-  assert.deepEqual(rows.map((row) => row.id), [stop.id]);
+  assert.deepEqual(rows.map((row) => row.recordId), [stop.id]);
   assert.deepEqual(rows.map((row) => row.action), ["DELIST"]);
 });
