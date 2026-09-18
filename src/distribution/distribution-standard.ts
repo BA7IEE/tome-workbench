@@ -14,6 +14,13 @@ export type DistributionProfile = {
   file: string;
 };
 
+export const GENERIC_STOP_PROFILE: DistributionProfile = {
+  id: "GENERIC_STOP/1.0",
+  name: "Generic stop-only channel",
+  platform: "*",
+  file: "GENERIC_STOP.md",
+};
+
 const profiles: readonly DistributionProfile[] = [
   {
     id: "ANQICMS/1.0",
