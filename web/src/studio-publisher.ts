@@ -164,7 +164,9 @@ export class StudioPublisher {
     const g = ++this.generation;
     try {
       this.channels = (await request<Channel[]>("/channels")).filter(
-        (c) => c.active,
+        (channel) =>
+          channel.active &&
+          (this.use !== "TRADE" || channel.businessPurpose === "TRADE"),
       );
       if (this.o.signal.aborted || g !== this.generation) return;
       if (!this.channels.length) {
