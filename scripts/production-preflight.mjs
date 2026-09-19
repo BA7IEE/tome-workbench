@@ -21,6 +21,7 @@ const compose = [
   project,
   "-f",
   "compose.production.yaml",
+  ...(externalProxy ? [] : ["--profile", "internal-proxy"]),
   "--env-file",
   path.join(dir, "compose.env"),
 ];
