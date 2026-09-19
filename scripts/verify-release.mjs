@@ -23,6 +23,18 @@ function syncCurrentValidationFacts(releaseVersion, sourceSha256) {
 function syncCurrentValidationEvidence(summary) {
   const reportPath = path.join("docs", "VALIDATION.md");
   let report = fs.readFileSync(reportPath, "utf8");
+  const completionPattern =
+    /^(?:远端|本地)完整验证完成：[^\n]*验证源码指纹为$/m;
+  if (!completionPattern.test(report))
+    throw new Error("Current validation report has no completion evidence line");
+  const runId = process.env.GITHUB_RUN_ID || "",
+    headSha = process.env.GITHUB_SHA || "";
+  report = report.replace(
+    completionPattern,
+    runId
+      ? `远端完整验证完成：\`${summary.finishedAt}\`（GitHub Actions run \`${runId}\`，checkout \`${headSha}\`）。验证源码指纹为`
+      : `本地完整验证完成：\`${summary.finishedAt}\`。验证源码指纹为`,
+  );
   const replaceRow = (label, value) => {
     const prefix = `| ${label} |`;
     const lines = report.split("\n");
@@ -214,6 +226,15 @@ const summary = {
   error,
   evidence,
   productionDeployment: false,
+  ...(process.env.GITHUB_RUN_ID
+    ? {
+        ci: {
+          runId: Number(process.env.GITHUB_RUN_ID),
+          checkoutSha: process.env.GITHUB_SHA || "",
+          event: process.env.GITHUB_EVENT_NAME || "",
+        },
+      }
+    : {}),
 };
 fs.writeFileSync(
   summaryPath,
