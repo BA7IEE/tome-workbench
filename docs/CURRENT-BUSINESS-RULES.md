@@ -3,7 +3,7 @@
 1. **TM 商品身份**：一件实物一个永久 TM，同款不同实物可有多个 TM。外部货号、订单、RMA 和 Agent 都是来源证据。ItemSourceLink 为长期多来源关系，Item.sourceId 仅兼容。
 2. **来源与确认**：Agent 只能走通用 ingest session/batch/candidate。所有新机器 Batch 必须提交 v1.2 的 protocolVersion、Skill 与服务端指定 Profile；缺 metadata 的新请求拒绝，legacy 只限数据库已存在且同键同清单的历史事实。Profile 必查项与 Agent 声明项共同进入封批检查，不能由客户端降低。来源 Sold/Shipped、成色、颜色、尺码和金额保留原文，不自动改库存或标准化。候选必须人工确认；默认 PAUSED，明确核对可用 AVAILABLE。
 3. **候选完整性和身份**：完整性、缺原图、身份冲突不能批量豁免。可接受来源缺项逐候选绑定版本。精确同图只是证据，但必须阻断静默重复建档；同图不同实物要逐件确认和审计。关联已有 TM 不改现有状态、人工资料、价格、批准。
-4. **采购与成本**：订单行金额、来源当前价、零售价、人民币取得成本独立；没有确认支付/汇率依据不得分摊。保留人工 businessDecision/possession/TM 关联。采购 Source 生成要求 INCLUDE + IN_HAND。RMA/退款/排除需要明确最终经济支付依据；Sale 成本是历史快照，不能因后续采购修正反改。
+4. **采购与成本**：订单行原价、逐件折后金额、来源当前价、零售价、人民币取得成本独立；未知金额留空，不能互相冒充。没有确认支付/汇率依据不得分摊。TRR 成本规则使用逐件折后金额作权重；任一保留商品缺少正数折后金额即阻断，不得退回原价比例猜测。现金、Store Credit 与退款按确认后的经济支付口径处理。保留人工 businessDecision/possession/TM 关联。采购 Source 生成要求 INCLUDE + IN_HAND。RMA/退款/排除需要明确最终经济支付依据；Sale 成本是历史快照，不能因后续采购修正反改。
 5. **库存和财务**：同件不得重复售出，item lock、DB 唯一约束、版本保护保留。不明确冲突记 Observation/PAUSED。快速停售不受财务缺项阻塞；人工库存观察不编造收入。未知金额 NULL，不能跨币种合计。financial-journal 和账期保护不放松，对账不是法定财务或自动协议解释。
 6. **权限与幂等**：所有写入保留原命令键，相同键不同载荷冲突。重放前重验账户、Session 和角色。业务/Audit/Receipt/Outbox 同事务。登录失效或明确拒绝不能证明之前未知响应的写入未发生。
 7. **素材与快照**：原图不可覆盖；预览单独保存。来源 URL 不授予 PUBLIC 权利。图片来源、用途、授权和复核独立。UsePackage/MaterialExport 冻结，下载不等于第三方发布。旧下载重验商品与图片元数据、权利、版本及原字节；INTERNAL 重放重验 finance，默认不带成本、私密文件、内部备注。

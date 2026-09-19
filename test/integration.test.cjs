@@ -2613,22 +2613,22 @@ test('Studio review cannot omit marked defects and does not overwrite existing a
 
 function trrSample(procurementSourceId){
   const rows=[
-    ["WDI571039","Diane von Furstenberg","Silk Midi Length Dress",19500],
-    ["WDI581338","Diane von Furstenberg","Wool Knee-Length Dress",12500],
-    ["GIO194599","Giorgio Armani","Virgin Wool Houndstooth Print Blazer",6500],
-    ["WDI580085","Diane von Furstenberg","Nylon Long Dress",19500],
-    ["LAN245875","Lanvin","Linen Mini Dress",13500],
-    ["LAN244886","Lanvin","Silk Knee-Length Dress w/ Tags",21000],
-    ["LAN245375","Lanvin","Silk Knee-Length Dress",17500],
+    ["WDI571039","Diane von Furstenberg","Silk Midi Length Dress",19500,7800],
+    ["WDI581338","Diane von Furstenberg","Wool Knee-Length Dress",12500,10000],
+    ["GIO194599","Giorgio Armani","Virgin Wool Houndstooth Print Blazer",6500,5200],
+    ["WDI580085","Diane von Furstenberg","Nylon Long Dress",19500,13650],
+    ["LAN245875","Lanvin","Linen Mini Dress",13500,8100],
+    ["LAN244886","Lanvin","Silk Knee-Length Dress w/ Tags",21000,14700],
+    ["LAN245375","Lanvin","Silk Knee-Length Dress",17500,12250],
   ];
-  const lines=rows.map(([sku,brand,title,lineAmount])=>({
+  const lines=rows.map(([sku,brand,title,lineAmount,sourceLineNetAmount])=>({
     lineKey:sku,sourceSku:sku,title,brandRaw:brand,categoryRaw:"Women / Clothing / Dresses",
     productUrl:`https://example.invalid/trr/${sku}`,currency:"USD",lineAmount,
-    sourceCurrentPrice:null,sourceEstimatedRetail:null,sourceConditionRaw:"",sourceStatusRaw:"",
+    sourceLineNetAmount,sourceCurrentPrice:null,sourceEstimatedRetail:null,sourceConditionRaw:"",sourceStatusRaw:"",
     sizeLabelRaw:"",colorRaw:"",materialRaw:"",measurements:{},measurementsEstimated:false,
     descriptionRaw:"",imageUrls:[],rawPayload:{synthetic:true},
   }));
-  Object.assign(lines[0],{sourceCurrentPrice:7800,sourceEstimatedRetail:40000,sourceConditionRaw:"Excellent",sourceStatusRaw:"Sold",sizeLabelRaw:"XL",colorRaw:"Blue",materialRaw:"100% Silk; Lining 97% Polyester, 3% Spandex",measurements:{Bust:"37 in",Waist:"29 in",Hip:"29 in",Length:"44.5 in"},measurementsEstimated:true,descriptionRaw:"Synthetic TRR detail sample",imageUrls:["https://example.invalid/1.jpg","https://example.invalid/2.jpg","https://example.invalid/3.jpg"]});
+  Object.assign(lines[0],{sourceEstimatedRetail:40000,sourceConditionRaw:"Excellent",sourceStatusRaw:"Sold",sizeLabelRaw:"XL",colorRaw:"Blue",materialRaw:"100% Silk; Lining 97% Polyester, 3% Spandex",measurements:{Bust:"37 in",Waist:"29 in",Hip:"29 in",Length:"44.5 in"},measurementsEstimated:true,descriptionRaw:"Synthetic TRR detail sample",imageUrls:["https://example.invalid/1.jpg","https://example.invalid/2.jpg","https://example.invalid/3.jpg"]});
   return {procurementSourceId,externalOrderNo:"R648780020",orderedAt:"2026-06-27T12:00:00.000Z",sourceStatusRaw:"Shipped",returnabilityRaw:"Not returnable",currency:"USD",subtotalAmount:110000,totalAmount:70200,paymentAmount:70200,rawPayload:{synthetic:true},lines,
     adjustments:[
       {adjustmentKey:"SHIPPING",kind:"SHIPPING",label:"Shipping",amount:6000,currency:"USD"},
@@ -2651,9 +2651,10 @@ test("采购订单保留TRR原始事实，不把平台状态和价格偷换成�
   assert.equal(first.lineCount,7);assert.equal(second.unchanged,true);
   const order=await ok("/procurement/orders/"+first.id);
   assert.equal(order.lines.length,7);assert.equal(order.shipments.length,2);assert.equal(order.adjustments.length,6);
+  assert.equal(order.procurementSource.costAllocationMethod,'PROPORTIONAL_LINE_NET_AMOUNT');
   assert.equal(order.lines.reduce((s,x)=>s+x.lineAmount,0),110000);
   assert.equal(order.totalAmount,70200);assert.equal(order.lines[0].lineAmount,19500);
-  assert.equal(order.lines[0].sourceCurrentPrice,7800);assert.equal(order.lines[0].sourceEstimatedRetail,40000);
+  assert.equal(order.lines[0].sourceLineNetAmount,7800);assert.equal(order.lines[0].sourceCurrentPrice,null);assert.equal(order.lines[0].sourceEstimatedRetail,40000);
   assert.equal(order.lines[0].sourceConditionRaw,"Excellent");assert.equal(order.lines[0].businessDecision,"UNDECIDED");assert.equal(order.lines[0].possession,"UNKNOWN");
   assert.equal(await db.item.count(),before.items);assert.equal(await db.source.count(),before.sources);assert.equal(await db.costEntry.count(),before.costs);assert.equal(await db.purchaseCostConfirmation.count(),before.confirmed);
 });
@@ -2667,7 +2668,7 @@ test("采购订单行只有人工确认在手且纳入经营后才能进入货�
   const candidate=await ok(`/procurement/lines/${line.id}/source-candidate`,"POST",{});
   const raw=await db.source.findUniqueOrThrow({where:{id:candidate.id}});
   assert.equal(raw.purchaseLineId,line.id);assert.equal(raw.payload.ownership,"OWN");
-  assert.equal(raw.payload.sourceConditionRaw,"Excellent");assert.equal(raw.payload.sourceLineAmount,19500);
+  assert.equal(raw.payload.sourceConditionRaw,"Excellent");assert.equal(raw.payload.sourceLineAmount,19500);assert.equal(raw.payload.sourceLineNetAmount,7800);
   assert.equal(raw.payload.category,"CLOTHING");assert.equal(raw.payload.sourceCategoryRaw,"Women / Clothing / Dresses");
   assert.equal(raw.payload.quotedCost,undefined);
   const itemCreated=await ok("/items","POST",{sourceId:candidate.id,title:line.title,brand:line.brandRaw,category:"CLOTHING"});
@@ -2700,11 +2701,11 @@ test("采购来源再次导入只更新来源事实，保留人工经营判断�
   const original=trrSample(source.id),first=await ok("/procurement/orders/import","POST",original);
   let order=await ok("/procurement/orders/"+first.id),line=order.lines.find(x=>x.sourceSku==="WDI571039");
   await ok(`/procurement/lines/${line.id}/review`,"POST",{version:line.version,businessDecision:"INCLUDE",possession:"IN_HAND",reviewNote:"人工经营判断不能被平台刷新覆盖"});
-  const changed=structuredClone(original);changed.lines[0].sourceCurrentPrice=7600;changed.lines[0].sourceStatusRaw="Sold / observed later";
+  const changed=structuredClone(original);changed.lines[0].sourceLineNetAmount=7600;changed.lines[0].sourceStatusRaw="Sold / observed later";
   const second=await ok("/procurement/orders/import","POST",changed,admin,randomUUID());
   assert.equal(second.version,2);
   order=await ok("/procurement/orders/"+first.id);line=order.lines.find(x=>x.sourceSku==="WDI571039");
-  assert.equal(line.sourceCurrentPrice,7600);assert.equal(line.businessDecision,"INCLUDE");assert.equal(line.possession,"IN_HAND");
+  assert.equal(line.sourceLineNetAmount,7600);assert.equal(line.businessDecision,"INCLUDE");assert.equal(line.possession,"IN_HAND");
   assert.equal(line.reviewNote,"人工经营判断不能被平台刷新覆盖");
   const revisions=await ok(`/procurement/lines/${line.id}/revisions`);
   assert.equal(revisions.length,2);assert.equal(order.revisions.length,2);
@@ -2845,7 +2846,7 @@ async function setupAgentTrr(label='Agent TRR'){
   const candidates=orderInput.lines.map(line=>({
     externalKey:`TRR:${orderInput.externalOrderNo}:${line.lineKey}`,sourceItemKey:line.sourceSku,purchaseLineId:byKey.get(line.lineKey).id,
     titleRaw:line.title,brandRaw:line.brandRaw,categoryRaw:line.categoryRaw,conditionRaw:line.sourceConditionRaw,statusRaw:line.sourceStatusRaw,currency:line.currency,
-    sourceLineAmount:line.lineAmount,sourceCurrentPrice:line.sourceCurrentPrice,sourceEstimatedRetail:line.sourceEstimatedRetail,
+    sourceLineAmount:line.lineAmount,sourceLineNetAmount:line.sourceLineNetAmount,sourceCurrentPrice:line.sourceCurrentPrice,sourceEstimatedRetail:line.sourceEstimatedRetail,
     sourceFacts:{sizeLabel:line.sizeLabelRaw,color:line.colorRaw,material:line.materialRaw,measurements:line.measurements,descriptionRaw:line.descriptionRaw},rawPayload:{synthetic:true,sku:line.sourceSku},
   }));
   candidates.forEach(standardizeGenericCandidate);
@@ -2869,14 +2870,14 @@ test('v1.1 标准 Agent 协议校验 Skill/Profile，且服务端 Profile 必查
   const source=await ok('/procurement/sources','POST',{code:'TRR-'+suffix,name:'标准协议合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
   const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'标准协议测试',ttlMinutes:60});
   const protocol=await machineOk('/agent-ingest/protocol',session.token);
-  assert.equal(protocol.version,'1.2');assert.equal(protocol.skill.id,'tome-ingest/1.0');assert.equal(protocol.profile.id,'TRR/1.0');assert.ok(protocol.profile.requiredFields.includes('sourceFacts.productUrl'));
+  assert.equal(protocol.version,'1.2');assert.equal(protocol.skill.id,'tome-ingest/1.0');assert.equal(protocol.profile.id,'TRR/1.1');assert.ok(protocol.profile.requiredFields.includes('sourceFacts.productUrl'));assert.ok(protocol.profile.requiredFields.includes('sourceLineNetAmount'));
   const skill=await fetch(origin+'/api/agent-ingest/skill',{headers:{'X-Ingest-Token':session.token}}),profile=await fetch(origin+'/api/agent-ingest/profile',{headers:{'X-Ingest-Token':session.token}});
   const skillMarkdown=await skill.text(),profileMarkdown=await profile.text();
   assert.equal(skill.status,200);assert.match(skill.headers.get('content-type'),/text\/markdown/);assert.match(skillMarkdown,/标准采集 Skill/);assert.equal(createHash('sha256').update(skillMarkdown).digest('hex'),protocol.skill.sha256);
-  assert.equal(profile.status,200);assert.match(profileMarkdown,/TRR\/1\.0/);assert.equal(createHash('sha256').update(profileMarkdown).digest('hex'),protocol.profile.sha256);
-  const incompatible=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-'+suffix,agentName:'old agent',rawManifest:{protocolVersion:'2.0',skillVersion:'tome-ingest/2.0',profile:'TRR/1.0'}});
+  assert.equal(profile.status,200);assert.match(profileMarkdown,/TRR\/1\.1/);assert.equal(createHash('sha256').update(profileMarkdown).digest('hex'),protocol.profile.sha256);
+  const incompatible=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-'+suffix,agentName:'old agent',rawManifest:{protocolVersion:'2.0',skillVersion:'tome-ingest/2.0',profile:'TRR/1.1'}});
   assert.equal(incompatible.status,400);assert.equal(incompatible.data.error.code,'INGEST_PROTOCOL_INCOMPATIBLE');
-  const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/2.0',profile:'TRR/1.0'}});
+  const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/2.0',profile:'TRR/1.1'}});
   assert.equal(skillMismatch.status,400);assert.equal(skillMismatch.data.error.code,'INGEST_SKILL_INCOMPATIBLE');
   const missingMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'missing-'+suffix,agentName:'legacy-shaped new agent',rawManifest:{expectedCandidateKeys:['MISSING-'+suffix]}});
   assert.equal(missingMetadata.status,400);assert.equal(missingMetadata.data.error.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
@@ -2893,7 +2894,7 @@ test('v1.1 标准 Agent 协议校验 Skill/Profile，且服务端 Profile 必查
   await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates:fixture.candidates});
   const complete=await machineOk(`/agent-ingest/batches/${batch.id}`,session.token);
   assert.equal(complete.integrity.blockers.length,0);assert.equal((await machineOk(`/agent-ingest/batches/${batch.id}/seal`,session.token,'POST',{})).status,'SEALED');
-  const weakBatch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'weak-'+suffix,agentName:'weak agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/1.0',profile:'TRR/1.0',expectedCandidateKeys:['WEAK-'+suffix],requiredFields:['titleRaw']}});
+  const weakBatch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'weak-'+suffix,agentName:'weak agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/1.0',profile:'TRR/1.1',expectedCandidateKeys:['WEAK-'+suffix],requiredFields:['titleRaw']}});
   await machineOk(`/agent-ingest/batches/${weakBatch.id}/candidates`,session.token,'POST',{candidates:[{externalKey:'WEAK-'+suffix,titleRaw:'只报名称的合成商品',sourceFacts:{capture:{pageUrl:'https://example.invalid/weak-'+suffix,capturedAt:'2026-09-17T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED',reason:''}],images:[]}}}]});
   const weak=await machineOk(`/agent-ingest/batches/${weakBatch.id}`,session.token);
   assert.ok(weak.integrity.blockers.some(x=>x.includes('缺少字段检查：sourceItemKey')));
@@ -2912,7 +2913,7 @@ test('v1.1 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',
   const bearerListed=await mcpBearerApi(mcpSession.token,{jsonrpc:'2.0',id:12,method:'tools/list',params:{}});assert.equal(bearerListed.status,200);assert.deepEqual(bearerListed.data.result.tools.map(x=>x.name).sort(),names);
   const noStream=await fetch(origin+'/api/mcp/ingest',{headers:{'X-Ingest-Token':mcpSession.token}});assert.equal(noStream.status,405);assert.equal(noStream.headers.get('allow'),'POST');
   const foreignOrigin=await mcpApi(mcpSession.token,{jsonrpc:'2.0',id:3,method:'tools/list',params:{}},{Origin:'https://example.invalid'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.error.code,'MCP_ORIGIN_DENIED');
-  const mcpProtocol=await mcpTool(mcpSession.token,'tome_ingest_get_protocol');assert.equal(mcpProtocol.isError,false);assert.equal(mcpProtocol.value.profile.id,'TRR/1.0');
+  const mcpProtocol=await mcpTool(mcpSession.token,'tome_ingest_get_protocol');assert.equal(mcpProtocol.isError,false);assert.equal(mcpProtocol.value.profile.id,'TRR/1.1');
   const mcpMissingMetadata=await mcpTool(mcpSession.token,'tome_ingest_create_batch',{idempotencyKey:'mcp-missing-'+suffix,batch:{externalBatchKey:'mcp-missing-'+suffix,agentName:'metadata-less agent',rawManifest:{synthetic:true}}});assert.equal(mcpMissingMetadata.isError,true);assert.equal(mcpMissingMetadata.value.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
   const fixture=goldenIngestFixture(), httpBatchInput=structuredClone(fixture.batch), mcpBatchInput=structuredClone(fixture.batch);
   httpBatchInput.externalBatchKey+='-http-'+suffix;mcpBatchInput.externalBatchKey+='-mcp-'+suffix;
@@ -2983,17 +2984,20 @@ test('v1 未识别品牌不会阻断生成TM，标准品牌留空而原始品牌
   const itemRow=await item(result.itemId);assert.equal(itemRow.brand,'');assert.equal(itemRow.status,'AVAILABLE');
   const source=await db.source.findUniqueOrThrow({where:{id:itemRow.sourceId}});assert.equal(source.payload.brandRaw,'UNKNOWN ARCHIVE BRAND 2099');
 });
-test('v1 TRR成本按原价比例分摊经济支付价值并均摊每单¥200，最终人民币成本严格闭合',async()=>{
+test('v1 TRR成本按逐件折后金额分摊经济支付价值并均摊每单¥200，最终人民币成本严格闭合',async()=>{
   const x=await setupAgentTrr('TRR costing source');await sealAgentBatch(x);await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));
   const source=await db.procurementSource.findUniqueOrThrow({where:{id:x.source.id}});
-  await ok(`/costing/sources/${source.id}/policy`,'POST',{version:source.version,orderOverheadCny:20000,costAllocationMethod:'PROPORTIONAL_LINE_AMOUNT',storeCreditAsPayment:true,note:'TRR确认规则：每单200元平均附加成本'});
+  await ok(`/costing/sources/${source.id}/policy`,'POST',{version:source.version,orderOverheadCny:20000,costAllocationMethod:'PROPORTIONAL_LINE_NET_AMOUNT',storeCreditAsPayment:true,note:'TRR确认规则：逐件折后金额分摊，每单200元平均附加成本'});
   const basis=await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:505440,fxMicros:null,foreignEconomicTotalOverride:null,overheadCny:20000,note:'合成测试：$702实际扣款人民币5054.40',confirmed:true});
   const preview=await ok(`/costing/orders/${x.order.id}/preview`);assert.equal(preview.ready,true);assert.equal(preview.foreignEconomicTotal,77700);assert.equal(preview.effectiveFxMicros,7200000);
   assert.equal(preview.economicCny,559440);assert.equal(preview.overheadCny,20000);assert.equal(preview.totalCny,579440);assert.equal(preview.rows.length,7);
+  const firstLine=x.order.lines.find(line=>line.lineKey==='WDI571039');const firstRow=preview.rows.find(row=>row.lineId===firstLine.id);assert.equal(firstRow.allocationAmount,7800);assert.equal(firstRow.purchaseCny,60860);
   assert.equal(preview.rows.reduce((n,r)=>n+r.purchaseCny,0),559440);assert.equal(preview.rows.reduce((n,r)=>n+r.overheadCny,0),20000);assert.equal(preview.rows.reduce((n,r)=>n+r.totalCny,0),579440);
   assert.ok(Math.max(...preview.rows.map(r=>r.overheadCny))-Math.min(...preview.rows.map(r=>r.overheadCny))<=1);
   const commit=await ok(`/costing/orders/${x.order.id}/commit`,'POST',{basisVersion:basis.version,confirmed:true});assert.equal(commit.totalCny,579440);assert.equal(commit.rows.length,7);
   const active=await db.costEntry.findMany({where:{sourceType:'PROCUREMENT_ORDER',sourceRef:{startsWith:x.order.id+':'},status:'ACTIVE'}});assert.equal(active.length,7);assert.equal(active.reduce((n,r)=>n+r.amount,0),579440);
+  const incomplete=structuredClone(x.orderInput);incomplete.lines.find(line=>line.lineKey==='WDI581338').sourceLineNetAmount=null;await machineOk('/agent-ingest/orders',x.session.token,'POST',incomplete);
+  const blocked=await ok(`/costing/orders/${x.order.id}/preview`);assert.equal(blocked.ready,false);assert.ok(blocked.blockers.some(message=>message.includes('缺少有效订单行折后金额')));assert.equal(await db.costEntry.count({where:{sourceType:'PROCUREMENT_ORDER',sourceRef:{startsWith:x.order.id+':'},status:'ACTIVE'}}),7);
 });
 test('v1 RMA或排除商品时自动成本被阻断，必须人工确认本单最终经济支付金额',async()=>{
   const x=await setupAgentTrr('TRR RMA costing');await sealAgentBatch(x);await ok('/ingest/candidates/bulk-confirm','POST',acknowledgedAgentBulkConfirm(x));

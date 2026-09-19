@@ -405,6 +405,7 @@ export class IngestService {
       for (const k of [
         "purchaseLineId",
         "sourceLineAmount",
+        "sourceLineNetAmount",
         "sourceCurrentPrice",
         "sourceEstimatedRetail",
       ] as const)
@@ -443,6 +444,7 @@ export class IngestService {
       statusRaw: input.statusRaw,
       currency: input.currency,
       sourceLineAmount: input.sourceLineAmount,
+      sourceLineNetAmount: input.sourceLineNetAmount,
       sourceCurrentPrice: input.sourceCurrentPrice,
       sourceEstimatedRetail: input.sourceEstimatedRetail,
       sourceFacts: json(input.sourceFacts),
@@ -501,6 +503,7 @@ export class IngestService {
           statusRaw: c.statusRaw,
           currency: c.currency,
           sourceLineAmount: c.sourceLineAmount,
+          sourceLineNetAmount: c.sourceLineNetAmount,
           sourceCurrentPrice: c.sourceCurrentPrice,
           sourceEstimatedRetail: c.sourceEstimatedRetail,
           sourceFacts: c.sourceFacts,
@@ -624,6 +627,7 @@ export class IngestService {
       statusRaw: c.statusRaw,
       currency: c.currency,
       sourceLineAmount: c.sourceLineAmount,
+      sourceLineNetAmount: c.sourceLineNetAmount,
       sourceCurrentPrice: c.sourceCurrentPrice,
       sourceEstimatedRetail: c.sourceEstimatedRetail,
       sourceFacts: c.sourceFacts,

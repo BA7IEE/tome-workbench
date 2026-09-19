@@ -249,8 +249,28 @@ export class CostingService {
       .filter((l) => l.businessDecision === "INCLUDE" && l.itemLink)
       .map((l) => ({ ...l, itemLink: l.itemLink! }));
     if (!retained.length) blockers.push("当前没有已确认保留并关联TM的商品");
-    if (retained.some((l) => !l.lineAmount || l.lineAmount <= 0))
-      blockers.push("部分保留商品缺少有效订单原价，无法按比例分摊");
+    const allocationMethod = order.procurementSource.costAllocationMethod;
+    const supportedMethod = [
+      "PROPORTIONAL_LINE_AMOUNT",
+      "PROPORTIONAL_LINE_NET_AMOUNT",
+    ].includes(allocationMethod);
+    if (!supportedMethod) blockers.push("当前来源成本分摊规则不受支持");
+    const allocationWeight = (line: (typeof retained)[number]) =>
+      allocationMethod === "PROPORTIONAL_LINE_NET_AMOUNT"
+        ? line.sourceLineNetAmount
+        : line.lineAmount;
+    if (
+      supportedMethod &&
+      retained.some((line) => {
+        const weight = allocationWeight(line);
+        return weight === null || weight <= 0;
+      })
+    )
+      blockers.push(
+        allocationMethod === "PROPORTIONAL_LINE_NET_AMOUNT"
+          ? "部分保留商品缺少有效订单行折后金额，不能把整单优惠按原价重新估算"
+          : "部分保留商品缺少有效订单原价，无法按比例分摊",
+      );
     const excluded = order.lines.filter(
       (l) => l.businessDecision === "EXCLUDE",
     );
@@ -295,11 +315,6 @@ export class CostingService {
       blockers.push(
         "采购来源或成本规则在确认后发生变化，请重新确认成本依据，避免沿用旧退款净额",
       );
-    if (
-      order.procurementSource.costAllocationMethod !==
-      "PROPORTIONAL_LINE_AMOUNT"
-    )
-      blockers.push("当前来源成本分摊规则不受支持");
     let foreignTotal: number | null = null,
       effectiveFxMicros: number | null = null,
       economicCny: number | null = null;
@@ -350,7 +365,8 @@ export class CostingService {
       itemId: string;
       code: string;
       title: string;
-      lineAmount: number;
+      lineAmount: number | null;
+      allocationAmount: number;
       purchaseCny: number;
       overheadCny: number;
       totalCny: number;
@@ -376,7 +392,10 @@ export class CostingService {
         : 0;
       const purchase = allocateProportional(
         economicCny + refundCny,
-        retained.map((l) => ({ id: l.id, weight: l.lineAmount! })),
+        retained.map((line) => ({
+          id: line.id,
+          weight: allocationWeight(line)!,
+        })),
       );
       if (itemRefunds.length) {
         const refunds = allocateProportional(
@@ -402,7 +421,8 @@ export class CostingService {
           itemId: l.itemLink.item.id,
           code: `TM${String(l.itemLink.item.serial).padStart(6, "0")}`,
           title: l.itemLink.item.title,
-          lineAmount: l.lineAmount!,
+          lineAmount: l.lineAmount,
+          allocationAmount: allocationWeight(l)!,
           purchaseCny: purchase.get(l.id)!,
           overheadCny: overhead.get(l.id)!,
           totalCny: purchase.get(l.id)! + overhead.get(l.id)!,
@@ -430,6 +450,7 @@ export class CostingService {
         id: order.procurementSource.id,
         name: order.procurementSource.name,
         orderOverheadCny: order.procurementSource.orderOverheadCny,
+        costAllocationMethod: allocationMethod,
         storeCreditAsPayment: order.procurementSource.storeCreditAsPayment,
       },
       basis,
@@ -523,7 +544,12 @@ export class CostingService {
               where: { id: active.id },
               data: { status: "VOID" },
             });
-          const note = `采购订单 ${calc.order.externalOrderNo} 自动成本：采购分摊 ¥${(row.purchaseCny / 100).toFixed(2)} + 每单附加成本分摊 ¥${(row.overheadCny / 100).toFixed(2)}；依据版本 ${basisVersion}`;
+          const weightNote =
+            calc.source.costAllocationMethod ===
+            "PROPORTIONAL_LINE_NET_AMOUNT"
+              ? "订单行折后金额"
+              : "订单原价";
+          const note = `采购订单 ${calc.order.externalOrderNo} 自动成本：按${weightNote}分摊采购款 ¥${(row.purchaseCny / 100).toFixed(2)} + 每单附加成本分摊 ¥${(row.overheadCny / 100).toFixed(2)}；依据版本 ${basisVersion}`;
           const cost = await tx.costEntry.create({
             data: {
               itemId: row.itemId,
@@ -545,6 +571,8 @@ export class CostingService {
             lineId: row.lineId,
             costEntryId: cost.id,
             purchaseCny: row.purchaseCny,
+            allocationMethod: calc.source.costAllocationMethod,
+            allocationAmount: row.allocationAmount,
             overheadCny: row.overheadCny,
             totalCny: row.totalCny,
             basisVersion,

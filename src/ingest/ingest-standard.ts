@@ -34,7 +34,7 @@ const genericMarketplace: IngestProfile = {
 };
 
 const trr: IngestProfile = {
-  id: "TRR/1.0",
+  id: "TRR/1.1",
   name: "The RealReal",
   file: "TRR.md",
   requiredFields: [
@@ -50,6 +50,7 @@ const trr: IngestProfile = {
     "sourceFacts.productUrl",
     "sourceFacts.description",
     "sourceLineAmount",
+    "sourceLineNetAmount",
     "sourceCurrentPrice",
     "sourceEstimatedRetail",
   ],

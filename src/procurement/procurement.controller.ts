@@ -10,6 +10,7 @@ import { Fault } from "../common/errors";
 import { safeText, uuid } from "../common/domain";
 import { itemLock, versionMatch } from "../catalog/catalog.service";
 import {
+  defaultCostAllocationMethod,
   procurementSourceKey,
   sourceCandidatePayload,
 } from "./procurement.logic";
@@ -54,7 +55,12 @@ export class ProcurementController {
           where: { code: b.code },
         });
         if (old) return { id: old.id, existing: true };
-        const row = await tx.procurementSource.create({ data: b });
+        const row = await tx.procurementSource.create({
+          data: {
+            ...b,
+            costAllocationMethod: defaultCostAllocationMethod(b.code),
+          },
+        });
         await audit(tx, r.actor.id, "PROCUREMENT_SOURCE_CREATED", row.id, {
           code: row.code,
           name: row.name,

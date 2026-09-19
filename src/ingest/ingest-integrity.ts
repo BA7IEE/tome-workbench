@@ -139,9 +139,25 @@ export type Integrity = {
   state: "COMPLETE" | "GAPS" | "UNVERIFIED";
   issues: string[];
   blockers: string[];
+  fieldGaps: { label: string; reason: string }[];
+  imageGaps: { label: string; reason: string }[];
   expectedImages: number | null;
   storedImages: number;
 };
+
+function imageVariantKey(image: { sourceUrl?: string }) {
+  if (!image.sourceUrl) return null;
+  try {
+    const url = new URL(image.sourceUrl);
+    const normalized = url.pathname.replace(
+      /_(?:product|enlarged|large|medium|small|thumbnail|thumb)(?=\.[^./]+$)/i,
+      "_variant",
+    );
+    return normalized === url.pathname ? null : `${url.origin}${normalized}`;
+  } catch {
+    return null;
+  }
+}
 export function inspectCapture(
   candidate: Record<string, unknown>,
   assets: IntegrityAsset[],
@@ -153,6 +169,8 @@ export function inspectCapture(
     state: "UNVERIFIED",
     issues: [],
     blockers: [],
+    fieldGaps: [],
+    imageGaps: [],
     expectedImages: null,
     storedImages: assets.length,
   };
@@ -175,9 +193,10 @@ export function inspectCapture(
     if (!c.fields.some((f) => f.path === path))
       result.blockers.push(`缺少字段检查：${path}`);
   for (const f of c.fields) {
-    if (f.status === "UNAVAILABLE")
+    if (f.status === "UNAVAILABLE") {
+      result.fieldGaps.push({ label: f.label, reason: f.reason });
       result.issues.push(`${f.label}：${f.reason}`);
-    else {
+    } else {
       const value = readPath(f.path);
       if (
         value == null ||
@@ -191,9 +210,26 @@ export function inspectCapture(
     }
   }
   if (!c.images.length) result.issues.push("来源图册为0张，请人工核对");
+  const storedHashes = new Set(
+    assets.filter((asset) => !asset.missing).map((asset) => asset.sha256),
+  );
+  const availableVariantKeys = new Set(
+    c.images
+      .filter(
+        (image) =>
+          (image.quality === "ORIGINAL" ||
+            image.quality === "LARGEST_AVAILABLE") &&
+          !!image.sha256 &&
+          storedHashes.has(image.sha256),
+      )
+      .map(imageVariantKey)
+      .filter((key): key is string => !!key),
+  );
   for (const [n, i] of c.images.entries()) {
     if (i.quality === "UNAVAILABLE") {
-      result.issues.push(`第${n + 1}张图片未取得：${i.reason}`);
+      const gap = { label: `第${n + 1}张图片未取得`, reason: i.reason };
+      result.imageGaps.push(gap);
+      result.issues.push(`${gap.label}：${gap.reason}`);
       continue;
     }
     const a = assets.find((a) => a.sha256 === i.sha256);
@@ -203,8 +239,14 @@ export function inspectCapture(
       (a.height !== undefined && a.height !== i.height)
     )
       result.blockers.push(`第${n + 1}张图片实际尺寸与清单不一致`);
-    if (i.quality === "THUMBNAIL")
-      result.issues.push(`第${n + 1}张只有缩略图：${i.reason}`);
+    if (
+      i.quality === "THUMBNAIL" &&
+      !availableVariantKeys.has(imageVariantKey(i) || "")
+    ) {
+      const gap = { label: `第${n + 1}张只有缩略图`, reason: i.reason };
+      result.imageGaps.push(gap);
+      result.issues.push(`${gap.label}：${gap.reason}`);
+    }
   }
   result.issues.push(...result.blockers);
   result.state = result.issues.length ? "GAPS" : "COMPLETE";
