@@ -130,14 +130,18 @@ for (const name of services) {
   }
 }
 if (externalProxy) {
-  let proxyId = "";
-  try {
-    proxyId = execFileSync("docker", [...compose, "ps", "-q", "proxy"], {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    proxyId = "";
-  }
+  const proxyId = execFileSync(
+    "docker",
+    [
+      "ps",
+      "-q",
+      "--filter",
+      `label=com.docker.compose.project=${project}`,
+      "--filter",
+      "label=com.docker.compose.service=proxy",
+    ],
+    { encoding: "utf8" },
+  ).trim();
   check("internal-proxy-not-running", !proxyId);
 }
 const ca = arg("--ca", "");
