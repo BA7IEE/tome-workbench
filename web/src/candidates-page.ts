@@ -96,6 +96,26 @@ const proposalOf = (candidate: Candidate) =>
   !Array.isArray(candidate.proposal)
     ? (candidate.proposal as Record<string, unknown>)
     : {};
+const proposalFields = (candidate: Candidate) => {
+  const fields = proposalOf(candidate).agentFields;
+  return Array.isArray(fields)
+    ? fields.filter(
+        (field): field is Record<string, unknown> =>
+          !!field && typeof field === "object" && !Array.isArray(field),
+      )
+    : [];
+};
+const agentProposalNotice = (candidate: Candidate) => {
+  const fields = proposalFields(candidate);
+  if (!fields.length) return "";
+  const uncertain = fields.filter(
+    (field) =>
+      Number(field.confidence) < 1 || String(field.method) === "INFERRED",
+  ).length;
+  return note(
+    `本候选含 ${fields.length} 项外部Agent整理建议${uncertain ? `，其中 ${uncertain} 项标记为存疑或推断` : ""}。确认后将采用这些建议生成本地字段；来源事实仍原样保留。可先打开“查看来源事实”逐项核对依据。`,
+  );
+};
 const tm = (serial: number) => `TM${String(serial).padStart(6, "0")}`;
 const categoryName = (value: unknown) =>
   categories[String(value)] || String(value || "待确认");
@@ -104,10 +124,18 @@ const candidatePhoto = (candidate: Candidate) =>
     ? `<img src="/api/ingest/candidate-assets/${candidate.assets[0].id}/preview" alt="${esc(candidate.titleRaw)}" loading="lazy">`
     : `<div class="candidate-no-photo"><span>暂无来源图片</span></div>`;
 function candidateEdit(candidate: Candidate, after: () => Promise<void>) {
-  const proposal = proposalOf(candidate);
+  const proposal = proposalOf(candidate),
+    proposalFacts =
+      proposal.facts &&
+      typeof proposal.facts === "object" &&
+      !Array.isArray(proposal.facts)
+        ? (proposal.facts as Record<string, unknown>)
+        : {};
   form(
     "调整待确认商品",
-    note("只调整准备生成TM时使用的本地字段；来源原始数据不会被覆盖。") +
+    note(
+      "只调整准备生成TM时使用的本地字段；可修正或清空存疑的Agent建议，来源原始数据不会被覆盖。",
+    ) +
       field(
         "title",
         "商品名称",
@@ -121,6 +149,11 @@ function candidateEdit(candidate: Candidate, after: () => Promise<void>) {
         categories,
         String(proposal.category || "OTHER"),
       ) +
+      field("material", "材质", proposalFacts.material || "") +
+      field("color", "颜色", proposalFacts.color || "") +
+      field("sizeLabel", "尺码", proposalFacts.sizeLabel || "") +
+      area("measurements", "尺寸", proposalFacts.measurements || "", 4) +
+      area("descriptionZh", "中文介绍", proposalFacts.descriptionZh || "", 6) +
       area("note", "本次调整说明", "", 2),
     (d, key) =>
       request(
@@ -132,6 +165,11 @@ function candidateEdit(candidate: Candidate, after: () => Promise<void>) {
           decision: candidate.decision === "EXCLUDED" ? "EXCLUDED" : "PENDING",
           title: text(d, "title"),
           category: text(d, "category"),
+          material: text(d, "material"),
+          color: text(d, "color"),
+          sizeLabel: text(d, "sizeLabel"),
+          measurements: text(d, "measurements"),
+          descriptionZh: text(d, "descriptionZh"),
           note: text(d, "note"),
         },
         key,
@@ -189,7 +227,7 @@ function createAgentSession(sources: Source[]) {
         key,
       );
       const endpoint = `${location.origin}/api/agent-ingest`;
-      const prompt = `把以下信息作为本次 ToMeBoutique 导入会话使用。\nBase URL: ${endpoint}\nX-Ingest-Token: ${result.token}\n来源: ${result.source.name} (${result.source.code})\n\n先 GET /protocol，确认协议主版本为 1 且标准版本至少 1.2；随后下载并校验返回的 Skill 和当前来源 Profile。创建批次时带 protocolVersion、skillVersion、profile、expectedCandidateKeys 和 requiredFields；服务端会把 Profile 必查项与本次清单合并。逐件提交 sourceFacts.capture 字段/图片检查清单，再通过 multipart 上传原图。只采集来源事实，不要自行判断正式TM、库存、本地成色、人民币成本、售价、成交或发布。结果未知时必须用同一请求体和同一 Idempotency-Key 重试。先读取批次完整性报告，补齐 blocker 后再封闭；网页未提供的资料要注明原因，不能宣称全部收齐。\n\n可使用标准 CLI：TOME_INGEST_BASE_URL 和 TOME_INGEST_TOKEN 后执行 tome-ingest protocol；薄 MCP 入口为 ${location.origin}/api/mcp/ingest，不能上传图片或调用确认/库存/成交/成本/发布工具。`;
+      const prompt = `把以下信息作为本次 ToMeBoutique 导入会话使用。\nBase URL: ${endpoint}\nX-Ingest-Token: ${result.token}\n来源: ${result.source.name} (${result.source.code})\n\n先 GET /protocol，确认协议主版本为 1 且标准版本至少 1.2；随后下载并校验返回的 Skill 和当前来源 Profile。创建批次时带 protocolVersion、skillVersion、profile、expectedCandidateKeys 和 requiredFields；服务端会把 Profile 必查项与本次清单合并。逐件提交 sourceFacts.capture 字段/图片检查清单，再通过 multipart 上传原图。来源事实必须如实保存在 sourceFacts；可另用 agentProposal 按协议字段目录选择下拉值、规范格式或生成中文介绍，每项必须带处理方式、置信度和实际证据引用，不能把推断写成来源事实。不要自行判断正式TM、库存、本地成色等级、真实性、人民币成本、售价、成交、图片公开权或发布。结果未知时必须用同一请求体和同一 Idempotency-Key 重试。先读取批次完整性报告，补齐 blocker 后再封闭；网页未提供的资料要注明原因，不能宣称全部收齐。\n\n可使用标准 CLI：TOME_INGEST_BASE_URL 和 TOME_INGEST_TOKEN 后执行 tome-ingest protocol；薄 MCP 入口为 ${location.origin}/api/mcp/ingest，不能上传图片或调用确认/库存/成交/成本/发布工具。`;
       setTimeout(
         () =>
           viewDialog(
@@ -531,6 +569,7 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
         ? `系统发现来源图片与 ${candidate.possibleDuplicateCount} 件已有TM完全相同。只有确认是另一件实物时才应继续新建。`
         : "确认该候选对应一件新的实际经营实物，系统将生成永久TM编号。",
     ) +
+      agentProposalNotice(candidate) +
       check("confirmed", "我已确认实物在手并应纳入经营") +
       select(
         "status",
@@ -627,6 +666,11 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
     title = String(proposal.title || candidate.titleRaw),
     brand = String(proposal.brandLabel || candidate.brandRaw || "品牌待确认"),
     category = categoryName(proposal.category),
+    agentFields = proposalFields(candidate),
+    uncertainAgentFields = agentFields.filter(
+      (field) =>
+        Number(field.confidence) < 1 || String(field.method) === "INFERRED",
+    ).length,
     warningParts = [
       ...(candidate.possibleDuplicateCount > 0
         ? [`发现 ${candidate.possibleDuplicateCount} 件疑似同一实物的已有TM`]
@@ -640,7 +684,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
   return `<article class="candidate-card" data-candidate="${candidate.id}">
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
     <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
-    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
+    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${agentFields.length ? `<small>Agent整理 ${agentFields.length} 项${uncertainAgentFields ? ` · ${uncertainAgentFields} 项需重点复核` : " · 均标为确定"}</small>` : ""}${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
     <div class="candidate-prices"><span>订单行原价 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
   </article>`;

@@ -312,6 +312,12 @@ MCP 回归分别用 `X-Ingest-Token` 与同一 Token 的 Bearer 头完成 initia
 覆盖 Codex、WorkBuddy 一类桌面 MCP 客户端的两种认证接法，但只使用合成 `tome_test` 资料，
 不宣称已经连接或验收任何外部 Agent 应用。
 
+### v1.2 字段级 Agent 整理建议
+
+`tome-ingest/1.1`、`TRR/1.2` 与 `GENERIC_MARKETPLACE/1.1` 增加可选 `agentProposal`，但不增加内置联网模型或第二套商品真相。协议返回允许的目标字段、输入种类、枚举、长度和格式；服务端逐项校验提取/规范化/翻译/推断方法、0–1 置信度、来源路径和已声明图片哈希。建议只能覆盖标题、现有品牌匹配、一级品类、材质、颜色、尺码、尺寸文本和中文介绍；来源完整性仍只读 `sourceFacts.capture`，机器 Token 仍不能确认候选或写 TM、库存、成色等级、真实性、成本、售价、成交、图片公开权和发布。
+
+`test/unit.test.cjs` 覆盖合法枚举、模型必填、无依据和未声明图片引用拒绝；`test/integration.test.cjs` 使用合成 PostgreSQL 数据验证无依据候选返回 400、建议不反写来源事实、不掩盖图片缺项、人工确认前不建 TM，以及确认后标题/品类/材质/中文介绍按建议写入而本地成色等级和 CNY 经营边界保持不变。HTTP 与 MCP 黄金夹具比较同时纳入编译后的建议。后台来源资料弹窗展示每项建议、方法、置信度和依据，候选卡提示存疑项；这不代表真实模型判断质量已完成业务 UAT。
+
 ## v1.1 Distribution Foundation
 
 本增量把既有分发表收敛为标准资料交付与轻量经营记录，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保留 PUBLISH/UPDATE/DELIST 和内部状态，但默认 UI 显示待交付、已交付、已确认完成、需要处理、需要核对、已取消；Token/领取/租约只保留为高级兼容接口。`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。

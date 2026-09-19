@@ -6,8 +6,8 @@
     "kind": "ORDER_HISTORY",
     "rawManifest": {
       "protocolVersion": "1.2",
-      "skillVersion": "tome-ingest/1.0",
-      "profile": "TRR/1.1",
+      "skillVersion": "tome-ingest/1.1",
+      "profile": "TRR/1.2",
       "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
       "requiredFields": ["sourceFacts.conditionDescription"]
     }
@@ -65,6 +65,40 @@
             }
           ]
         }
+      },
+      "agentProposal": {
+        "generator": "LLM",
+        "model": "synthetic-fixture-model",
+        "generatedAt": "2026-09-17T00:01:00.000Z",
+        "fields": [
+          {
+            "path": "title",
+            "value": "合成真丝连衣裙",
+            "method": "TRANSLATED",
+            "confidence": 0.95,
+            "evidencePaths": ["titleRaw", "sourceFacts.description"],
+            "evidenceImageSha256": [],
+            "note": "测试夹具，不代表真实商品"
+          },
+          {
+            "path": "category",
+            "value": "CLOTHING",
+            "method": "NORMALIZED",
+            "confidence": 1,
+            "evidencePaths": ["categoryRaw"],
+            "evidenceImageSha256": [],
+            "note": "映射到系统一级品类"
+          },
+          {
+            "path": "facts.descriptionZh",
+            "value": "根据合成来源资料整理的真丝连衣裙中文介绍。",
+            "method": "TRANSLATED",
+            "confidence": 0.9,
+            "evidencePaths": ["sourceFacts.description", "sourceFacts.material"],
+            "evidenceImageSha256": [],
+            "note": "中文介绍仍需人工确认"
+          }
+        ]
       },
       "rawPayload": {
         "fixture": "trr-v1.2-golden",

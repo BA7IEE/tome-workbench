@@ -6,7 +6,7 @@ import { record } from "./ingest-integrity";
 
 export const INGEST_PROTOCOL_VERSION = "1.2";
 export const INGEST_SKILL_NAME = "tome-ingest";
-export const INGEST_SKILL_VERSION = "1.0";
+export const INGEST_SKILL_VERSION = "1.1";
 export const INGEST_SKILL_ID = `${INGEST_SKILL_NAME}/${INGEST_SKILL_VERSION}`;
 
 export type IngestProfile = {
@@ -17,7 +17,7 @@ export type IngestProfile = {
 };
 
 const genericMarketplace: IngestProfile = {
-  id: "GENERIC_MARKETPLACE/1.0",
+  id: "GENERIC_MARKETPLACE/1.1",
   name: "通用市场来源",
   file: "GENERIC_MARKETPLACE.md",
   requiredFields: [
@@ -34,7 +34,7 @@ const genericMarketplace: IngestProfile = {
 };
 
 const trr: IngestProfile = {
-  id: "TRR/1.1",
+  id: "TRR/1.2",
   name: "The RealReal",
   file: "TRR.md",
   requiredFields: [

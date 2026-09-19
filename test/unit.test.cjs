@@ -9,6 +9,7 @@ const {
 } = require("../dist/auth/auth");
 const { guardDatabase } = require("../scripts/db-test-guard.cjs");
 const { netPayment, creditValue } = require("../dist/costing/costing.logic");
+const { ingestCandidateInput } = require("../dist/ingest/ingest.schemas");
 const {
   anqicmsSpikeProtocol,
   buildAnqicmsSpikePayload,
@@ -349,4 +350,14 @@ test("styleNumber 统一新写入，旧 style_number 只作兼容读取", () => 
   });
   assert.deepEqual(legacy.attributes, { styleNumber: "OLD-STYLE" });
   assert.deepEqual(legacy.attributeLabels, { styleNumber: "旧款号" });
+});
+
+test("Agent整理建议逐字段校验目标格式、模型和来源依据", () => {
+  const base={externalKey:"SYNTHETIC:AGENT:1",titleRaw:"Synthetic source title",categoryRaw:"Handbags",sourceFacts:{description:"Synthetic source description"},agentProposal:{generator:"LLM",model:"synthetic-model",generatedAt:"2026-09-20T08:00:00.000Z",fields:[{path:"category",value:"BAG",method:"NORMALIZED",confidence:1,evidencePaths:["categoryRaw"]},{path:"facts.descriptionZh",value:"根据合成来源整理的中文介绍。",method:"TRANSLATED",confidence:0.86,evidencePaths:["sourceFacts.description"]}]}};
+  const parsed=ingestCandidateInput.parse(base);
+  assert.equal(parsed.agentProposal.fields[0].value,"BAG");assert.equal(parsed.sourceFacts.description,"Synthetic source description");
+  assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,fields:[{...base.agentProposal.fields[0],value:"HANDBAG"}]}}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,model:""}}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,fields:[{...base.agentProposal.fields[0],evidencePaths:["sourceFacts.missing"]}]}}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,fields:[{...base.agentProposal.fields[0],evidencePaths:[],evidenceImageSha256:["a".repeat(64)]}]}}));
 });

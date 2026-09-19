@@ -48,8 +48,8 @@ function standardManifest(extra = {}) {
   return {
     ...extra,
     protocolVersion: "1.2",
-    skillVersion: "tome-ingest/1.0",
-    profile: "GENERIC_MARKETPLACE/1.0",
+    skillVersion: "tome-ingest/1.1",
+    profile: "GENERIC_MARKETPLACE/1.1",
   };
 }
 const genericProfileFields = [
@@ -809,7 +809,7 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
     const width=1800+n,height=2200+n,buffer=await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="${n?'#abc':'#cab'}"/><text x="100" y="200">${marker}-${n}</text></svg>`)).png().toBuffer();
     files.push({buffer,width,height,sha256:createHash('sha256').update(buffer).digest('hex'),sourceUrl:`https://example.invalid/original-${n}.png`,quality:'ORIGINAL'});
   }
-  const input=standardizeGenericCandidate({...x.candidates[0],sourceFacts:{...x.candidates[0].sourceFacts,description:'合成来源完整描述，原文保留',material:'100% Silk',measurements:{Bust:'37 in',Length:'44.5 in'},capture:{pageUrl:'https://example.invalid/item',capturedAt:'2026-09-14T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'商品描述',status:'CAPTURED'}],images:files.map(({buffer,...rest})=>rest)}}});
+  const input=standardizeGenericCandidate({...x.candidates[0],sourceFacts:{...x.candidates[0].sourceFacts,description:'合成来源完整描述，原文保留',material:'100% Silk',measurements:{Bust:'37 in',Length:'44.5 in'},capture:{pageUrl:'https://example.invalid/item',capturedAt:'2026-09-14T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'},{path:'sourceFacts.description',label:'商品描述',status:'CAPTURED'}],images:files.map(({buffer,...rest})=>rest)}},agentProposal:{generator:'LLM',model:'synthetic-browser-model',generatedAt:'2026-09-20T08:00:00.000Z',fields:[{path:'category',value:'CLOTHING',method:'NORMALIZED',confidence:1,evidencePaths:['categoryRaw']},{path:'facts.descriptionZh',value:'合成浏览器用例的中文商品介绍。',method:'TRANSLATED',confidence:0.88,evidencePaths:['sourceFacts.description','sourceFacts.material'],note:'需要人工复核措辞'}]}});
   const updated=await machine(page,`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,{candidates:[input]});
   for(const f of files) {
     const r=await page.request.post(`/api/agent-ingest/candidates/${first.id}/assets`,{headers:{'X-Ingest-Token':x.session.token,'Idempotency-Key':randomUUID()},multipart:{sourceUrl:f.sourceUrl,file:{name:'original.png',mimeType:'image/png',buffer:f.buffer}}});expect(r.ok(),await r.text()).toBeTruthy();
@@ -818,9 +818,10 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
   await page.goto('/#/candidates?sourceId='+x.source.id);
   const card=page.locator(`[data-candidate="${first.id}"]`);
   await expect(card).toContainText('清单已核对');
+  await expect(card).toContainText('Agent整理 2 项');await expect(card).toContainText('1 项需重点复核');
   await card.getByRole('button',{name:'查看图片与资料',exact:true}).click();
   const d=page.getByRole('dialog',{name:'商品来源资料'});
-  await expect(d).toContainText('100% Silk');await expect(d).toContainText('37 in');await expect(d).toContainText('合成来源完整描述');
+  await expect(d).toContainText('100% Silk');await expect(d).toContainText('37 in');await expect(d).toContainText('合成来源完整描述');await expect(d).toContainText('外部Agent整理建议');await expect(d).toContainText('合成浏览器用例的中文商品介绍');await expect(d).toContainText('置信度 88%');
   await expect(d.locator('.evidence-gallery img')).toHaveCount(2);
   for(let n=0;n<2;n++) await expect.poll(()=>d.locator('.evidence-gallery img').nth(n).evaluate(i=>i.naturalWidth)).toBe(1800+n);
   await page.setViewportSize({width:390,height:844});

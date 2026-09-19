@@ -227,6 +227,39 @@ export class IngestService {
         status: "UNAVAILABLE",
         reason: "来源页面未提供",
       },
+      agentProposal: {
+        location: "candidate.agentProposal",
+        policy:
+          "Suggestions stay separate from sourceFacts and are adopted only through human candidate confirmation.",
+        generator: ["LLM", "RULES", "HYBRID"],
+        methods: ["EXTRACTED", "NORMALIZED", "TRANSLATED", "INFERRED"],
+        confidence: { minimum: 0, maximum: 1 },
+        fields: [
+          { path: "title", input: "TEXT", maxLength: 500 },
+          { path: "brand", input: "DICTIONARY_LABEL", maxLength: 160 },
+          {
+            path: "category",
+            input: "SELECT",
+            options: ["CLOTHING", "BAG", "SHOES", "ACCESSORY", "OTHER"],
+          },
+          { path: "facts.material", input: "TEXT", maxLength: 300 },
+          { path: "facts.color", input: "TEXT", maxLength: 100 },
+          { path: "facts.sizeLabel", input: "TEXT", maxLength: 100 },
+          {
+            path: "facts.measurements",
+            input: "MULTILINE_TEXT",
+            maxLength: 1500,
+            format: "每行一个 项目: 数值，保留来源单位",
+          },
+          {
+            path: "facts.descriptionZh",
+            input: "MULTILINE_TEXT",
+            maxLength: 12000,
+          },
+        ],
+        forbidden:
+          "TM identity, inventory, local condition grade, authentication, CNY cost, sale price, transaction, public rights and publishing",
+      },
       completion:
         "GET /batches/:id reports the union of server Profile fields and the agent manifest; seal refuses missing items/files. Source-only gaps remain visible for human review.",
       documentation: "docs/AGENT-INGEST-PROTOCOL.md",
@@ -417,6 +450,11 @@ export class IngestService {
       merged.rawPayload = Object.keys(input.rawPayload).length
         ? input.rawPayload
         : record(old.rawPayload);
+      if (!input.agentProposal) {
+        const previous = record(old.revisions[0]?.snapshot).agentProposal;
+        if (previous)
+          merged.agentProposal = previous as CandidateInput["agentProposal"];
+      }
       input = merged;
     }
     input = ingestCandidateInput.parse({
@@ -492,23 +530,32 @@ export class IngestService {
         const sourceKey = `INGEST:${c.procurementSource.code}:${hash([c.procurementSourceId, c.externalKey]).slice(0, 24)}`;
         await lock(tx, "sourceKey:" + sourceKey);
         let source = await tx.source.findUnique({ where: { sourceKey } });
-        const payload = {
-          ingestCandidateId: c.id,
-          externalKey: c.externalKey,
-          sourceItemKey: c.sourceItemKey,
-          titleRaw: c.titleRaw,
-          brandRaw: c.brandRaw,
-          categoryRaw: c.categoryRaw,
-          conditionRaw: c.conditionRaw,
-          statusRaw: c.statusRaw,
-          currency: c.currency,
-          sourceLineAmount: c.sourceLineAmount,
-          sourceLineNetAmount: c.sourceLineNetAmount,
-          sourceCurrentPrice: c.sourceCurrentPrice,
-          sourceEstimatedRetail: c.sourceEstimatedRetail,
-          sourceFacts: c.sourceFacts,
-          rawPayload: c.rawPayload,
-        };
+        const proposal = record(c.proposal),
+          payload = {
+            ingestCandidateId: c.id,
+            externalKey: c.externalKey,
+            sourceItemKey: c.sourceItemKey,
+            titleRaw: c.titleRaw,
+            brandRaw: c.brandRaw,
+            categoryRaw: c.categoryRaw,
+            conditionRaw: c.conditionRaw,
+            statusRaw: c.statusRaw,
+            currency: c.currency,
+            sourceLineAmount: c.sourceLineAmount,
+            sourceLineNetAmount: c.sourceLineNetAmount,
+            sourceCurrentPrice: c.sourceCurrentPrice,
+            sourceEstimatedRetail: c.sourceEstimatedRetail,
+            sourceFacts: c.sourceFacts,
+            ...(Array.isArray(proposal.agentFields)
+              ? {
+                  agentProposal: {
+                    agent: proposal.agent,
+                    fields: proposal.agentFields,
+                  },
+                }
+              : {}),
+            rawPayload: c.rawPayload,
+          };
         if (!source) {
           source = await tx.source.create({
             data: {
@@ -541,6 +588,7 @@ export class IngestService {
     sourceName: string,
     conditionRaw: string,
     brandRaw: string,
+    proposalValue: unknown,
   ) {
     const f =
       sourceFacts &&
@@ -556,12 +604,19 @@ export class IngestService {
       }
       return "";
     };
-    const measurements =
+    const proposal = record(proposalValue),
+      proposedFacts = record(proposal.facts),
+      proposed = (key: string) =>
+        typeof proposedFacts[key] === "string"
+          ? String(proposedFacts[key]).trim()
+          : "";
+    const sourceMeasurements =
       typeof f.measurements === "object" && f.measurements
         ? Object.entries(f.measurements as Record<string, unknown>)
             .map(([k, v]) => `${k}: ${String(v)}`)
             .join("\n")
         : str("measurements");
+    const measurements = proposed("measurements") || sourceMeasurements;
     const sourceColor = str("color", "colorRaw");
     const attrs: Record<string, string> = {};
     const labels: Record<string, string> = {};
@@ -588,13 +643,17 @@ export class IngestService {
       labels.sourceCondition = "来源成色";
     }
     return factsSchema.parse({
-      material: str("material", "materialRaw"),
-      color: "",
-      sizeLabel: str("sizeLabel", "size"),
+      material: proposed("material") || str("material", "materialRaw"),
+      color: proposed("color"),
+      sizeLabel: proposed("sizeLabel") || str("sizeLabel", "size"),
       measurements,
-      measurementSource: measurements ? `${sourceName} · Agent来源资料` : "",
+      measurementSource: proposed("measurements")
+        ? `${sourceName}来源证据 · 外部Agent整理建议（人工确认采用）`
+        : measurements
+          ? `${sourceName} · Agent来源资料`
+          : "",
       condition: "",
-      descriptionZh: str("descriptionZh"),
+      descriptionZh: proposed("descriptionZh") || str("descriptionZh"),
       descriptionEn: str("descriptionEn", "descriptionRaw", "description"),
       attributes: attrs,
       attributeLabels: labels,
@@ -616,23 +675,32 @@ export class IngestService {
     const sourceKey = `INGEST:${c.procurementSource.code}:${hash([c.procurementSourceId, c.externalKey]).slice(0, 24)}`;
     await lock(tx, "sourceKey:" + sourceKey);
     let source = await tx.source.findUnique({ where: { sourceKey } });
-    const payload = {
-      ingestCandidateId: c.id,
-      externalKey: c.externalKey,
-      sourceItemKey: c.sourceItemKey,
-      titleRaw: c.titleRaw,
-      brandRaw: c.brandRaw,
-      categoryRaw: c.categoryRaw,
-      conditionRaw: c.conditionRaw,
-      statusRaw: c.statusRaw,
-      currency: c.currency,
-      sourceLineAmount: c.sourceLineAmount,
-      sourceLineNetAmount: c.sourceLineNetAmount,
-      sourceCurrentPrice: c.sourceCurrentPrice,
-      sourceEstimatedRetail: c.sourceEstimatedRetail,
-      sourceFacts: c.sourceFacts,
-      rawPayload: c.rawPayload,
-    };
+    const proposal = record(c.proposal),
+      payload = {
+        ingestCandidateId: c.id,
+        externalKey: c.externalKey,
+        sourceItemKey: c.sourceItemKey,
+        titleRaw: c.titleRaw,
+        brandRaw: c.brandRaw,
+        categoryRaw: c.categoryRaw,
+        conditionRaw: c.conditionRaw,
+        statusRaw: c.statusRaw,
+        currency: c.currency,
+        sourceLineAmount: c.sourceLineAmount,
+        sourceLineNetAmount: c.sourceLineNetAmount,
+        sourceCurrentPrice: c.sourceCurrentPrice,
+        sourceEstimatedRetail: c.sourceEstimatedRetail,
+        sourceFacts: c.sourceFacts,
+        ...(Array.isArray(proposal.agentFields)
+          ? {
+              agentProposal: {
+                agent: proposal.agent,
+                fields: proposal.agentFields,
+              },
+            }
+          : {}),
+        rawPayload: c.rawPayload,
+      };
     if (!source) {
       source = await tx.source.create({
         data: {
@@ -954,6 +1022,11 @@ export class IngestService {
       title?: string;
       category?: "CLOTHING" | "BAG" | "SHOES" | "ACCESSORY" | "OTHER";
       brandEntryId?: string | null;
+      material?: string;
+      color?: string;
+      sizeLabel?: string;
+      measurements?: string;
+      descriptionZh?: string;
       note: string;
     },
   ) {
@@ -983,8 +1056,54 @@ export class IngestService {
           !Array.isArray(c.proposal)
             ? { ...(c.proposal as Record<string, unknown>) }
             : {};
+        const facts = { ...record(proposal.facts) };
+        const presentedAgentProposalPaths = new Set(
+          Array.isArray(proposal.agentFields)
+            ? proposal.agentFields
+                .map((field) => record(field).path)
+                .filter((path): path is string => typeof path === "string")
+            : [],
+        );
+        const operatorModifiedAgentProposalPaths = new Set(
+          Array.isArray(proposal.operatorModifiedAgentProposalPaths)
+            ? proposal.operatorModifiedAgentProposalPaths.filter(
+                (path): path is string => typeof path === "string",
+              )
+            : [],
+        );
+        if (
+          presentedAgentProposalPaths.has("title") &&
+          input.title !== undefined &&
+          input.title !== String(proposal.title || "")
+        )
+          operatorModifiedAgentProposalPaths.add("title");
+        if (
+          presentedAgentProposalPaths.has("category") &&
+          input.category !== undefined &&
+          input.category !== String(proposal.category || "")
+        )
+          operatorModifiedAgentProposalPaths.add("category");
         if (input.title !== undefined) proposal.title = input.title;
         if (input.category !== undefined) proposal.category = input.category;
+        for (const key of [
+          "material",
+          "color",
+          "sizeLabel",
+          "measurements",
+          "descriptionZh",
+        ] as const)
+          if (input[key] !== undefined) {
+            if (
+              presentedAgentProposalPaths.has(`facts.${key}`) &&
+              input[key] !== String(facts[key] || "")
+            )
+              operatorModifiedAgentProposalPaths.add(`facts.${key}`);
+            facts[key] = input[key];
+          }
+        proposal.facts = facts;
+        proposal.operatorModifiedAgentProposalPaths = [
+          ...operatorModifiedAgentProposalPaths,
+        ].sort();
         if (input.brandEntryId !== undefined) {
           if (input.brandEntryId === null) {
             proposal.brandEntryId = null;
@@ -1169,6 +1288,7 @@ export class IngestService {
           current.procurementSource.name,
           current.conditionRaw,
           current.brandRaw,
+          proposal,
         );
         const raw: Record<string, unknown> = {
           title,
@@ -1260,6 +1380,18 @@ export class IngestService {
           assetCount: current.assets.length,
           duplicateOverride: input.duplicateOverride === true,
           acceptIncomplete: input.acceptIncomplete === true,
+          agentProposalPathsPresented: Array.isArray(proposal.agentFields)
+            ? proposal.agentFields
+                .map((field) => record(field).path)
+                .filter((path): path is string => typeof path === "string")
+            : [],
+          agentProposalPathsModifiedByOperator: Array.isArray(
+            proposal.operatorModifiedAgentProposalPaths,
+          )
+            ? proposal.operatorModifiedAgentProposalPaths.filter(
+                (path): path is string => typeof path === "string",
+              )
+            : [],
           integrity,
           note: input.note,
         });

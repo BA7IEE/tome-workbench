@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.8
 
-本地完整验证完成：`2026-09-19T18:38:57.921Z`。验证源码指纹为
-`7969e69216e8153e33655a3182307b7df0de9c48f201f0f90c667e90fd96392d`；
+本地完整验证完成：`2026-09-19T20:21:53.392Z`。验证源码指纹为
+`6cbcd8f1aa28e032db3f95faf3b32beac1b1375e25ba3486516ca8ecc168622b`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,12 +12,12 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 29/29、31/31、161/161、8/8；失败均为 0 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 30/30、31/31、162/162、8/8；失败均为 0 |
 | Chromium | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 275.760ms、Dashboard 224.339ms、Work Queue 17.003ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 233.998ms、Dashboard 216.569ms、Work Queue 15.596ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 904ms、Worker 恢复 2010ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 917ms、Worker 恢复 1954ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |

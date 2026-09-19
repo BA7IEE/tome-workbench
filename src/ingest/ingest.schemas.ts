@@ -28,6 +28,117 @@ export const ingestBatchInput = z
   })
   .strict();
 
+export const agentProposalPath = z.enum([
+  "title",
+  "brand",
+  "category",
+  "facts.material",
+  "facts.color",
+  "facts.sizeLabel",
+  "facts.measurements",
+  "facts.descriptionZh",
+]);
+
+const agentProposalField = z
+  .object({
+    path: agentProposalPath,
+    value: safeText(12000).min(1),
+    method: z.enum(["EXTRACTED", "NORMALIZED", "TRANSLATED", "INFERRED"]),
+    confidence: z.number().min(0).max(1),
+    evidencePaths: z.array(safeText(240).min(1)).max(40).default([]),
+    evidenceImageSha256: z
+      .array(z.string().regex(/^[a-f0-9]{64}$/))
+      .max(40)
+      .default([]),
+    note: safeText(500).default(""),
+  })
+  .strict()
+  .superRefine((field, ctx) => {
+    const maxLength: Record<(typeof field)["path"], number> = {
+      title: 500,
+      brand: 160,
+      category: 20,
+      "facts.material": 300,
+      "facts.color": 100,
+      "facts.sizeLabel": 100,
+      "facts.measurements": 1500,
+      "facts.descriptionZh": 12000,
+    };
+    if (Array.from(field.value).length > maxLength[field.path])
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: `Agent 建议超过目标字段 ${field.path} 的长度限制`,
+      });
+    if (
+      field.path === "category" &&
+      !["CLOTHING", "BAG", "SHOES", "ACCESSORY", "OTHER"].includes(field.value)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "一级品类建议必须使用系统下拉选项值",
+      });
+    if (!field.evidencePaths.length && !field.evidenceImageSha256.length)
+      ctx.addIssue({
+        code: "custom",
+        message: "每项 Agent 建议至少要引用一个来源字段或来源图片",
+      });
+    for (const [index, path] of field.evidencePaths.entries())
+      if (
+        !/^(?:(?:titleRaw|brandRaw|categoryRaw|conditionRaw|statusRaw|sourceItemKey|sourceLineAmount|sourceLineNetAmount|sourceCurrentPrice|sourceEstimatedRetail)$|sourceFacts(?:\.|$)|rawPayload(?:\.|$))/.test(
+          path,
+        )
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["evidencePaths", index],
+          message: "Agent 建议只能引用候选的来源证据路径",
+        });
+  });
+
+export const agentProposalInput = z
+  .object({
+    generator: z.enum(["LLM", "RULES", "HYBRID"]),
+    model: safeText(160).default(""),
+    generatedAt: z.string().datetime(),
+    fields: z.array(agentProposalField).min(1).max(20),
+  })
+  .strict()
+  .superRefine((proposal, ctx) => {
+    if (proposal.generator !== "RULES" && !proposal.model)
+      ctx.addIssue({
+        code: "custom",
+        path: ["model"],
+        message: "LLM 或混合整理必须记录实际模型",
+      });
+    const paths = proposal.fields.map((field) => field.path);
+    if (new Set(paths).size !== paths.length)
+      ctx.addIssue({ code: "custom", message: "同一目标字段只能提交一项建议" });
+  });
+
+function evidenceValue(candidate: Record<string, unknown>, path: string) {
+  let value: unknown = candidate;
+  for (const part of path.split(".")) {
+    if (
+      ["__proto__", "constructor", "prototype"].includes(part) ||
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value)
+    )
+      return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return value;
+}
+
+function hasEvidenceValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
 export const ingestCandidateInput = z
   .object({
     externalKey: safeText(240).min(1),
@@ -47,9 +158,50 @@ export const ingestCandidateInput = z
       .object({ capture: captureEvidence.optional() })
       .passthrough()
       .default({}),
+    agentProposal: agentProposalInput.optional(),
     rawPayload: z.record(z.unknown()).default({}),
   })
-  .strict();
+  .strict()
+  .superRefine((candidate, ctx) => {
+    if (!candidate.agentProposal) return;
+    const declaredHashes = new Set(
+      (candidate.sourceFacts.capture?.images || [])
+        .map((image) => image.sha256)
+        .filter((value): value is string => !!value),
+    );
+    for (const [fieldIndex, field] of candidate.agentProposal.fields.entries())
+      for (const [pathIndex, path] of field.evidencePaths.entries())
+        if (
+          !hasEvidenceValue(
+            evidenceValue(candidate as Record<string, unknown>, path),
+          )
+        )
+          ctx.addIssue({
+            code: "custom",
+            path: [
+              "agentProposal",
+              "fields",
+              fieldIndex,
+              "evidencePaths",
+              pathIndex,
+            ],
+            message: "Agent 建议引用的来源证据路径没有实际值",
+          });
+    for (const [fieldIndex, field] of candidate.agentProposal.fields.entries())
+      for (const [hashIndex, sha256] of field.evidenceImageSha256.entries())
+        if (!declaredHashes.has(sha256))
+          ctx.addIssue({
+            code: "custom",
+            path: [
+              "agentProposal",
+              "fields",
+              fieldIndex,
+              "evidenceImageSha256",
+              hashIndex,
+            ],
+            message: "Agent 建议引用的图片必须先列入来源图片清单",
+          });
+  });
 
 export const ingestCandidatesInput = z
   .object({
@@ -67,6 +219,11 @@ export const candidateReviewInput = z
       .enum(["CLOTHING", "BAG", "SHOES", "ACCESSORY", "OTHER"])
       .optional(),
     brandEntryId: uuid.nullable().optional(),
+    material: safeText(300).optional(),
+    color: safeText(100).optional(),
+    sizeLabel: safeText(100).optional(),
+    measurements: safeText(1500).optional(),
+    descriptionZh: safeText(12000).optional(),
     note: safeText(2000).default(""),
   })
   .strict();
