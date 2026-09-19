@@ -31,6 +31,9 @@ jobs:
       - run: npm run db:generate
       - run: npm run db:deploy
       - run: node scripts/prepare-test.mjs
+      - run: npm run test:production-bootstrap
+        env:
+          TOME_BOOTSTRAP_TEST_APPROVED: 'YES'
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run verify:release
         env:
