@@ -1,20 +1,28 @@
-# 生产部署与发布手册 · 1.1.0-rc.6
+# 生产部署与发布手册 · 1.1.0-rc.7
 
 ## 1. 本版可部署边界
 
-目标是单工作空间的内部经营工作台。使用Docker运行两个API、两个Worker、Caddy HTTPS入口和独立PostgreSQL。Compose只提供单主机部署，不是跨机房容灾方案。公网启用之前，需要真实域名、独立服务器、访问防护、备份目的地及业务验收负责人。
+目标是单工作空间的内部经营工作台。使用 Docker 运行两个 API、两个 Worker 和独立 PostgreSQL。公网入口正式支持两种模式：`INTERNAL_CADDY` 由本项目 Caddy 提供 HTTPS；`EXTERNAL_REVERSE_PROXY` 由同机外部反向代理提供 HTTPS，1Panel/OpenResty 是当前明确支持的外部入口。Compose 只提供单主机部署，不是跨机房容灾方案。公网启用之前，需要真实域名、独立服务器、访问防护、备份目的地及业务验收负责人。
 
 系统不会自动登录交易平台、发帖、扣款、退款、调用付费AI或向合作方付款。对账确认是内部计算快照，不是认定某份协议已经签署或法律应付款。
 
 ## 2. 配置原则
 
-`data/production`存放正式环境文件和随机密码，不得提交Git或放入交付包。不要复用开发配置。运行连接是`tome_app`，无超级用户、建库、建角色、复制和表所有者权限；迁移连接是`tome_owner`，只用于维护窗口。数据库和API端口不直接暴露到宿主机。
+`data/production`存放正式环境文件和随机密码，不得提交 Git 或放入交付包。不要复用开发配置。运行连接是`tome_app`，无超级用户、建库、建角色、复制和表所有者权限；迁移连接是`tome_owner`，只用于维护窗口。数据库不发布宿主机端口；两个 API 只发布到 `127.0.0.1`，默认分别为 `14318` / `14319`，供同机反代与维护探测使用，不能绑定 `0.0.0.0`。
 
-部署的默认监听为127.0.0.1；只有显式`--public`生成配置才监听所有网卡。第一次新建时完成以下配置（将域名改为实际值）：
+第一次新建时必须明确部署模式。项目自带 Caddy：
 
 ```sh
 node scripts/production-config.mjs --domain=inventory.your-company.com --public
 ```
+
+1Panel / OpenResty 或其他同机反向代理：
+
+```sh
+node scripts/production-config.mjs --domain=tome.23cc.cn --deployment-mode=EXTERNAL_REVERSE_PROXY --reverse-proxy-provider=1PANEL
+```
+
+`EXTERNAL_REVERSE_PROXY` 禁止 `--public`；API 始终只监听宿主机 loopback。`configuration.json` 会记录 `deploymentMode`、外部代理提供方与 API loopback 端口。内置 Caddy 服务属于 `internal-proxy` Compose profile，普通 `docker compose up` 或 1Panel 创建编排时不会误启动；只有 `INTERNAL_CADDY` 部署才应显式启动 `proxy`。
 
 版本唯一来源为 package.json.version；生成器据此写入 TOME_IMAGE_TAG 和 configuration.json.appVersion。Compose 缺少 tag 即失败，镜像构建校验 APP_VERSION 与 package 相同。升级已有配置时由运维明确更新这两个版本字段，不能重新生成并覆盖密码。
 
@@ -37,13 +45,16 @@ docker compose -p tome-production -f compose.production.yaml --env-file data/pro
 
 ```sh
 docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env --profile tools run --rm -e TOME_DEPLOY_APPROVED=YES migration scripts/migrate-safe.mjs --production --initial-empty
+# INTERNAL_CADDY：显式启动 proxy
 docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --wait api-a api-b worker-a worker-b proxy
+# EXTERNAL_REVERSE_PROXY：不要启动 proxy
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --wait api-a api-b worker-a worker-b
 docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env run --rm --no-deps api-a dist/cli.js admin
 ```
 
 最后一条交互式创建管理员。随机密码位于应用共享卷中的`/app/data/first-admin.txt`；由授权管理员在本机查看后首次登录修改，不粘贴到聊天、日志或工单。不要直接写数据库创建固定默认密码。
 
-Caddy只有在域名解析和80/443访问符合条件时才能获得公认证书。localhost演练使用内部CA，正式配置不应填写`tls internal`。容器内自动安装的演练CA不会向Mac的系统信任库安装证书。
+`INTERNAL_CADDY` 只有在域名解析和 80/443 访问符合条件时才能获得公认证书。localhost 演练使用内部 CA，正式配置不应填写 `tls internal`。`EXTERNAL_REVERSE_PROXY` 不启动本项目 Caddy，由外部代理负责证书、HTTP→HTTPS、访问日志和边缘限制；ToMe 仍通过公网 `https://域名/api/system/ready` 独立验证完整 TLS 链路。
 
 ## 4. 上线检查
 
@@ -51,7 +62,7 @@ Caddy只有在域名解析和80/443访问符合条件时才能获得公认证书
 node scripts/production-preflight.mjs --config-dir=data/production --project=tome-production
 ```
 
-它检查Compose配置、容器健康、非root只读运行、私有端口和真实TLS访问，并核对 package、配置、两个 API 实时版本、两个 API/Worker 镜像 OCI label 及 HTTPS 入口版本一致。它不会把localhost演练当成公网验证。默认仍返回NO_GO，直到授权运维人员独立核对下面几件事，并在配置目录保存`operations-approval.json`：
+它检查 Compose 配置、容器健康、非 root 只读运行、API loopback 绑定和真实 TLS 访问，并核对 package、配置、两个 API 实时版本、两个 API/Worker 镜像 OCI label 及 HTTPS 入口版本一致。`INTERNAL_CADDY` 要求内置 proxy 正常；`EXTERNAL_REVERSE_PROXY` 则要求外部代理提供方已记录、两个 API 仅绑定 `127.0.0.1`、内置 proxy 未运行，同时从正式域名访问 `/api/system/ready` 和 `/api/system/health` 成功。它不会把 localhost 演练当成公网验证。默认仍返回 NO_GO，直到授权运维人员独立核对下面几件事，并在配置目录保存`operations-approval.json`：
 
 ```json
 {
@@ -89,9 +100,15 @@ Worker租约过期由其他Worker接续，超过失败预算进入FAILED待人�
 
 历史版本曾在用户Mac的Docker Linux环境构建和演练；当前源码的实际验收以 CURRENT-RELEASE.md 与 VALIDATION.md 为准，不能沿用旧镜像证据。没有把未运行的Windows、特定云主机、跨可用区故障切换或公网证书写成通过。示例服务器域名、自动申请公网证书及真实平台账户均未启用。
 
-## 1.0.1 稳定化：1Panel、备份和 PushPlus
+## 1Panel / OpenResty 正式部署模式
+
+1Panel 使用 `EXTERNAL_REVERSE_PROXY`，不是“绕过生产检查”。先生成该模式配置，再在 1Panel「容器 → 编排」从仓库中的 `compose.production.yaml` 创建编排；将生成的 `data/production/compose.env` 作为该编排的 Compose `.env` 环境变量文件使用。这个文件只包含配置目录、镜像版本、部署模式和本机端口，不包含数据库密码；真正的数据库凭据仍只在 `data/production` 的受限文件和 Docker Secret 中。
+
+普通编排启动只运行 `postgres / api-a / api-b / worker-a / worker-b`；`migration` 属于 `tools` profile，`proxy` 属于 `internal-proxy` profile，1Panel 不应启动它们作为常驻服务。1Panel 网站反向代理应指向 `http://127.0.0.1:14318` 和 `http://127.0.0.1:14319` 的负载均衡；公网只开放 OpenResty 的 80/443，不开放 14318/14319。HTTPS 证书、HTTP 跳转和站点日志由 1Panel/OpenResty 管理。
 
 1Panel 是运维入口，不改变本项目 Compose 的数据库账号隔离、版本检查及维护门禁。不要用面板普通网站目录备份代替数据库与原图的一致性备份。所有命令从对应源码版本的仓库目录执行，配置路径必须指向自己创建的本应用配置；不得复用其他应用数据库。
+
+## 1.0.1 稳定化：备份和 PushPlus
 
 ### 一致性备份与独立恢复
 
@@ -117,7 +134,7 @@ node scripts/production-restore.mjs --config-dir=/私有配置目录 --project=t
 
 上传后必须从 COS 下载到新的临时目录，用恢复脚本验证哈希并完成恢复演练，才能确认异机备份有效。仅配置账户或看到上传任务成功不足以把 offHostBackupVerified 设为 true。建议日备份保留 7 份、周备份保留 4 份；实际保留周期需结合数据量及经营要求确认。
 
-1Panel 官方设置说明：https://1panel.cn/docs/v1/user_manual/settings/ 。面板版本不同，菜单可能不同；本项目不自动修改面板任务。
+1Panel 官方设置说明：https://1panel.cn/docs/v2/user_manual/settings/ 。面板版本不同，菜单可能不同；本项目不自动修改面板任务。
 
 ### PushPlus 告警（明确启用才发送）
 
