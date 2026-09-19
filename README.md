@@ -1,6 +1,6 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
-**版本：1.1.0-rc.5，标准 Agent 采集、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流与本地 AnQiCMS 标准交付合同。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
+**版本：1.1.0-rc.7，标准 Agent 采集、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
 
 围绕永久 TM 统一管理商品、原图、来源和日常库存动作。采集、平台发布和 AnQiCMS 建站由外部工具完成。保留原有业务模块供需要时使用。真实验证入口为 `docs/VALIDATION.md`；长期74项要求与当前实现的区别见 `docs/AC_MATRIX.md`。
 
@@ -54,7 +54,7 @@ node scripts/start-local.mjs
 
 ## Linux部署
 
-入口为 `Dockerfile`、`compose.production.yaml`、`deploy/Caddyfile` 和 `docs/PRODUCTION.md`。正式数据库账户与迁移账户分开，运行容器非root且根文件系统只读。正式域名使用HTTPS；当前localhost演练证书不等于已验证公网证书。
+入口为 `Dockerfile`、`compose.production.yaml`、`deploy/Caddyfile` 和 `docs/PRODUCTION.md`。正式数据库账户与迁移账户分开，运行容器非root且根文件系统只读。默认 `INTERNAL_CADDY` 使用项目 Caddy；已有 1Panel/OpenResty 的服务器使用 `EXTERNAL_REVERSE_PROXY`，两个 API 仅映射到 `127.0.0.1:14318/14319`，由外部代理负责公网 HTTPS。正式域名使用 HTTPS；代码支持不等于实际域名、证书、防火墙或生产 UAT 已验收。
 
 **默认只是单台主机上的冗余应用进程。数据库、磁盘、主机仍然是单点。** 跨主机/数据库故障切换、异地备份与运维告警必须独立配置并验证，不能靠修改一个“高可用”开关实现。
 
