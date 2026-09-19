@@ -23,6 +23,8 @@ const compose = [
   project,
   "-f",
   "compose.production.yaml",
+  "--profile",
+  "internal-proxy",
   "--env-file",
   path.join(dir, "compose.env"),
 ];
