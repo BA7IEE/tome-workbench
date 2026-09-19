@@ -1,4 +1,4 @@
-# 当前验证记录 — 1.1.0-rc.7
+# 当前验证记录 — 1.1.0-rc.8
 
 远端完整验证完成：`2026-09-19T06:25:05.495Z`（GitHub Actions run `35425986880`，checkout `72b5fc9897ce080f2d647aa4c3f205f721d890c3`）。验证源码指纹为
 `0246800b9c5b34e08e1376dcdea6150b40c7708c0ed686ec1746a537d219d67e`；
@@ -21,12 +21,12 @@
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.7.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.8.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.7/summary.json)、
-[audit.json](validation/1.1.0-rc.7/audit.json)、[verification.log](validation/1.1.0-rc.7/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.8/summary.json)、
+[audit.json](validation/1.1.0-rc.8/audit.json)、[verification.log](validation/1.1.0-rc.8/verification.log)。
 
-## v1.1-rc.5 发布安全
+本候选新增 production bootstrap gate：在独立 PostgreSQL 空库中先确保 `tome_app` 不存在，再执行正式 `--production --initial-empty` migration；迁移脚本必须自行创建/同步运行角色、完成 18 个 migration、补齐最小权限并用运行账号实际连接验证。该 gate 直接覆盖本次 1Panel 首次部署暴露出的“运行角色缺失但 migration 仍完成”问题。\n\n## v1.1-rc.5 发布安全
 
 本次完成发布安全切片。在既有 TM、来源证据、Candidate 人工确认、库存锁、Sale、
 成本、UsePackage、图片权利、Commands/Receipt、Audit/Outbox、ChannelPrice、
