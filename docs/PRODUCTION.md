@@ -1,4 +1,4 @@
-# 生产部署与发布手册 · 1.1.0-rc.7
+# 生产部署与发布手册 · 1.1.0-rc.8
 
 ## 1. 本版可部署边界
 
@@ -45,6 +45,8 @@ docker compose -p tome-production -f compose.production.yaml --env-file data/pro
 
 ```sh
 docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env --profile tools run --rm -e TOME_DEPLOY_APPROVED=YES migration scripts/migrate-safe.mjs --production --initial-empty
+
+首次 production migration 会在维护锁内创建或同步 `tome_app` 运行角色、设置最小权限与默认权限；Prisma migration 完成后再补齐现有表/序列权限，并使用运行连接验证登录、非特权属性和最小读写能力。若该验证失败，migration 必须失败，不能继续启动 API/Worker，也不需要再人工执行 `CREATE ROLE tome_app`。
 # INTERNAL_CADDY：显式启动 proxy
 docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --wait api-a api-b worker-a worker-b proxy
 # EXTERNAL_REVERSE_PROXY：不要启动 proxy
