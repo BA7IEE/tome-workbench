@@ -267,6 +267,22 @@ export function checks(
       )
     );
   });
+  check("external-reverse-proxy-production-mode", () => {
+    const generator = read("scripts/production-config.mjs");
+    const compose = read("compose.production.yaml");
+    const preflight = read("scripts/production-preflight.mjs");
+    return (
+      generator.includes("EXTERNAL_REVERSE_PROXY") &&
+      generator.includes("reverseProxyProvider") &&
+      generator.includes("TOME_API_BIND=127.0.0.1") &&
+      compose.includes("TOME_API_A_PORT:-14318") &&
+      compose.includes("TOME_API_B_PORT:-14319") &&
+      compose.includes("profiles: [internal-proxy]") &&
+      preflight.includes("external-reverse-proxy-provider") &&
+      preflight.includes("internal-proxy-not-running") &&
+      preflight.includes("loopback-only")
+    );
+  });
   check("sealed-migrations", () =>
     Object.entries(JSON.parse(read("harness/sealed.json")).files).every(
       ([p, h]) =>
