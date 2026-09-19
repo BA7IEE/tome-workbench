@@ -2917,6 +2917,9 @@ test('外部Agent按目标字段选择、格式化并标注置信度，来源完
   const afterReview=await ok(`/ingest/candidates/${current.id}`);assert.equal(afterReview.proposal.facts.material,'小牛皮（人工复核）');assert.equal(afterReview.sourceFacts.material,'Calfskin');
   const confirmed=await ok(`/ingest/candidates/${current.id}/confirm`,'POST',{version:reviewed.version,possession:'IN_HAND',status:'PAUSED',acceptIncomplete:true,note:'已逐项核对Agent建议与来源依据'});
   const created=await item(confirmed.itemId);assert.equal(created.title,'合成结构手提包');assert.equal(created.category,'BAG');assert.equal(created.facts.material,'小牛皮（人工复核）');assert.equal(created.facts.descriptionZh,'人工复核后的合成中文商品介绍。');assert.equal(created.facts.conditionGrade,'');assert.equal(created.currency,'CNY');assert.equal(created.status,'PAUSED');assert.equal(await db.item.count(),before+1);
+  const proof=await db.audit.findFirstOrThrow({where:{resourceId:current.id,action:'INGEST_CANDIDATE_CONFIRMED'},orderBy:{createdAt:'desc'}});
+  assert.deepEqual(proof.detail.agentProposalPathsPresented,['title','category','facts.material','facts.descriptionZh']);
+  assert.deepEqual(proof.detail.agentProposalPathsModifiedByOperator,['facts.descriptionZh','facts.material']);
 });
 test('v1.1 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase();

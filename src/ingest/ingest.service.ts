@@ -1056,9 +1056,35 @@ export class IngestService {
           !Array.isArray(c.proposal)
             ? { ...(c.proposal as Record<string, unknown>) }
             : {};
+        const facts = { ...record(proposal.facts) };
+        const presentedAgentProposalPaths = new Set(
+          Array.isArray(proposal.agentFields)
+            ? proposal.agentFields
+                .map((field) => record(field).path)
+                .filter((path): path is string => typeof path === "string")
+            : [],
+        );
+        const operatorModifiedAgentProposalPaths = new Set(
+          Array.isArray(proposal.operatorModifiedAgentProposalPaths)
+            ? proposal.operatorModifiedAgentProposalPaths.filter(
+                (path): path is string => typeof path === "string",
+              )
+            : [],
+        );
+        if (
+          presentedAgentProposalPaths.has("title") &&
+          input.title !== undefined &&
+          input.title !== String(proposal.title || "")
+        )
+          operatorModifiedAgentProposalPaths.add("title");
+        if (
+          presentedAgentProposalPaths.has("category") &&
+          input.category !== undefined &&
+          input.category !== String(proposal.category || "")
+        )
+          operatorModifiedAgentProposalPaths.add("category");
         if (input.title !== undefined) proposal.title = input.title;
         if (input.category !== undefined) proposal.category = input.category;
-        const facts = { ...record(proposal.facts) };
         for (const key of [
           "material",
           "color",
@@ -1066,8 +1092,18 @@ export class IngestService {
           "measurements",
           "descriptionZh",
         ] as const)
-          if (input[key] !== undefined) facts[key] = input[key];
+          if (input[key] !== undefined) {
+            if (
+              presentedAgentProposalPaths.has(`facts.${key}`) &&
+              input[key] !== String(facts[key] || "")
+            )
+              operatorModifiedAgentProposalPaths.add(`facts.${key}`);
+            facts[key] = input[key];
+          }
         proposal.facts = facts;
+        proposal.operatorModifiedAgentProposalPaths = [
+          ...operatorModifiedAgentProposalPaths,
+        ].sort();
         if (input.brandEntryId !== undefined) {
           if (input.brandEntryId === null) {
             proposal.brandEntryId = null;
@@ -1344,10 +1380,17 @@ export class IngestService {
           assetCount: current.assets.length,
           duplicateOverride: input.duplicateOverride === true,
           acceptIncomplete: input.acceptIncomplete === true,
-          acceptedAgentProposalPaths: Array.isArray(proposal.agentFields)
+          agentProposalPathsPresented: Array.isArray(proposal.agentFields)
             ? proposal.agentFields
                 .map((field) => record(field).path)
                 .filter((path): path is string => typeof path === "string")
+            : [],
+          agentProposalPathsModifiedByOperator: Array.isArray(
+            proposal.operatorModifiedAgentProposalPaths,
+          )
+            ? proposal.operatorModifiedAgentProposalPaths.filter(
+                (path): path is string => typeof path === "string",
+              )
             : [],
           integrity,
           note: input.note,

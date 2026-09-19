@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.8
 
-本地完整验证完成：`2026-09-19T19:42:05.683Z`。验证源码指纹为
-`6007ce0a06e2f6420079c92c750b1ad69bcbd4c62ab2ba4a97de46b60424e25b`；
+本地完整验证完成：`2026-09-19T20:21:53.392Z`。验证源码指纹为
+`6cbcd8f1aa28e032db3f95faf3b32beac1b1375e25ba3486516ca8ecc168622b`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -15,9 +15,9 @@
 | Node 测试组（unit / Harness selftest / integration / HA） | 30/30、31/31、162/162、8/8；失败均为 0 |
 | Chromium | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 243.242ms、Dashboard 209.056ms、Work Queue 16.299ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 233.998ms、Dashboard 216.569ms、Work Queue 15.596ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 786ms、Worker 恢复 2005ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 917ms、Worker 恢复 1954ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
