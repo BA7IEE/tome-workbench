@@ -13,23 +13,46 @@ if (!/^tome-[a-z0-9-]+$/.test(project))
 const cfg = JSON.parse(
   fs.readFileSync(path.join(dir, "configuration.json"), "utf8"),
 );
+const deploymentMode = cfg.deploymentMode || "INTERNAL_CADDY",
+  externalProxy = deploymentMode === "EXTERNAL_REVERSE_PROXY";
 const compose = [
   "compose",
   "-p",
   project,
   "-f",
   "compose.production.yaml",
+  ...(externalProxy ? [] : ["--profile", "internal-proxy"]),
   "--env-file",
   path.join(dir, "compose.env"),
 ];
 const expectedVersion = releaseVersion();
 const composeEnv = fs.readFileSync(path.join(dir, "compose.env"), "utf8");
-const configuredTag = composeEnv.match(/^TOME_IMAGE_TAG=(.+)$/m)?.[1]?.trim();
+const envValue = (name, fallback = "") =>
+  composeEnv.match(new RegExp(`^${name}=(.+)$`, "m"))?.[1]?.trim() || fallback;
+const configuredTag = envValue("TOME_IMAGE_TAG"),
+  expectedApiPorts = {
+    "api-a": envValue("TOME_API_A_PORT", "14318"),
+    "api-b": envValue("TOME_API_B_PORT", "14319"),
+  };
 const versions = {};
 const checks = [];
 const check = (id, pass, detail) =>
   checks.push({ id, pass: !!pass, ...(detail ? { detail } : {}) });
+check(
+  "deployment-mode",
+  ["INTERNAL_CADDY", "EXTERNAL_REVERSE_PROXY"].includes(deploymentMode),
+  deploymentMode,
+);
 check("https-origin", cfg.origin.startsWith("https://"));
+if (externalProxy) {
+  check(
+    "external-reverse-proxy-provider",
+    typeof cfg.reverseProxyProvider === "string" &&
+      /^[A-Z0-9_-]{2,32}$/.test(cfg.reverseProxyProvider),
+    cfg.reverseProxyProvider || "",
+  );
+  check("external-reverse-proxy-no-public-api-bind", cfg.publicBind === false);
+}
 execFileSync("docker", [...compose, "config", "--quiet"], { stdio: "pipe" });
 const services = [
   "api-a",
@@ -37,7 +60,7 @@ const services = [
   "worker-a",
   "worker-b",
   "postgres",
-  "proxy",
+  ...(externalProxy ? [] : ["proxy"]),
 ];
 for (const name of services) {
   const id = execFileSync("docker", [...compose, "ps", "-q", name], {
@@ -88,11 +111,38 @@ for (const name of services) {
         x.HostConfig.CapDrop?.includes("ALL"),
     );
   }
-  if (name !== "proxy")
+  const bindings = Object.values(x.HostConfig.PortBindings || {})
+    .flatMap((value) => value || [])
+    .filter(Boolean);
+  if (name.startsWith("api")) {
+    const expectedPort = expectedApiPorts[name];
     check(
-      name + "-not-public",
-      !Object.values(x.HostConfig.PortBindings || {}).some((x) => x?.length),
+      name + "-loopback-only",
+      bindings.length === 1 &&
+        bindings[0].HostIp === "127.0.0.1" &&
+        bindings[0].HostPort === expectedPort,
+      bindings
+        .map((binding) => `${binding.HostIp}:${binding.HostPort}`)
+        .join(","),
     );
+  } else if (name !== "proxy") {
+    check(name + "-not-public", bindings.length === 0);
+  }
+}
+if (externalProxy) {
+  const proxyId = execFileSync(
+    "docker",
+    [
+      "ps",
+      "-q",
+      "--filter",
+      `label=com.docker.compose.project=${project}`,
+      "--filter",
+      "label=com.docker.compose.service=proxy",
+    ],
+    { encoding: "utf8" },
+  ).trim();
+  check("internal-proxy-not-running", !proxyId);
 }
 const ca = arg("--ca", "");
 const status = await new Promise((resolve) => {
@@ -140,12 +190,18 @@ if (fs.existsSync(path.join(dir, "operations-approval.json")))
     fs.readFileSync(path.join(dir, "operations-approval.json"), "utf8"),
   );
 const pending = pendingApprovals(dir, approval);
+const edgeExposureApproved = externalProxy || cfg.publicBind;
 const publicReady =
-  softwareReady && !cfg.rehearsal && cfg.publicBind && pending.length === 0;
+  softwareReady &&
+  !cfg.rehearsal &&
+  edgeExposureApproved &&
+  pending.length === 0;
 const report = {
   at: new Date().toISOString(),
   project,
   expectedVersion,
+  deploymentMode,
+  reverseProxyProvider: cfg.reverseProxyProvider || null,
   softwareReady,
   publicReady,
   rehearsal: cfg.rehearsal,
