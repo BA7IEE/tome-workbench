@@ -1,6 +1,6 @@
 {
   "name": "tome-workbench",
-  "version": "1.1.0-rc.7",
+  "version": "1.1.0-rc.8",
   "private": true,
   "license": "UNLICENSED",
   "description": "兔泥巴商品资料库：永久TM、批量导入、原图维护与运营资料交接",
@@ -39,6 +39,7 @@
     "start:resilient": "node scripts/cluster.mjs",
     "test:ha": "node --test --test-concurrency=1 test/high-availability.test.mjs",
     "test:recovery": "node scripts/verify-recovery.mjs",
+    "test:production-bootstrap": "node scripts/verify-production-bootstrap.mjs",
     "check:syntax": "node scripts/validate-syntax.mjs",
     "deploy:check": "node scripts/production-preflight.mjs",
     "verify:release": "node scripts/verify-release.mjs",
