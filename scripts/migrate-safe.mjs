@@ -4,6 +4,11 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { Client } from "pg";
 import runtimeLock from "./runtime-lock.cjs";
+import {
+  ensureProductionRuntimeRole,
+  grantProductionRuntimePrivileges,
+  verifyProductionRuntimeRole,
+} from "./production-role.mjs";
 const dbURL = new URL(
   process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL,
 );
@@ -81,6 +86,7 @@ try {
         );
     }
   }
+  if (production) await ensureProductionRuntimeRole(db, runtimeURL);
   await new Promise((resolve, reject) => {
     const p = spawn(
       process.execPath,
@@ -94,6 +100,11 @@ try {
         : reject(new Error("Migration failed: " + String(code ?? signal))),
     );
   });
+  if (production) {
+    await grantProductionRuntimePrivileges(db);
+    await verifyProductionRuntimeRole(runtimeURL);
+    console.log("PRODUCTION_RUNTIME_ROLE_VERIFIED");
+  }
   console.log("MIGRATION_VERIFIED_AND_APPLIED; no reset performed");
 } finally {
   await db.end().catch(() => {});
