@@ -1,6 +1,8 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.6**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.7**，标准 Agent 采集、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+
+rc.7 新增正式生产部署模式 `EXTERNAL_REVERSE_PROXY`：同一生产 Compose 将两个 API 仅发布到宿主机 loopback，内置 Caddy 改为显式 `internal-proxy` profile；配置生成器记录部署模式和外部代理提供方，生产 preflight 对 1Panel/OpenResty 等外部入口验证 loopback 端口、禁止内置 proxy 常驻、正式域名 HTTPS readiness 与版本一致性。默认 `INTERNAL_CADDY` 行为仍保留；这不等于真实服务器、域名、防火墙、备份或业务 UAT 已经人工验收。
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
@@ -34,7 +36,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 ```json
 {
-  "version": "1.1.0-rc.6",
+  "version": "1.1.0-rc.7",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
