@@ -63,7 +63,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "kind": "ORDER_HISTORY",
   "rawManifest": {
     "protocolVersion": "1.2",
-    "skillVersion": "tome-ingest/1.0",
+    "skillVersion": "tome-ingest/1.1",
     "profile": "服务端 protocol.profile.id",
     "expectedCandidateKeys": ["supplier:order-001:sku-001"],
     "requiredFields": ["titleRaw", "sourceFacts.description", "sourceFacts.sizeLabel"]
@@ -101,10 +101,46 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
         }]
       }
     },
+    "agentProposal": {
+      "generator": "LLM",
+      "model": "实际使用的模型名",
+      "generatedAt": "2026-09-14T00:01:00.000Z",
+      "fields": [
+        {
+          "path": "category",
+          "value": "CLOTHING",
+          "method": "NORMALIZED",
+          "confidence": 1,
+          "evidencePaths": ["categoryRaw"],
+          "evidenceImageSha256": [],
+          "note": "按系统下拉选项规范化"
+        },
+        {
+          "path": "facts.descriptionZh",
+          "value": "根据来源原文整理的中文商品介绍。",
+          "method": "TRANSLATED",
+          "confidence": 0.9,
+          "evidencePaths": ["sourceFacts.description", "sourceFacts.material"],
+          "evidenceImageSha256": [],
+          "note": "品牌术语仍需人工复核"
+        }
+      ]
+    },
     "rawPayload": {"synthetic": true}
   }]
 }
 ```
+
+`agentProposal` 是可选的字段级整理建议，不是来源事实。`GET /protocol` 返回允许的目标路径、输入类型、
+下拉选项、长度和格式；服务端拒绝未知目标、非法选项、重复目标、超长值、无依据建议，以及引用未列入
+`sourceFacts.capture.images` 的图片。每项 `method` 必须是 `EXTRACTED`、`NORMALIZED`、
+`TRANSLATED` 或 `INFERRED`，`confidence` 为 0–1。来源字段缺失时，即使 Agent 给出建议，仍必须在
+`capture.fields` 中写 `UNAVAILABLE + 原因`，且完整性报告继续显示缺项。
+
+人工确认候选时，系统才把已展示的建议用于正式 TM 的名称、已存在品牌匹配、一级品类、材质、颜色、
+尺码、尺寸文本和中文介绍。Agent 不能建议或写入 TM 身份、库存、本地成色等级、真实性、人民币成本、
+售价、成交、图片公开权或发布。品牌建议只尝试匹配现有字典，不自动创建标准词；品类必须使用协议返回的
+枚举。存疑或推断项必须降低置信度并说明原因，后台会单独展示以便人工重点复核。
 
 图片quality：ORIGINAL原图；LARGEST_AVAILABLE来源可取得最大图（说明依据）；THUMBNAIL仅缩略图；UNAVAILABLE未取得（后两者必须说明原因）。除UNAVAILABLE外须填写实际文件sha256、width、height。后端保留上传字节，并核对实际文件尺寸；不要放大缩略图冒充原图。每候选最多100个字段检查和100张图；来源有更多内容时应明确报告，不能悄悄截断。
 
@@ -150,13 +186,13 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "version": "1.2",
   "skill": {
     "name": "tome-ingest",
-    "version": "1.0",
-    "id": "tome-ingest/1.0",
+    "version": "1.1",
+    "id": "tome-ingest/1.1",
     "sha256": "…",
     "url": "/api/agent-ingest/skill"
   },
   "profile": {
-    "id": "TRR/1.1",
+    "id": "TRR/1.2",
     "sha256": "…",
     "url": "/api/agent-ingest/profile",
     "requiredFields": ["titleRaw"]
@@ -164,7 +200,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.1`；其他当前来源使用 `GENERIC_MARKETPLACE/1.0`。Profile 由服务器选择，机器不能自行降级。
+随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.2`；其他当前来源使用 `GENERIC_MARKETPLACE/1.1`。Profile 由服务器选择，机器不能自行降级。
 
 ### 批次元数据与完整性
 
@@ -173,8 +209,8 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 ```json
 {
   "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.0",
-  "profile": "TRR/1.1",
+  "skillVersion": "tome-ingest/1.1",
+  "profile": "TRR/1.2",
   "expectedCandidateKeys": [],
   "requiredFields": []
 }

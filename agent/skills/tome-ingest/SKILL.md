@@ -1,6 +1,6 @@
 # ToMeBoutique 标准采集 Skill
 
-版本：`tome-ingest/1.0`。本 Skill 只规范外部来源事实如何进入候选池；服务端
+版本：`tome-ingest/1.1`。本 Skill 规范外部来源事实和可选的 Agent 整理建议如何进入候选池；服务端
 `/api/agent-ingest` 才是最终合同。它不授予后台账户、商品、库存、成本、成交或发布权限。
 
 ## 启动顺序
@@ -13,14 +13,56 @@
 2. 检查协议主版本为 `1`，且当前标准版本至少为 `1.2`；不兼容时停止，不猜测兼容方案。
 3. 下载 `skill.url`，核对内容 SHA-256 与 `skill.sha256` 相同。
 4. 下载 `profile.url`，核对内容 SHA-256 与 `profile.sha256` 相同。
-5. 只按该 Profile 采集来源事实，再创建批次。
+5. 只按该 Profile 采集来源事实；如需整理，另行生成 `agentProposal`，再创建批次。
 
 不要把旧缓存的 Skill/Profile 用在新会话。Profile 由服务端根据该会话的来源选择，不能自行降级为更宽松的 Profile。
 
-## 只采来源事实
+## 来源事实和 Agent 建议必须分开
 
 如实记录页面、订单或线下文件中能证明的内容。没有取得的字段写
-`UNAVAILABLE` 并写清来源侧原因；不要以常识、模型推断或历史经验补值。
+`UNAVAILABLE` 并写清来源侧原因；不得用常识、模型推断或历史经验把来源缺项改成 `CAPTURED`。
+
+外部 Agent 可以基于已经提交的文字和图片，按 `GET /protocol` 返回的 `agentProposal.fields`
+生成面向 ToMe 字段的整理建议。下拉字段必须提交服务端列出的选项值；填写字段必须遵守长度和格式。
+每项建议都必须记录目标路径、建议值、处理方式、0–1 置信度，以及实际引用的来源字段路径或来源图片
+SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化，`TRANSLATED` 是翻译，
+`INFERRED` 是需要人工重点复核的判断。不能把置信度高写成来源已提供，也不能虚构依据。
+
+示例：
+
+```json
+{
+  "agentProposal": {
+    "generator": "LLM",
+    "model": "实际使用的模型名",
+    "generatedAt": "2026-09-20T08:00:00.000Z",
+    "fields": [
+      {
+        "path": "category",
+        "value": "BAG",
+        "method": "NORMALIZED",
+        "confidence": 1,
+        "evidencePaths": ["categoryRaw"],
+        "evidenceImageSha256": [],
+        "note": "来源分类明确对应包袋"
+      },
+      {
+        "path": "facts.descriptionZh",
+        "value": "根据已采集资料整理的中文介绍",
+        "method": "TRANSLATED",
+        "confidence": 0.86,
+        "evidencePaths": ["sourceFacts.description", "sourceFacts.material"],
+        "evidenceImageSha256": [],
+        "note": "需人工核对品牌术语"
+      }
+    ]
+  }
+}
+```
+
+`agentProposal` 不参与来源完整性判定，也不能出现在 `requiredFields` 或
+`sourceFacts.capture.fields` 中。服务端会验证字段类型、下拉选项、格式限制和图片引用；人工确认候选前，
+建议不会成为正式 TM 事实。模型没有足够依据时可以不提交该字段，不能为凑齐字段而猜测。
 
 不得决定或写入：正式 TM、库存状态、本地成色/标准字典、真实性、人民币成本、我方售价、图片 PUBLIC 权利、成交、批准或发布。来源状态、来源金额和来源品相只是来源证据。
 
@@ -31,7 +73,7 @@
 ```json
 {
   "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.0",
+  "skillVersion": "tome-ingest/1.1",
   "profile": "服务端 protocol.profile.id",
   "expectedCandidateKeys": [],
   "requiredFields": []

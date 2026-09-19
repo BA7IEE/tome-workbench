@@ -42,6 +42,22 @@ const labels: Record<string, string> = {
   attributes: "其他参数",
   accessories: "随附物品",
 };
+const proposalLabels: Record<string, string> = {
+  title: "商品名称",
+  brand: "品牌匹配",
+  category: "一级品类",
+  "facts.material": "材质",
+  "facts.color": "颜色",
+  "facts.sizeLabel": "尺码",
+  "facts.measurements": "尺寸文本",
+  "facts.descriptionZh": "中文介绍",
+};
+const proposalMethods: Record<string, string> = {
+  EXTRACTED: "原文提取",
+  NORMALIZED: "规范化",
+  TRANSLATED: "翻译整理",
+  INFERRED: "推断",
+};
 function readable(v: unknown): string {
   if (v == null || v === "") return "未提供";
   if (typeof v === "boolean") return v ? "是" : "否";
@@ -82,6 +98,7 @@ export async function showSourceEvidence(id: string) {
     sourceCurrentPrice: number | null;
     sourceEstimatedRetail: number | null;
     sourceFacts: unknown;
+    proposal: unknown;
     rawPayload: unknown;
     procurementSource: { name: string };
     assets: {
@@ -96,7 +113,12 @@ export async function showSourceEvidence(id: string) {
   }>(`/ingest/candidates/${id}`);
   const facts = obj(c.sourceFacts),
     capture = obj(facts.capture),
-    images = Array.isArray(capture.images) ? capture.images.map(obj) : [];
+    images = Array.isArray(capture.images) ? capture.images.map(obj) : [],
+    proposal = obj(c.proposal),
+    agent = obj(proposal.agent),
+    agentFields = Array.isArray(proposal.agentFields)
+      ? proposal.agentFields.map(obj)
+      : [];
   const fieldGaps = c.integrity.fieldGaps || [],
     imageGaps = c.integrity.imageGaps || [],
     structuredIssues = fieldGaps.length + imageGaps.length,
@@ -142,6 +164,18 @@ export async function showSourceEvidence(id: string) {
         `<div><dt>${esc(fieldNames.get(k) || labels[k] || k)}</dt><dd>${esc(readable(v))}</dd></div>`,
     )
     .join("");
+  const proposalHtml = agentFields
+    .map((field) => {
+      const confidence = Number(field.confidence),
+        evidencePaths = Array.isArray(field.evidencePaths)
+          ? field.evidencePaths.map(String)
+          : [],
+        imageCount = Array.isArray(field.evidenceImageSha256)
+          ? field.evidenceImageSha256.length
+          : 0;
+      return `<li><strong>${esc(proposalLabels[String(field.path)] || String(field.path))}</strong><p>${esc(readable(field.value))}</p><small>${esc(proposalMethods[String(field.method)] || String(field.method))} · 置信度 ${Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "未标注"}${evidencePaths.length ? ` · 依据 ${esc(evidencePaths.join("、"))}` : ""}${imageCount ? ` · ${imageCount}张来源图` : ""}${field.note ? ` · ${esc(field.note)}` : ""}</small></li>`;
+    })
+    .join("");
   viewDialog(
     "商品来源资料",
     `<div class="source-evidence"><header><small>${esc(c.procurementSource.name)} · ${esc(c.sourceItemKey || "原货号未提供")}</small><h3>${esc(c.titleRaw)}</h3><p>${esc(integrityLabel(c.integrity))} · 已保存${c.integrity.storedImages}张${c.integrity.expectedImages === null ? "" : ` / 清单${c.integrity.expectedImages}张`}</p>${link(capture.pageUrl || facts.productUrl, "打开来源商品页面")}</header>
@@ -149,6 +183,7 @@ export async function showSourceEvidence(id: string) {
   ${fieldGaps.length ? `<div class="notice warning"><strong>当前仍缺 ${fieldGaps.length} 项来源字段</strong><ul>${groupedGaps(fieldGaps)}</ul></div>` : ""}
   ${imageGaps.length ? `<div class="notice warning"><strong>当前仍有图片缺项</strong><ul>${groupedGaps(imageGaps)}</ul></div>` : ""}
   ${otherIssues.length ? `<div class="notice warning"><strong>其他需要留意</strong><ul>${otherIssues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
+  ${proposalHtml ? `<div class="notice"><strong>外部Agent整理建议</strong><p>${esc(String(agent.generator || "Agent"))}${agent.model ? ` · ${esc(String(agent.model))}` : ""}${agent.generatedAt ? ` · ${esc(when(String(agent.generatedAt)))}` : ""}。以下是面向 ToMe 字段的建议，不是来源事实；人工确认候选后才会采用。</p><ul>${proposalHtml}</ul></div>` : ""}
   <div class="evidence-gallery">${gallery || "<p>尚未保存来源图片</p>"}</div>
   <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div>${factsHtml}</dl>
   ${can("supply") ? `<div class="evidence-prices"><span>订单行原价 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>订单行折后金额 ${esc(money(c.sourceLineNetAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}

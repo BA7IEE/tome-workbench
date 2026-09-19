@@ -1,6 +1,6 @@
 # Generic Marketplace Profile
 
-版本：`GENERIC_MARKETPLACE/1.0`。适用于没有专用 Profile 的市场来源。它规定字段语义，不规定网页 DOM、CSS selector 或浏览器自动化方式。
+版本：`GENERIC_MARKETPLACE/1.1`。适用于没有专用 Profile 的市场来源。它规定字段语义，不规定网页 DOM、CSS selector 或浏览器自动化方式。
 
 ## 服务端必查字段
 
@@ -25,3 +25,7 @@
 ## 可扩展字段
 
 来源特有字段可原样放进 `sourceFacts` 或 `rawPayload`。新增字段不应覆盖已有人工商品资料，也不应自动成为本地标准字典。
+
+## Agent 整理建议
+
+取得来源事实后，可以按标准 Skill 的 `agentProposal` 合同整理标题、品牌、一级品类、材质、颜色、尺码、尺寸文本和中文介绍。一级品类必须使用协议给出的下拉值；品牌提交来源可支持的名称，由服务端尝试匹配现有字典，不得自动新增标准品牌。每项建议都要引用本候选的来源字段或图片并标记处理方式和置信度；不确定时降低置信度或不建议，不能反写到 `sourceFacts`。

@@ -23,16 +23,20 @@ export function mapTopCategory(raw: string) {
 }
 
 export async function proposalFor(tx: Tx, input: CandidateInput) {
-  const category = mapTopCategory(input.categoryRaw),
+  const agentFields = input.agentProposal?.fields || [],
+    field = (path: (typeof agentFields)[number]["path"]) =>
+      agentFields.find((candidate) => candidate.path === path)?.value,
+    category = field("category") || mapTopCategory(input.categoryRaw),
+    suggestedBrand = field("brand") || input.brandRaw,
     warnings: string[] = [];
   let brandEntryId: string | null = null,
     brandLabel = "";
-  if (input.brandRaw) {
+  if (suggestedBrand) {
     const term = await tx.dictionaryTerm.findUnique({
       where: {
         kind_normalized: {
           kind: "BRAND",
-          normalized: normalizeTerm(input.brandRaw),
+          normalized: normalizeTerm(suggestedBrand),
         },
       },
       include: { entry: true },
@@ -40,13 +44,46 @@ export async function proposalFor(tx: Tx, input: CandidateInput) {
     if (term?.entry.active) {
       brandEntryId = term.entryId;
       brandLabel = term.entry.label;
-    } else warnings.push(`品牌“${input.brandRaw}”尚未标准化`);
+    } else warnings.push(`品牌“${suggestedBrand}”尚未标准化`);
   }
   if (category === "OTHER" && input.categoryRaw)
     warnings.push(`品类“${input.categoryRaw}”需要人工确认一级分类`);
   if (input.conditionRaw) warnings.push("来源成色仅作参考，未映射成本地成色");
+  if (agentFields.length) {
+    warnings.push("含外部Agent整理建议，生成TM前请人工核对");
+    const uncertain = agentFields.filter(
+      (candidate) =>
+        candidate.confidence < 1 || candidate.method === "INFERRED",
+    ).length;
+    if (uncertain) warnings.push(`${uncertain}项Agent建议标记为存疑或推断`);
+  }
+  const facts = Object.fromEntries(
+    agentFields
+      .filter((candidate) => candidate.path.startsWith("facts."))
+      .map((candidate) => [
+        candidate.path.slice("facts.".length),
+        candidate.value,
+      ]),
+  );
   return {
-    proposal: { title: input.titleRaw, brandEntryId, brandLabel, category },
+    proposal: {
+      title: field("title") || input.titleRaw,
+      brandEntryId,
+      brandLabel,
+      suggestedBrand,
+      category,
+      facts,
+      ...(input.agentProposal
+        ? {
+            agent: {
+              generator: input.agentProposal.generator,
+              model: input.agentProposal.model,
+              generatedAt: input.agentProposal.generatedAt,
+            },
+            agentFields,
+          }
+        : {}),
+    },
     warnings,
   };
 }

@@ -40,8 +40,8 @@ function standardManifest(extra = {}) {
   return {
     ...extra,
     protocolVersion: "1.2",
-    skillVersion: "tome-ingest/1.0",
-    profile: "GENERIC_MARKETPLACE/1.0",
+    skillVersion: "tome-ingest/1.1",
+    profile: "GENERIC_MARKETPLACE/1.1",
   };
 }
 const genericProfileFields = [
