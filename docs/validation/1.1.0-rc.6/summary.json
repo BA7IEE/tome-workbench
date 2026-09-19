@@ -1,8 +1,8 @@
 {
   "version": "1.1.0-rc.6",
-  "startedAt": "2026-09-18T12:47:04.258Z",
-  "finishedAt": "2026-09-18T13:02:24.234Z",
-  "sourceSha256": "21bcaf067c0d526adbf30e12f2baede8e466ae19896933c0453173387802d9ae",
+  "startedAt": "2026-09-19T06:14:05.494Z",
+  "finishedAt": "2026-09-19T06:25:05.495Z",
+  "sourceSha256": "0246800b9c5b34e08e1376dcdea6150b40c7708c0ed686ec1746a537d219d67e",
   "fullHarnessExitCode": 0,
   "sourceUnchanged": true,
   "passed": true,
@@ -15,13 +15,13 @@
         "failed": 0
       },
       {
-        "tests": 30,
-        "passed": 30,
+        "tests": 31,
+        "passed": 31,
         "failed": 0
       },
       {
-        "tests": 157,
-        "passed": 157,
+        "tests": 161,
+        "passed": 161,
         "failed": 0
       },
       {
@@ -31,38 +31,58 @@
       }
     ],
     "browserStats": {
-      "expected": 175,
+      "expected": 176,
       "unexpected": 0,
       "skipped": 0,
       "flaky": 0,
       "retries": 0
     },
     "webkitStats": {
-      "expected": 175,
+      "expected": 176,
       "unexpected": 0,
       "skipped": 0,
       "flaky": 0,
       "retries": 0
     },
     "highAvailability": {
-      "passed": true
+      "passed": true,
+      "apiFailoverMs": 869,
+      "workerRecoveryMs": 1955,
+      "externalActionsExecuted": 0
     },
     "recovery": {
-      "passed": true
+      "passed": true,
+      "allSelectedTableHashesEqual": true,
+      "tmSequenceBeyondMaximum": true,
+      "restoredMediaChecksumsEqual": true,
+      "externalActionsExecuted": 0
     },
     "launchScale": {
       "passed": true,
       "durationsMs": {
-        "operations": 524.824037,
-        "dashboard": 501.297064,
-        "workQueue": 32.13779
-      }
-    }
+        "operations": 331.788609,
+        "dashboard": 299.144218,
+        "workQueue": 18.078108
+      },
+      "data": {
+        "items": 1000,
+        "channels": 8,
+        "targetPairs": 1000,
+        "historicalPairs": 1000,
+        "assets": 5000,
+        "attempts": 1200
+      },
+      "externalActionsExecuted": 0
+    },
+    "staticGuardCount": 197
   },
   "productionDeployment": false,
   "ci": {
-    "runId": 35346368541,
-    "headSha": "4e46bbbaf1a1bec0275f98ea6d084711b84fdd8e",
-    "conclusion": "success"
+    "runId": 35425986880,
+    "checkoutSha": "72b5fc9897ce080f2d647aa4c3f205f721d890c3",
+    "event": "push",
+    "conclusion": "success",
+    "artifactId": 10579475910,
+    "artifactDigest": "sha256:1c0602f20407025ad54c4110a73a60975f3d56e8d6d81065d09faf5aa4d7572e"
   }
 }
