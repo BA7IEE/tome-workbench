@@ -535,7 +535,11 @@ echo
 
 > 以下是通用框架。未来版本如果新增数据库 migration 或明确要求维护窗口，必须优先遵循该版本的 `docs/PRODUCTION.md`，不要机械套用滚动升级。
 
+先比较当前生产 SHA 与目标 SHA 的 `prisma/migrations/`。如果目标新增 migration，必须先停写，并在**仍签出当前线上版本、配置版本也仍是当前线上版本**时执行第 14 节的一致性备份；不能先切到新源码。`production-backup.mjs` 会核对当前源码 migration 清单、数据库已应用 migration 和 `configuration.json.appVersion`，顺序颠倒会被安全拒绝。
+
 ### 13.1 获取新源码
+
+本步骤只适用于无 migration 的滚动升级，或已按第 14 节用旧版本源码完成一致性备份的维护窗口。
 
 ```bash
 cd /opt/tome/tome-workbench
@@ -649,7 +653,58 @@ docs/PRODUCTION.md
 
 的 existing-production migration 流程执行。
 
-通常涉及：
+本次 rc.8 → rc.9 包含 `202609200019_source_line_net_cost`，必须使用维护窗口，不能走第 15 节滚动升级。安全顺序如下。
+
+1. 保持服务器仍签出线上 rc.8，且 `compose.env`、根目录 `.env`、`configuration.json` 仍是 rc.8。通知停写并停止四个写入服务：
+
+```bash
+docker compose \
+  -p tome-production \
+  -f compose.production.yaml \
+  --env-file data/production/compose.env \
+  stop api-a api-b worker-a worker-b
+```
+
+2. 在旧版本源码下生成一致性备份，保存命令输出的实际备份目录名；脚本不会自动重启服务：
+
+```bash
+node scripts/production-backup.mjs \
+  --config-dir=data/production \
+  --project=tome-production \
+  --offline-confirmed
+```
+
+备份应位于 `data/production/backups/backup-...`。先核对 `verified: true`，并按现有门禁确认可恢复副本；不能只看到目录就继续。
+
+3. 然后才执行第 13.1–13.4 节：签出已通过 main CI 的固定 rc.9 SHA，确认版本为 `1.1.0-rc.9`，同步三个版本字段并构建新应用与 migration 镜像。
+
+4. 使用刚才备份目录在 migration 容器内的 `/backups` 映射执行正式迁移。下面的 `<backup-directory>` 只填写目录名，例如 `backup-2026-09-20T...`，不要填写宿主机绝对路径，也不要带 `--initial-empty`：
+
+```bash
+docker compose \
+  -p tome-production \
+  -f compose.production.yaml \
+  --env-file data/production/compose.env \
+  --profile tools \
+  run --rm \
+  -e TOME_DEPLOY_APPROVED=YES \
+  -e BACKUP_MANIFEST=/backups/<backup-directory>/manifest.json \
+  migration scripts/migrate-safe.mjs --production
+```
+
+只有看到 `PRODUCTION_RUNTIME_ROLE_VERIFIED` 和 `MIGRATION_VERIFIED_AND_APPLIED; no reset performed` 才进入下一步。结果不确定时先查 migration 容器与 `_prisma_migrations`，不要用 `--initial-empty` 重跑。
+
+5. 一次启动目标版本的两组 API 与 Worker，然后执行第 16 节完整验证：
+
+```bash
+docker compose \
+  -p tome-production \
+  -f compose.production.yaml \
+  --env-file data/production/compose.env \
+  up -d --wait api-a api-b worker-a worker-b
+```
+
+这次维护窗口至少包含：
 
 - 维护窗口
 - 停止写入

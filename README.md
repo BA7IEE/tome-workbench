@@ -1,6 +1,6 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
-**版本：1.1.0-rc.7，标准 Agent 采集、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
+**版本：1.1.0-rc.9，标准 Agent 采集、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
 
 围绕永久 TM 统一管理商品、原图、来源和日常库存动作。采集、平台发布和 AnQiCMS 建站由外部工具完成。保留原有业务模块供需要时使用。真实验证入口为 `docs/VALIDATION.md`；长期74项要求与当前实现的区别见 `docs/AC_MATRIX.md`。
 

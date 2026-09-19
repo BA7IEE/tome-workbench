@@ -20,10 +20,10 @@
     }
   },
   "local": {
-    "at": "2026-09-19T18:39:04Z",
+    "at": "2026-09-19T20:24:19Z",
     "auditCommand": "npm audit --audit-level=high --json",
     "auditExitCode": 0,
-    "packageLockSha256": "6d7ddbdd294a4139032368893bb4aec9d417e0a0f343097ca10fedcdd51f54a9",
-    "packageJsonSha256": "131c652f6115096cba116bb2a90e66f800a6d3fad754e573f29c1e7642095cbf"
+    "packageLockSha256": "cf288958e4d1c8b610fff34b88d0b91659ff239ca1e03263e0c61d9a8962b5a8",
+    "packageJsonSha256": "48bb91b8b90c78b87b251cbaf4b4dd84a07c8b39234f2d00fc7447ec39981f96"
   }
 }

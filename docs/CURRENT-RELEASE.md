@@ -1,12 +1,14 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.8**，标准 Agent 采集、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
+当前源码版本：**1.1.0-rc.9**，标准 Agent 采集、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 
 `tome.23cc.cn` 的实际 1Panel/OpenResty 运行拓扑、部署 SHA、人工 UAT 记录和后续升级步骤另见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该文档是指定环境的时间点运维事实，不能反向替代本文件的源码范围、当前验证指纹或目标版本迁移门禁。
 
 rc.7 新增正式生产部署模式 `EXTERNAL_REVERSE_PROXY`：同一生产 Compose 将两个 API 仅发布到宿主机 loopback，内置 Caddy 改为显式 `internal-proxy` profile；配置生成器记录部署模式和外部代理提供方，生产 preflight 对 1Panel/OpenResty 等外部入口验证 loopback 端口、禁止内置 proxy 常驻、正式域名 HTTPS readiness 与版本一致性。默认 `INTERNAL_CADDY` 行为仍保留；这不等于真实服务器、域名、防火墙、备份或业务 UAT 已经人工验收。
 
 rc.8 修复首次生产部署的数据库运行角色闭环：安全迁移现在会在维护锁内显式创建或同步 `tome_app`、设置最小权限与默认权限，迁移完成后补齐既有表/序列权限并用运行连接实际验证登录、非特权属性和读写能力。CI 新增独立 PostgreSQL 空库 bootstrap gate，从“运行角色不存在”的状态执行完整 production initial-empty migration；这补上 rc.7 只验证应用/集成测试、没有真实覆盖新生产库运行角色初始化的缺口。
+
+rc.9 将本轮 TRR 折后金额、高清来源图状态和外部 Agent 字段建议作为独立发布候选，避免覆盖线上既有 `1.1.0-rc.8` 镜像标签。它包含 forward migration `202609200019_source_line_net_cost`，从 rc.8 升级不能滚动执行，必须先在仍匹配 rc.8 的源码和配置下停写并生成一致性备份，再切换固定 rc.9 SHA、构建、带 `BACKUP_MANIFEST` 执行正式 migration，最后统一启动 API/Worker。实际生产是否已升级仍以 `PRODUCTION-1PANEL.md` 的现场复核为准。
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
@@ -40,7 +42,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 ```json
 {
-  "version": "1.1.0-rc.8",
+  "version": "1.1.0-rc.9",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
