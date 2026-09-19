@@ -18,5 +18,18 @@
       "peerOptional": 0,
       "total": 490
     }
+  },
+  "ci": {
+    "runId": 35425986880,
+    "checkoutSha": "72b5fc9897ce080f2d647aa4c3f205f721d890c3",
+    "conclusion": "success",
+    "auditCommand": "npm audit --audit-level=high",
+    "auditExitCode": 0,
+    "packageLockBlobSha": "ea681327f71b5d7dfdaa9ef009c7f6e098566c23",
+    "packageJsonBlobSha": "1166c1d6a656cee812c340d76e2c153a1da6a387"
+  },
+  "package": {
+    "file": "release/tome-workbench-1.1.0-rc.6.zip",
+    "sizeBytes": 2102942
   }
 }
