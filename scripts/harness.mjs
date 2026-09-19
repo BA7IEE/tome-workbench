@@ -279,6 +279,7 @@ export function checks(
       compose.includes("TOME_API_B_PORT:-14319") &&
       compose.includes("profiles: [internal-proxy]") &&
       preflight.includes("external-reverse-proxy-provider") &&
+      preflight.includes('"--profile", "internal-proxy"') &&
       preflight.includes("internal-proxy-not-running") &&
       preflight.includes("loopback-only")
     );
