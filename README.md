@@ -78,6 +78,7 @@ npm audit --audit-level=high
 - `AGENTS.md`：开发红线和验证顺序。
 - `docs/ARCHITECTURE.md`：模块归属与一致性边界。
 - `docs/PRODUCTION.md`：部署、迁移、升级、上线前条件。
+- `docs/PRODUCTION-1PANEL.md`：当前 `tome.23cc.cn` 的 1Panel/OpenResty 时间点运行记录与升级维护步骤。
 - `docs/OPERATIONS.md`：日常操作、备份恢复及限制。
 - `docs/AC_MATRIX.md`：74项蓝图逐项覆盖。
 - `docs/PROVENANCE.md`：SRVF文件来源及许可边界。

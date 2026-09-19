@@ -1,6 +1,8 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.8**，标准 Agent 采集、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同；尚未完成真实生产和经营验收。
+当前源码版本：**1.1.0-rc.8**，标准 Agent 采集、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
+
+`tome.23cc.cn` 的实际 1Panel/OpenResty 运行拓扑、部署 SHA、人工 UAT 记录和后续升级步骤另见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该文档是指定环境的时间点运维事实，不能反向替代本文件的源码范围、当前验证指纹或目标版本迁移门禁。
 
 rc.7 新增正式生产部署模式 `EXTERNAL_REVERSE_PROXY`：同一生产 Compose 将两个 API 仅发布到宿主机 loopback，内置 Caddy 改为显式 `internal-proxy` profile；配置生成器记录部署模式和外部代理提供方，生产 preflight 对 1Panel/OpenResty 等外部入口验证 loopback 端口、禁止内置 proxy 常驻、正式域名 HTTPS readiness 与版本一致性。默认 `INTERNAL_CADDY` 行为仍保留；这不等于真实服务器、域名、防火墙、备份或业务 UAT 已经人工验收。
 

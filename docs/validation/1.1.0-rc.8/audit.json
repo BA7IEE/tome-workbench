@@ -20,7 +20,7 @@
     }
   },
   "local": {
-    "at": "2026-09-19T17:49:36Z",
+    "at": "2026-09-19T18:39:04Z",
     "auditCommand": "npm audit --audit-level=high --json",
     "auditExitCode": 0,
     "packageLockSha256": "6d7ddbdd294a4139032368893bb4aec9d417e0a0f343097ca10fedcdd51f54a9",

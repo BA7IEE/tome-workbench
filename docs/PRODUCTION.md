@@ -104,6 +104,8 @@ Worker租约过期由其他Worker接续，超过失败预算进入FAILED待人�
 
 ## 1Panel / OpenResty 正式部署模式
 
+当前 `tome.23cc.cn` 的实际 1Panel/OpenResty 拓扑、固定端口、生产目录、已发生故障、升级命令和严禁操作见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该记录描述特定环境在记录时间的事实；本文件仍是所有版本共用的部署与安全门禁。
+
 1Panel 使用 `EXTERNAL_REVERSE_PROXY`，不是“绕过生产检查”。先生成该模式配置，再在 1Panel「容器 → 编排」从仓库中的 `compose.production.yaml` 创建编排；将生成的 `data/production/compose.env` 作为该编排的 Compose `.env` 环境变量文件使用。这个文件只包含配置目录、镜像版本、部署模式和本机端口，不包含数据库密码；真正的数据库凭据仍只在 `data/production` 的受限文件和 Docker Secret 中。
 
 普通编排启动只运行 `postgres / api-a / api-b / worker-a / worker-b`；`migration` 属于 `tools` profile，`proxy` 属于 `internal-proxy` profile，1Panel 不应启动它们作为常驻服务。1Panel 网站反向代理应指向 `http://127.0.0.1:14318` 和 `http://127.0.0.1:14319` 的负载均衡；公网只开放 OpenResty 的 80/443，不开放 14318/14319。HTTPS 证书、HTTP 跳转和站点日志由 1Panel/OpenResty 管理。
