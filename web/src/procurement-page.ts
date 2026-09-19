@@ -62,6 +62,7 @@ type PLine = {
   productUrl: string;
   currency: string;
   lineAmount: number | null;
+  sourceLineNetAmount: number | null;
   sourceCurrentPrice: number | null;
   sourceEstimatedRetail: number | null;
   sourceConditionRaw: string;
@@ -156,7 +157,8 @@ export type CostPreview = {
     itemId: string;
     code: string;
     title: string;
-    lineAmount: number;
+    lineAmount: number | null;
+    allocationAmount: number;
     purchaseCny: number;
     overheadCny: number;
     totalCny: number;
@@ -275,7 +277,7 @@ function sourceCostPolicyDialog(source: PSource, after: () => Promise<void>) {
   form(
     "来源成本规则",
     note(
-      "这是一条来源级规则，只需配置一次。TRR建议：每单附加成本¥200、按商品原价比例分摊、Store Credit计入采购支付价值。",
+      "这是一条来源级规则，只需配置一次。TRR建议按订单逐件折后金额分摊；这样不会把不同折扣率重新摊回原价。Store Credit仍作为支付价值处理。",
     ) +
       field(
         "overhead",
@@ -286,12 +288,20 @@ function sourceCostPolicyDialog(source: PSource, after: () => Promise<void>) {
         'inputmode="decimal"',
       ) +
       select(
+        "allocationMethod",
+        "采购款分摊依据",
+        {
+          PROPORTIONAL_LINE_NET_AMOUNT: "订单行折后金额（TRR建议）",
+          PROPORTIONAL_LINE_AMOUNT: "订单行原价",
+        },
+        source.costAllocationMethod,
+      ) +
+      select(
         "storeCredit",
         "Store Credit是否计入支付价值",
         { true: "是，视为支付价值", false: "否，视为折扣" },
         String(source.storeCreditAsPayment),
-      ) +
-      note("当前分摊方法：按商品订单原价比例分摊。"),
+      ),
     async (d, k) => {
       const overhead = cents(d.get("overhead"));
       if (overhead === null) throw new Error("请填写每单附加成本");
@@ -301,7 +311,7 @@ function sourceCostPolicyDialog(source: PSource, after: () => Promise<void>) {
         {
           version: source.version,
           orderOverheadCny: overhead,
-          costAllocationMethod: "PROPORTIONAL_LINE_AMOUNT",
+          costAllocationMethod: text(d, "allocationMethod"),
           storeCreditAsPayment: text(d, "storeCredit") === "true",
           note: "经营人员确认来源成本规则",
         },
@@ -468,7 +478,7 @@ export function orderCostBasisDialog(
   );
 }
 const lineTemplate =
-  "行键\t原货号\t品牌\t商品名称\t品类\t订单行金额\t平台现价\t估计零售价\t平台成色\t平台状态\t标签尺码\t颜色\t材质\t尺寸\t尺寸为估测\t商品链接\t商品描述\t图片链接\n";
+  "行键\t原货号\t品牌\t商品名称\t品类\t订单行原价\t订单行折后金额\t平台现价\t估计零售价\t平台成色\t平台状态\t标签尺码\t颜色\t材质\t尺寸\t尺寸为估测\t商品链接\t商品描述\t图片链接\n";
 const adjustmentTemplate = "调整键\t类型\t名称\t金额\n";
 const shipmentTemplate = "包裹键\t物流单号\t承运商\t状态\t订单行键\n";
 const returnTemplate = "退货键\t退货号\t状态\t订单行键\n";
@@ -486,7 +496,8 @@ function buildOrderImportBody(d: FormData) {
       categoryRaw: r.品类 || "",
       productUrl: r.商品链接 || "",
       currency,
-      lineAmount: parseAmount(r.订单行金额 || ""),
+      lineAmount: parseAmount(r.订单行原价 || r.订单行金额 || ""),
+      sourceLineNetAmount: parseAmount(r.订单行折后金额 || ""),
       sourceCurrentPrice: parseAmount(r.平台现价 || ""),
       sourceEstimatedRetail: parseAmount(r.估计零售价 || ""),
       sourceConditionRaw: r.平台成色 || "",
@@ -582,6 +593,7 @@ function orderPreviewDialog(
     esc(x.sourceSku || x.lineKey),
     esc((x.brandRaw ? x.brandRaw + " · " : "") + x.title),
     money(x.lineAmount, body.currency),
+    money(x.sourceLineNetAmount, body.currency),
     money(x.sourceCurrentPrice, body.currency),
     esc(x.sourceConditionRaw || "—"),
   ]);
@@ -594,7 +606,14 @@ function orderPreviewDialog(
       imbalance +
       `<div class="procurement-preview-totals"><span>订单行合计 <strong>${money(lineSum, body.currency)}</strong></span><span>调整合计 <strong>${money(adjustmentTotal, body.currency)}</strong></span><span>订单总额 <strong>${money(body.totalAmount, body.currency)}</strong></span><span>支付 <strong>${money(body.paymentAmount, body.currency)}</strong></span></div>` +
       table(
-        ["原货号", "品牌 / 商品", "订单行金额", "平台现价", "平台成色"],
+        [
+          "原货号",
+          "品牌 / 商品",
+          "订单行原价",
+          "订单行折后金额",
+          "平台现价",
+          "平台成色",
+        ],
         rows,
       ) +
       note(
@@ -735,10 +754,13 @@ const measureText = (v: unknown) => {
 };
 
 function costPanel(order: POrder, preview: CostPreview) {
+  const usesNet =
+    order.procurementSource.costAllocationMethod ===
+    "PROPORTIONAL_LINE_NET_AMOUNT";
   const rows = preview.rows.map((r) => [
     esc(r.code),
     esc(r.title),
-    money(r.lineAmount, order.currency),
+    money(r.allocationAmount, order.currency),
     money(r.purchaseCny, "CNY"),
     money(r.overheadCny, "CNY"),
     `<strong>${esc(money(r.totalCny, "CNY"))}</strong>`,
@@ -773,8 +795,8 @@ function costPanel(order: POrder, preview: CostPreview) {
         )
       : "");
   return `<section class="panel procurement-cost-panel"><div class="panel-head"><div><h2>人民币取得成本</h2><p>订单只负责计算依据；最终成本写入每件TM商品。</p></div><div class="button-row">${actions}</div></div>
-    <div class="cost-policy-summary"><span>来源规则：每单附加成本 <strong>${money(order.procurementSource.orderOverheadCny, "CNY")}</strong></span><span>Store Credit：<strong>${order.procurementSource.storeCreditAsPayment ? "计入支付价值" : "视为折扣"}</strong></span><span>订单依据：<strong>${order.costBasis ? `v${order.costBasis.version}` : "待确认"}</strong></span>${preview.totalCny !== null ? `<span>本单最终成本：<strong>${money(preview.totalCny, "CNY")}</strong></span>` : ""}</div>
-    ${blockers}${warnings}${rows.length ? table(["TM", "商品", "订单原价", "采购分摊", "附加分摊", "最终成本"], rows) : ""}
+    <div class="cost-policy-summary"><span>采购款分摊：<strong>${usesNet ? "订单行折后金额" : "订单行原价"}</strong></span><span>每单附加成本 <strong>${money(order.procurementSource.orderOverheadCny, "CNY")}</strong></span><span>Store Credit：<strong>${order.procurementSource.storeCreditAsPayment ? "计入支付价值" : "视为折扣"}</strong></span><span>订单依据：<strong>${order.costBasis ? `v${order.costBasis.version}` : "待确认"}</strong></span>${preview.totalCny !== null ? `<span>本单最终成本：<strong>${money(preview.totalCny, "CNY")}</strong></span>` : ""}</div>
+    ${blockers}${warnings}${rows.length ? table(["TM", "商品", usesNet ? "订单行折后金额" : "订单原价", "采购分摊", "附加分摊", "最终成本"], rows) : ""}
   </section>`;
 }
 async function orderListPage() {
@@ -857,7 +879,7 @@ function lineActions(line: PLine) {
   return `<div class="button-row compact">${parts.join("")}</div>`;
 }
 function sourceFacts(line: PLine) {
-  const prices = `<div class="procurement-price-grid">${moneyFact("订单行金额", line.lineAmount, line.currency)}${moneyFact("平台当前价", line.sourceCurrentPrice, line.currency)}${moneyFact("平台估计零售价", line.sourceEstimatedRetail, line.currency)}</div>`;
+  const prices = `<div class="procurement-price-grid">${moneyFact("订单行原价", line.lineAmount, line.currency)}${moneyFact("订单行折后金额", line.sourceLineNetAmount, line.currency)}${moneyFact("平台当前价", line.sourceCurrentPrice, line.currency)}${moneyFact("平台估计零售价", line.sourceEstimatedRetail, line.currency)}</div>`;
   const details = [
     fact("平台成色", line.sourceConditionRaw),
     fact("平台商品状态", line.sourceStatusRaw),

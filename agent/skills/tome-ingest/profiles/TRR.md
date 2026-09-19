@@ -1,6 +1,6 @@
 # The RealReal Profile
 
-版本：`TRR/1.0`。适用于服务器来源代码为 `TRR`、`TRR-...` 或 `TRR_...` 的会话。它只保存 The RealReal 的来源事实，不把来源状态、价格或品相变成本地经营决定。
+版本：`TRR/1.1`。适用于服务器来源代码为 `TRR`、`TRR-...` 或 `TRR_...` 的会话。它只保存 The RealReal 的来源事实，不把来源状态、价格或品相变成本地经营决定。
 
 ## 商品必查字段
 
@@ -18,6 +18,7 @@
 - `sourceFacts.productUrl`
 - `sourceFacts.description`
 - `sourceLineAmount`
+- `sourceLineNetAmount`
 - `sourceCurrentPrice`
 - `sourceEstimatedRetail`
 
@@ -25,7 +26,7 @@
 
 ## 订单事实
 
-订单导入应如实保留外部订单号、下单时间、每个 line item、订单行金额、支付、Store Credit、运费、折扣、税费、退款、RMA 和物流状态。订单金额、平台现价、估计零售价及后续人民币取得成本彼此独立；未知金额留空。
+订单导入应如实保留外部订单号、下单时间、每个 line item、订单行原价、订单行折后金额、支付、Store Credit、运费、折扣、税费、退款、RMA 和物流状态。`sourceLineAmount` 是商品原价，`sourceLineNetAmount` 是订单逐件折扣后、整单运费和 Store Credit 之前的商品金额；`sourceCurrentPrice` 只用于网页另行显示的当前平台价。三者不能互相冒充。估计零售价及后续人民币取得成本也分别保存；未知金额留空。
 
 ## 图片
 

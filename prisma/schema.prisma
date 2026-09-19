@@ -165,6 +165,7 @@ model PurchaseLine {
   productUrl            String                     @default("")
   currency              String
   lineAmount            Int?
+  sourceLineNetAmount   Int?
   sourceCurrentPrice    Int?
   sourceEstimatedRetail Int?
   sourceConditionRaw    String                     @default("")
@@ -1081,6 +1082,7 @@ model IngestCandidate {
   statusRaw             String                    @default("")
   currency              String                    @default("CNY")
   sourceLineAmount      Int?
+  sourceLineNetAmount   Int?
   sourceCurrentPrice    Int?
   sourceEstimatedRetail Int?
   sourceFacts           Json

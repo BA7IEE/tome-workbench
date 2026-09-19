@@ -125,7 +125,7 @@ The existing 74-row implementation boundary is unchanged by moving controls. `te
 
 
 ## 0.11 多来源采购归集验收
-0.11新增采购来源事实层，不改变商品库存和成交真相源。TRR结构合成样本验证7个订单行、2个包裹、折扣/运费/抵用额、平台状态/RMA、订单行金额/平台现价/估计零售价分离、人工经营判断和人民币成本确认。
+0.11新增采购来源事实层，不改变商品库存和成交真相源。TRR结构合成样本验证7个订单行、2个包裹、折扣/运费/抵用额、平台状态/RMA、订单行原价/逐件折后金额/平台现价/估计零售价分离、人工经营判断和人民币成本确认。
 `test/integration.test.cjs`保护“来源状态不改库存、来源价格不自动变成本、来源成色不自动映射、再次导入保留人工判断”；`test/browser/procurement.spec.cjs`同时进入Chromium与WebKit，覆盖两步导入预览、逐件核对、货源候选、人民币成本和手机布局。
 
 ## v1.0 商品中心补充验收
@@ -133,7 +133,7 @@ The existing 74-row implementation boundary is unchanged by moving controls. `te
 - 候选商品在人工确认前不得创建正式 TM；来源状态和成色不得静默映射为本地库存/标准成色。
 - 待确认页面必须真实支持100件一页，并在第101件时分页；Chromium和WebKit同时执行。
 - 同一TM支持多个来源；旧 sourceId 仅兼容并迁移回填到 ItemSourceLink。
-- TRR成本按确认规则和订单依据生成TM人民币成本；RMA/排除时要求人工确认最终经济支付金额。
+- TRR成本按逐件折后金额比例分摊确认后的经济支付价值，Store Credit 与退款不重复扣减，尾差严格闭合；缺少折后金额即阻断。RMA/排除时要求人工确认最终经济支付金额。
 - 售出时冻结成本快照，后续采购成本重算不改变历史Sale.cost。
 ## 1.0.0-rc.2经营行动投影验收
 本轮不把任何“部分/后续”长期蓝图场景冒充为已完成。新增`/api/work-queue`只统一现有业务动作入口：候选、Task、Observation、Inquiry、Sale仍使用原模型和原写入规则。集成测试验证五类事项汇总、优先级顺序、BUSINESS隔离和角色可见性；Chromium/WebKit验证经营待办可回到精确候选处理页。

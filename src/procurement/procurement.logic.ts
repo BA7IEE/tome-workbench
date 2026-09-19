@@ -33,6 +33,7 @@ export function lineData(line: PurchaseLineInput) {
     productUrl: line.productUrl,
     currency: line.currency,
     lineAmount: line.lineAmount,
+    sourceLineNetAmount: line.sourceLineNetAmount,
     sourceCurrentPrice: line.sourceCurrentPrice,
     sourceEstimatedRetail: line.sourceEstimatedRetail,
     sourceConditionRaw: line.sourceConditionRaw,
@@ -97,11 +98,19 @@ export function sourceCandidatePayload(
     sourceCurrentPrice: line.sourceCurrentPrice,
     sourceEstimatedRetail: line.sourceEstimatedRetail,
     sourceLineAmount: line.lineAmount,
+    sourceLineNetAmount: line.sourceLineNetAmount,
     sourceCurrency: line.currency,
     purchaseOrderNo: orderNo,
     purchaseLineId: line.id,
     ownership: "OWN",
   };
+}
+
+export function defaultCostAllocationMethod(code: string) {
+  const normalized = code.trim().toUpperCase();
+  return normalized === "TRR" || /^TRR[_-]/.test(normalized)
+    ? "PROPORTIONAL_LINE_NET_AMOUNT"
+    : "PROPORTIONAL_LINE_AMOUNT";
 }
 
 export function procurementSourceKey(

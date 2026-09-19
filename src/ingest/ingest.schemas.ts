@@ -40,6 +40,7 @@ export const ingestCandidateInput = z
     statusRaw: safeText(160).default(""),
     currency: currency.optional(),
     sourceLineAmount: amount.nullable().optional().default(null),
+    sourceLineNetAmount: amount.nullable().optional().default(null),
     sourceCurrentPrice: amount.nullable().optional().default(null),
     sourceEstimatedRetail: amount.nullable().optional().default(null),
     sourceFacts: z
