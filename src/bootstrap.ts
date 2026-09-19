@@ -66,11 +66,15 @@ export async function createApp() {
       maxAge: "1y",
     }),
   );
+  const indexFile = join(__dirname, "web/index.html");
+  // sendFile otherwise treats a hidden parent directory (for example a
+  // managed .codex worktree) as a dotfile and rejects this fixed entrypoint.
+  // The path is not derived from request input and does not expose a directory.
   server.get("/", (_req, res) =>
-    res.sendFile(join(__dirname, "web/index.html")),
+    res.sendFile(indexFile, { dotfiles: "allow" }),
   );
   server.get("/showroom", (_req, res) =>
-    res.sendFile(join(__dirname, "web/index.html")),
+    res.sendFile(indexFile, { dotfiles: "allow" }),
   );
   setOpenApi(
     SwaggerModule.createDocument(

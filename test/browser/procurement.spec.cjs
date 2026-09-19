@@ -155,9 +155,23 @@ const lines = [
     "",
   ],
 ];
+const netBySku = {
+  WDI571039: "78",
+  WDI581338: "100",
+  GIO194599: "52",
+  WDI580085: "136.50",
+  LAN245875: "81",
+  LAN244886: "147",
+  LAN245375: "122.50",
+};
 const lineHeader =
-  "行键\t原货号\t品牌\t商品名称\t品类\t订单行金额\t平台现价\t估计零售价\t平台成色\t平台状态\t标签尺码\t颜色\t材质\t尺寸\t尺寸为估测\t商品链接\t商品描述\t图片链接";
-const lineText = [lineHeader, ...lines.map((r) => r.join("\t"))].join("\n");
+  "行键\t原货号\t品牌\t商品名称\t品类\t订单行原价\t订单行折后金额\t平台现价\t估计零售价\t平台成色\t平台状态\t标签尺码\t颜色\t材质\t尺寸\t尺寸为估测\t商品链接\t商品描述\t图片链接";
+const lineText = [
+  lineHeader,
+  ...lines.map((r) =>
+    [...r.slice(0, 6), netBySku[r[0]], "", ...r.slice(7)].join("\t"),
+  ),
+].join("\n");
 async function createOrder(page) {
   await page.goto("/#/procurement");
   const before = (
@@ -307,7 +321,8 @@ test("v1 采购历史不再逐件手填成本，统一由订单级成本面板�
     ).json(),
     line = order.lines.find((x) => x.sourceSku === "WDI571039");
   expect(line.lineAmount).toBe(19500);
-  expect(line.sourceCurrentPrice).toBe(7800);
+  expect(line.sourceLineNetAmount).toBe(7800);
+  expect(line.sourceCurrentPrice).toBeNull();
   expect(line.costConfirmations).toHaveLength(0);
 });
 

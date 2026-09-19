@@ -4,6 +4,8 @@ export type CaptureIntegrity = {
   state: "COMPLETE" | "GAPS" | "UNVERIFIED";
   issues: string[];
   blockers: string[];
+  fieldGaps?: { label: string; reason: string }[];
+  imageGaps?: { label: string; reason: string }[];
   expectedImages: number | null;
   storedImages: number;
 };
@@ -55,6 +57,17 @@ function link(url: unknown, label: string) {
     ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`
     : "";
 }
+function groupedGaps(gaps: { label: string; reason: string }[]) {
+  const groups = new Map<string, string[]>();
+  for (const gap of gaps)
+    groups.set(gap.reason, [...(groups.get(gap.reason) || []), gap.label]);
+  return [...groups]
+    .map(
+      ([reason, names]) =>
+        `<li><strong>${esc(names.join("、"))}</strong><small>${esc(reason)}</small></li>`,
+    )
+    .join("");
+}
 export async function showSourceEvidence(id: string) {
   const c = await request<{
     titleRaw: string;
@@ -65,6 +78,7 @@ export async function showSourceEvidence(id: string) {
     statusRaw: string;
     currency: string;
     sourceLineAmount: number | null;
+    sourceLineNetAmount: number | null;
     sourceCurrentPrice: number | null;
     sourceEstimatedRetail: number | null;
     sourceFacts: unknown;
@@ -83,6 +97,23 @@ export async function showSourceEvidence(id: string) {
   const facts = obj(c.sourceFacts),
     capture = obj(facts.capture),
     images = Array.isArray(capture.images) ? capture.images.map(obj) : [];
+  const fieldGaps = c.integrity.fieldGaps || [],
+    imageGaps = c.integrity.imageGaps || [],
+    structuredIssues = fieldGaps.length + imageGaps.length,
+    storedLargest = c.assets.filter((asset) => {
+      const declaration = images.find((image) => image.sha256 === asset.sha256);
+      return ["ORIGINAL", "LARGEST_AVAILABLE"].includes(
+        String(declaration?.quality || ""),
+      );
+    }).length,
+    otherIssues = structuredIssues
+      ? c.integrity.issues.filter(
+          (issue) =>
+            ![...fieldGaps, ...imageGaps].some(
+              (gap) => issue === `${gap.label}：${gap.reason}`,
+            ),
+        )
+      : c.integrity.issues;
   const gallery = c.assets
     .map((a, n) => {
       const declaration = images.find((i) => i.sha256 === a.sha256),
@@ -114,10 +145,13 @@ export async function showSourceEvidence(id: string) {
   viewDialog(
     "商品来源资料",
     `<div class="source-evidence"><header><small>${esc(c.procurementSource.name)} · ${esc(c.sourceItemKey || "原货号未提供")}</small><h3>${esc(c.titleRaw)}</h3><p>${esc(integrityLabel(c.integrity))} · 已保存${c.integrity.storedImages}张${c.integrity.expectedImages === null ? "" : ` / 清单${c.integrity.expectedImages}张`}</p>${link(capture.pageUrl || facts.productUrl, "打开来源商品页面")}</header>
-  ${c.integrity.issues.length ? `<div class="notice warning"><strong>需要留意</strong><ul>${c.integrity.issues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
+  ${storedLargest ? `<div class="notice"><strong>高清图已补采</strong><p>当前已保存${storedLargest}张平台可取得的最大图或原图；旧缩略图仍保留为历史来源证据，不再算作当前图片缺项。</p></div>` : ""}
+  ${fieldGaps.length ? `<div class="notice warning"><strong>当前仍缺 ${fieldGaps.length} 项来源字段</strong><ul>${groupedGaps(fieldGaps)}</ul></div>` : ""}
+  ${imageGaps.length ? `<div class="notice warning"><strong>当前仍有图片缺项</strong><ul>${groupedGaps(imageGaps)}</ul></div>` : ""}
+  ${otherIssues.length ? `<div class="notice warning"><strong>其他需要留意</strong><ul>${otherIssues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
   <div class="evidence-gallery">${gallery || "<p>尚未保存来源图片</p>"}</div>
   <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div>${factsHtml}</dl>
-  ${can("supply") ? `<div class="evidence-prices"><span>订单行金额 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}
+  ${can("supply") ? `<div class="evidence-prices"><span>订单行原价 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>订单行折后金额 ${esc(money(c.sourceLineNetAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}
   ${capture.capturedAt ? `<small>来源采集时间：${esc(when(String(capture.capturedAt)))}</small>` : ""}<p>图片保存在中台；来源清单核对不等于独立证明网页没有遗漏。资料缺失与是否可售分别管理。</p>
   <details><summary>查看原始证据与修订</summary><small>${c.revisions.length}个最近修订；来源数据不会覆盖人工维护的商品内容。</small><pre class="json-view">${esc(JSON.stringify(c.rawPayload, null, 2))}</pre><pre class="json-view">${esc(JSON.stringify(capture, null, 2))}</pre></details></div>`,
   );

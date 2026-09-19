@@ -54,6 +54,7 @@ type Candidate = {
   statusRaw: string;
   currency: string;
   sourceLineAmount: number | null;
+  sourceLineNetAmount: number | null;
   sourceCurrentPrice: number | null;
   sourceEstimatedRetail: number | null;
   warnings: string[];
@@ -640,7 +641,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
     <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
     <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
-    <div class="candidate-prices"><span>订单行 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
+    <div class="candidate-prices"><span>订单行原价 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
   </article>`;
 }
@@ -652,7 +653,7 @@ function candidateTable(candidates: Candidate[], after: () => Promise<void>) {
         brand = String(
           proposal.brandLabel || candidate.brandRaw || "品牌待确认",
         );
-      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${esc(candidate.conditionRaw || "来源成色未记录")}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small></td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${candidate.warnings.length ? candidate.warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
+      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${esc(candidate.conditionRaw || "来源成色未记录")}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small></td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))} · 平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${candidate.warnings.length ? candidate.warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
     })
     .join("")}</tbody></table></div>`;
 }

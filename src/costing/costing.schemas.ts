@@ -19,7 +19,10 @@ export const sourceCostPolicyInput = z
   .object({
     version: z.number().int().positive(),
     orderOverheadCny: money,
-    costAllocationMethod: z.literal("PROPORTIONAL_LINE_AMOUNT"),
+    costAllocationMethod: z.enum([
+      "PROPORTIONAL_LINE_AMOUNT",
+      "PROPORTIONAL_LINE_NET_AMOUNT",
+    ]),
     storeCreditAsPayment: z.boolean(),
     note: safeText(1000).default(""),
   })

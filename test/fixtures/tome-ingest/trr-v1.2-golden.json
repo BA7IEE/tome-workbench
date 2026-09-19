@@ -7,7 +7,7 @@
     "rawManifest": {
       "protocolVersion": "1.2",
       "skillVersion": "tome-ingest/1.0",
-      "profile": "TRR/1.0",
+      "profile": "TRR/1.1",
       "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
       "requiredFields": ["sourceFacts.conditionDescription"]
     }
@@ -22,6 +22,7 @@
       "conditionRaw": "Excellent",
       "currency": "USD",
       "sourceLineAmount": 123400,
+      "sourceLineNetAmount": 98700,
       "sourceCurrentPrice": 156700,
       "sourceEstimatedRetail": 400000,
       "sourceFacts": {
@@ -51,6 +52,7 @@
             { "path": "sourceFacts.productUrl", "label": "商品链接", "status": "CAPTURED", "reason": "" },
             { "path": "sourceFacts.description", "label": "来源描述", "status": "CAPTURED", "reason": "" },
             { "path": "sourceLineAmount", "label": "订单行金额", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceLineNetAmount", "label": "订单行折后金额", "status": "CAPTURED", "reason": "" },
             { "path": "sourceCurrentPrice", "label": "来源现价", "status": "CAPTURED", "reason": "" },
             { "path": "sourceEstimatedRetail", "label": "来源估价", "status": "CAPTURED", "reason": "" },
             { "path": "sourceFacts.conditionDescription", "label": "品相说明", "status": "CAPTURED", "reason": "" }

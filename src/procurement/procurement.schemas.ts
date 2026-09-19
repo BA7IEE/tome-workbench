@@ -31,6 +31,7 @@ const purchaseLine = z.object({
   productUrl: safeText(2000).default(""),
   currency,
   lineAmount: optionalAmount,
+  sourceLineNetAmount: optionalAmount,
   sourceCurrentPrice: optionalAmount,
   sourceEstimatedRetail: optionalAmount,
   sourceConditionRaw: safeText(150).default(""),

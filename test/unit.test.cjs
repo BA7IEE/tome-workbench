@@ -207,6 +207,13 @@ test('采集检查区分来源缺项、漏传文件和未核验，不能用空�
   assert.equal(captureEvidence.safeParse({...capture,images:[{sourceUrl:'https://example.invalid/2.png',quality:'UNAVAILABLE'}]}).success,false);
 });
 
+test('同一图位补到已保存高清图后，旧缩略图只作历史证据，不再是当前图片缺项', () => {
+  const {inspectCapture}=require('../dist/ingest/ingest-integrity');
+  const thumb='a'.repeat(64),large='b'.repeat(64),capture={pageUrl:'https://www.therealreal.com/orders/SYN',capturedAt:'2026-09-19T00:00:00.000Z',fields:[{path:'brandRaw',label:'来源品牌',status:'UNAVAILABLE',reason:'订单摘要页未提供'}],images:[{sourceUrl:'https://product-images.therealreal.com/SKU_1_product.jpg',sha256:thumb,width:362,height:478,quality:'THUMBNAIL',reason:'订单页只取得缩略图'},{sourceUrl:'https://product-images.therealreal.com/SKU_1_enlarged.jpg',sha256:large,width:1500,height:1980,quality:'LARGEST_AVAILABLE',reason:'平台未证明为摄影母版'}]};
+  const report=inspectCapture({sourceFacts:{capture}},[{sha256:thumb,width:362,height:478},{sha256:large,width:1500,height:1980}]);
+  assert.equal(report.state,'GAPS');assert.equal(report.fieldGaps.length,1);assert.equal(report.imageGaps.length,0);assert.ok(!report.issues.some(issue=>issue.includes('只有缩略图')));
+});
+
 test('文件型来源凭据无需伪造网址，缺少原文件或记录位置仍拒绝',()=>{
   const {captureEvidence,inspectCapture}=require('../dist/ingest/ingest-integrity');
   const evidence={fileEvidence:{name:'合成来源.csv',sha256:'a'.repeat(64),row:'第2行'},capturedAt:'2026-09-15T00:00:00.000Z',fields:[{path:'titleRaw',label:'名称',status:'CAPTURED'}],images:[{sourceFile:'原图.png',sha256:'b'.repeat(64),width:1500,height:2000,quality:'ORIGINAL'}]};

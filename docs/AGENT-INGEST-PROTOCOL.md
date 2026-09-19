@@ -156,7 +156,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
     "url": "/api/agent-ingest/skill"
   },
   "profile": {
-    "id": "TRR/1.0",
+    "id": "TRR/1.1",
     "sha256": "…",
     "url": "/api/agent-ingest/profile",
     "requiredFields": ["titleRaw"]
@@ -164,7 +164,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.0`；其他当前来源使用 `GENERIC_MARKETPLACE/1.0`。Profile 由服务器选择，机器不能自行降级。
+随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.1`；其他当前来源使用 `GENERIC_MARKETPLACE/1.0`。Profile 由服务器选择，机器不能自行降级。
 
 ### 批次元数据与完整性
 
@@ -174,7 +174,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 {
   "protocolVersion": "1.2",
   "skillVersion": "tome-ingest/1.0",
-  "profile": "TRR/1.0",
+  "profile": "TRR/1.1",
   "expectedCandidateKeys": [],
   "requiredFields": []
 }

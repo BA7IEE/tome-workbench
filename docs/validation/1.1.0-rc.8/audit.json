@@ -1,0 +1,29 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {},
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 288,
+      "dev": 174,
+      "optional": 83,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 490
+    }
+  },
+  "local": {
+    "at": "2026-09-19T17:49:36Z",
+    "auditCommand": "npm audit --audit-level=high --json",
+    "auditExitCode": 0,
+    "packageLockSha256": "6d7ddbdd294a4139032368893bb4aec9d417e0a0f343097ca10fedcdd51f54a9",
+    "packageJsonSha256": "131c652f6115096cba116bb2a90e66f800a6d3fad754e573f29c1e7642095cbf"
+  }
+}
