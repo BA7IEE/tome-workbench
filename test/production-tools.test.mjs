@@ -28,9 +28,73 @@ test("configuration generator derives an arbitrary package version and refuses o
     );
     assert.equal(config.appVersion, "1.0.1-rc.937");
     assert.equal(config.rehearsal, true);
+    assert.equal(config.deploymentMode, "INTERNAL_CADDY");
+    assert.equal(config.reverseProxyProvider, null);
     assert.equal(config.publicBind, false);
     assert.throws(() =>
       execFileSync(process.execPath, args, { cwd: dir, stdio: "pipe" }),
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("external reverse proxy configuration is explicit and loopback-only", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tome-external-proxy-test-"));
+  try {
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ version: "1.1.0-rc.937" }),
+    );
+    const script = path.resolve("scripts/production-config.mjs");
+    execFileSync(
+      process.execPath,
+      [
+        script,
+        "--domain=tome.23cc.cn",
+        "--deployment-mode=EXTERNAL_REVERSE_PROXY",
+        "--reverse-proxy-provider=1PANEL",
+        "--api-a-port=14318",
+        "--api-b-port=14319",
+        "--dir=config",
+      ],
+      { cwd: dir, stdio: "pipe" },
+    );
+    const config = JSON.parse(
+      fs.readFileSync(path.join(dir, "config/configuration.json"), "utf8"),
+    );
+    const composeEnv = fs.readFileSync(
+      path.join(dir, "config/compose.env"),
+      "utf8",
+    );
+    assert.equal(config.deploymentMode, "EXTERNAL_REVERSE_PROXY");
+    assert.equal(config.reverseProxyProvider, "1PANEL");
+    assert.equal(config.publicBind, false);
+    assert.deepEqual(config.apiLoopback, {
+      bind: "127.0.0.1",
+      apiAPort: 14318,
+      apiBPort: 14319,
+    });
+    assert.match(
+      composeEnv,
+      /TOME_DEPLOYMENT_MODE=EXTERNAL_REVERSE_PROXY\n/,
+    );
+    assert.match(composeEnv, /TOME_API_BIND=127\.0\.0\.1\n/);
+    assert.match(composeEnv, /TOME_API_A_PORT=14318\n/);
+    assert.match(composeEnv, /TOME_API_B_PORT=14319\n/);
+    assert.throws(() =>
+      execFileSync(
+        process.execPath,
+        [
+          script,
+          "--domain=tome.23cc.cn",
+          "--deployment-mode=EXTERNAL_REVERSE_PROXY",
+          "--reverse-proxy-provider=1PANEL",
+          "--public",
+          "--dir=other-config",
+        ],
+        { cwd: dir, stdio: "pipe" },
+      ),
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
