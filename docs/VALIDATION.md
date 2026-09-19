@@ -1,4 +1,4 @@
-# 当前验证记录 — 1.1.0-rc.6
+# 当前验证记录 — 1.1.0-rc.7
 
 远端完整验证完成：`2026-09-19T06:25:05.495Z`（GitHub Actions run `35425986880`，checkout `72b5fc9897ce080f2d647aa4c3f205f721d890c3`）。验证源码指纹为
 `0246800b9c5b34e08e1376dcdea6150b40c7708c0ed686ec1746a537d219d67e`；
@@ -21,10 +21,10 @@
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.6.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.7.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.6/summary.json)、
-[audit.json](validation/1.1.0-rc.6/audit.json)、[verification.log](validation/1.1.0-rc.6/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.7/summary.json)、
+[audit.json](validation/1.1.0-rc.7/audit.json)、[verification.log](validation/1.1.0-rc.7/verification.log)。
 
 ## v1.1-rc.5 发布安全
 
@@ -84,6 +84,16 @@ ChannelPrice、Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 均未重�
 - OTHER 交易渠道使用 `GENERIC_TRADE/1.0`；没有专用发布 Profile 的历史停用/内容渠道只允许通过 `GENERIC_STOP/1.0` 完成 DELIST 收口。
 - AnQiCMS 手工发布/更新登记在 UI 和服务端都要求真实 archive ID；APP 平台 remoteId 仍可为空。
 - 当前证据仍只证明隔离代码与浏览器/数据库行为；真实 AnQiCMS、闲鱼和海外平台 UAT 尚未执行。
+
+## v1.1-rc.7 外部反向代理生产模式
+
+本候选只扩展生产部署与验证拓扑，不改变商品、库存、成交、成本、分发或第三方执行语义。
+
+- `production-config.mjs` 明确区分 `INTERNAL_CADDY` 与 `EXTERNAL_REVERSE_PROXY`，并记录外部代理提供方；1Panel 使用 `1PANEL`。
+- 两个 API 只映射到 `127.0.0.1:14318/14319`；PostgreSQL 与 Worker 不发布宿主机端口。
+- 内置 Caddy 属于 `internal-proxy` profile；外部代理模式不运行它，避免与 1Panel/OpenResty 抢占 80/443。
+- preflight 在外部代理模式仍从正式 HTTPS 域名检查 readiness 与公开 API 版本，同时验证 API loopback 和内置 proxy 未运行。
+- 代码验证不能替代实际 1Panel 网站配置、证书签发、防火墙、异机备份、恢复演练或真实经营 UAT。
 
 ## 生产与业务边界
 
