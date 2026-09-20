@@ -361,3 +361,12 @@ test("Agent整理建议逐字段校验目标格式、模型和来源依据", () 
   assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,fields:[{...base.agentProposal.fields[0],evidencePaths:["sourceFacts.missing"]}]}}));
   assert.throws(()=>ingestCandidateInput.parse({...base,agentProposal:{...base.agentProposal,fields:[{...base.agentProposal.fields[0],evidencePaths:[],evidenceImageSha256:["a".repeat(64)]}]}}));
 });
+
+test("来源现价只能通过带字段缺项依据的显式纠错清空", () => {
+  const base={externalKey:"SYNTHETIC:CORRECTION:1",titleRaw:"Synthetic source title",sourceCurrentPrice:null,sourceFacts:{capture:{pageUrl:"https://example.invalid/correction",capturedAt:"2026-09-20T08:00:00.000Z",fields:[{path:"sourceCurrentPrice",label:"来源现价",status:"UNAVAILABLE",reason:"来源详情页未显示当前平台价"}],images:[]}},sourceCorrection:{clearFields:["sourceCurrentPrice"],reason:"此前误把订单行折后金额写入来源现价"}};
+  const parsed=ingestCandidateInput.parse(base);
+  assert.deepEqual(parsed.sourceCorrection.clearFields,["sourceCurrentPrice"]);
+  assert.throws(()=>ingestCandidateInput.parse({...base,sourceCurrentPrice:88000}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,sourceFacts:{capture:{...base.sourceFacts.capture,fields:[{path:"sourceCurrentPrice",label:"来源现价",status:"CAPTURED",reason:""}]}}}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,sourceCorrection:{clearFields:["sourceLineAmount"],reason:"不允许清空其他来源金额"}}));
+});

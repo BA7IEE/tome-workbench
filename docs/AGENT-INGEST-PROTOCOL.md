@@ -63,7 +63,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "kind": "ORDER_HISTORY",
   "rawManifest": {
     "protocolVersion": "1.2",
-    "skillVersion": "tome-ingest/1.1",
+    "skillVersion": "tome-ingest/1.2",
     "profile": "服务端 protocol.profile.id",
     "expectedCandidateKeys": ["supplier:order-001:sku-001"],
     "requiredFields": ["titleRaw", "sourceFacts.description", "sourceFacts.sizeLabel"]
@@ -137,6 +137,20 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 `TRANSLATED` 或 `INFERRED`，`confidence` 为 0–1。来源字段缺失时，即使 Agent 给出建议，仍必须在
 `capture.fields` 中写 `UNAVAILABLE + 原因`，且完整性报告继续显示缺项。
 
+历史候选若曾误把订单行金额写入来源现价，不能靠普通 `null` 或漏传字段删除。重新核对后可在候选中显式提交：
+
+```json
+{
+  "sourceCurrentPrice": null,
+  "sourceCorrection": {
+    "clearFields": ["sourceCurrentPrice"],
+    "reason": "此前误把订单行折后金额写入来源现价"
+  }
+}
+```
+
+同时，`sourceFacts.capture.fields` 中的 `sourceCurrentPrice` 必须为带来源侧原因的 `UNAVAILABLE`。当前合同只允许清空 `sourceCurrentPrice`；非空金额、仍标记 `CAPTURED`、没有理由或尝试清空其他金额都会拒绝。纠错原因保存在候选修订快照中，不改变订单行原价、订单行折后金额、TM、库存、成本或其他经营事实。
+
 人工确认候选时，系统才把已展示的建议用于正式 TM 的名称、已存在品牌匹配、一级品类、材质、颜色、
 尺码、尺寸文本和中文介绍。Agent 不能建议或写入 TM 身份、库存、本地成色等级、真实性、人民币成本、
 售价、成交、图片公开权或发布。品牌建议只尝试匹配现有字典，不自动创建标准词；品类必须使用协议返回的
@@ -148,7 +162,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 
 原文件入口：`GET /api/ingest/candidate-assets/:id/original`，普通登录的内部读权限；关联素材变为内部凭证后重查财务权限。机器Token不能用于后台文件读取或商品/库存/成本写操作。预览与原件均不公开缓存。
 
-同externalBatchKey重新创建必须使用相同rawManifest；改变清单应新建批次。封批不能继续写，重新采集用新批次和稳定externalKey；已有候选更新来源修订而不新建TM。稀疏补充保留已有非空来源字段、递归参数和人工建议，capture整体替换以表达本次检查。已确认商品的新来源图停留在候选证据层，不自动修改Item素材或公开授权。历史来源原文保存在修订中；要纠正/撤回旧值须明确人工核对，不能用漏传字段实现删除。
+同externalBatchKey重新创建必须使用相同rawManifest；改变清单应新建批次。封批不能继续写，重新采集用新批次和稳定externalKey；已有候选更新来源修订而不新建TM。稀疏补充保留已有非空来源字段、递归参数和人工建议，capture整体替换以表达本次检查。已确认商品的新来源图停留在候选证据层，不自动修改Item素材或公开授权。历史来源原文保存在修订中；除上述受限 `sourceCorrection` 外，不能用漏传字段或普通 `null` 删除旧值。
 
 后台批量接口仍每次最多100件，新增可选versions映射（候选ID到看到的版本）。新版界面跨页最多选1000件并自动分段。每段及重试使用固定幂等键、固定ID顺序与版本；部分失败有逐件原因。旧客户端未传versions保持兼容，新客户端必须传以保护人工看到的版本。
 
@@ -186,13 +200,13 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "version": "1.2",
   "skill": {
     "name": "tome-ingest",
-    "version": "1.1",
-    "id": "tome-ingest/1.1",
+    "version": "1.2",
+    "id": "tome-ingest/1.2",
     "sha256": "…",
     "url": "/api/agent-ingest/skill"
   },
   "profile": {
-    "id": "TRR/1.2",
+    "id": "TRR/1.3",
     "sha256": "…",
     "url": "/api/agent-ingest/profile",
     "requiredFields": ["titleRaw"]
@@ -200,7 +214,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.2`；其他当前来源使用 `GENERIC_MARKETPLACE/1.1`。Profile 由服务器选择，机器不能自行降级。
+随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.3`；其他当前来源使用 `GENERIC_MARKETPLACE/1.2`。Profile 由服务器选择，机器不能自行降级。
 
 ### 批次元数据与完整性
 
@@ -209,8 +223,8 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 ```json
 {
   "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.1",
-  "profile": "TRR/1.2",
+  "skillVersion": "tome-ingest/1.2",
+  "profile": "TRR/1.3",
   "expectedCandidateKeys": [],
   "requiredFields": []
 }

@@ -117,6 +117,19 @@ export const agentProposalInput = z
       ctx.addIssue({ code: "custom", message: "同一目标字段只能提交一项建议" });
   });
 
+export const sourceCorrectionInput = z
+  .object({
+    clearFields: z
+      .array(z.enum(["sourceCurrentPrice"]))
+      .min(1)
+      .max(1)
+      .refine((fields) => new Set(fields).size === fields.length, {
+        message: "来源纠错字段不能重复",
+      }),
+    reason: safeText(1000).min(3),
+  })
+  .strict();
+
 function evidenceValue(candidate: Record<string, unknown>, path: string) {
   let value: unknown = candidate;
   for (const part of path.split(".")) {
@@ -158,11 +171,30 @@ export const ingestCandidateInput = z
       .object({ capture: captureEvidence.optional() })
       .passthrough()
       .default({}),
+    sourceCorrection: sourceCorrectionInput.optional(),
     agentProposal: agentProposalInput.optional(),
     rawPayload: z.record(z.unknown()).default({}),
   })
   .strict()
   .superRefine((candidate, ctx) => {
+    if (candidate.sourceCorrection?.clearFields.includes("sourceCurrentPrice")) {
+      if (candidate.sourceCurrentPrice !== null)
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceCurrentPrice"],
+          message: "显式清空来源现价时 sourceCurrentPrice 必须为 null",
+        });
+      const check = candidate.sourceFacts.capture?.fields.find(
+        (field) => field.path === "sourceCurrentPrice",
+      );
+      if (check?.status !== "UNAVAILABLE" || !check.reason.trim())
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceFacts", "capture", "fields"],
+          message:
+            "显式清空来源现价时必须把 sourceCurrentPrice 标记为 UNAVAILABLE 并说明来源侧原因",
+        });
+    }
     if (!candidate.agentProposal) return;
     const declaredHashes = new Set(
       (candidate.sourceFacts.capture?.images || [])

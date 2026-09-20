@@ -227,6 +227,12 @@ export class IngestService {
         status: "UNAVAILABLE",
         reason: "来源页面未提供",
       },
+      sourceCorrection: {
+        location: "candidate.sourceCorrection",
+        clearFields: ["sourceCurrentPrice"],
+        requirement:
+          "Set the cleared field to null, mark the matching sourceFacts.capture.fields check UNAVAILABLE with a source-side reason, and record a correction reason. Omission or null without sourceCorrection keeps the previous value.",
+      },
       agentProposal: {
         location: "candidate.agentProposal",
         policy:
@@ -426,7 +432,11 @@ export class IngestService {
       });
       // Sparse retries enrich source facts; they cannot clear collected evidence
       // or replace an operator's local proposal with a new machine suggestion.
+      // A source correction is the only explicit, audited exception.
       const merged = { ...input };
+      const explicitClears = new Set<string>(
+        input.sourceCorrection?.clearFields || [],
+      );
       for (const k of [
         "sourceItemKey",
         "brandRaw",
@@ -442,7 +452,8 @@ export class IngestService {
         "sourceCurrentPrice",
         "sourceEstimatedRetail",
       ] as const)
-        if (merged[k] === null) Object.assign(merged, { [k]: old[k] });
+        if (merged[k] === null && !explicitClears.has(k))
+          Object.assign(merged, { [k]: old[k] });
       merged.sourceFacts = mergeSourceFacts(
         record(old.sourceFacts),
         input.sourceFacts,

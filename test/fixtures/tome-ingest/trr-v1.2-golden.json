@@ -6,8 +6,8 @@
     "kind": "ORDER_HISTORY",
     "rawManifest": {
       "protocolVersion": "1.2",
-      "skillVersion": "tome-ingest/1.1",
-      "profile": "TRR/1.2",
+      "skillVersion": "tome-ingest/1.2",
+      "profile": "TRR/1.3",
       "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
       "requiredFields": ["sourceFacts.conditionDescription"]
     }

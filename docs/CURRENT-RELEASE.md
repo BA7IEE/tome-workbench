@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.9**，标准 Agent 采集、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
+当前源码版本：**1.1.0-rc.10**，标准 Agent 采集、来源现价显式纠错、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 
 `tome.23cc.cn` 的实际 1Panel/OpenResty 运行拓扑、部署 SHA、人工 UAT 记录和后续升级步骤另见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该文档是指定环境的时间点运维事实，不能反向替代本文件的源码范围、当前验证指纹或目标版本迁移门禁。
 
@@ -10,13 +10,15 @@ rc.8 修复首次生产部署的数据库运行角色闭环：安全迁移现在
 
 rc.9 将本轮 TRR 折后金额、高清来源图状态和外部 Agent 字段建议作为独立发布候选，避免覆盖线上既有 `1.1.0-rc.8` 镜像标签。它包含 forward migration `202609200019_source_line_net_cost`，从 rc.8 升级不能滚动执行，必须先在仍匹配 rc.8 的源码和配置下停写并生成一致性备份，再切换固定 rc.9 SHA、构建、带 `BACKUP_MANIFEST` 执行正式 migration，最后统一启动 API/Worker。实际生产是否已升级仍以 `PRODUCTION-1PANEL.md` 的现场复核为准。
 
+rc.10 只扩展 ingest 合同和外部 Agent Skill/Profile，不新增 migration。普通省略或 `null` 仍保留旧来源值；`sourceCorrection.clearFields` 当前只允许清空 `sourceCurrentPrice`，并要求同次字段清单写成带来源侧原因的 `UNAVAILABLE`、提交纠错说明，修订快照保留完整依据。它用于修正历史误把订单行金额当成平台当前价的问题，不自动触碰订单行原价/折后金额、TM、库存、本地成色、人民币成本、售价、成交或发布。
+
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
 rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`（`cb1fe6c`），对应 main CI `35303053133` 成功。其后 PR #23 / #24 在不扩展平台执行边界的前提下补齐发布/停售代际屏障、UPDATE 远端身份一致性、历史在线 Exposure 的同平台多账号保护，以及 OTHER/历史 stop-only Profile；收口后的代码基线是 `main@7d381f9f25aed081f7be0e128894ad659d7034df`，main CI `35339741681` 成功。rc.6 只将这一收口状态形成新的可追溯候选，不代表真实平台 UAT 已完成。
 
 功能基线：rc.15–19 与 UX 1.0.2。默认工作台，工作台 / 商品库 / 导入记录 / 商品分发 / 销售 / 更多六入口；商品分发按发布权限显示，销售按权限显示。商品先只读浏览、明确进入编辑。候选默认 PAUSED。UX 1.0.2 已合并，包含账号与浏览器范围的选品草稿恢复、发布图片排序、批量动作单次确认和按商品状态组织的主要动作；保留既有权限、领域写入和原图恢复规则。
 
-本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 `tome-ingest/1.1` Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。TRR Profile 为 `TRR/1.2`，通用市场 Profile 为 `GENERIC_MARKETPLACE/1.1`。候选可选提交逐字段 `agentProposal`：外部 Agent 能按服务端字段目录选择下拉值、规范格式、翻译或推断标题、品牌、一级品类、材质、颜色、尺码、尺寸文本和中文介绍；每项必须带处理方式、置信度和来源字段/图片依据。建议与 `sourceFacts`、完整性检查严格分离，服务端拒绝非法枚举、未知目标、越界文本、无依据及未声明图片引用；人工确认候选前不进入 TM，品牌只匹配现有字典，本地成色等级、真实性、成本、售价、库存、成交、公开权和发布不在建议合同内。TRR 的 `sourceLineNetAmount` 继续把订单行原价、逐件折后金额与平台当前价分开；新建 TRR 来源默认用折后金额比例分摊，既有来源规则不由 migration 静默改写。所有新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；只对已存在、同键同清单的历史 Batch 保持旧合同兼容，不能以漏 metadata 绕过 Profile 必查项。标准 Profile 的服务端必查字段会与 Agent 自报字段合并；MCP 支持同一短期 Token 的 X 头或 Bearer 头，机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。候选当前完整性会识别同图位已保存的高清补采，旧缩略图仍作历史证据但不再冒充当前图片缺项。credential security closure 继续成立：导入 Token 只在首次创建响应中出现，Receipt 永不保存明文；历史 create-session Receipt 通过 forward migration 永久移除 token。机器请求每次都会重新核验会话创建者仍为 active 且保有 supply 权限、来源仍启用，后台会话列表不返回 tokenHash。机器写入还会拒绝明显的密码、Cookie、Token、授权头和带访问签名的 URL，避免宽松 sourceFacts/rawPayload 变成凭据仓库。
+本版保留 Agent Ingest Standard v1.2：`/api/agent-ingest` 仍是唯一机器写入合同，上层有 SHA-256 校验的 `tome-ingest/1.2` Skill、按来源代码选择的 Profile、六工具薄 MCP 与确定性 `tome-ingest` CLI。TRR Profile 为 `TRR/1.3`，通用市场 Profile 为 `GENERIC_MARKETPLACE/1.2`。候选可选提交逐字段 `agentProposal`：外部 Agent 能按服务端字段目录选择下拉值、规范格式、翻译或推断标题、品牌、一级品类、材质、颜色、尺码、尺寸文本和中文介绍；每项必须带处理方式、置信度和来源字段/图片依据。建议与 `sourceFacts`、完整性检查严格分离，服务端拒绝非法枚举、未知目标、越界文本、无依据及未声明图片引用；人工确认候选前不进入 TM，品牌只匹配现有字典，本地成色等级、真实性、成本、售价、库存、成交、公开权和发布不在建议合同内。TRR 的 `sourceLineNetAmount` 继续把订单行原价、逐件折后金额与平台当前价分开；新建 TRR 来源默认用折后金额比例分摊，既有来源规则不由 migration 静默改写。普通省略和 `null` 不会删除旧来源值；显式 `sourceCorrection` 只允许在有 `UNAVAILABLE` 字段检查和来源侧原因时清空误填的 `sourceCurrentPrice`，并把纠错依据留在 revision snapshot。所有新机器 Batch 必须带 protocolVersion、Skill 与服务端 Profile；只对已存在、同键同清单的历史 Batch 保持旧合同兼容，不能以漏 metadata 绕过 Profile 必查项。标准 Profile 的服务端必查字段会与 Agent 自报字段合并；MCP 支持同一短期 Token 的 X 头或 Bearer 头，机器令牌仍无候选确认、TM、库存、成交、成本和发布权限。候选当前完整性会识别同图位已保存的高清补采，旧缩略图仍作历史证据但不再冒充当前图片缺项。credential security closure 继续成立：导入 Token 只在首次创建响应中出现，Receipt 永不保存明文；历史 create-session Receipt 通过 forward migration 永久移除 token。机器请求每次都会重新核验会话创建者仍为 active 且保有 supply 权限、来源仍启用，后台会话列表不返回 tokenHash。机器写入还会拒绝明显的密码、Cookie、Token、授权头和带访问签名的 URL，避免宽松 sourceFacts/rawPayload 变成凭据仓库。
 
 本版将 Distribution Foundation 收敛为标准资料交付与轻量分发记录：已发布的 `DistributionSession`/`DistributionAttempt` 表及历史 migration 原样保留，但默认 UI 不再把它描述为平台执行 Runtime。`PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN/CANCELLED` 分别显示为待交付、已交付、已确认完成、需要处理、需要核对、已取消；`UNKNOWN` 只能在原记录填写依据后人工核对为成功或失败，并另记审计。系统比较冻结资料内容和历史记录，自动选择 PUBLISH、UPDATE 或 NOOP；未处理的交付会回到原记录，不能靠新 UsePackage 重复发布。标准 `tome-distribution/1.0` Skill 及 `/api/mcp/distribution` 只提供列出交付、取得冻结包、确认目标操作完成、报告待人工处理四项能力；取包才将记录记为“已交付”，并按 Channel、会话、当前创建者发布权限、图片权利和 UsePackage 重验。机器先从 protocol 读取并校验 Skill/Profile SHA-256，X 头与同一 Token 的 Bearer 等价；它不暴露领取、心跳、租约、浏览器步骤或任何平台动作。前向 migration `202609170015_distribution_source_attempt` 让 DELIST 用 `sourceAttemptId` 绑定具体成功资料代际；从 AVAILABLE 转为任何不可售状态时，每个已发布渠道都有一条去重的需要停售记录，恢复 AVAILABLE 不自动重新交付。只有取得稳定 `remoteId` 才创建 Listing；APP 渠道没有远端 ID 时按标题永久 TM 复核，禁止用 `MANUAL:TM...` 伪造身份；AnQiCMS 的 PUBLISH/UPDATE 成功则必须回传稳定 archive ID。受限 Token、领取和租约仍是兼容的高级接口，但默认 `DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false`；没有真实第三方连接或外部副作用。
 
@@ -42,7 +44,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 ```json
 {
-  "version": "1.1.0-rc.9",
+  "version": "1.1.0-rc.10",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",

@@ -345,9 +345,12 @@ export function checks(
       read("src/ingest/ingest-mcp.controller.ts").includes(
         "MCP 订单导入尚未连接既有采购服务",
       ) === false &&
+      read("src/ingest/ingest.schemas.ts").includes("sourceCorrectionInput") &&
+      read("src/ingest/ingest.service.ts").includes("explicitClears") &&
       read("test/integration.test.cjs").includes(
         "标准 Agent 协议校验 Skill/Profile",
-      ),
+      ) &&
+      read("test/integration.test.cjs").includes("显式来源纠错"),
   );
   check(
     "v11-distribution-foundation",
