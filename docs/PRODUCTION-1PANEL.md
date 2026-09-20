@@ -15,11 +15,11 @@
 | 项目 | 当前事实 |
 |---|---|
 | GitHub 仓库 | `BA7IEE/tome-workbench` |
-| 核对时 `origin/main` SHA | `f203fac9105e5a66a650a740b57d291ac1ef14c2` |
-| 当前生产部署源码 SHA | `f203fac9105e5a66a650a740b57d291ac1ef14c2` |
-| 当前线上版本 | `1.1.0-rc.8` |
-| rc.8 合并 PR | `#39` |
-| rc.8 main CI | `35440676922`，已成功 |
+| 核对时 `origin/main` SHA | `ff31383d0742bab2592d46540cc60515b1e28eec` |
+| 当前生产部署源码 SHA | `ff31383d0742bab2592d46540cc60515b1e28eec` |
+| 当前线上版本 | `1.1.0-rc.9` |
+| rc.9 合并 PR | `#40` |
+| rc.9 main CI | `35468836570`，已成功 |
 | 1Panel | `2.3.1` |
 | Docker | `27.0.3` |
 | Docker Compose | `v2.28.1` |
@@ -36,7 +36,7 @@
 截至 2026-09-20 的核对时点，`origin/main`、生产部署源码和线上运行版本一致，`package.json` 为：
 
 ```text
-1.1.0-rc.8
+1.1.0-rc.9
 ```
 
 ---
@@ -181,7 +181,7 @@ Compose 文件：
 当前两边都应至少保持：
 
 ```text
-TOME_IMAGE_TAG=1.1.0-rc.8
+TOME_IMAGE_TAG=1.1.0-rc.9
 TOME_DEPLOYMENT_MODE=EXTERNAL_REVERSE_PROXY
 TOME_API_BIND=127.0.0.1
 TOME_API_A_PORT=14318
@@ -245,7 +245,7 @@ curl -fsS https://tome.23cc.cn/api/system/health
 应返回：
 
 ```json
-{"status":"up","version":"1.1.0-rc.8"}
+{"status":"up","version":"1.1.0-rc.9"}
 ```
 
 ```bash
@@ -401,10 +401,10 @@ rc.8 PR 与 main CI 均已通过。
 当前线上已确认：
 
 ```text
-api-a      1.1.0-rc.8 healthy
-api-b      1.1.0-rc.8 healthy
-worker-a   1.1.0-rc.8 healthy
-worker-b   1.1.0-rc.8 healthy
+api-a      1.1.0-rc.9 healthy
+api-b      1.1.0-rc.9 healthy
+worker-a   1.1.0-rc.9 healthy
+worker-b   1.1.0-rc.9 healthy
 postgres   healthy
 ```
 
@@ -653,7 +653,7 @@ docs/PRODUCTION.md
 
 的 existing-production migration 流程执行。
 
-本次 rc.8 → rc.9 包含 `202609200019_source_line_net_cost`，必须使用维护窗口，不能走第 15 节滚动升级。安全顺序如下。
+已完成的 rc.8 → rc.9 包含 `202609200019_source_line_net_cost`，当时必须使用维护窗口，不能走第 15 节滚动升级。保留以下经过使用的安全顺序，供审计和未来有 migration 的版本参考。
 
 1. 保持服务器仍签出线上 rc.8，且 `compose.env`、根目录 `.env`、`configuration.json` 仍是 rc.8。通知停写并停止四个写入服务：
 
@@ -715,11 +715,56 @@ docker compose \
 
 Agent 不得为了省事绕过生产 migration 门禁。
 
+### rc.9 → rc.10 本次升级判断
+
+rc.10 没有新增 migration，只扩展应用层 ingest 合同、Skill/Profile、测试和文档。确认目标固定 SHA 的 main CI 成功、服务器仍运行 rc.9 且工作区干净后，可按第 13 节构建镜像，再按第 15 节依次滚动重建 API-A、API-B、Worker；**不要运行 migration 容器，也不要执行 `--initial-empty`**。目标 SHA 在 rc.10 合并前未知，不能提前填写或用动态 `main` 代替。
+
 ---
 
 ## 15. 无 migration 时的滚动升级方法
 
 仅在确认版本 schema-compatible / 无新 migration 时使用。
+
+rc.10 合并并取得成功的 main CI 后，可把下列 `<rc.10-main-SHA>` 换成该次合并提交，整段在服务器源码目录执行。它会先保存三个配置文件副本、同步版本、构建镜像并逐组滚动；本段不运行 migration：
+
+```bash
+cd /opt/tome/tome-workbench
+
+TARGET_SHA=<rc.10-main-SHA>
+TARGET_VERSION=1.1.0-rc.10
+
+git status --short
+git fetch origin
+git checkout "$TARGET_SHA"
+test "$(node -p "require('./package.json').version")" = "$TARGET_VERSION"
+
+cp data/production/compose.env data/production/compose.env.before-rc10.bak
+cp .env .env.before-rc10.bak
+cp data/production/configuration.json data/production/configuration.json.before-rc10.bak
+
+sed -i "s/^TOME_IMAGE_TAG=.*/TOME_IMAGE_TAG=$TARGET_VERSION/" data/production/compose.env .env
+TARGET_VERSION="$TARGET_VERSION" node -e '
+const fs = require("fs");
+const file = "data/production/configuration.json";
+const value = JSON.parse(fs.readFileSync(file, "utf8"));
+value.appVersion = process.env.TARGET_VERSION;
+fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
+'
+
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env --profile tools build api-a migration
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --no-deps --force-recreate api-a
+curl -fsS http://127.0.0.1:14318/api/system/health
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --no-deps --force-recreate api-b
+curl -fsS http://127.0.0.1:14319/api/system/health
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env up -d --no-deps --force-recreate worker-a worker-b
+
+docker compose -p tome-production -f compose.production.yaml --env-file data/production/compose.env ps
+curl -fsS https://tome.23cc.cn/api/system/health
+curl -fsS https://tome.23cc.cn/api/system/ready
+node scripts/production-preflight.mjs --config-dir=data/production --project=tome-production
+```
+
+开头的 `git status --short` 若有未知改动必须停止。每个 API 健康检查都应显示 `1.1.0-rc.10`；任一步失败时停止继续滚动，保留输出排查，不要用 migration 或重建生产配置碰运气。
 
 ### API-A
 
@@ -888,14 +933,14 @@ Agent 不应在 1Panel GUI 中随意：
 当前服务器至少存在：
 
 ```text
+tome-workbench:1.1.0-rc.9
+tome-workbench-migration:1.1.0-rc.9
+
 tome-workbench:1.1.0-rc.8
 tome-workbench-migration:1.1.0-rc.8
-
-tome-workbench:1.1.0-rc.7
-tome-workbench-migration:1.1.0-rc.7
 ```
 
-rc.7 暂时作为短期回退保险保留。
+rc.8 暂时作为短期回退保险保留；是否还有更早镜像必须以服务器现场 `docker images` 为准。
 
 ---
 
@@ -989,7 +1034,7 @@ docker compose \
 '
 ```
 
-rc.8 正常应输出：
+rc.9 正常应输出：
 
 ```text
 RUNTIME_LOCK_OK
@@ -1009,8 +1054,8 @@ Compose project：tome-production
 部署模式：EXTERNAL_REVERSE_PROXY
 provider=1PANEL
 
-当前线上：1.1.0-rc.8
-main SHA：f203fac9105e5a66a650a740b57d291ac1ef14c2
+当前线上：1.1.0-rc.9
+main SHA：ff31383d0742bab2592d46540cc60515b1e28eec
 
 OpenResty 负载均衡：tome_backend
 127.0.0.1:14318
@@ -1047,7 +1092,7 @@ production-preflight softwareReady=true。
 当前 ToMe 已经完成：
 
 ```text
-源码 rc.8
+源码 rc.9
 ↓
 生产 Docker Compose
 ↓

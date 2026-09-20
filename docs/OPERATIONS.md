@@ -108,6 +108,8 @@ Profile 的必查字段由服务端与 Agent 本次 `requiredFields` 合并。�
 
 外部 Agent 若要整理 ToMe 字段，应按 `/protocol` 的 `agentProposal.fields` 逐项提交系统目标值，不要改写 `sourceFacts`。下拉字段使用返回的选项值，填写字段遵守长度和格式；每项记录提取/规范化/翻译/推断方式、0–1 置信度、实际来源路径或已声明图片哈希。后台商品资料弹窗会把这些建议与来源事实分区展示，存疑项须重点复核；确认生成 TM 才采用建议。系统没有内置模型调用，不把 Agent 建议扩展到本地成色等级、真实性、人民币成本、售价、库存、成交、图片公开权或发布。
 
+历史候选若误把订单金额写成平台当前价，外部 Agent 不能用普通 `null` 假装删除，应按 `/protocol` 返回的 `sourceCorrection` 合同提交清空原因，并把 `sourceCurrentPrice` 的本次字段检查标为带来源侧原因的 `UNAVAILABLE`。后台候选修订会保留这次纠错；订单行原价、折后金额、人民币成本和 TM 事实不会随之改写。
+
 ## v1.1 标准分发交付
 
 把分发 Token 仅通过受控渠道交给对应 Channel 的外部执行方。默认接入是仓库的 `tome-distribution` Skill 或 `/api/mcp/distribution`：只可列出待交付记录、取得冻结 Package、回填已确认完成、报告需要人工处理。取 Package 时必须传幂等键，它会将记录记为“已交付”；同键未知响应使用原请求和原键恢复，不要另建资料或猜测平台状态。

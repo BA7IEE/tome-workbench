@@ -1,7 +1,7 @@
 # 当前业务不变量
 
 1. **TM 商品身份**：一件实物一个永久 TM，同款不同实物可有多个 TM。外部货号、订单、RMA 和 Agent 都是来源证据。ItemSourceLink 为长期多来源关系，Item.sourceId 仅兼容。
-2. **来源与确认**：Agent 只能走通用 ingest session/batch/candidate。所有新机器 Batch 必须提交 v1.2 的 protocolVersion、Skill 与服务端指定 Profile；缺 metadata 的新请求拒绝，legacy 只限数据库已存在且同键同清单的历史事实。Profile 必查项与 Agent 声明项共同进入封批检查，不能由客户端降低。来源 Sold/Shipped、成色、颜色、尺码和金额保留原文，不自动改库存或标准化。外部 Agent 可在独立 `agentProposal` 中按服务端字段目录提出下拉选择、格式化、翻译和推断建议，但每项必须带置信度及来源字段/图片依据，不能用建议填平 `sourceFacts` 缺项。建议只覆盖标题、现有品牌匹配、一级品类、材质、颜色、尺码、尺寸文本和中文介绍；不得建议本地成色等级、真实性、成本、售价、库存、成交、图片公开权或发布。候选必须人工确认；确认时才采用已展示建议，默认 PAUSED，明确核对可用 AVAILABLE。
+2. **来源与确认**：Agent 只能走通用 ingest session/batch/candidate。所有新机器 Batch 必须提交 v1.2 的 protocolVersion、Skill 与服务端指定 Profile；缺 metadata 的新请求拒绝，legacy 只限数据库已存在且同键同清单的历史事实。Profile 必查项与 Agent 声明项共同进入封批检查，不能由客户端降低。来源 Sold/Shipped、成色、颜色、尺码和金额保留原文，不自动改库存或标准化。普通省略或 `null` 保留已有来源值；只有受限 `sourceCorrection` 能在同步提交 `UNAVAILABLE` 字段检查及原因时清空误填的 `sourceCurrentPrice`，并把依据留在候选修订中。外部 Agent 可在独立 `agentProposal` 中按服务端字段目录提出下拉选择、格式化、翻译和推断建议，但每项必须带置信度及来源字段/图片依据，不能用建议填平 `sourceFacts` 缺项。建议只覆盖标题、现有品牌匹配、一级品类、材质、颜色、尺码、尺寸文本和中文介绍；不得建议本地成色等级、真实性、成本、售价、库存、成交、图片公开权或发布。候选必须人工确认；确认时才采用已展示建议，默认 PAUSED，明确核对可用 AVAILABLE。
 3. **候选完整性和身份**：完整性、缺原图、身份冲突不能批量豁免。可接受来源缺项逐候选绑定版本。精确同图只是证据，但必须阻断静默重复建档；同图不同实物要逐件确认和审计。关联已有 TM 不改现有状态、人工资料、价格、批准。
 4. **采购与成本**：订单行原价、逐件折后金额、来源当前价、零售价、人民币取得成本独立；未知金额留空，不能互相冒充。没有确认支付/汇率依据不得分摊。TRR 成本规则使用逐件折后金额作权重；任一保留商品缺少正数折后金额即阻断，不得退回原价比例猜测。现金、Store Credit 与退款按确认后的经济支付口径处理。保留人工 businessDecision/possession/TM 关联。采购 Source 生成要求 INCLUDE + IN_HAND。RMA/退款/排除需要明确最终经济支付依据；Sale 成本是历史快照，不能因后续采购修正反改。
 5. **库存和财务**：同件不得重复售出，item lock、DB 唯一约束、版本保护保留。不明确冲突记 Observation/PAUSED。快速停售不受财务缺项阻塞；人工库存观察不编造收入。未知金额 NULL，不能跨币种合计。financial-journal 和账期保护不放松，对账不是法定财务或自动协议解释。

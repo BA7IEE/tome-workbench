@@ -1,6 +1,6 @@
 # ToMeBoutique 标准采集 Skill
 
-版本：`tome-ingest/1.1`。本 Skill 规范外部来源事实和可选的 Agent 整理建议如何进入候选池；服务端
+版本：`tome-ingest/1.2`。本 Skill 规范外部来源事实和可选的 Agent 整理建议如何进入候选池；服务端
 `/api/agent-ingest` 才是最终合同。它不授予后台账户、商品、库存、成本、成交或发布权限。
 
 ## 启动顺序
@@ -66,6 +66,22 @@ SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化
 
 不得决定或写入：正式 TM、库存状态、本地成色/标准字典、真实性、人民币成本、我方售价、图片 PUBLIC 权利、成交、批准或发布。来源状态、来源金额和来源品相只是来源证据。
 
+## 显式纠正已有来源事实
+
+普通的省略字段或 `null` 仍表示“本次没有新值”，服务端会保留已经采集的来源事实，防止稀疏重试误删资料。只有确认旧的 `sourceCurrentPrice` 不是网页另行显示的当前平台价时，才可提交：
+
+```json
+{
+  "sourceCurrentPrice": null,
+  "sourceCorrection": {
+    "clearFields": ["sourceCurrentPrice"],
+    "reason": "此前误把订单行折后金额写入来源现价"
+  }
+}
+```
+
+同一候选的 `sourceFacts.capture.fields` 必须同时把 `sourceCurrentPrice` 标记为 `UNAVAILABLE`，并写清网页、订单或文件为什么不能证明当前平台价。服务端会拒绝“仍标记 CAPTURED”“没有来源侧原因”“非空金额”或尝试清空其他字段的请求。纠错会进入候选修订快照；它不会改写订单行原价、订单行折后金额、TM、库存或成本。
+
 ## 批次与完整性
 
 创建批次的 `rawManifest` 必须包含：
@@ -73,7 +89,7 @@ SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化
 ```json
 {
   "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.1",
+  "skillVersion": "tome-ingest/1.2",
   "profile": "服务端 protocol.profile.id",
   "expectedCandidateKeys": [],
   "requiredFields": []

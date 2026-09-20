@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.9
+# 当前验证记录 — 1.1.0-rc.10
 
-本地完整验证完成：`2026-09-19T20:34:52.912Z`。验证源码指纹为
-`b95340e1e785f79e38f0930f232223930a775c8c8876509293d6b393a3c51441`；
+本地完整验证完成：`2026-09-20T05:59:41.043Z`。验证源码指纹为
+`b373df546aa8507f1605f63fe63b4841853316415032906764a85550cf74b43d`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,21 +12,27 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 30/30、31/31、162/162、8/8；失败均为 0 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、162/162、8/8；失败均为 0 |
 | Chromium | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 235.966ms、Dashboard 187.046ms、Work Queue 17.001ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 214.262ms、Dashboard 190.768ms、Work Queue 9.441ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 799ms、Worker 恢复 1948ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 939ms、Worker 恢复 1959ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.9.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.10.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.9/summary.json)、
-[audit.json](validation/1.1.0-rc.9/audit.json)、[verification.log](validation/1.1.0-rc.9/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.10/summary.json)、
+[audit.json](validation/1.1.0-rc.10/audit.json)、[verification.log](validation/1.1.0-rc.10/verification.log)。
 
-本候选新增 production bootstrap gate：在独立 PostgreSQL 空库中先确保 `tome_app` 不存在，再执行正式 `--production --initial-empty` migration；迁移脚本必须自行创建/同步运行角色、完成 18 个 migration、补齐最小权限并用运行账号实际连接验证。该 gate 直接覆盖本次 1Panel 首次部署暴露出的“运行角色缺失但 migration 仍完成”问题。\n\n## v1.1-rc.5 发布安全
+## 1.1.0-rc.10 来源现价显式纠错
+
+本候选不新增 migration。`tome-ingest/1.2`、`TRR/1.3` 与 `GENERIC_MARKETPLACE/1.2` 提供受限 `sourceCorrection`：普通省略和 `null` 仍保留已有来源事实，只有在 `sourceCurrentPrice=null`、字段检查为带原因的 `UNAVAILABLE` 且提交纠错说明时才允许清空旧来源现价。单元与真实隔离 PostgreSQL 测试覆盖非法字段、矛盾证据拒绝、普通 `null` 保值、显式清空及 revision snapshot 留痕；没有连接真实 TRR、运行联网 AI、改 TM/库存/成本/售价/成交或执行生产部署。
+
+本候选保留 production bootstrap gate：在独立 PostgreSQL 空库中先确保 `tome_app` 不存在，再执行正式 `--production --initial-empty` migration；迁移脚本必须自行创建/同步运行角色、完成 19 个 migration、补齐最小权限并用运行账号实际连接验证。该 gate 覆盖 1Panel 首次部署曾暴露的“运行角色缺失但 migration 仍完成”问题。
+
+## v1.1-rc.5 发布安全
 
 本次完成发布安全切片。在既有 TM、来源证据、Candidate 人工确认、库存锁、Sale、
 成本、UsePackage、图片权利、Commands/Receipt、Audit/Outbox、ChannelPrice、
