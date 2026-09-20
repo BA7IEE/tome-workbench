@@ -119,6 +119,38 @@ function standardizeGenericCandidate(candidate, key = candidate.externalKey) {
   candidate.sourceFacts = { ...sourceFacts, capture };
   return candidate;
 }
+const trr14ProfileFields = [
+  ["sourceLineAmount", "订单行金额"],
+  ["sourceFacts.color", "来源颜色"],
+  ["sourceFacts.material", "来源材质"],
+  ["sourceFacts.measurements", "来源尺寸"],
+  ["sourceLineNetAmount", "订单行折后金额"],
+  ["sourceEstimatedRetail", "来源估计零售价"],
+  ["sourceFacts.foreignSize", "品牌/标签原始尺码"],
+  ["sourceFacts.sizeEstimated", "TRR/来源是否按测量估算尺码"],
+  ["sourceFacts.order.orderDateRaw", "购买日期原文"],
+  ["sourceFacts.order.orderedAt", "结构化购买日期"],
+  ["sourceFacts.order.datePrecision", "购买日期精度"],
+];
+function standardizeTrr14Candidate(candidate) {
+  standardizeGenericCandidate(candidate);
+  const fields = candidate.sourceFacts.capture.fields;
+  for (const [path, label] of trr14ProfileFields)
+    if (!fields.some((field) => field.path === path)) {
+      const value = readCandidatePath(candidate, path);
+      fields.push(
+        hasCandidateValue(value)
+          ? { path, label, status: "CAPTURED" }
+          : {
+              path,
+              label,
+              status: "UNAVAILABLE",
+              reason: "合成 TRR 来源未提供该字段",
+            },
+      );
+    }
+  return candidate;
+}
 function incompleteAcknowledgements(rows, note) {
   return {
     versions: Object.fromEntries(rows.map((row) => [row.id, row.version])),
@@ -349,6 +381,83 @@ async function sealAgentBatch(page, { batch, session }) {
   );
 }
 test.beforeEach(async ({ page }) => login(page));
+
+test("TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示", async ({ page }) => {
+  const suffix = randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase();
+  const before = (await (await page.request.get("/api/items?dataMode=ALL")).json()).total;
+  const source = await api(page, "/procurement/sources", {
+    code: "TRR-" + suffix,
+    name: "TRR 尺码日期浏览器 " + suffix,
+    kind: "MARKETPLACE",
+    defaultCurrency: "USD",
+  });
+  const session = await api(page, "/ingest/sessions", {
+    procurementSourceId: source.id,
+    label: "TRR 尺码日期浏览器",
+    ttlMinutes: 60,
+  });
+  const batch = await machine(page, "/agent-ingest/batches", session.token, {
+    externalBatchKey: "trr14-browser-" + suffix,
+    agentName: "Synthetic TRR 1.4 browser",
+    rawManifest: {
+      protocolVersion: "1.2",
+      skillVersion: "tome-ingest/1.2",
+      profile: "TRR/1.4",
+      expectedCandidateKeys: ["TRR14-BROWSER-" + suffix],
+    },
+  });
+  const candidate = standardizeTrr14Candidate({
+    externalKey: "TRR14-BROWSER-" + suffix,
+    sourceItemKey: "TRR14-SKU-" + suffix,
+    titleRaw: "TRR 尺码日期合成连衣裙",
+    brandRaw: "Synthetic Brand",
+    categoryRaw: "Women / Clothing / Dresses",
+    conditionRaw: "Excellent",
+    currency: "USD",
+    sourceLineAmount: 120000,
+    sourceLineNetAmount: 98000,
+    sourceCurrentPrice: 156000,
+    sourceEstimatedRetail: 400000,
+    sourceFacts: {
+      sizeLabel: "M",
+      foreignSize: "US 6",
+      sizeEstimated: true,
+      order: {
+        orderDateRaw: "June 27, 2026",
+        orderedAt: "2026-06-27",
+        datePrecision: "DAY",
+      },
+      color: "Black",
+      material: "100% Silk",
+      measurements: { Bust: "37 in", Length: "44 in" },
+      productUrl: "https://example.invalid/trr14-" + suffix,
+      description: "Synthetic source description",
+    },
+    rawPayload: { synthetic: true },
+  });
+  const imported = await machine(
+    page,
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    { candidates: [candidate] },
+  );
+  await machine(page, `/agent-ingest/batches/${batch.id}/seal`, session.token, {});
+  await page.goto("/#/candidates?sourceId=" + source.id);
+  const row = page.locator(`[data-candidate="${imported.rows[0].id}"]`);
+  await row
+    .getByRole("button", { name: "查看图片与资料", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "商品来源资料" });
+  await expect(dialog).toContainText("TRR 尺码与购买日期");
+  await expect(dialog).toContainText("TRR 展示尺码");
+  await expect(dialog).toContainText("品牌/标签原始尺码");
+  await expect(dialog).toContainText("来源按测量估算尺码");
+  await expect(dialog).toContainText("M");
+  await expect(dialog).toContainText("US 6");
+  await expect(dialog).toContainText("购买日期");
+  await expect(dialog).toContainText("2026-06-27 · 精确到日");
+  expect((await (await page.request.get("/api/items?dataMode=ALL")).json()).total).toBe(before);
+});
 
 test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async ({ page }) => {
   const x = await setupAgentOrder(page);

@@ -90,7 +90,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
         "fields": [
           {"path": "titleRaw", "label": "商品名称", "status": "CAPTURED"},
           {"path": "sourceFacts.description", "label": "商品介绍", "status": "CAPTURED"},
-          {"path": "sourceFacts.sizeLabel", "label": "标签尺码", "status": "UNAVAILABLE", "reason": "来源页面未提供"}
+          {"path": "sourceFacts.sizeLabel", "label": "来源展示尺码", "status": "UNAVAILABLE", "reason": "来源页面未提供"}
         ],
         "images": [{
           "sourceUrl": "https://example.invalid/original.png",
@@ -206,7 +206,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
     "url": "/api/agent-ingest/skill"
   },
   "profile": {
-    "id": "TRR/1.3",
+    "id": "TRR/1.4",
     "sha256": "…",
     "url": "/api/agent-ingest/profile",
     "requiredFields": ["titleRaw"]
@@ -214,7 +214,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。`TRR`、`TRR-...`、`TRR_...` 来源使用 `TRR/1.3`；其他当前来源使用 `GENERIC_MARKETPLACE/1.2`。Profile 由服务器选择，机器不能自行降级。
+随后读取 `skill.url` 与 `profile.url`，以 `text/markdown` 返回，并核对 SHA-256。协议主版本不是 `1`、标准版本低于 `1.2`、下载内容或来源 Profile 不匹配时必须停止写入。新建 `TRR`、`TRR-...`、`TRR_...` 来源批次使用 `TRR/1.4`；已存在的 `TRR/1.3` 批次只按其原合同读取或重放，不能新建或改写为旧 Profile。其他当前来源使用 `GENERIC_MARKETPLACE/1.2`。Profile 由服务器选择，机器不能自行降级。
 
 ### 批次元数据与完整性
 
@@ -224,7 +224,7 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 {
   "protocolVersion": "1.2",
   "skillVersion": "tome-ingest/1.2",
-  "profile": "TRR/1.3",
+  "profile": "TRR/1.4",
   "expectedCandidateKeys": [],
   "requiredFields": []
 }
@@ -239,6 +239,14 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 - `agent/skills/tome-ingest/profiles/TRR.md`：TRR 商品、订单和图片语义。
 
 Profile 规定字段含义，不存放网页 selector、第三方 Cookie、账号或凭据。
+
+### TRR/1.4 尺码与购买日期来源事实
+
+`sourceFacts.sizeLabel` 仅是 TRR 页面显示的尺码，不能作为品牌或实物标签尺码。来源明确显示品牌/标签原始尺码时才写入 `sourceFacts.foreignSize`；没有时必须在 `capture.fields` 中把该路径标为 `UNAVAILABLE` 并说明来源侧原因。不得用展示 S/M/L、测量数据或 Agent/LLM 推断填入 `foreignSize`。
+
+`sourceFacts.sizeEstimated` 是必填布尔值，表示 TRR 或来源是否依据测量估算了展示尺码。购买日期放入 `sourceFacts.order`：保留 `orderDateRaw`，并把 `orderedAt` 写成 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，再相应标为 `DAY`、`MONTH` 或 `YEAR`。该字段绝不写时分秒；日期无法取得时三个路径都逐项记录带原因的 `UNAVAILABLE`。
+
+上述字段都是来源事实，不在 `agentProposal.fields` 目录中。Agent 可以按目录整理本地审核用尺码，但不能建议、推断或写入品牌/标签原始尺码、估算标记、购买日期或日期精度。
 
 ### 薄 MCP
 

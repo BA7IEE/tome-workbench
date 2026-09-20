@@ -22,6 +22,8 @@
 如实记录页面、订单或线下文件中能证明的内容。没有取得的字段写
 `UNAVAILABLE` 并写清来源侧原因；不得用常识、模型推断或历史经验把来源缺项改成 `CAPTURED`。
 
+TRR 新建批次以服务器返回的 `TRR/1.4` 为准：`sourceFacts.sizeLabel` 只写 TRR 展示尺码；`foreignSize` 只能写来源明确展示的品牌/标签原始尺码，缺失就记录 `UNAVAILABLE + 原因`，不能以 S/M/L、测量或推断补齐。`sizeEstimated` 明确展示尺码是否由来源按测量估算。购买日期保留原文并以 `sourceFacts.order.orderedAt` 的日期文本与 `DAY/MONTH/YEAR` 精度提交，绝不补写具体时分秒。它们是来源事实，不属于 Agent 建议目录。
+
 外部 Agent 可以基于已经提交的文字和图片，按 `GET /protocol` 返回的 `agentProposal.fields`
 生成面向 ToMe 字段的整理建议。下拉字段必须提交服务端列出的选项值；填写字段必须遵守长度和格式。
 每项建议都必须记录目标路径、建议值、处理方式、0–1 置信度，以及实际引用的来源字段路径或来源图片

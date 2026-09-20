@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.11
+# 当前验证记录 — 1.1.0-rc.12
 
-本地完整验证完成：`2026-09-20T16:41:53.744Z`。验证源码指纹为
-`b9eaaa8923a34e238290de39a7be8f080694a4bbf56a5047126e244fb838deb1`；
+本地完整验证完成：`2026-09-20T18:58:12.330Z`。验证源码指纹为
+`f701e06fd4ba75712fe849cd09947e9a586dcca188dfd8d8fa06d93d1d970cc7`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,19 +12,23 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、163/163、8/8；失败均为 0 |
-| Chromium | 177 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 177 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 220.154ms、Dashboard 189.505ms、Work Queue 13.731ms，均小于 1 秒 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、164/164、8/8；失败均为 0 |
+| Chromium | 178 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 178 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 250.285ms、Dashboard 204.067ms、Work Queue 14.381ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 902ms、Worker 恢复 1985ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 915ms、Worker 恢复 1948ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.11.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.12.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.11/summary.json)、
-[audit.json](validation/1.1.0-rc.11/audit.json)、[verification.log](validation/1.1.0-rc.11/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.12/summary.json)、
+[audit.json](validation/1.1.0-rc.12/audit.json)、[verification.log](validation/1.1.0-rc.12/verification.log)。
+
+## 1.1.0-rc.12 TRR 结构化尺码与购买日期
+
+本候选不新增 migration。新建 TRR 批次采用 `TRR/1.4`，将 TRR 展示尺码、品牌/标签原始尺码、来源估算标记及无时分秒购买日期分为独立来源事实；`TRR/1.3` 历史批次保持原 Profile 与封存证据。集成测试覆盖 Profile 前向升级、旧批次读取/封存、DAY/MONTH/YEAR 日期精度、原始尺码缺项必须 `UNAVAILABLE + 原因`、Agent Proposal 越界拒绝和 PENDING 候选不生成 TM；Chromium/WebKit 打开候选资料并核对分栏显示。本轮不会连接 TRR、运行联网 AI、改生产候选/订单/图片、创建 TM、库存或成本，也不执行部署或生产回填。
 
 ## 1.1.0-rc.11 采购来源默认币种正式更正
 
