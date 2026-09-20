@@ -15,6 +15,12 @@ export const procurementSourceInput = z.object({
   notes: safeText(2000).default(""),
 }).strict();
 
+export const procurementSourceMetadataUpdate = z.object({
+  version: expectedVersion,
+  defaultCurrency: currency,
+  reason: safeText(2000).min(3),
+}).strict();
+
 const adjustment = z.object({
   adjustmentKey: safeText(120).min(1),
   kind: z.enum(["SHIPPING", "DISCOUNT", "STORE_CREDIT", "TAX", "FEE", "REFUND", "OTHER"]),

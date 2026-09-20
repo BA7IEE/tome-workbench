@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.10
+# 当前验证记录 — 1.1.0-rc.11
 
-本地完整验证完成：`2026-09-20T05:59:41.043Z`。验证源码指纹为
-`b373df546aa8507f1605f63fe63b4841853316415032906764a85550cf74b43d`；
+本地完整验证完成：`2026-09-20T16:41:53.744Z`。验证源码指纹为
+`b9eaaa8923a34e238290de39a7be8f080694a4bbf56a5047126e244fb838deb1`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,23 +12,23 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、162/162、8/8；失败均为 0 |
-| Chromium | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 176 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 214.262ms、Dashboard 190.768ms、Work Queue 9.441ms，均小于 1 秒 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、163/163、8/8；失败均为 0 |
+| Chromium | 177 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 177 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 220.154ms、Dashboard 189.505ms、Work Queue 13.731ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 939ms、Worker 恢复 1959ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 902ms、Worker 恢复 1985ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.10.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.11.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.10/summary.json)、
-[audit.json](validation/1.1.0-rc.10/audit.json)、[verification.log](validation/1.1.0-rc.10/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.11/summary.json)、
+[audit.json](validation/1.1.0-rc.11/audit.json)、[verification.log](validation/1.1.0-rc.11/verification.log)。
 
-## 1.1.0-rc.10 来源现价显式纠错
+## 1.1.0-rc.11 采购来源默认币种正式更正
 
-本候选不新增 migration。`tome-ingest/1.2`、`TRR/1.3` 与 `GENERIC_MARKETPLACE/1.2` 提供受限 `sourceCorrection`：普通省略和 `null` 仍保留已有来源事实，只有在 `sourceCurrentPrice=null`、字段检查为带原因的 `UNAVAILABLE` 且提交纠错说明时才允许清空旧来源现价。单元与真实隔离 PostgreSQL 测试覆盖非法字段、矛盾证据拒绝、普通 `null` 保值、显式清空及 revision snapshot 留痕；没有连接真实 TRR、运行联网 AI、改 TM/库存/成本/售价/成交或执行生产部署。
+本候选不新增 migration。采购来源默认币种更正使用受 `supply` 权限保护的命令，要求来源版本、`Idempotency-Key` 和原因；来源锁、更新、Audit、Receipt 和 Outbox 同事务。默认币种只在后续新候选省略币种时补值，既有候选及封存批次不被改写。隔离 PostgreSQL 集成测试以 3,422 条显式 USD 合成候选验证权限、重放、冲突、审计和历史 Item/成本事实不变；Chromium/WebKit 均通过采购来源后台入口完成真实保存和回执等待。没有连接真实 TRR、运行联网 AI、改真实 TM/库存/成本/售价/成交或执行生产部署。
 
 本候选保留 production bootstrap gate：在独立 PostgreSQL 空库中先确保 `tome_app` 不存在，再执行正式 `--production --initial-empty` migration；迁移脚本必须自行创建/同步运行角色、完成 19 个 migration、补齐最小权限并用运行账号实际连接验证。该 gate 覆盖 1Panel 首次部署曾暴露的“运行角色缺失但 migration 仍完成”问题。
 

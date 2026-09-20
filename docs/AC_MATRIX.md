@@ -128,6 +128,8 @@ The existing 74-row implementation boundary is unchanged by moving controls. `te
 0.11新增采购来源事实层，不改变商品库存和成交真相源。TRR结构合成样本验证7个订单行、2个包裹、折扣/运费/抵用额、平台状态/RMA、订单行原价/逐件折后金额/平台现价/估计零售价分离、人工经营判断和人民币成本确认。
 `test/integration.test.cjs`保护“来源状态不改库存、来源价格不自动变成本、来源成色不自动映射、再次导入保留人工判断”；`test/browser/procurement.spec.cjs`同时进入Chromium与WebKit，覆盖两步导入预览、逐件核对、货源候选、人民币成本和手机布局。
 
+rc.11 新增采购来源默认币种正式更正验收：`test/integration.test.cjs` 的“采购来源默认币种更正只影响后续缺省候选，3,422件TRR-1历史候选和成本事实保持不变”在隔离 `tome_test` 创建封存批次与 3,422 条显式 USD 合成候选，验证 `supply` 权限、同键重放、同键异载荷冲突、来源版本冲突、before/after/原因审计、其他来源隔离及后续缺省候选才采用新 USD。它同时断言既有候选、Item、CostEntry 和 PurchaseCostConfirmation 不变。`test/browser/procurement.spec.cjs` 在 Chromium/WebKit 从采购来源列表真实点击“调整默认币种”、填写原因并等待保存回执；不使用刷新、强制点击或模拟成功。该证据不代表已修正真实 TRR-1、也不证明生产部署或经营验收。
+
 ## v1.0 商品中心补充验收
 - 外部 Agent 使用短期 ingest token，不能直接写 Item/Sale/Inventory/Cost。
 - 候选商品在人工确认前不得创建正式 TM；来源状态和成色不得静默映射为本地库存/标准成色。

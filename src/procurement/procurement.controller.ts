@@ -16,6 +16,7 @@ import {
 } from "./procurement.logic";
 import {
   procurementSourceInput,
+  procurementSourceMetadataUpdate,
   purchaseCostConfirm,
   purchaseLineLink,
   purchaseLineReview,
@@ -66,6 +67,45 @@ export class ProcurementController {
           name: row.name,
         });
         return { id: row.id };
+      },
+    );
+  }
+
+  @Access("supply") @Post("sources/:id/metadata") updateSourceMetadata(
+    @Param("id") rawId: string,
+    @Body() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    const id = uuid.parse(rawId),
+      b = procurementSourceMetadataUpdate.parse(raw);
+    return this.commands.run(
+      r.actor.id,
+      "procurement.source.metadata.update",
+      r.get("Idempotency-Key"),
+      { id, ...b },
+      async (tx) => {
+        await lock(tx, "procurement-source:" + id);
+        const source = await tx.procurementSource.findUniqueOrThrow({
+          where: { id },
+        });
+        versionMatch(source.version, b.version);
+        const updated = await tx.procurementSource.update({
+          where: { id },
+          data: {
+            defaultCurrency: b.defaultCurrency,
+            version: { increment: 1 },
+          },
+        });
+        await audit(tx, r.actor.id, "PROCUREMENT_SOURCE_METADATA_UPDATED", id, {
+          before: { defaultCurrency: source.defaultCurrency },
+          after: { defaultCurrency: updated.defaultCurrency },
+          reason: b.reason,
+        });
+        return {
+          id,
+          version: updated.version,
+          defaultCurrency: updated.defaultCurrency,
+        };
       },
     );
   }

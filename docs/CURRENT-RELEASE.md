@@ -1,6 +1,6 @@
 # 当前发布事实
 
-当前源码版本：**1.1.0-rc.10**，标准 Agent 采集、来源现价显式纠错、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
+当前源码版本：**1.1.0-rc.11**，采购来源默认币种正式更正、标准 Agent 采集、来源现价显式纠错、TRR 逐件折后金额成本分摊与高清补采状态修正、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 
 `tome.23cc.cn` 的实际 1Panel/OpenResty 运行拓扑、部署 SHA、人工 UAT 记录和后续升级步骤另见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该文档是指定环境的时间点运维事实，不能反向替代本文件的源码范围、当前验证指纹或目标版本迁移门禁。
 
@@ -11,6 +11,8 @@ rc.8 修复首次生产部署的数据库运行角色闭环：安全迁移现在
 rc.9 将本轮 TRR 折后金额、高清来源图状态和外部 Agent 字段建议作为独立发布候选，避免覆盖线上既有 `1.1.0-rc.8` 镜像标签。它包含 forward migration `202609200019_source_line_net_cost`，从 rc.8 升级不能滚动执行，必须先在仍匹配 rc.8 的源码和配置下停写并生成一致性备份，再切换固定 rc.9 SHA、构建、带 `BACKUP_MANIFEST` 执行正式 migration，最后统一启动 API/Worker。实际生产是否已升级仍以 `PRODUCTION-1PANEL.md` 的现场复核为准。
 
 rc.10 只扩展 ingest 合同和外部 Agent Skill/Profile，不新增 migration。普通省略或 `null` 仍保留旧来源值；`sourceCorrection.clearFields` 当前只允许清空 `sourceCurrentPrice`，并要求同次字段清单写成带来源侧原因的 `UNAVAILABLE`、提交纠错说明，修订快照保留完整依据。它用于修正历史误把订单行金额当成平台当前价的问题，不自动触碰订单行原价/折后金额、TM、库存、本地成色、人民币成本、售价、成交或发布。
+
+rc.11 不新增 migration。采购历史的来源管理新增“调整默认币种”正式入口及 `POST /api/procurement/sources/:id/metadata`：`supply` 权限、来源锁、来源版本、`Idempotency-Key` 与不少于三字的原因均为必需；成功时同一事务更新来源默认币种并留下 `PROCUREMENT_SOURCE_METADATA_UPDATED` 的 before/after 审计。默认币种只用于后续新候选未传币种时的补值；不改写既有候选、订单、采购成本、TM、库存、成交、账期或已封存批次，也不改变 TRR 的 Cost/Store Credit 规则。生产 TRR-1 的 CNY→USD 修正尚未执行，必须在本候选部署并获授权后通过该入口另行完成和复核。
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
@@ -44,7 +46,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 ```json
 {
-  "version": "1.1.0-rc.10",
+  "version": "1.1.0-rc.11",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",

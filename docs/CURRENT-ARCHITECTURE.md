@@ -41,6 +41,8 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 `Channel.defaultCurrency` 是 Channel 账号层的默认币种。`fixedChannelCurrency` 对 AnQiCMS/闲鱼分别强制 USD/CNY，其他平台返回账号默认值；Channel 创建、编辑、ChannelPrice 写入和发布 Readiness 共用这一要求。`resolveChannelPrice` 仍只解析 ChannelPrice 或 Item 回退价，不做 FX；回退价币种不等于目标账号时只能作为待补信息，不能复制金额。询盘创建在已配置账号下默认同币种有效渠道价；没有该价时金额 NULL、币种仍为目标账号。询盘转成交使用已记录的 `Inquiry.currency`，直接成交使用已配置账号的有效/要求币种或未配置账号的 Item 币种；仅 CNY Sale 自动冻结 CNY 成本，外币 Sale 不写入 CNY 成本。`Inquiry.nextFollowUpAt` 是 FOLLOWUP 的必填日程事实，工作队列按上海自然日计算逾期、今日与未来优先级。外币账期在没有 FX basis 时只能预览，确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`；没有 FX 引擎、自动换汇或历史 Sale 改写。
 
+`ProcurementSource.defaultCurrency` 是来源层的候选缺省值，不是订单、成本或库存事实。采购来源管理通过 `Commands` 在来源锁下以版本、`Idempotency-Key` 和原因正式更新它，并把前后值写入 Audit；机器导入在创建新候选且未给出币种时才读取该值。已存在候选保留自身币种，已封存批次、订单、TM、库存、成本、成交与账期快照不被该元数据命令改写。
+
 `PublicationHealthService` 不把 `Listing` 或 UsePackage TTL 当成唯一远端事实：当前成功 PUBLISH/UPDATE（包括 APP `remoteId` 为空）都会复核库存、Target、Channel、供应商 Offer、批准/鉴定、发布图片权利及正数且币种正确的交易价。安全但资料变化时输出待更新；不安全时 Worker/Sweep 只在本地创建来源关联 DELIST，不调用平台。停用或退出 TRADE 的渠道立即取消尚未交付的 PUBLISH/UPDATE，并且只可为未完成 DELIST 建立 stop-only 会话；回收站同样以这些暴露事实保护商品。
 
 渠道 Readiness 与经营待办同样是读取投影：只对激活 Target 与历史真实 Exposure 配对计算 `missing[]`，不为 Item × Channel 建立持久 `PREPARE` Task；历史 Task 只作为历史事实保留。分发读取面先取这些配对、再批量加载健康判断，避免笛卡尔积和按行 N+1。未批准的正式 TM 由全局工作队列分页，批量成本预览一次最多读取 100 个订单且复用原成本计算；两者都不绕过领域命令、锁、Audit 或 Receipt。
