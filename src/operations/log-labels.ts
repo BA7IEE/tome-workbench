@@ -62,6 +62,7 @@ export const actionLabels: Record<string, string> = {
   PROCUREMENT_COST_APPLIED: "写入TM采购成本",
   ORDER_COST_ALLOCATION_COMMITTED: "确认订单成本分摊",
   PROCUREMENT_SOURCE_CREATED: "新增采购来源",
+  PROCUREMENT_SOURCE_METADATA_UPDATED: "修改采购来源元数据",
   PURCHASE_ORDER_IMPORTED: "导入采购订单",
   PURCHASE_LINE_REVIEWED: "核对采购实物与经营去向",
   PURCHASE_LINE_SOURCE_CREATED: "采购订单行生成货源候选",

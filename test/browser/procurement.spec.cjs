@@ -236,6 +236,41 @@ async function createOrder(page) {
 }
 test.beforeEach(async ({ page }) => login(page));
 
+test("采购来源默认币种可经正式后台入口更正", async ({ page }) => {
+  await page.goto("/#/procurement");
+  const suffix = randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase(),
+    sourceName = "默认币种更正合成 " + suffix;
+  await page
+    .getByRole("button", { name: "＋ 新增采购来源", exact: true })
+    .click();
+  let dialog = page.getByRole("dialog", { name: "新增采购来源" });
+  await dialog.getByLabel("来源编码").fill("TRR-" + suffix);
+  await dialog.getByLabel("来源名称").fill(sourceName);
+  await dialog.getByLabel("默认币种").selectOption("CNY");
+  await dialog.getByRole("button", { name: "保存来源", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  const row = page.locator(".procurement-sources tbody tr").filter({
+    hasText: sourceName,
+  });
+  await expect(row).toContainText("CNY");
+  await row
+    .getByRole("button", { name: "调整默认币种", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "调整采购来源默认币种" });
+  await expect(dialog).toContainText("不会改写既有订单、候选、TM、库存或成本");
+  await dialog.getByLabel("默认币种").selectOption("USD");
+  await dialog
+    .getByLabel("更正依据")
+    .fill("合成验证：TRR 采购来源后续候选默认使用美元。");
+  await dialog
+    .getByRole("button", { name: "保存默认币种", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  await expect(row).toContainText("USD");
+  await expect(row).toContainText("来源版本 v2");
+});
+
 test("TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本", async ({
   page,
 }) => {

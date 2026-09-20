@@ -273,6 +273,30 @@ function sourceDialog(after: () => Promise<void>) {
   );
 }
 
+function sourceMetadataDialog(source: PSource, after: () => Promise<void>) {
+  form(
+    "调整采购来源默认币种",
+    note(
+      `正在调整 ${source.name}（${source.code}）的默认币种。它只用于后续未显式传入币种的候选；不会改写既有订单、候选、TM、库存或成本。`,
+    ) +
+      select("defaultCurrency", "默认币种", currencies, source.defaultCurrency) +
+      area("reason", "更正依据", "", 3),
+    (d, k) =>
+      request(
+        `/procurement/sources/${source.id}/metadata`,
+        "POST",
+        {
+          version: source.version,
+          defaultCurrency: text(d, "defaultCurrency"),
+          reason: text(d, "reason"),
+        },
+        k,
+      ),
+    "保存默认币种",
+    after,
+  );
+}
+
 function sourceCostPolicyDialog(source: PSource, after: () => Promise<void>) {
   form(
     "来源成本规则",
@@ -827,6 +851,14 @@ async function orderListPage() {
     `${o._count.lines}件<small>${o._count.shipments}个包裹 · ${o._count.returns}条退货/RMA</small>`,
     `<a class="btn subtle" href="#/procurement/${o.id}?returnTo=${encodeURIComponent(location.hash)}">核对订单</a>`,
   ]);
+  const sourceRows = sources.map((source) => [
+    `${esc(source.name)}<small>${esc(source.code)} · ${esc(sourceKinds[source.kind] || source.kind)}</small>`,
+    `${esc(source.defaultCurrency)}<small>来源版本 v${source.version}</small>`,
+    `${source.active ? "已启用" : "已停用"}<small>${source._count?.orders || 0} 笔订单</small>`,
+    can("supply")
+      ? button("调整默认币种", () => sourceMetadataDialog(source, reload))
+      : "—",
+  ]);
   const root = "procurement-" + crypto.randomUUID();
   onPageReady(root, (el, signal) => {
     el.querySelector<HTMLFormElement>("#procurement-search")?.addEventListener(
@@ -848,7 +880,8 @@ async function orderListPage() {
   <div class="notice">平台的 Shipped / Sold / Canceled / RMA 只作为来源记录，不会自动改变本地库存。</div>
   <form id="procurement-search" class="admin-filter-form"><label class="search-field"><span>搜索订单</span><input name="q" value="${esc(q)}" placeholder="订单号、原货号、品牌或商品名"></label>${select("sourceId", "采购来源", sourceOptions, sourceId)}<button class="btn primary">搜索</button><a class="btn" href="#/procurement">重置</a></form>
   ${table(["来源 / 订单", "下单日期", "平台状态", "来源金额", "件数 / 物流", "操作"], rows)}
-  <div class="pagination"><span>共${result.total}笔 · 每页30笔</span>${page > 1 ? `<a class="btn" href="${procurementPageLink(page - 1)}">上一页</a>` : ""}${page * 30 < result.total ? `<a class="btn" href="${procurementPageLink(page + 1)}">下一页</a>` : ""}</div></div>`;
+  <div class="pagination"><span>共${result.total}笔 · 每页30笔</span>${page > 1 ? `<a class="btn" href="${procurementPageLink(page - 1)}">上一页</a>` : ""}${page * 30 < result.total ? `<a class="btn" href="${procurementPageLink(page + 1)}">下一页</a>` : ""}</div>
+  <section class="panel procurement-sources"><h2>采购来源</h2><p>默认币种只用于后续未传币种的候选。调整时需要版本和依据，既有来源事实、TM、库存和成本不会被改写。</p>${table(["来源", "默认币种", "状态", "操作"], sourceRows)}</section></div>`;
 }
 function lineActions(line: PLine) {
   const parts: string[] = [

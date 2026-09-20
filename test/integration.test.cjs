@@ -2853,6 +2853,7 @@ async function setupAgentTrr(label='Agent TRR'){
   const imported=await machineOk(`/agent-ingest/batches/${batch.id}/candidates`,session.token,'POST',{candidates});
   return {source,session,orderInput,order,batch,candidates,imported};
 }
+
 async function sealAgentBatch(x){
   return machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
 }
@@ -7129,4 +7130,44 @@ test("Ingest credential security：宽松来源事实拒绝凭据字段与带签
     }),
     1,
   );
+});
+
+test('采购来源默认币种更正只影响后续缺省候选，3,422件TRR-1历史候选和成本事实保持不变',async()=>{
+  const suffix=randomUUID().slice(0,8).toUpperCase();
+  const source=await ok('/procurement/sources','POST',{code:'TRR-1',name:'TRR-1 默认币种更正合成',kind:'MARKETPLACE',defaultCurrency:'CNY',notes:'隔离测试来源'});
+  const other=await ok('/procurement/sources','POST',{code:'OTHER-'+suffix,name:'其他来源不受影响',kind:'MARKETPLACE',defaultCurrency:'EUR'});
+  const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'TRR-1 历史候选保护',ttlMinutes:60});
+  const historical=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'trr-1-historical-'+suffix,agentName:'Synthetic historical agent',rawManifest:standardManifest('TRR/1.3')});
+  const trrCandidate=(n)=>{
+    const candidate=standardizeGenericCandidate({externalKey:'TRR-1-'+suffix+'-'+n,sourceItemKey:'TRR-1-SKU-'+n,titleRaw:'TRR-1 历史合成候选 '+n,currency:'USD',sourceFacts:{productUrl:'https://example.invalid/trr-1/'+n},rawPayload:{synthetic:true}});
+    const fields=candidate.sourceFacts.capture.fields;
+    for(const [path,label] of [['sourceFacts.color','来源颜色'],['sourceFacts.material','来源材质'],['sourceFacts.measurements','来源尺寸'],['sourceLineAmount','订单行原价'],['sourceLineNetAmount','订单行折后金额'],['sourceCurrentPrice','来源当前价'],['sourceEstimatedRetail','来源估计零售价']]) if(!fields.some(field=>field.path===path)) fields.push({path,label,status:'UNAVAILABLE',reason:'合成历史来源未提供该字段'});
+    return candidate;
+  };
+  for(let start=0;start<3422;start+=200){
+    const candidates=Array.from({length:Math.min(200,3422-start)},(_,offset)=>trrCandidate(start+offset));
+    await machineOk(`/agent-ingest/batches/${historical.id}/candidates`,session.token,'POST',{candidates});
+  }
+  assert.equal((await machineOk(`/agent-ingest/batches/${historical.id}/seal`,session.token,'POST',{})).status,'SEALED');
+  const before={items:await db.item.count(),costs:await db.costEntry.count(),purchaseCosts:await db.purchaseCostConfirmation.count()};
+  const current=await db.procurementSource.findUniqueOrThrow({where:{id:source.id}});
+  const body={version:current.version,defaultCurrency:'USD',reason:'TRR-1 历史候选均已显式核对为美元，修正后续缺省候选默认币种'};
+  const forbidden=await api(`/procurement/sources/${source.id}/metadata`,'POST',body,operator,randomUUID());
+  assert.equal(forbidden.status,403);
+  const key=randomUUID(),updated=await ok(`/procurement/sources/${source.id}/metadata`,'POST',body,admin,key);
+  assert.deepEqual(await ok(`/procurement/sources/${source.id}/metadata`,'POST',body,admin,key),updated);
+  assert.equal(updated.version,current.version+1);assert.equal(updated.defaultCurrency,'USD');
+  const reused=await api(`/procurement/sources/${source.id}/metadata`,'POST',{...body,defaultCurrency:'EUR'},admin,key);
+  assert.equal(reused.status,409);assert.equal(reused.data.error.code,'IDEMPOTENCY_CONFLICT');
+  const stale=await api(`/procurement/sources/${source.id}/metadata`,'POST',{...body,reason:'过期窗口不能覆盖新默认币种'},admin,randomUUID());
+  assert.equal(stale.status,409);assert.equal(stale.data.error.code,'VERSION_CONFLICT');
+  const auditRow=await db.audit.findFirstOrThrow({where:{action:'PROCUREMENT_SOURCE_METADATA_UPDATED',resourceId:source.id},orderBy:{createdAt:'desc'}});
+  assert.deepEqual(auditRow.detail,{before:{defaultCurrency:'CNY'},after:{defaultCurrency:'USD'},reason:body.reason});
+  const preserved=await db.ingestCandidate.findMany({where:{batchId:historical.id},select:{currency:true,decision:true,itemId:true,purchaseLineId:true,sourceId:true}});
+  assert.equal(preserved.length,3422);assert.ok(preserved.every(row=>row.currency==='USD'&&row.decision==='PENDING'&&row.itemId===null&&row.purchaseLineId===null&&row.sourceId===null));
+  assert.deepEqual({items:await db.item.count(),costs:await db.costEntry.count(),purchaseCosts:await db.purchaseCostConfirmation.count()},before);
+  assert.equal((await db.procurementSource.findUniqueOrThrow({where:{id:other.id}})).defaultCurrency,'EUR');
+  const followup=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'trr-1-followup-'+suffix,agentName:'Synthetic followup agent',rawManifest:standardManifest('TRR/1.3')});
+  const imported=await machineOk(`/agent-ingest/batches/${followup.id}/candidates`,session.token,'POST',{candidates:[standardizeGenericCandidate({externalKey:'TRR-1-FOLLOWUP-'+suffix,sourceItemKey:'TRR-1-FOLLOWUP-SKU',titleRaw:'TRR-1 后续缺省币种合成候选',sourceFacts:{productUrl:'https://example.invalid/trr-1/followup'},rawPayload:{synthetic:true}})]});
+  assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:imported.rows[0].id}})).currency,'USD');
 });
