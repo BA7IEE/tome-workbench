@@ -14,7 +14,7 @@ rc.10 只扩展 ingest 合同和外部 Agent Skill/Profile，不新增 migration
 
 rc.11 不新增 migration。采购历史的来源管理新增“调整默认币种”正式入口及 `POST /api/procurement/sources/:id/metadata`：`supply` 权限、来源锁、来源版本、`Idempotency-Key` 与不少于三字的原因均为必需；成功时同一事务更新来源默认币种并留下 `PROCUREMENT_SOURCE_METADATA_UPDATED` 的 before/after 审计。默认币种只用于后续新候选未传币种时的补值；不改写既有候选、订单、采购成本、TM、库存、成交、账期或已封存批次，也不改变 TRR 的 Cost/Store Credit 规则。生产 TRR-1 的 CNY→USD 修正尚未执行，必须在本候选部署并获授权后通过该入口另行完成和复核。
 
-rc.12 不新增 migration。新建 TRR 机器批次使用 `TRR/1.4`：`sourceFacts.sizeLabel` 只保存 TRR 展示尺码，`foreignSize` 只保存来源明确给出的品牌/标签原始尺码，`sizeEstimated` 明确是否按测量估算；缺少原始尺码必须写 `UNAVAILABLE` 和来源侧原因，不能用展示 S/M/L、测量或 Agent 推断补造。`sourceFacts.order` 同时保存 `orderDateRaw`、无时分秒的 `orderedAt` 和 `DAY/MONTH/YEAR` 精度。`TRR/1.3` 的既有批次仍按原 Profile 读取与封存，不重写；外部 Agent 仍不能确认候选、创建 TM、写库存、成本、售价、成交或发布。候选详情将上述来源事实分栏显示。本代码候选没有修改生产候选、订单、图片或任何经营事实；账户回填须在部署后另获授权、通过当前 ingest 合同与新前向批次执行。
+rc.12 不新增 migration。新建 TRR 机器批次使用 `TRR/1.4`：`sourceFacts.sizeLabel` 只保存 TRR 展示尺码，`foreignSize` 只保存来源明确给出的品牌/标签原始尺码，`sizeEstimated` 明确是否按测量估算；缺少原始尺码必须写 `UNAVAILABLE` 和来源侧原因，不能用展示 S/M/L、测量或 Agent 推断补造。`sourceFacts.order` 同时保存 `orderDateRaw`、无时分秒的 `orderedAt` 和 `DAY/MONTH/YEAR` 精度；前向回填还会原样保留其中既有的支付、调整、Credit、订单行和状态等来源事实，不能通过删除旧字段绕过日期校验。`TRR/1.3` 的既有批次仍按原 Profile 读取与封存，不重写；外部 Agent 仍不能确认候选、创建 TM、写库存、成本、售价、成交或发布。候选详情将上述来源事实分栏显示。本代码候选没有修改生产候选、订单、图片或任何经营事实；账户回填须在部署后另获授权、通过当前 ingest 合同与新前向批次执行。
 
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
