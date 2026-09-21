@@ -4,9 +4,9 @@ import { resolve } from "node:path";
 import { Fault } from "../common/errors";
 import { record } from "./ingest-integrity";
 
-export const INGEST_PROTOCOL_VERSION = "1.2";
+export const INGEST_PROTOCOL_VERSION = "1.3";
 export const INGEST_SKILL_NAME = "tome-ingest";
-export const INGEST_SKILL_VERSION = "1.2";
+export const INGEST_SKILL_VERSION = "1.3";
 export const INGEST_SKILL_ID = `${INGEST_SKILL_NAME}/${INGEST_SKILL_VERSION}`;
 
 export type IngestProfile = {

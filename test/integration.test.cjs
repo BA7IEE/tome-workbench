@@ -2798,7 +2798,7 @@ function goldenIngestFixture(){
   return JSON.parse(readFileSync('test/fixtures/tome-ingest/trr-v1.2-golden.json','utf8'));
 }
 function standardManifest(profile='GENERIC_MARKETPLACE/1.2', extra={}){
-  return {...extra,protocolVersion:'1.2',skillVersion:'tome-ingest/1.2',profile};
+  return {...extra,protocolVersion:'1.3',skillVersion:'tome-ingest/1.3',profile};
 }
 const genericProfileFields=[
   ['titleRaw','商品名称'],['sourceItemKey','来源货号'],['brandRaw','来源品牌'],['categoryRaw','来源品类'],['conditionRaw','来源成色'],['sourceFacts.sizeLabel','标签尺码'],['sourceFacts.productUrl','来源页面'],['sourceFacts.description','来源描述'],['sourceCurrentPrice','来源当前价'],
@@ -2866,23 +2866,23 @@ function acknowledgedAgentBulkConfirm(x,status='AVAILABLE'){
     incompleteAcknowledgements:incompleteAcknowledgements(x.imported.rows,'已核对合成来源缺项'),
   };
 }
-test('v1.2 标准 Agent 协议校验 Skill/Profile、显式纠错目录，且服务端 Profile 必查项不能被 Manifest 降低',async()=>{
+test('v1.3 标准 Agent 协议校验 Skill/Profile、显式纠错目录，且服务端 Profile 必查项不能被 Manifest 降低',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase(), before=await db.item.count();
   const source=await ok('/procurement/sources','POST',{code:'TRR-'+suffix,name:'标准协议合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
   const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'标准协议测试',ttlMinutes:60});
   const protocol=await machineOk('/agent-ingest/protocol',session.token);
-  assert.equal(protocol.version,'1.2');assert.equal(protocol.skill.id,'tome-ingest/1.2');assert.equal(protocol.profile.id,'TRR/1.4');assert.deepEqual(protocol.sourceCorrection.clearFields,['sourceCurrentPrice']);assert.ok(protocol.profile.requiredFields.includes('sourceFacts.productUrl'));assert.ok(protocol.profile.requiredFields.includes('sourceLineNetAmount'));assert.ok(protocol.profile.requiredFields.includes('sourceFacts.foreignSize'));assert.ok(protocol.profile.requiredFields.includes('sourceFacts.order.orderedAt'));
+  assert.equal(protocol.version,'1.3');assert.equal(protocol.skill.id,'tome-ingest/1.3');assert.equal(protocol.profile.id,'TRR/1.4');assert.deepEqual(protocol.sourceCorrection.clearFields,['categoryRaw','conditionRaw','sourceCurrentPrice','sourceFacts.material','sourceFacts.measurements','sourceFacts.productUrl','sourceFacts.highResolutionCapture']);assert.equal(protocol.sourceCorrection.retireAssetSha256,true);assert.equal(protocol.sourceCorrection.invalidateAgentProposal,true);assert.ok(protocol.profile.requiredFields.includes('sourceFacts.productUrl'));assert.ok(protocol.profile.requiredFields.includes('sourceLineNetAmount'));assert.ok(protocol.profile.requiredFields.includes('sourceFacts.foreignSize'));assert.ok(protocol.profile.requiredFields.includes('sourceFacts.order.orderedAt'));
   const skill=await fetch(origin+'/api/agent-ingest/skill',{headers:{'X-Ingest-Token':session.token}}),profile=await fetch(origin+'/api/agent-ingest/profile',{headers:{'X-Ingest-Token':session.token}});
   const skillMarkdown=await skill.text(),profileMarkdown=await profile.text();
   assert.equal(skill.status,200);assert.match(skill.headers.get('content-type'),/text\/markdown/);assert.match(skillMarkdown,/标准采集 Skill/);assert.equal(createHash('sha256').update(skillMarkdown).digest('hex'),protocol.skill.sha256);
   assert.equal(profile.status,200);assert.match(profileMarkdown,/TRR\/1\.4/);assert.equal(createHash('sha256').update(profileMarkdown).digest('hex'),protocol.profile.sha256);
   const incompatible=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-'+suffix,agentName:'old agent',rawManifest:{protocolVersion:'2.0',skillVersion:'tome-ingest/2.0',profile:'TRR/1.4'}});
   assert.equal(incompatible.status,400);assert.equal(incompatible.data.error.code,'INGEST_PROTOCOL_INCOMPATIBLE');
-  const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/2.0',profile:'TRR/1.4'}});
+  const skillMismatch=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'bad-skill-'+suffix,agentName:'old skill agent',rawManifest:{protocolVersion:'1.3',skillVersion:'tome-ingest/2.0',profile:'TRR/1.4'}});
   assert.equal(skillMismatch.status,400);assert.equal(skillMismatch.data.error.code,'INGEST_SKILL_INCOMPATIBLE');
   const missingMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'missing-'+suffix,agentName:'legacy-shaped new agent',rawManifest:{expectedCandidateKeys:['MISSING-'+suffix]}});
   assert.equal(missingMetadata.status,400);assert.equal(missingMetadata.data.error.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
-  const partialMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'partial-'+suffix,agentName:'partially standard agent',rawManifest:{protocolVersion:'1.2',skillVersion:'tome-ingest/1.2'}});
+  const partialMetadata=await machineApi('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'partial-'+suffix,agentName:'partially standard agent',rawManifest:{protocolVersion:'1.3',skillVersion:'tome-ingest/1.3'}});
   assert.equal(partialMetadata.status,400);assert.equal(partialMetadata.data.error.code,'INGEST_STANDARD_MANIFEST_REQUIRED');
   const legacyManifest={importedBeforeStandard:true,externalReference:'legacy-'+suffix};
   const legacy=await db.ingestBatch.create({data:{sessionId:session.id,procurementSourceId:source.id,externalBatchKey:'legacy-'+suffix,agentName:'Historical adapter',agentVersion:'0.9',kind:'ORDER_HISTORY',rawManifest:legacyManifest}});
@@ -3002,7 +3002,7 @@ test('外部Agent按目标字段选择、格式化并标注置信度，来源完
   assert.deepEqual(proof.detail.agentProposalPathsPresented,['title','category','facts.material','facts.descriptionZh']);
   assert.deepEqual(proof.detail.agentProposalPathsModifiedByOperator,['facts.descriptionZh','facts.material']);
 });
-test('v1.2 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',async()=>{
+test('v1.3 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase();
   const httpSource=await ok('/procurement/sources','POST',{code:'TRR-H-'+suffix,name:'HTTP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),mcpSource=await ok('/procurement/sources','POST',{code:'TRR-M-'+suffix,name:'MCP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
   const httpSession=await ok('/ingest/sessions','POST',{procurementSourceId:httpSource.id,label:'HTTP Golden',ttlMinutes:60}),mcpSession=await ok('/ingest/sessions','POST',{procurementSourceId:mcpSource.id,label:'MCP Golden',ttlMinutes:60});
@@ -3027,7 +3027,7 @@ test('v1.2 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',
   const [httpCandidate,mcpCandidate]=await Promise.all([db.ingestCandidate.findFirstOrThrow({where:{procurementSourceId:httpSource.id,externalKey:fixture.candidates[0].externalKey}}),db.ingestCandidate.findFirstOrThrow({where:{procurementSourceId:mcpSource.id,externalKey:fixture.candidates[0].externalKey}})]);
   assert.deepEqual({titleRaw:httpCandidate.titleRaw,brandRaw:httpCandidate.brandRaw,categoryRaw:httpCandidate.categoryRaw,conditionRaw:httpCandidate.conditionRaw,currency:httpCandidate.currency,sourceFacts:httpCandidate.sourceFacts,proposal:httpCandidate.proposal,rawPayload:httpCandidate.rawPayload},{titleRaw:mcpCandidate.titleRaw,brandRaw:mcpCandidate.brandRaw,categoryRaw:mcpCandidate.categoryRaw,conditionRaw:mcpCandidate.conditionRaw,currency:mcpCandidate.currency,sourceFacts:mcpCandidate.sourceFacts,proposal:mcpCandidate.proposal,rawPayload:mcpCandidate.rawPayload});
 });
-test('v1.2 确定性 tome-ingest CLI 重启后复用本地幂等状态且不保存 Token',async()=>{
+test('v1.3 确定性 tome-ingest CLI 重启后复用本地幂等状态且不保存 Token',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase(), dir=mkdtempSync(join(os.tmpdir(),'tome-ingest-cli-'));
   try {
     const source=await ok('/procurement/sources','POST',{code:'CLI'+suffix,name:'CLI 合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'CLI 重启恢复',ttlMinutes:60});
@@ -3044,17 +3044,26 @@ test('v1 Agent短期Token只能写采集层，重复抓取和显式来源纠错�
   assert.equal(x.imported.rows.length,7);assert.equal(await db.item.count(),before);
   assert.equal((await machineApi('/items',x.session.token)).status,401);
   assert.equal((await machineApi('/agent-ingest/batches/'+x.batch.id,x.session.token)).status,200);
-  const first=x.candidates[0],candidate=x.imported.rows[0],changed={...first,sourceCurrentPrice:7600,statusRaw:'Sold / observed later'};
+  const first=x.candidates[0],candidate=x.imported.rows[0],changed={...first,sourceCurrentPrice:7600,statusRaw:'Sold / observed later',agentProposal:{generator:'LLM',model:'synthetic-model',generatedAt:'2026-09-21T08:00:00.000Z',fields:[{path:'category',value:'CLOTHING',method:'NORMALIZED',confidence:1,evidencePaths:['categoryRaw']}]}};
   const rerun=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[changed]});
   assert.equal(rerun.rows[0].id,candidate.id);assert.equal(rerun.rows[0].version,2);
   const sparseNull=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[{...changed,sourceCurrentPrice:null}]});
   assert.equal(sparseNull.rows[0].unchanged,true);assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id}})).sourceCurrentPrice,7600);
-  const corrected=structuredClone(changed);corrected.sourceCurrentPrice=null;corrected.sourceCorrection={clearFields:['sourceCurrentPrice'],reason:'此前误把订单行折后金额写入来源现价'};
-  const priceCheck=corrected.sourceFacts.capture.fields.find(field=>field.path==='sourceCurrentPrice');priceCheck.status='UNAVAILABLE';priceCheck.reason='来源详情页未显示当前平台价';
+  const wrongImage=await syntheticImage('wrong-source.png'),wrongSha=createHash('sha256').update(wrongImage).digest('hex'),fd=new FormData();fd.set('sourceUrl','https://example.invalid/wrong-source.png');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([wrongImage],{type:'image/png'}),'wrong-source.png');
+  const uploaded=await machineOk(`/agent-ingest/candidates/${candidate.id}/assets`,x.session.token,'POST',fd);
+  const clearFields=['categoryRaw','conditionRaw','sourceCurrentPrice','sourceFacts.material','sourceFacts.measurements','sourceFacts.productUrl','sourceFacts.highResolutionCapture'];
+  const corrected=structuredClone(changed);corrected.categoryRaw='';corrected.conditionRaw='';corrected.sourceCurrentPrice=null;delete corrected.sourceFacts.material;delete corrected.sourceFacts.measurements;delete corrected.sourceFacts.productUrl;delete corrected.sourceFacts.highResolutionCapture;delete corrected.agentProposal;
+  corrected.sourceCorrection={clearFields,retireAssetSha256:[wrongSha],invalidateAgentProposal:true,reason:'此前串入另一件商品的字段和来源图片'};
+  for(const path of clearFields){let check=corrected.sourceFacts.capture.fields.find(field=>field.path===path);if(!check){check={path,label:path,status:'UNAVAILABLE',reason:''};corrected.sourceFacts.capture.fields.push(check)}check.status='UNAVAILABLE';check.reason='核对后确认该字段来自另一件商品，正确来源页面无法取得'}
   const correctionResult=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[corrected]});
   assert.equal(correctionResult.rows[0].version,3);
-  const afterCorrection=await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id},include:{revisions:{orderBy:{version:'desc'},take:1}}});
-  assert.equal(afterCorrection.sourceCurrentPrice,null);assert.deepEqual(afterCorrection.revisions[0].snapshot.sourceCorrection,corrected.sourceCorrection);
+  const afterCorrection=await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id},include:{assets:true,revisions:{orderBy:{version:'desc'},take:1}}});
+  assert.equal(afterCorrection.categoryRaw,'');assert.equal(afterCorrection.conditionRaw,'');assert.equal(afterCorrection.sourceCurrentPrice,null);assert.equal(afterCorrection.sourceFacts.material,undefined);assert.equal(afterCorrection.sourceFacts.measurements,undefined);assert.equal(afterCorrection.sourceFacts.productUrl,undefined);assert.equal(afterCorrection.sourceFacts.highResolutionCapture,undefined);assert.equal(afterCorrection.proposal.agentFields,undefined);assert.deepEqual(afterCorrection.revisions[0].snapshot.sourceCorrection,corrected.sourceCorrection);
+  assert.ok(afterCorrection.assets[0].retiredAt);assert.equal(afterCorrection.assets[0].retiredReason,corrected.sourceCorrection.reason);assert.equal(afterCorrection.assets[0].sha256,wrongSha);
+  const detail=await ok(`/ingest/candidates/${candidate.id}`);assert.equal(detail.assets.length,0);assert.equal(detail.retiredAssets.length,1);assert.equal(detail.integrity.storedImages,0);
+  const original=await fetch(origin+`/api/ingest/candidate-assets/${uploaded.id}/original`,{headers:{Cookie:admin.cookie}});assert.equal(original.status,200);assert.deepEqual(Buffer.from(await original.arrayBuffer()),wrongImage);
+  const auditRow=await db.audit.findFirstOrThrow({where:{resourceId:candidate.id,action:'INGEST_CANDIDATE_SOURCE_CORRECTED'},orderBy:{createdAt:'desc'}});assert.deepEqual(auditRow.detail.clearFields,clearFields);assert.deepEqual(auditRow.detail.retiredAssetSha256,[wrongSha]);assert.equal(auditRow.detail.invalidatedAgentProposal,true);
+  const retryFile=new FormData();retryFile.set('sourceUrl','https://example.invalid/wrong-source.png');retryFile.set('roleHint','PRODUCT');retryFile.set('file',new Blob([wrongImage],{type:'image/png'}),'wrong-source.png');const rejected=await machineApi(`/agent-ingest/candidates/${candidate.id}/assets`,x.session.token,'POST',retryFile);assert.equal(rejected.status,409);assert.equal(rejected.data.error.code,'SOURCE_ASSET_RETIRED');
   assert.equal(await db.ingestCandidate.count({where:{procurementSourceId:x.source.id,externalKey:first.externalKey}}),1);
   assert.equal(await db.ingestCandidateRevision.count({where:{candidateId:candidate.id}}),3);
 });
@@ -3069,6 +3078,20 @@ test('v1 Agent候选图片持久入库，封批后禁止继续写，重复上传
   await machineOk(`/agent-ingest/batches/${x.batch.id}/seal`,x.session.token,'POST',{});
   const blocked=await machineApi(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[x.candidates[1]]});
   assert.equal(blocked.status,409);assert.equal((await machineOk(`/agent-ingest/batches/${x.batch.id}`,x.session.token)).status,'SEALED');
+});
+test('已关联正式TM的候选图片不能由后续机器纠错撤下',async()=>{
+  const x=await setupAgentTrr('Agent linked image source'),candidate=x.imported.rows[0],image=await sharp({create:{width:73,height:97,channels:3,background:{r:17,g:33,b:49}}}).png().toBuffer(),sha256=createHash('sha256').update(image).digest('hex');
+  const fd=new FormData();fd.set('sourceUrl','https://example.invalid/linked-source.png');fd.set('roleHint','PRODUCT');fd.set('file',new Blob([image],{type:'image/png'}),'linked-source.png');await machineOk(`/agent-ingest/candidates/${candidate.id}/assets`,x.session.token,'POST',fd);
+  await sealAgentBatch(x);
+  const confirmed=await ok(`/ingest/candidates/${candidate.id}/confirm`,'POST',{version:candidate.version,possession:'IN_HAND',status:'PAUSED',acceptIncomplete:true,note:'人工核对合成来源缺项并确认实物'});
+  const itemBefore=await db.item.findUniqueOrThrow({where:{id:confirmed.itemId}}),linkedAsset=await db.ingestCandidateAsset.findFirstOrThrow({where:{candidateId:candidate.id,sha256}}),sourceBefore=await db.source.findUniqueOrThrow({where:{id:itemBefore.sourceId}});assert.ok(linkedAsset.assetId);
+  const correctionBatch=await machineOk('/agent-ingest/batches',x.session.token,'POST',{externalBatchKey:'linked-correction-'+randomUUID(),agentName:'Synthetic correction agent',kind:'ITEM_BATCH',rawManifest:standardManifest('GENERIC_MARKETPLACE/1.2',{expectedCandidateKeys:[x.candidates[0].externalKey]})});
+  const retire=structuredClone(x.candidates[0]);retire.sourceCorrection={retireAssetSha256:[sha256],reason:'合成测试尝试撤下已关联TM的来源图片'};
+  const blocked=await machineApi(`/agent-ingest/batches/${correctionBatch.id}/candidates`,x.session.token,'POST',{candidates:[retire]});assert.equal(blocked.status,409);assert.equal(blocked.data.error.code,'SOURCE_CORRECTION_ASSET_LINKED');
+  const corrected=structuredClone(x.candidates[0]);corrected.categoryRaw='';const categoryCheck=corrected.sourceFacts.capture.fields.find(field=>field.path==='categoryRaw');categoryCheck.status='UNAVAILABLE';categoryCheck.reason='核对后确认旧分类来自错误来源页面';corrected.sourceCorrection={clearFields:['categoryRaw'],reason:'只修正已确认候选的来源分类，不改TM'};
+  const result=await machineOk(`/agent-ingest/batches/${correctionBatch.id}/candidates`,x.session.token,'POST',{candidates:[corrected]});assert.equal(result.rows[0].id,candidate.id);
+  const [sourceAfter,itemAfter,revision]=await Promise.all([db.source.findUniqueOrThrow({where:{id:sourceBefore.id}}),db.item.findUniqueOrThrow({where:{id:confirmed.itemId}}),db.sourceRevision.findFirstOrThrow({where:{sourceId:sourceBefore.id},orderBy:{version:'desc'}})]);
+  assert.equal(sourceAfter.version,sourceBefore.version+1);assert.equal(sourceAfter.payload.categoryRaw,'');assert.equal(revision.payload.categoryRaw,'');assert.deepEqual(itemAfter,itemBefore);
 });
 test('v1 批量确认把候选一次生成TM，来源Sold/Excellent/颜色不污染本地库存与标准字段',async()=>{
   const before=await db.item.count(),x=await setupAgentTrr('Agent confirm source'),first=x.imported.rows[0];

@@ -1,4 +1,4 @@
-# 生产部署与发布手册 · 1.1.0-rc.12
+# 生产部署与发布手册 · 1.1.0-rc.13
 
 ## 1. 本版可部署边界
 
@@ -81,6 +81,8 @@ node scripts/production-preflight.mjs --config-dir=data/production --project=tom
 ## 5. 升级、备份和回退
 
 本版采用受控维护窗口，不承诺数据库升级和前端静态资源更新零中断。提前构建新镜像、通知用户、停止写入，再停止两组API与Worker；确认所有CLI也退出。安全迁移使用数据库级独占维护锁，因此不同目录或不同容器里的运行实例也会阻止迁移。
+
+rc.12 → rc.13 新增 `202609210020_ingest_candidate_asset_retirement`，不能使用无 migration 的滚动升级。必须在仍签出 rc.12、三个版本字段仍为 rc.12 时先停写并生成一致性备份；随后切到已通过 main CI 的固定 rc.13 SHA，统一更新 `data/production/compose.env`、根目录 `.env` 和 `configuration.json.appVersion`，构建应用与 migration 镜像，以该备份的 `BACKUP_MANIFEST` 执行 existing-production migration，再一次启动两组 API 与 Worker。正式库严禁使用 `--initial-empty`。
 
 正式库已有数据时，不允许`--initial-empty`。需要可恢复、同数据库、24小时内的备份清单，并向迁移容器设置`BACKUP_MANIFEST=/backups/对应路径/manifest.json`。迁移脚本会核对备份元数据与既有迁移文件校验；**元数据校验不能代替真正恢复演练**。数据库管理员应另外核验dump内容、原始素材、密钥和保存位置。
 

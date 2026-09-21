@@ -39,8 +39,8 @@ async function machine(page, path, token, body) {
 function standardManifest(extra = {}) {
   return {
     ...extra,
-    protocolVersion: "1.2",
-    skillVersion: "tome-ingest/1.2",
+    protocolVersion: "1.3",
+    skillVersion: "tome-ingest/1.3",
     profile: "GENERIC_MARKETPLACE/1.2",
   };
 }

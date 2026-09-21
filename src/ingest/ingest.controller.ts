@@ -244,7 +244,10 @@ export class IngestAdminController {
           procurementSource: true,
           batch: true,
           item: { select: { id: true, serial: true, title: true } },
-          assets: { orderBy: { createdAt: "asc" } },
+          assets: {
+            where: { retiredAt: null },
+            orderBy: { createdAt: "asc" },
+          },
         },
       }),
     ]);
@@ -253,7 +256,7 @@ export class IngestAdminController {
         .map((row) => row.id),
       candidateAssets = pendingIds.length
         ? await this.db.ingestCandidateAsset.findMany({
-            where: { candidateId: { in: pendingIds } },
+            where: { candidateId: { in: pendingIds }, retiredAt: null },
             select: { candidateId: true, sha256: true },
           })
         : [],
@@ -316,7 +319,14 @@ export class IngestAdminController {
         revisions: { orderBy: { version: "desc" }, take: 10 },
       },
     });
-    return { ...row, integrity: await this.service.captureReport(row) };
+    const assets = row.assets.filter((asset) => !asset.retiredAt);
+    const retiredAssets = row.assets.filter((asset) => !!asset.retiredAt);
+    return {
+      ...row,
+      assets,
+      retiredAssets,
+      integrity: await this.service.captureReport({ ...row, assets }),
+    };
   }
   @Access("read") @Get("candidate-assets/:id/preview") async candidatePreview(
     @Param("id") id: string,

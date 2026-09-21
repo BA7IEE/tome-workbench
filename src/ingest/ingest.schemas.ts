@@ -118,18 +118,47 @@ export const agentProposalInput = z
       ctx.addIssue({ code: "custom", message: "同一目标字段只能提交一项建议" });
   });
 
+export const sourceCorrectionClearField = z.enum([
+  "categoryRaw",
+  "conditionRaw",
+  "sourceCurrentPrice",
+  "sourceFacts.material",
+  "sourceFacts.measurements",
+  "sourceFacts.productUrl",
+  "sourceFacts.highResolutionCapture",
+]);
+
 export const sourceCorrectionInput = z
   .object({
     clearFields: z
-      .array(z.enum(["sourceCurrentPrice"]))
-      .min(1)
-      .max(1)
+      .array(sourceCorrectionClearField)
+      .max(7)
       .refine((fields) => new Set(fields).size === fields.length, {
         message: "来源纠错字段不能重复",
-      }),
+      })
+      .default([]),
+    retireAssetSha256: z
+      .array(z.string().regex(/^[a-f0-9]{64}$/))
+      .max(100)
+      .refine((hashes) => new Set(hashes).size === hashes.length, {
+        message: "来源纠错图片不能重复",
+      })
+      .default([]),
+    invalidateAgentProposal: z.boolean().default(false),
     reason: safeText(1000).min(3),
   })
-  .strict();
+  .strict()
+  .superRefine((correction, ctx) => {
+    if (
+      !correction.clearFields.length &&
+      !correction.retireAssetSha256.length &&
+      !correction.invalidateAgentProposal
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "来源纠错至少要清空字段、撤下错误图片或撤销 Agent 建议之一",
+      });
+  });
 
 function evidenceValue(candidate: Record<string, unknown>, path: string) {
   let value: unknown = candidate;
@@ -307,24 +336,38 @@ export const ingestCandidateInput = z
   })
   .strict()
   .superRefine((candidate, ctx) => {
-    if (candidate.sourceCorrection?.clearFields.includes("sourceCurrentPrice")) {
-      if (candidate.sourceCurrentPrice !== null)
+    for (const path of candidate.sourceCorrection?.clearFields || []) {
+      if (
+        hasEvidenceValue(
+          evidenceValue(candidate as Record<string, unknown>, path),
+        )
+      )
         ctx.addIssue({
           code: "custom",
-          path: ["sourceCurrentPrice"],
-          message: "显式清空来源现价时 sourceCurrentPrice 必须为 null",
+          path: path.split("."),
+          message: `显式清空 ${path} 时该字段必须为空`,
         });
       const check = candidate.sourceFacts.capture?.fields.find(
-        (field) => field.path === "sourceCurrentPrice",
+        (field) => field.path === path,
       );
       if (check?.status !== "UNAVAILABLE" || !check.reason.trim())
         ctx.addIssue({
           code: "custom",
           path: ["sourceFacts", "capture", "fields"],
-          message:
-            "显式清空来源现价时必须把 sourceCurrentPrice 标记为 UNAVAILABLE 并说明来源侧原因",
+          message: `显式清空 ${path} 时必须把同路径标记为 UNAVAILABLE 并说明来源侧原因`,
         });
     }
+    for (const sha256 of candidate.sourceCorrection?.retireAssetSha256 || [])
+      if (
+        candidate.sourceFacts.capture?.images.some(
+          (image) => image.sha256 === sha256,
+        )
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceFacts", "capture", "images"],
+          message: "已撤下的错误来源图片不能继续出现在当前图片清单",
+        });
     if (!candidate.agentProposal) return;
     const declaredHashes = new Set(
       (candidate.sourceFacts.capture?.images || [])

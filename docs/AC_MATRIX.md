@@ -324,6 +324,10 @@ MCP 回归分别用 `X-Ingest-Token` 与同一 Token 的 Bearer 头完成 initia
 
 `tome-ingest/1.2` 增加受限 `sourceCorrection`：普通省略和 `null` 仍保持稀疏更新，只在 `clearFields=["sourceCurrentPrice"]`、该值为 `null`、同次字段检查为带原因的 `UNAVAILABLE` 且有纠错说明时，服务端才撤销旧来源现价。纠错保存在候选 revision snapshot，不扩展到订单行原价、折后金额、TM、库存、成本、售价、成交或发布。单元测试覆盖非法字段、非空值和矛盾字段检查拒绝；真实隔离 PostgreSQL 集成测试覆盖普通 `null` 保值、显式清空和修订留痕。
 
+### v1.3 来源污染纠错与错图撤下
+
+`tome-ingest/1.3` 将 `sourceCorrection` 扩展到来源品类、来源成色、来源当前价、材质、尺寸、商品页和高清补采状态。每个清空字段仍须为空，并在同次 `capture.fields` 中写成带来源侧原因的 `UNAVAILABLE`。错误候选图片只可按当前候选的精确 SHA-256 撤下；服务端保留原文件、撤下时间、原因、revision 与 Audit，但从当前图册、完整性、重复判断和候选确认中排除，并拒绝重新上传同一已撤下文件。已关联正式 TM 的图片不能由机器撤下；已确认候选的字段纠错会更新关联 Source 及 SourceRevision，不反改 Item。单元、真实 PostgreSQL 集成及 Chromium/WebKit 覆盖上述正反路径；测试只使用隔离合成资料，不证明真实 TRR 页面已重新取得。
+
 ### TRR/1.4 尺码与购买日期来源事实
 
 新建 TRR 机器批次返回 `TRR/1.4`，Profile 要求 `sourceFacts.sizeLabel`、`foreignSize`、`sizeEstimated` 和 `order.{orderDateRaw,orderedAt,datePrecision}` 各自具备 `CAPTURED` 或带来源侧原因的 `UNAVAILABLE` 检查。`orderedAt` 只允许 DAY/MONTH/YEAR 的日期文本，不能填时分秒；`foreignSize` 缺失时也不能用展示 S/M/L、测量或 Agent 推断替代。服务端只对 1.4 批次执行该结构校验，`TRR/1.3` 既有批次仍按原 Profile 读取、重放和封存。前向回填时，`order` 内的支付、调整、Credit、订单行、订单号和来源状态等历史来源事实必须原样保留，不能靠删除字段通过日期校验；三个日期字段仍独立校验。`agentProposal` 的字段目录不含原始标签尺码、估算标记和购买日期。集成测试覆盖新/旧 Profile、带旧订单事实的 1.3→1.4 回填、同键重试、日期精度、缺失原始尺码、Proposal 越界、历史批次成员/修订保留与 PENDING 不建 TM；`v1-item-center.spec.cjs` 在 Chromium/WebKit 实际打开候选资料，确认三类尺码/标记和购买日期分栏可见。全部资料均为隔离 `tome_test` 合成数据，未读取或改写生产候选。

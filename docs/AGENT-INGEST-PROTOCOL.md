@@ -62,8 +62,8 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
   "agentName": "External Collector",
   "kind": "ORDER_HISTORY",
   "rawManifest": {
-    "protocolVersion": "1.2",
-    "skillVersion": "tome-ingest/1.2",
+    "protocolVersion": "1.3",
+    "skillVersion": "tome-ingest/1.3",
     "profile": "服务端 protocol.profile.id",
     "expectedCandidateKeys": ["supplier:order-001:sku-001"],
     "requiredFields": ["titleRaw", "sourceFacts.description", "sourceFacts.sizeLabel"]
@@ -149,7 +149,9 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 }
 ```
 
-同时，`sourceFacts.capture.fields` 中的 `sourceCurrentPrice` 必须为带来源侧原因的 `UNAVAILABLE`。当前合同只允许清空 `sourceCurrentPrice`；非空金额、仍标记 `CAPTURED`、没有理由或尝试清空其他金额都会拒绝。纠错原因保存在候选修订快照中，不改变订单行原价、订单行折后金额、TM、库存、成本或其他经营事实。
+同时，`sourceFacts.capture.fields` 中的 `sourceCurrentPrice` 必须为带来源侧原因的 `UNAVAILABLE`。v1.3 的白名单还包括 `categoryRaw`、`conditionRaw`、`sourceFacts.material`、`sourceFacts.measurements`、`sourceFacts.productUrl` 和 `sourceFacts.highResolutionCapture`；每项都必须为空并带同路径的缺项依据。非空值、仍标记 `CAPTURED`、没有理由或尝试清空目录外字段都会拒绝。纠错原因保存在候选修订快照中，不改变订单行原价、订单行折后金额、TM、库存、成本或其他经营事实。
+
+错误页面带来的候选图片可通过 `sourceCorrection.retireAssetSha256` 按当前候选的精确 SHA-256 撤下，必要时用 `invalidateAgentProposal: true` 作废基于错误证据的旧建议。当前图片清单不能再声明这些哈希；服务端保留原文件、撤下时间、原因、revision 和 Audit，但从当前图册、完整性、重复判断与候选确认中排除，并拒绝重新上传同一已撤下文件。已经关联正式 TM 的图片不能由机器撤下；已确认候选的字段纠错只同步关联 Source 的新修订，不反改 TM。正确页面或原图仍无法取得时必须写 `UNAVAILABLE + 原因`，不能沿用错图、放大缩略图或用推断补造。
 
 人工确认候选时，系统才把已展示的建议用于正式 TM 的名称、已存在品牌匹配、一级品类、材质、颜色、
 尺码、尺寸文本和中文介绍。Agent 不能建议或写入 TM 身份、库存、本地成色等级、真实性、人民币成本、
@@ -187,9 +189,9 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 
 机器导入权限没有扩展。后台新 UI 的单件/批量确认默认待整理 PAUSED；后台 bulk-confirm 未提供 status 时也默认 PAUSED，显式 status=AVAILABLE 仍支持。实物在手与可售分别确认。单件 confirm 的旧默认值与说明保持兼容，UI 始终显式提交状态和说明；旧客户端应明确传 status 表达意图。原结果未知的请求使用原状态、版本、缺项说明和幂等键恢复，不在重试时替换为新默认值。
 
-## 1.2 标准 Agent Ingest
+## 1.3 标准 Agent Ingest
 
-`/api/agent-ingest` 仍是唯一服务端写入合同；v1.2 只统一 Skill、来源 Profile、MCP 和 CLI 的使用方式，不重写候选、TM、库存、成本、成交或发布模型。
+`/api/agent-ingest` 仍是唯一服务端写入合同；v1.3 统一 Skill、来源 Profile、MCP、CLI 和可审计来源纠错，不重写候选、TM、库存、成本、成交或发布模型。
 
 ### 启动校验
 
@@ -197,11 +199,11 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 
 ```json
 {
-  "version": "1.2",
+  "version": "1.3",
   "skill": {
     "name": "tome-ingest",
-    "version": "1.2",
-    "id": "tome-ingest/1.2",
+    "version": "1.3",
+    "id": "tome-ingest/1.3",
     "sha256": "…",
     "url": "/api/agent-ingest/skill"
   },
@@ -222,8 +224,8 @@ Agent 导入成功只意味着“来源事实已进入候选池”，不意味�
 
 ```json
 {
-  "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.2",
+  "protocolVersion": "1.3",
+  "skillVersion": "tome-ingest/1.3",
   "profile": "TRR/1.4",
   "expectedCandidateKeys": [],
   "requiredFields": []

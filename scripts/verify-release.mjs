@@ -24,7 +24,7 @@ function syncCurrentValidationEvidence(summary) {
   const reportPath = path.join("docs", "VALIDATION.md");
   let report = fs.readFileSync(reportPath, "utf8");
   const completionPattern =
-    /^(?:远端|本地)完整验证完成：[^\n]*验证源码指纹为$/m;
+    /^(?:(?:远端|本地)完整验证完成：[^\n]*|本地完整验证待执行。)验证源码指纹为$/m;
   if (!completionPattern.test(report))
     throw new Error("Current validation report has no completion evidence line");
   const runId = process.env.GITHUB_RUN_ID || "",

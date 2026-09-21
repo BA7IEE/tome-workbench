@@ -1,6 +1,6 @@
 # ToMeBoutique 标准采集 Skill
 
-版本：`tome-ingest/1.2`。本 Skill 规范外部来源事实和可选的 Agent 整理建议如何进入候选池；服务端
+版本：`tome-ingest/1.3`。本 Skill 规范外部来源事实和可选的 Agent 整理建议如何进入候选池；服务端
 `/api/agent-ingest` 才是最终合同。它不授予后台账户、商品、库存、成本、成交或发布权限。
 
 ## 启动顺序
@@ -70,7 +70,7 @@ SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化
 
 ## 显式纠正已有来源事实
 
-普通的省略字段或 `null` 仍表示“本次没有新值”，服务端会保留已经采集的来源事实，防止稀疏重试误删资料。只有确认旧的 `sourceCurrentPrice` 不是网页另行显示的当前平台价时，才可提交：
+普通的省略字段或 `null` 仍表示“本次没有新值”，服务端会保留已经采集的来源事实，防止稀疏重试误删资料。只有已存在候选的来源证据被核实为错误时，才可使用服务端列出的受限字段执行纠错。例如确认旧的 `sourceCurrentPrice` 不是网页另行显示的当前平台价时，可提交：
 
 ```json
 {
@@ -82,7 +82,15 @@ SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化
 }
 ```
 
-同一候选的 `sourceFacts.capture.fields` 必须同时把 `sourceCurrentPrice` 标记为 `UNAVAILABLE`，并写清网页、订单或文件为什么不能证明当前平台价。服务端会拒绝“仍标记 CAPTURED”“没有来源侧原因”“非空金额”或尝试清空其他字段的请求。纠错会进入候选修订快照；它不会改写订单行原价、订单行折后金额、TM、库存或成本。
+同一候选的 `sourceFacts.capture.fields` 必须同时把 `sourceCurrentPrice` 标记为 `UNAVAILABLE`，并写清网页、订单或文件为什么不能证明当前平台价。服务端会拒绝“仍标记 CAPTURED”“没有来源侧原因”“字段仍有值”或尝试清空目录外字段的请求。纠错会进入候选修订快照；它不会改写订单行原价、订单行折后金额、TM、库存或成本。
+
+若来源页面、字段或图片被串到另一件商品，可按 `GET /protocol` 返回的目录清空受污染字段、用
+`retireAssetSha256` 精确列出要撤下的候选图片，并在必要时设置
+`invalidateAgentProposal: true` 作废基于错误证据生成的旧建议。当前 `capture` 必须替换为纠正后的检查
+清单：清空字段逐项写 `UNAVAILABLE + 来源侧原因`，已撤下的 SHA-256 不得继续列为当前图片。图片只能
+撤下仍停留在候选证据层且未关联正式 TM 的记录；服务端保留原文件、撤下时间、原因、修订和审计，
+不会物理删除，也不会自动补造正确图片。若正确商品页面或原图仍无法取得，应如实提交
+`UNAVAILABLE`，不能沿用错图或用推断填补。
 
 ## 批次与完整性
 
@@ -90,8 +98,8 @@ SHA-256。`EXTRACTED` 是直接提取，`NORMALIZED` 是格式或选项规范化
 
 ```json
 {
-  "protocolVersion": "1.2",
-  "skillVersion": "tome-ingest/1.2",
+  "protocolVersion": "1.3",
+  "skillVersion": "tome-ingest/1.3",
   "profile": "服务端 protocol.profile.id",
   "expectedCandidateKeys": [],
   "requiredFields": []

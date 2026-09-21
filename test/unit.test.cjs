@@ -366,7 +366,18 @@ test("来源现价只能通过带字段缺项依据的显式纠错清空", () =>
   const base={externalKey:"SYNTHETIC:CORRECTION:1",titleRaw:"Synthetic source title",sourceCurrentPrice:null,sourceFacts:{capture:{pageUrl:"https://example.invalid/correction",capturedAt:"2026-09-20T08:00:00.000Z",fields:[{path:"sourceCurrentPrice",label:"来源现价",status:"UNAVAILABLE",reason:"来源详情页未显示当前平台价"}],images:[]}},sourceCorrection:{clearFields:["sourceCurrentPrice"],reason:"此前误把订单行折后金额写入来源现价"}};
   const parsed=ingestCandidateInput.parse(base);
   assert.deepEqual(parsed.sourceCorrection.clearFields,["sourceCurrentPrice"]);
+  assert.deepEqual(parsed.sourceCorrection.retireAssetSha256,[]);
+  assert.equal(parsed.sourceCorrection.invalidateAgentProposal,false);
   assert.throws(()=>ingestCandidateInput.parse({...base,sourceCurrentPrice:88000}));
   assert.throws(()=>ingestCandidateInput.parse({...base,sourceFacts:{capture:{...base.sourceFacts.capture,fields:[{path:"sourceCurrentPrice",label:"来源现价",status:"CAPTURED",reason:""}]}}}));
   assert.throws(()=>ingestCandidateInput.parse({...base,sourceCorrection:{clearFields:["sourceLineAmount"],reason:"不允许清空其他来源金额"}}));
+});
+
+test("错配来源图片只能按哈希撤下且不能留在当前图片清单", () => {
+  const sha256="a".repeat(64),base={externalKey:"SYNTHETIC:CORRECTION:IMAGE",titleRaw:"Synthetic source title",sourceFacts:{capture:{pageUrl:"https://example.invalid/correction",capturedAt:"2026-09-21T08:00:00.000Z",fields:[],images:[]}},sourceCorrection:{retireAssetSha256:[sha256],invalidateAgentProposal:true,reason:"此前串入另一件商品的来源图片"}};
+  const parsed=ingestCandidateInput.parse(base);
+  assert.deepEqual(parsed.sourceCorrection.retireAssetSha256,[sha256]);
+  assert.equal(parsed.sourceCorrection.invalidateAgentProposal,true);
+  assert.throws(()=>ingestCandidateInput.parse({...base,sourceFacts:{capture:{...base.sourceFacts.capture,images:[{sourceUrl:"https://example.invalid/wrong.jpg",quality:"ORIGINAL",sha256,width:100,height:100}]}}}));
+  assert.throws(()=>ingestCandidateInput.parse({...base,sourceCorrection:{reason:"没有实际纠错动作"}}));
 });
