@@ -14,6 +14,7 @@ import {
   INGEST_SKILL_VERSION,
   assertNewMachineBatchManifest,
   effectiveRequiredFields,
+  profileById,
   profileForSourceCode,
   readProfileDocument,
   readSkillDocument,
@@ -41,7 +42,7 @@ import {
 import { factsSchema, tm } from "../common/domain";
 import { proposalFor } from "./ingest.logic";
 import type { z } from "zod";
-import { ingestCandidateInput } from "./ingest.schemas";
+import { assertTrr14SourceFacts, ingestCandidateInput } from "./ingest.schemas";
 import { assertNoSensitiveIngestData } from "./ingest-security";
 
 type CandidateInput = z.infer<typeof ingestCandidateInput>;
@@ -401,6 +402,7 @@ export class IngestService {
     sourceId: string,
     input: CandidateInput,
     defaultCurrency: string,
+    profile?: IngestProfile,
   ) {
     await lock(tx, `ingest-identity:${sourceId}:${input.externalKey}`);
     if (input.purchaseLineId) {
@@ -472,6 +474,7 @@ export class IngestService {
       ...input,
       currency: input.currency ?? old?.currency ?? defaultCurrency,
     });
+    if (profile?.id === "TRR/1.4") assertTrr14SourceFacts(input.sourceFacts);
     const { proposal, warnings } = await proposalFor(tx, input),
       snapshot = { ...input, proposal, warnings };
     if (
@@ -1508,6 +1511,7 @@ export class IngestService {
             "导入批次已封存，不能继续写入",
             409,
           );
+        const batchProfile = profileById(record(batch.rawManifest).profile);
         const rows = [] as {
           id: string;
           version: number;
@@ -1521,6 +1525,7 @@ export class IngestService {
               session.procurementSourceId,
               input,
               batch.procurementSource.defaultCurrency,
+              batchProfile,
             ),
           );
         await audit(

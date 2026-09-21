@@ -324,6 +324,10 @@ MCP 回归分别用 `X-Ingest-Token` 与同一 Token 的 Bearer 头完成 initia
 
 `tome-ingest/1.2` 增加受限 `sourceCorrection`：普通省略和 `null` 仍保持稀疏更新，只在 `clearFields=["sourceCurrentPrice"]`、该值为 `null`、同次字段检查为带原因的 `UNAVAILABLE` 且有纠错说明时，服务端才撤销旧来源现价。纠错保存在候选 revision snapshot，不扩展到订单行原价、折后金额、TM、库存、成本、售价、成交或发布。单元测试覆盖非法字段、非空值和矛盾字段检查拒绝；真实隔离 PostgreSQL 集成测试覆盖普通 `null` 保值、显式清空和修订留痕。
 
+### TRR/1.4 尺码与购买日期来源事实
+
+新建 TRR 机器批次返回 `TRR/1.4`，Profile 要求 `sourceFacts.sizeLabel`、`foreignSize`、`sizeEstimated` 和 `order.{orderDateRaw,orderedAt,datePrecision}` 各自具备 `CAPTURED` 或带来源侧原因的 `UNAVAILABLE` 检查。`orderedAt` 只允许 DAY/MONTH/YEAR 的日期文本，不能填时分秒；`foreignSize` 缺失时也不能用展示 S/M/L、测量或 Agent 推断替代。服务端只对 1.4 批次执行该结构校验，`TRR/1.3` 既有批次仍按原 Profile 读取、重放和封存。`agentProposal` 的字段目录不含原始标签尺码、估算标记和购买日期。集成测试覆盖新/旧 Profile、日期精度、缺失原始尺码、Proposal 越界与 PENDING 不建 TM；`v1-item-center.spec.cjs` 在 Chromium/WebKit 实际打开候选资料，确认三类尺码/标记和购买日期分栏可见。全部资料均为隔离 `tome_test` 合成数据，未读取或改写生产候选。
+
 ## v1.1 Distribution Foundation
 
 本增量把既有分发表收敛为标准资料交付与轻量经营记录，不把真实平台发布、独立站、自动库存同步或渠道定价解析写成“已覆盖”。`DistributionAttempt` 保留 PUBLISH/UPDATE/DELIST 和内部状态，但默认 UI 显示待交付、已交付、已确认完成、需要处理、需要核对、已取消；Token/领取/租约只保留为高级兼容接口。`Listing` 仅在稳定远端 ID 已知时建立。APP 渠道成功但无 ID 时依赖标题中的永久 TM 复核，禁止 `MANUAL:TM...` 伪造 ID。

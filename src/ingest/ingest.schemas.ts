@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { amount, currency, safeText, uuid } from "../common/domain";
 import { batchManifest, captureEvidence } from "./ingest-integrity";
+import { Fault } from "../common/errors";
 
 export const ingestSessionInput = z
   .object({
@@ -150,6 +151,132 @@ function hasEvidenceValue(value: unknown) {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "object") return Object.keys(value).length > 0;
   return true;
+}
+
+const trrOrderDate = z
+  .object({
+    // Preserve the source wording next to the normalized, date-only value so
+    // future review does not have to reconstruct a date from a timestamp.
+    orderDateRaw: safeText(240).min(1),
+    orderedAt: z.string().trim().min(1),
+    datePrecision: z.enum(["DAY", "MONTH", "YEAR"]),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const patterns = {
+      DAY: /^(\d{4})-(\d{2})-(\d{2})$/,
+      MONTH: /^(\d{4})-(\d{2})$/,
+      YEAR: /^(\d{4})$/,
+    } as const;
+    const match = patterns[value.datePrecision].exec(value.orderedAt);
+    if (!match) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orderedAt"],
+        message: `${value.datePrecision} 精度的购买日期必须是日期文本，不能填入时分秒`,
+      });
+      return;
+    }
+    const year = Number(match[1]);
+    if (year < 1000 || year > 9999) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orderedAt"],
+        message: "购买日期年份无效",
+      });
+      return;
+    }
+    if (value.datePrecision === "YEAR") return;
+    const month = Number(match[2]);
+    if (month < 1 || month > 12) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orderedAt"],
+        message: "购买日期月份无效",
+      });
+      return;
+    }
+    if (value.datePrecision === "MONTH") return;
+    const day = Number(match[3]);
+    if (day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate())
+      ctx.addIssue({
+        code: "custom",
+        path: ["orderedAt"],
+        message: "购买日期日数无效",
+      });
+  });
+
+const trr14SourceFacts = z
+  .object({
+    sizeLabel: safeText(100).optional(),
+    foreignSize: safeText(100).optional(),
+    sizeEstimated: z.boolean(),
+    order: trrOrderDate.optional(),
+    capture: captureEvidence.optional(),
+  })
+  .passthrough();
+
+type CaptureField = {
+  path: string;
+  status: "CAPTURED" | "UNAVAILABLE";
+  reason: string;
+};
+
+function trrCaptureField(
+  fields: CaptureField[],
+  path: string,
+): CaptureField | undefined {
+  return fields.find((field) => field.path === path);
+}
+
+function requireTrrCapture(
+  fields: CaptureField[],
+  path: string,
+  status: CaptureField["status"],
+) {
+  const field = trrCaptureField(fields, path);
+  if (
+    !field ||
+    field.status !== status ||
+    (status === "UNAVAILABLE" && !field.reason.trim())
+  )
+    throw new Fault(
+      "TRR_SOURCE_FACTS_INVALID",
+      status === "CAPTURED"
+        ? `${path} 是已取得的 TRR 来源事实，必须在字段清单标为 CAPTURED`
+        : `${path} 缺失时必须在字段清单标为 UNAVAILABLE 并写明来源侧原因`,
+      400,
+    );
+}
+
+/**
+ * TRR/1.4 is deliberately stricter than the generic sourceFacts envelope.
+ * It protects the two facts that are easy to blur in a review: a display size
+ * is not a physical tag size, and a date-only source record is not a timestamp.
+ */
+export function assertTrr14SourceFacts(sourceFacts: Record<string, unknown>) {
+  const parsed = trr14SourceFacts.safeParse(sourceFacts);
+  if (!parsed.success)
+    throw new Fault(
+      "TRR_SOURCE_FACTS_INVALID",
+      parsed.error.issues.map((issue) => issue.message).join("；"),
+      400,
+    );
+  const facts = parsed.data;
+  const fields = (facts.capture?.fields || []) as CaptureField[];
+  if (facts.foreignSize)
+    requireTrrCapture(fields, "sourceFacts.foreignSize", "CAPTURED");
+  else requireTrrCapture(fields, "sourceFacts.foreignSize", "UNAVAILABLE");
+  requireTrrCapture(fields, "sourceFacts.sizeEstimated", "CAPTURED");
+  if (facts.order) {
+    requireTrrCapture(fields, "sourceFacts.order.orderDateRaw", "CAPTURED");
+    requireTrrCapture(fields, "sourceFacts.order.orderedAt", "CAPTURED");
+    requireTrrCapture(fields, "sourceFacts.order.datePrecision", "CAPTURED");
+  } else {
+    requireTrrCapture(fields, "sourceFacts.order.orderDateRaw", "UNAVAILABLE");
+    requireTrrCapture(fields, "sourceFacts.order.orderedAt", "UNAVAILABLE");
+    requireTrrCapture(fields, "sourceFacts.order.datePrecision", "UNAVAILABLE");
+  }
 }
 
 export const ingestCandidateInput = z

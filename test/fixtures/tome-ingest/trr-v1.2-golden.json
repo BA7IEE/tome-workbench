@@ -7,7 +7,7 @@
     "rawManifest": {
       "protocolVersion": "1.2",
       "skillVersion": "tome-ingest/1.2",
-      "profile": "TRR/1.3",
+      "profile": "TRR/1.4",
       "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
       "requiredFields": ["sourceFacts.conditionDescription"]
     }
@@ -26,7 +26,14 @@
       "sourceCurrentPrice": 156700,
       "sourceEstimatedRetail": 400000,
       "sourceFacts": {
-        "sizeLabel": "US 6",
+        "sizeLabel": "M",
+        "foreignSize": "US 6",
+        "sizeEstimated": true,
+        "order": {
+          "orderDateRaw": "June 27, 2026",
+          "orderedAt": "2026-06-27",
+          "datePrecision": "DAY"
+        },
         "color": "Black",
         "material": "100% Silk",
         "measurements": {
@@ -45,7 +52,12 @@
             { "path": "brandRaw", "label": "来源品牌", "status": "CAPTURED", "reason": "" },
             { "path": "categoryRaw", "label": "来源分类", "status": "CAPTURED", "reason": "" },
             { "path": "conditionRaw", "label": "来源成色", "status": "CAPTURED", "reason": "" },
-            { "path": "sourceFacts.sizeLabel", "label": "标签尺码", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.sizeLabel", "label": "TRR展示尺码", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.foreignSize", "label": "品牌/标签原始尺码", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.sizeEstimated", "label": "TRR/来源是否按测量估算尺码", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.order.orderDateRaw", "label": "购买日期原文", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.order.orderedAt", "label": "结构化购买日期", "status": "CAPTURED", "reason": "" },
+            { "path": "sourceFacts.order.datePrecision", "label": "购买日期精度", "status": "CAPTURED", "reason": "" },
             { "path": "sourceFacts.color", "label": "颜色", "status": "CAPTURED", "reason": "" },
             { "path": "sourceFacts.material", "label": "材质", "status": "CAPTURED", "reason": "" },
             { "path": "sourceFacts.measurements", "label": "尺寸", "status": "CAPTURED", "reason": "" },

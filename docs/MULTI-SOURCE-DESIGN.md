@@ -29,7 +29,8 @@ TM代表独立实物，不是订单行、平台商品页或平台SKU。订单、
 | 品牌 | brand_name | designer.label | 品牌名称 | brandRaw |
 | 品相等级 | condition | wear.grade | 店员描述 | conditionRaw |
 | 品相细节 | condition_details | wear.notes | 瑕疵备注 | sourceFacts.conditionDescription |
-| 尺码 | size | measurements.tag | 吊牌尺码 | sourceFacts.sizeLabel |
+| 展示尺码 | size | measurements.display | 页面展示尺码 | sourceFacts.sizeLabel |
+| TRR 品牌/标签原始尺码 | tag_size | brand_size | 吊牌尺码 | sourceFacts.foreignSize；缺失则 UNAVAILABLE + 来源侧原因 |
 | 额外信息 | collection_year | fabric.panels[] | 票据号 | sourceFacts中按来源命名保留；原始资料完整放rawPayload |
 
 已有sourceFacts允许嵌套额外字段；不要把所有细节强塞到一个备注，也不要为每个平台加一套数据库列。常用于搜索、筛选、报表的字段，经明确业务需求后再提升为受控字段。当前额外字段可查阅，但不具备任意字段高级筛选能力。

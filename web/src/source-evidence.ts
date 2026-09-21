@@ -25,7 +25,9 @@ const labels: Record<string, string> = {
   descriptionRaw: "原文描述",
   descriptionEn: "英文描述",
   descriptionZh: "中文描述",
-  sizeLabel: "标签尺码",
+  sizeLabel: "来源展示尺码",
+  foreignSize: "品牌/标签原始尺码",
+  sizeEstimated: "TRR/来源按测量估算尺码",
   size: "尺码",
   color: "颜色",
   colorRaw: "颜色原文",
@@ -41,6 +43,11 @@ const labels: Record<string, string> = {
   care: "养护说明",
   attributes: "其他参数",
   accessories: "随附物品",
+};
+const datePrecisionLabels: Record<string, string> = {
+  DAY: "精确到日",
+  MONTH: "精确到月",
+  YEAR: "精确到年",
 };
 const proposalLabels: Record<string, string> = {
   title: "商品名称",
@@ -136,6 +143,21 @@ export async function showSourceEvidence(id: string) {
             ),
         )
       : c.integrity.issues;
+  const captureFields = Array.isArray(capture.fields)
+    ? capture.fields.map(obj)
+    : [];
+  const unavailableReason = (path: string) => {
+    const field = captureFields.find((entry) => String(entry.path) === path);
+    return field?.status === "UNAVAILABLE" && field.reason
+      ? String(field.reason)
+      : "来源未提供";
+  };
+  const order = obj(facts.order);
+  const trrSizingAndDate =
+    typeof facts.sizeEstimated === "boolean";
+  const trrFactsHtml = !trrSizingAndDate
+    ? ""
+    : `<section class="notice"><strong>TRR 尺码与购买日期</strong><p>展示尺码、品牌/标签原始尺码与估算标记分别保留，均为来源证据，不是本地尺码字典或经营判断。</p><dl class="evidence-facts"><div><dt>TRR 展示尺码</dt><dd>${esc(readable(facts.sizeLabel))}</dd></div><div><dt>品牌/标签原始尺码</dt><dd>${facts.foreignSize ? esc(readable(facts.foreignSize)) : `未提供\n${esc(unavailableReason("sourceFacts.foreignSize"))}`}</dd></div><div><dt>来源按测量估算尺码</dt><dd>${facts.sizeEstimated === true ? "是" : facts.sizeEstimated === false ? "否" : "未记录"}</dd></div><div><dt>购买日期</dt><dd>${order.orderedAt ? `${esc(readable(order.orderedAt))} · ${esc(datePrecisionLabels[String(order.datePrecision)] || String(order.datePrecision || "精度未记录"))}` : `未提供\n${esc(unavailableReason("sourceFacts.order.orderedAt"))}`}</dd></div><div><dt>购买日期原文</dt><dd>${esc(readable(order.orderDateRaw))}</dd></div></dl></section>`;
   const gallery = c.assets
     .map((a, n) => {
       const declaration = images.find((i) => i.sha256 === a.sha256),
@@ -158,7 +180,12 @@ export async function showSourceEvidence(id: string) {
     ]),
   );
   const factsHtml = Object.entries(facts)
-    .filter(([k]) => k !== "capture")
+    .filter(
+      ([k]) =>
+        !["capture", "sizeLabel", "foreignSize", "sizeEstimated", "order"].includes(
+          k,
+        ),
+    )
     .map(
       ([k, v]) =>
         `<div><dt>${esc(fieldNames.get(k) || labels[k] || k)}</dt><dd>${esc(readable(v))}</dd></div>`,
@@ -185,6 +212,7 @@ export async function showSourceEvidence(id: string) {
   ${otherIssues.length ? `<div class="notice warning"><strong>其他需要留意</strong><ul>${otherIssues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
   ${proposalHtml ? `<div class="notice"><strong>外部Agent整理建议</strong><p>${esc(String(agent.generator || "Agent"))}${agent.model ? ` · ${esc(String(agent.model))}` : ""}${agent.generatedAt ? ` · ${esc(when(String(agent.generatedAt)))}` : ""}。以下是面向 ToMe 字段的建议，不是来源事实；人工确认候选后才会采用。</p><ul>${proposalHtml}</ul></div>` : ""}
   <div class="evidence-gallery">${gallery || "<p>尚未保存来源图片</p>"}</div>
+  ${trrFactsHtml}
   <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div>${factsHtml}</dl>
   ${can("supply") ? `<div class="evidence-prices"><span>订单行原价 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>订单行折后金额 ${esc(money(c.sourceLineNetAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}
   ${capture.capturedAt ? `<small>来源采集时间：${esc(when(String(capture.capturedAt)))}</small>` : ""}<p>图片保存在中台；来源清单核对不等于独立证明网页没有遗漏。资料缺失与是否可售分别管理。</p>

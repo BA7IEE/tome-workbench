@@ -1,6 +1,6 @@
 # The RealReal Profile
 
-版本：`TRR/1.3`。适用于服务器来源代码为 `TRR`、`TRR-...` 或 `TRR_...` 的会话。它分开保存 The RealReal 来源事实和 Agent 整理建议，不把来源状态、价格或品相变成本地经营决定。
+版本：`TRR/1.4`。适用于服务器来源代码为 `TRR`、`TRR-...` 或 `TRR_...` 的**新建**会话。它分开保存 The RealReal 来源事实和 Agent 整理建议，不把来源状态、价格或品相变成本地经营决定。已创建的 `TRR/1.3` 批次保持原 Profile 和封批证据，不重写为本版字段。
 
 ## 商品必查字段
 
@@ -12,6 +12,8 @@
 - `categoryRaw`
 - `conditionRaw`
 - `sourceFacts.sizeLabel`
+- `sourceFacts.foreignSize`
+- `sourceFacts.sizeEstimated`
 - `sourceFacts.color`
 - `sourceFacts.material`
 - `sourceFacts.measurements`
@@ -21,6 +23,20 @@
 - `sourceLineNetAmount`
 - `sourceCurrentPrice`
 - `sourceEstimatedRetail`
+
+`sourceFacts.sizeLabel` **只**记录 TRR 页面向买家展示的尺码，不能把它说成品牌或实物标签尺码。`sourceFacts.foreignSize` 只在来源明确展示品牌/实物标签原始尺码时填写，保留原文；没有时必须在字段检查中写 `UNAVAILABLE` 和来源侧原因，不能拿 S/M/L 展示尺码、测量数据或 Agent/LLM 推断补成标签尺码。`sourceFacts.sizeEstimated` 必须是布尔值，明确该展示尺码是否由 TRR 或来源依据测量估算。
+
+`sourceFacts.order` 保留购买日期的原始证据和无时分秒的结构化值：
+
+```json
+{
+  "orderDateRaw": "June 27, 2026",
+  "orderedAt": "2026-06-27",
+  "datePrecision": "DAY"
+}
+```
+
+`DAY` 只能为 `YYYY-MM-DD`，`MONTH` 只能为 `YYYY-MM`，`YEAR` 只能为 `YYYY`；不得补造具体时刻。日期无法从来源确定时，`orderDateRaw`、`orderedAt` 和 `datePrecision` 都要逐项记为带原因的 `UNAVAILABLE`。
 
 其中 `conditionRaw` 是页面实际显示的单件等级，瑕疵/品相原文放在 `sourceFacts.conditionDescription` 或 `sourceFacts.description`；不要把一整套平台等级选项当成单件描述。
 
@@ -36,4 +52,4 @@
 
 ## Agent 整理建议
 
-商品详情、订单行文字和已下载来源图可以共同作为 `agentProposal` 依据。可整理中文标题、匹配已有品牌、选择一级品类，并按 ToMe 格式生成材质、颜色、尺码、尺寸文本和中文介绍。尺寸必须保留 TRR 原单位；推断性内容必须使用 `INFERRED` 并降低置信度。TRR 的 `conditionRaw` 和品相描述不能自动变成本地成色等级，订单金额不能自动变成人民币成本，来源图不能自动取得 PUBLIC 权利。
+商品详情、订单行文字和已下载来源图可以共同作为 `agentProposal` 依据。可整理中文标题、匹配已有品牌、选择一级品类，并按 ToMe 格式生成材质、颜色、**本地审核用**尺码、尺寸文本和中文介绍。`agentProposal` 不得提出或填入 `foreignSize`、`sizeEstimated`、`order.orderedAt` 或日期精度；这些只能来自 TRR/来源的直接证据。尺寸必须保留 TRR 原单位；推断性内容必须使用 `INFERRED` 并降低置信度。TRR 的 `conditionRaw` 和品相描述不能自动变成本地成色等级，订单金额不能自动变成人民币成本，来源图不能自动取得 PUBLIC 权利。

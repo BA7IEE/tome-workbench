@@ -33,10 +33,13 @@ const genericMarketplace: IngestProfile = {
   ],
 };
 
-const trr: IngestProfile = {
+const trr13: IngestProfile = {
+  // Keep this registry entry and its document immutable for batches that were
+  // already created under 1.3. `profileForSourceCode` below intentionally
+  // selects 1.4 for new sessions instead.
   id: "TRR/1.3",
   name: "The RealReal",
-  file: "TRR.md",
+  file: "TRR-1.3.md",
   requiredFields: [
     "titleRaw",
     "sourceItemKey",
@@ -56,7 +59,21 @@ const trr: IngestProfile = {
   ],
 };
 
-const profiles = [genericMarketplace, trr] as const;
+const trr14: IngestProfile = {
+  id: "TRR/1.4",
+  name: "The RealReal",
+  file: "TRR.md",
+  requiredFields: [
+    ...trr13.requiredFields,
+    "sourceFacts.foreignSize",
+    "sourceFacts.sizeEstimated",
+    "sourceFacts.order.orderDateRaw",
+    "sourceFacts.order.orderedAt",
+    "sourceFacts.order.datePrecision",
+  ],
+};
+
+const profiles = [genericMarketplace, trr13, trr14] as const;
 
 function parseVersion(value: unknown) {
   if (typeof value !== "string") return null;
@@ -80,7 +97,7 @@ function checksum(markdown: string) {
 export function profileForSourceCode(code: string): IngestProfile {
   const normalized = code.trim().toUpperCase();
   return normalized === "TRR" || /^TRR[_-]/.test(normalized)
-    ? trr
+    ? trr14
     : genericMarketplace;
 }
 
