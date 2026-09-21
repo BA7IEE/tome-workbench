@@ -246,6 +246,8 @@ Profile 规定字段含义，不存放网页 selector、第三方 Cookie、账�
 
 `sourceFacts.sizeEstimated` 是必填布尔值，表示 TRR 或来源是否依据测量估算了展示尺码。购买日期放入 `sourceFacts.order`：保留 `orderDateRaw`，并把 `orderedAt` 写成 `YYYY-MM-DD`、`YYYY-MM` 或 `YYYY`，再相应标为 `DAY`、`MONTH` 或 `YEAR`。该字段绝不写时分秒；日期无法取得时三个路径都逐项记录带原因的 `UNAVAILABLE`。
 
+`order` 同时可以保留历史 TRR 的支付、调整、Store Credit、订单行、订单号、来源状态、退货规则及成本口径等原始事实。日期回填只新增或校验上述三个日期字段，不删除、改写或把这些既有来源事实解释成 ToMe 的库存、成本或交易事实。
+
 上述字段都是来源事实，不在 `agentProposal.fields` 目录中。Agent 可以按目录整理本地审核用尺码，但不能建议、推断或写入品牌/标签原始尺码、估算标记、购买日期或日期精度。
 
 ### 薄 MCP

@@ -2946,6 +2946,43 @@ test('TRR/1.4 将展示尺码、标签原始尺码、估算标记与无时分秒
   assert.equal(legacyImported.rows.length,1);
   assert.equal((await machineOk(`/agent-ingest/batches/${legacy.id}/seal`,session.token,'POST',{})).status,'SEALED');
 });
+test('TRR/1.3 订单来源事实可前向回填到1.4，保留旧字段并继续校验购买日期',async()=>{
+  const suffix=randomUUID().slice(0,8).toUpperCase();
+  const source=await ok('/procurement/sources','POST',{code:'TRR-'+suffix,name:'TRR前向回填合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'});
+  const session=await ok('/ingest/sessions','POST',{procurementSourceId:source.id,label:'TRR/1.3 到 1.4 前向回填',ttlMinutes:60});
+  const legacyBatch=await db.ingestBatch.create({data:{sessionId:session.id,procurementSourceId:source.id,externalBatchKey:'trr13-backfill-'+suffix,agentName:'Historical TRR 1.3',agentVersion:'1.3',kind:'ORDER_HISTORY',rawManifest:standardManifest('TRR/1.3',{expectedCandidateKeys:['TRR-BACKFILL-'+suffix]})}});
+  const legacyOrder={payments:[{method:'CARD',amount:70200,currency:'USD'}],adjustments:[{adjustmentKey:'STORE_CREDIT',amount:-10000,currency:'USD'}],storeCredit:10000,lineIndex:4,externalOrderNo:'R648780020',sourceStatusRaw:'Shipped',returnabilityRaw:'Not returnable',lineNetDefinition:'line amount after source discounts',storeCreditTreatment:'included in economic payment'};
+  const legacyCandidate=structuredClone(goldenIngestFixture().candidates[0]);
+  legacyCandidate.externalKey='TRR-BACKFILL-'+suffix;legacyCandidate.sourceItemKey='TRR-BACKFILL-SKU-'+suffix;
+  delete legacyCandidate.sourceFacts.foreignSize;delete legacyCandidate.sourceFacts.sizeEstimated;
+  legacyCandidate.sourceFacts.order=legacyOrder;
+  legacyCandidate.sourceFacts.capture.fields=legacyCandidate.sourceFacts.capture.fields.filter(field=>!['sourceFacts.foreignSize','sourceFacts.sizeEstimated','sourceFacts.order.orderDateRaw','sourceFacts.order.orderedAt','sourceFacts.order.datePrecision'].includes(field.path));
+  const legacyImported=await machineOk(`/agent-ingest/batches/${legacyBatch.id}/candidates`,session.token,'POST',{candidates:[legacyCandidate]});
+  assert.equal((await machineOk(`/agent-ingest/batches/${legacyBatch.id}/seal`,session.token,'POST',{})).status,'SEALED');
+  const legacyRevision=await db.ingestCandidateRevision.findFirstOrThrow({where:{candidateId:legacyImported.rows[0].id,version:1}});
+  assert.deepEqual(legacyRevision.snapshot.sourceFacts.order,legacyOrder);
+
+  const upgradeBatch=await machineOk('/agent-ingest/batches',session.token,'POST',{externalBatchKey:'trr14-backfill-'+suffix,agentName:'Synthetic TRR 1.4 backfill',rawManifest:standardManifest('TRR/1.4',{expectedCandidateKeys:[legacyCandidate.externalKey]})});
+  const backfill=structuredClone(legacyCandidate);
+  backfill.sourceFacts.foreignSize='US 6';backfill.sourceFacts.sizeEstimated=true;
+  backfill.sourceFacts.order={...legacyOrder,orderDateRaw:'June 27, 2026',orderedAt:'2026-06-27',datePrecision:'DAY'};
+  backfill.sourceFacts.capture.fields.push({path:'sourceFacts.foreignSize',label:'品牌/标签原始尺码',status:'CAPTURED',reason:''},{path:'sourceFacts.sizeEstimated',label:'TRR/来源是否按测量估算尺码',status:'CAPTURED',reason:''},{path:'sourceFacts.order.orderDateRaw',label:'购买日期原文',status:'CAPTURED',reason:''},{path:'sourceFacts.order.orderedAt',label:'结构化购买日期',status:'CAPTURED',reason:''},{path:'sourceFacts.order.datePrecision',label:'购买日期精度',status:'CAPTURED',reason:''});
+  const malformed=structuredClone(backfill);malformed.sourceFacts.order.orderedAt='2026-06-27T12:00:00.000Z';
+  const rejected=await machineApi(`/agent-ingest/batches/${upgradeBatch.id}/candidates`,session.token,'POST',{candidates:[malformed]});
+  assert.equal(rejected.status,400);assert.equal(rejected.data.error.code,'TRR_SOURCE_FACTS_INVALID');
+  const retryKey='trr14-backfill-'+randomUUID();
+  const upgraded=await machineOk(`/agent-ingest/batches/${upgradeBatch.id}/candidates`,session.token,'POST',{candidates:[backfill]},retryKey);
+  const replay=await machineOk(`/agent-ingest/batches/${upgradeBatch.id}/candidates`,session.token,'POST',{candidates:[backfill]},retryKey);
+  assert.deepEqual(replay,upgraded);assert.equal(upgraded.rows[0].id,legacyImported.rows[0].id);assert.equal(upgraded.rows[0].version,2);
+  const current=await db.ingestCandidate.findUniqueOrThrow({where:{id:upgraded.rows[0].id}});
+  assert.deepEqual(current.sourceFacts.order,{...legacyOrder,orderDateRaw:'June 27, 2026',orderedAt:'2026-06-27',datePrecision:'DAY'});
+  assert.deepEqual((await db.ingestCandidateRevision.findFirstOrThrow({where:{candidateId:current.id,version:1}})).snapshot.sourceFacts.order,legacyOrder);
+  assert.ok(await db.ingestBatchMember.findFirst({where:{batchId:legacyBatch.id,candidateId:current.id,firstVersion:1}}));
+  const integrity=await machineOk(`/agent-ingest/batches/${upgradeBatch.id}`,session.token);
+  assert.equal(integrity.integrity.blockers.length,0);
+  assert.equal((await machineOk(`/agent-ingest/batches/${upgradeBatch.id}/seal`,session.token,'POST',{})).status,'SEALED');
+  assert.equal((await db.ingestBatch.findUniqueOrThrow({where:{id:legacyBatch.id}})).status,'SEALED');
+});
 test('外部Agent按目标字段选择、格式化并标注置信度，来源完整性与人工确认边界保持独立',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase(),before=await db.item.count();
   const source=await ok('/procurement/sources','POST',{code:'AIP-'+suffix,name:'Agent建议合成来源',kind:'MARKETPLACE',defaultCurrency:'USD'});

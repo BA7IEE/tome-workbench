@@ -326,7 +326,7 @@ MCP 回归分别用 `X-Ingest-Token` 与同一 Token 的 Bearer 头完成 initia
 
 ### TRR/1.4 尺码与购买日期来源事实
 
-新建 TRR 机器批次返回 `TRR/1.4`，Profile 要求 `sourceFacts.sizeLabel`、`foreignSize`、`sizeEstimated` 和 `order.{orderDateRaw,orderedAt,datePrecision}` 各自具备 `CAPTURED` 或带来源侧原因的 `UNAVAILABLE` 检查。`orderedAt` 只允许 DAY/MONTH/YEAR 的日期文本，不能填时分秒；`foreignSize` 缺失时也不能用展示 S/M/L、测量或 Agent 推断替代。服务端只对 1.4 批次执行该结构校验，`TRR/1.3` 既有批次仍按原 Profile 读取、重放和封存。`agentProposal` 的字段目录不含原始标签尺码、估算标记和购买日期。集成测试覆盖新/旧 Profile、日期精度、缺失原始尺码、Proposal 越界与 PENDING 不建 TM；`v1-item-center.spec.cjs` 在 Chromium/WebKit 实际打开候选资料，确认三类尺码/标记和购买日期分栏可见。全部资料均为隔离 `tome_test` 合成数据，未读取或改写生产候选。
+新建 TRR 机器批次返回 `TRR/1.4`，Profile 要求 `sourceFacts.sizeLabel`、`foreignSize`、`sizeEstimated` 和 `order.{orderDateRaw,orderedAt,datePrecision}` 各自具备 `CAPTURED` 或带来源侧原因的 `UNAVAILABLE` 检查。`orderedAt` 只允许 DAY/MONTH/YEAR 的日期文本，不能填时分秒；`foreignSize` 缺失时也不能用展示 S/M/L、测量或 Agent 推断替代。服务端只对 1.4 批次执行该结构校验，`TRR/1.3` 既有批次仍按原 Profile 读取、重放和封存。前向回填时，`order` 内的支付、调整、Credit、订单行、订单号和来源状态等历史来源事实必须原样保留，不能靠删除字段通过日期校验；三个日期字段仍独立校验。`agentProposal` 的字段目录不含原始标签尺码、估算标记和购买日期。集成测试覆盖新/旧 Profile、带旧订单事实的 1.3→1.4 回填、同键重试、日期精度、缺失原始尺码、Proposal 越界、历史批次成员/修订保留与 PENDING 不建 TM；`v1-item-center.spec.cjs` 在 Chromium/WebKit 实际打开候选资料，确认三类尺码/标记和购买日期分栏可见。全部资料均为隔离 `tome_test` 合成数据，未读取或改写生产候选。
 
 ## v1.1 Distribution Foundation
 

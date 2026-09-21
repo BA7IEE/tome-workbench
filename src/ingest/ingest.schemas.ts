@@ -157,11 +157,14 @@ const trrOrderDate = z
   .object({
     // Preserve the source wording next to the normalized, date-only value so
     // future review does not have to reconstruct a date from a timestamp.
+    // Historical TRR evidence can also contain payments, adjustments and
+    // other order facts here. Those facts are not date fields, but must remain
+    // intact when a 1.4 backfill adds the three structured date fields.
     orderDateRaw: safeText(240).min(1),
     orderedAt: z.string().trim().min(1),
     datePrecision: z.enum(["DAY", "MONTH", "YEAR"]),
   })
-  .strict()
+  .passthrough()
   .superRefine((value, ctx) => {
     const patterns = {
       DAY: /^(\d{4})-(\d{2})-(\d{2})$/,
