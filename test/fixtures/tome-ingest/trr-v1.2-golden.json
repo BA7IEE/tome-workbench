@@ -5,8 +5,8 @@
     "agentVersion": "1.0",
     "kind": "ORDER_HISTORY",
     "rawManifest": {
-      "protocolVersion": "1.2",
-      "skillVersion": "tome-ingest/1.2",
+      "protocolVersion": "1.3",
+      "skillVersion": "tome-ingest/1.3",
       "profile": "TRR/1.4",
       "expectedCandidateKeys": ["TRR:GOLDEN:SKU-001"],
       "requiredFields": ["sourceFacts.conditionDescription"]

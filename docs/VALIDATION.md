@@ -1,7 +1,7 @@
-# 当前验证记录 — 1.1.0-rc.12
+# 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-21T05:59:28.776Z`。验证源码指纹为
-`769848661468aa4b6528a8b02a781b7665e0f1be9e14999c79a9bf64d8199a56`；
+本地完整验证完成：`2026-09-21T09:29:25.249Z`。验证源码指纹为
+`cc3f70c4799a6fcc6e95d3ddabe8b29e902393329760e6d664fa0cde5d468834`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,19 +12,23 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 31/31、31/31、165/165、8/8；失败均为 0 |
-| Chromium | 178 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 178 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 224.087ms、Dashboard 209.298ms、Work Queue 15.048ms，均小于 1 秒 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、166/166、8/8；失败均为 0 |
+| Chromium | 179 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 179 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 250.176ms、Dashboard 217.877ms、Work Queue 20.127ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 889ms、Worker 恢复 1954ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 897ms、Worker 恢复 1950ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
-| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.12.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.13.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
-完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.12/summary.json)、
-[audit.json](validation/1.1.0-rc.12/audit.json)、[verification.log](validation/1.1.0-rc.12/verification.log)。
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
+[audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
+
+## 1.1.0-rc.13 来源污染纠错与错图撤下
+
+本候选新增 forward migration `202609210020_ingest_candidate_asset_retirement`。`tome-ingest/1.3` 允许在明确白名单内清空受污染来源字段、按 SHA-256 撤下未关联 TM 的错误候选图片，并作废基于错误证据的旧 Agent 建议。撤下记录和原文件继续留存，当前图册、完整性、重复判断与候选确认不再使用错图；已关联 TM 的图片由服务端拒绝机器撤下。单元测试覆盖纠错结构和矛盾清单拒绝；真实 PostgreSQL 集成测试覆盖稀疏保值、多字段清空、原字节与 Audit 留存、重复上传拒绝、旧建议作废及已关联图片拒绝；Chromium/WebKit 均打开候选资料核对当前图册隐藏与撤下审计详情。本轮不连接真实 TRR，不补造受限商品页或原图，也不改生产 TM、库存、成本、售价、成交或发布。rc.12 → rc.13 部署必须走维护窗口、备份清单和 existing-production migration；本地验证不等于已部署。
 
 ## 1.1.0-rc.12 TRR 结构化尺码与购买日期
 

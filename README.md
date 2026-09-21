@@ -1,6 +1,6 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
-**版本：1.1.0-rc.12，TRR 购买日期、展示尺码、品牌/标签原始尺码与估算标记的结构化来源事实，采购来源默认币种正式更正、标准 Agent 采集、来源现价显式纠错、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
+**版本：1.1.0-rc.13，新增可审计的来源污染纠错：受限字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
 
 围绕永久 TM 统一管理商品、原图、来源和日常库存动作。采集、平台发布和 AnQiCMS 建站由外部工具完成。保留原有业务模块供需要时使用。真实验证入口为 `docs/VALIDATION.md`；长期74项要求与当前实现的区别见 `docs/AC_MATRIX.md`。
 

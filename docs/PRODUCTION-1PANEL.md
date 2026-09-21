@@ -1,7 +1,7 @@
 # ToMeBoutique · 1Panel 当前生产运行与升级维护记录
 
 > 用途：给后续 ChatGPT / Codex / WorkBuddy / 其他运维 Agent 直接读取，快速理解当前 ToMe 线上部署事实，避免重复摸索或误操作。
-> 当前记录时间：2026-09-20
+> 当前记录时间：2026-09-21
 > 当前生产域名：`https://tome.23cc.cn`
 
 本文是指定生产环境的**时间点运行记录**；通用部署、迁移、备份和上线门禁仍以 [PRODUCTION](PRODUCTION.md) 为准，当前源码事实以 [CURRENT-RELEASE](CURRENT-RELEASE.md) 为准。发生冲突时，不得用本文较旧的版本号、SHA 或运行状态覆盖目标版本自己的发布与迁移说明。
@@ -15,11 +15,11 @@
 | 项目 | 当前事实 |
 |---|---|
 | GitHub 仓库 | `BA7IEE/tome-workbench` |
-| 核对时 `origin/main` SHA | `ff31383d0742bab2592d46540cc60515b1e28eec` |
-| 当前生产部署源码 SHA | `ff31383d0742bab2592d46540cc60515b1e28eec` |
-| 当前线上版本 | `1.1.0-rc.9` |
-| rc.9 合并 PR | `#40` |
-| rc.9 main CI | `35468836570`，已成功 |
+| 核对时 `origin/main` SHA | `d4a8d29fdb3680e30bc4afbd691caeeb93e23af8` |
+| 当前生产部署源码 SHA | 需在服务器执行 `git rev-parse HEAD` 现场复核 |
+| 当前线上版本 | `1.1.0-rc.12`（用户于 2026-09-21 反馈；本轮未登录服务器复核） |
+| rc.12 最新合并 PR | `#47` |
+| rc.12 main CI | 需按固定 SHA 在 GitHub 现场复核 |
 | 1Panel | `2.3.1` |
 | Docker | `27.0.3` |
 | Docker Compose | `v2.28.1` |
@@ -33,10 +33,10 @@
 | 公网入口 | 1Panel / OpenResty |
 | 正式域名 | `https://tome.23cc.cn` |
 
-截至 2026-09-20 的核对时点，`origin/main`、生产部署源码和线上运行版本一致，`package.json` 为：
+截至 2026-09-21，本地已核对 `origin/main` 的 `package.json` 为 rc.12；生产运行版本来自用户反馈，生产 SHA 与健康接口仍须现场复核：
 
 ```text
-1.1.0-rc.9
+1.1.0-rc.12
 ```
 
 ---
@@ -181,7 +181,7 @@ Compose 文件：
 当前两边都应至少保持：
 
 ```text
-TOME_IMAGE_TAG=1.1.0-rc.9
+TOME_IMAGE_TAG=1.1.0-rc.12
 TOME_DEPLOYMENT_MODE=EXTERNAL_REVERSE_PROXY
 TOME_API_BIND=127.0.0.1
 TOME_API_A_PORT=14318
@@ -245,7 +245,7 @@ curl -fsS https://tome.23cc.cn/api/system/health
 应返回：
 
 ```json
-{"status":"up","version":"1.1.0-rc.9"}
+{"status":"up","version":"1.1.0-rc.12"}
 ```
 
 ```bash
@@ -398,13 +398,13 @@ rc.8 PR 与 main CI 均已通过。
 
 ## 9. 当前运行状态验证
 
-当前线上已确认：
+以下为用户于 2026-09-21 反馈的线上目标状态；后续操作者仍须用本节命令现场复核：
 
 ```text
-api-a      1.1.0-rc.9 healthy
-api-b      1.1.0-rc.9 healthy
-worker-a   1.1.0-rc.9 healthy
-worker-b   1.1.0-rc.9 healthy
+api-a      1.1.0-rc.12 healthy
+api-b      1.1.0-rc.12 healthy
+worker-a   1.1.0-rc.12 healthy
+worker-b   1.1.0-rc.12 healthy
 postgres   healthy
 ```
 
@@ -719,6 +719,10 @@ Agent 不得为了省事绕过生产 migration 门禁。
 
 rc.10 没有新增 migration，只扩展应用层 ingest 合同、Skill/Profile、测试和文档。确认目标固定 SHA 的 main CI 成功、服务器仍运行 rc.9 且工作区干净后，可按第 13 节构建镜像，再按第 15 节依次滚动重建 API-A、API-B、Worker；**不要运行 migration 容器，也不要执行 `--initial-empty`**。目标 SHA 在 rc.10 合并前未知，不能提前填写或用动态 `main` 代替。
 
+### rc.12 → rc.13 本次升级判断
+
+rc.13 新增 `202609210020_ingest_candidate_asset_retirement`，不能使用第 15 节的无 migration 滚动升级。应先在仍签出 rc.12、配置仍为 rc.12 时进入维护窗口并停止写入，完成第 14 节的一致性备份并取得 `BACKUP_MANIFEST`；再签出已合并且 main CI 成功的固定 rc.13 SHA，同步根目录 `.env`、`data/production/compose.env` 与 `data/production/configuration.json` 三处版本，构建应用和 migration 镜像，以该备份目录执行 existing-production migration。**不得带 `--initial-empty`**。只有看到运行角色和 migration 的正式成功标记后，才统一启动 API-A、API-B、Worker，并复核两个 loopback 健康接口、公网 health/ready 和 production preflight。目标 rc.13 SHA 在合并前未知，不能填写动态 `main`。
+
 ---
 
 ## 15. 无 migration 时的滚动升级方法
@@ -930,17 +934,14 @@ Agent 不应在 1Panel GUI 中随意：
 
 ## 20. 当前生产镜像保留策略
 
-当前服务器至少存在：
+当前运行镜像按用户反馈应为 rc.12；具体保留的旧镜像必须以服务器现场 `docker images` 为准：
 
 ```text
-tome-workbench:1.1.0-rc.9
-tome-workbench-migration:1.1.0-rc.9
-
-tome-workbench:1.1.0-rc.8
-tome-workbench-migration:1.1.0-rc.8
+tome-workbench:1.1.0-rc.12
+tome-workbench-migration:1.1.0-rc.12
 ```
 
-rc.8 暂时作为短期回退保险保留；是否还有更早镜像必须以服务器现场 `docker images` 为准。
+不能仅凭本文删除 rc.12 或更早镜像；先核对数据库 migration 状态、备份清单与可回退边界。
 
 ---
 
@@ -1054,8 +1055,9 @@ Compose project：tome-production
 部署模式：EXTERNAL_REVERSE_PROXY
 provider=1PANEL
 
-当前线上：1.1.0-rc.9
-main SHA：ff31383d0742bab2592d46540cc60515b1e28eec
+当前线上：1.1.0-rc.12（用户反馈，须现场复核 health 与容器）
+origin/main SHA：d4a8d29fdb3680e30bc4afbd691caeeb93e23af8
+生产源码 SHA：须在服务器执行 git rev-parse HEAD 复核
 
 OpenResty 负载均衡：tome_backend
 127.0.0.1:14318

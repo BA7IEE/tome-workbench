@@ -66,6 +66,67 @@ function mergeSourceFacts(
   }
   return result;
 }
+
+function deleteSourceFactPath(
+  sourceFacts: Record<string, unknown>,
+  path: string,
+) {
+  const parts = path.split(".");
+  if (parts.shift() !== "sourceFacts" || !parts.length) return;
+  let current = sourceFacts;
+  for (const part of parts.slice(0, -1)) {
+    const next = current[part];
+    if (!next || typeof next !== "object" || Array.isArray(next)) return;
+    current = next as Record<string, unknown>;
+  }
+  delete current[parts[parts.length - 1]];
+}
+
+function candidateSourcePayload(candidate: {
+  id: string;
+  externalKey: string;
+  sourceItemKey: string;
+  titleRaw: string;
+  brandRaw: string;
+  categoryRaw: string;
+  conditionRaw: string;
+  statusRaw: string;
+  currency: string;
+  sourceLineAmount: number | null;
+  sourceLineNetAmount: number | null;
+  sourceCurrentPrice: number | null;
+  sourceEstimatedRetail: number | null;
+  sourceFacts: unknown;
+  proposal: unknown;
+  rawPayload: unknown;
+}) {
+  const proposal = record(candidate.proposal);
+  return {
+    ingestCandidateId: candidate.id,
+    externalKey: candidate.externalKey,
+    sourceItemKey: candidate.sourceItemKey,
+    titleRaw: candidate.titleRaw,
+    brandRaw: candidate.brandRaw,
+    categoryRaw: candidate.categoryRaw,
+    conditionRaw: candidate.conditionRaw,
+    statusRaw: candidate.statusRaw,
+    currency: candidate.currency,
+    sourceLineAmount: candidate.sourceLineAmount,
+    sourceLineNetAmount: candidate.sourceLineNetAmount,
+    sourceCurrentPrice: candidate.sourceCurrentPrice,
+    sourceEstimatedRetail: candidate.sourceEstimatedRetail,
+    sourceFacts: candidate.sourceFacts,
+    ...(Array.isArray(proposal.agentFields)
+      ? {
+          agentProposal: {
+            agent: proposal.agent,
+            fields: proposal.agentFields,
+          },
+        }
+      : {}),
+    rawPayload: candidate.rawPayload,
+  };
+}
 @Injectable()
 export class IngestService {
   constructor(
@@ -112,7 +173,11 @@ export class IngestService {
       });
       if (prior) {
         if (prior.requestHash !== requestHash)
-          throw new Fault("IDEMPOTENCY_CONFLICT", "相同幂等键对应不同内容", 409);
+          throw new Fault(
+            "IDEMPOTENCY_CONFLICT",
+            "相同幂等键对应不同内容",
+            409,
+          );
         throw new Fault(
           "TOKEN_ALREADY_ISSUED",
           "导入令牌仅在首次创建时显示。请撤销旧会话后创建新的会话。",
@@ -230,9 +295,19 @@ export class IngestService {
       },
       sourceCorrection: {
         location: "candidate.sourceCorrection",
-        clearFields: ["sourceCurrentPrice"],
+        clearFields: [
+          "categoryRaw",
+          "conditionRaw",
+          "sourceCurrentPrice",
+          "sourceFacts.material",
+          "sourceFacts.measurements",
+          "sourceFacts.productUrl",
+          "sourceFacts.highResolutionCapture",
+        ],
+        retireAssetSha256: true,
+        invalidateAgentProposal: true,
         requirement:
-          "Set the cleared field to null, mark the matching sourceFacts.capture.fields check UNAVAILABLE with a source-side reason, and record a correction reason. Omission or null without sourceCorrection keeps the previous value.",
+          "Clear only listed source fields, mark each matching sourceFacts.capture.fields check UNAVAILABLE with a source-side reason, and record a correction reason. Wrong candidate images may be retired only by their exact SHA-256 when they are not linked to a TM; original bytes and audit history remain. invalidateAgentProposal removes the prior machine proposal. Omission or null without sourceCorrection keeps the previous value.",
       },
       agentProposal: {
         location: "candidate.agentProposal",
@@ -403,6 +478,7 @@ export class IngestService {
     input: CandidateInput,
     defaultCurrency: string,
     profile?: IngestProfile,
+    correctionContext?: { actorId: string; sessionId: string },
   ) {
     await lock(tx, `ingest-identity:${sourceId}:${input.externalKey}`);
     if (input.purchaseLineId) {
@@ -446,7 +522,7 @@ export class IngestService {
         "conditionRaw",
         "statusRaw",
       ] as const)
-        if (!merged[k]) merged[k] = old[k];
+        if (!merged[k] && !explicitClears.has(k)) merged[k] = old[k];
       for (const k of [
         "purchaseLineId",
         "sourceLineAmount",
@@ -460,21 +536,64 @@ export class IngestService {
         record(old.sourceFacts),
         input.sourceFacts,
       );
+      for (const path of explicitClears)
+        if (path.startsWith("sourceFacts."))
+          deleteSourceFactPath(merged.sourceFacts, path);
       merged.rawPayload = Object.keys(input.rawPayload).length
         ? input.rawPayload
         : record(old.rawPayload);
-      if (!input.agentProposal) {
+      if (
+        !input.agentProposal &&
+        !input.sourceCorrection?.invalidateAgentProposal
+      ) {
         const previous = record(old.revisions[0]?.snapshot).agentProposal;
         if (previous)
           merged.agentProposal = previous as CandidateInput["agentProposal"];
       }
       input = merged;
+    } else if (input.sourceCorrection) {
+      throw new Fault(
+        "SOURCE_CORRECTION_TARGET_MISSING",
+        "来源纠错只能作用于已存在的候选",
+        409,
+      );
     }
     input = ingestCandidateInput.parse({
       ...input,
       currency: input.currency ?? old?.currency ?? defaultCurrency,
     });
     if (profile?.id === "TRR/1.4") assertTrr14SourceFacts(input.sourceFacts);
+    const retiredHashes = input.sourceCorrection?.retireAssetSha256 || [];
+    if (old && retiredHashes.length) {
+      const assets = await tx.ingestCandidateAsset.findMany({
+        where: { candidateId: old.id, sha256: { in: retiredHashes } },
+      });
+      const found = new Set(assets.map((asset) => asset.sha256));
+      const missing = retiredHashes.filter((sha256) => !found.has(sha256));
+      if (missing.length)
+        throw new Fault(
+          "SOURCE_CORRECTION_ASSET_NOT_FOUND",
+          `待撤下图片不属于当前候选：${missing.join("、")}`,
+          409,
+        );
+      if (assets.some((asset) => !asset.retiredAt && asset.assetId))
+        throw new Fault(
+          "SOURCE_CORRECTION_ASSET_LINKED",
+          "已关联正式 TM 的来源图片不能由机器纠错撤下",
+          409,
+        );
+      await tx.ingestCandidateAsset.updateMany({
+        where: {
+          candidateId: old.id,
+          sha256: { in: retiredHashes },
+          retiredAt: null,
+        },
+        data: {
+          retiredAt: new Date(),
+          retiredReason: input.sourceCorrection?.reason || "",
+        },
+      });
+    }
     const { proposal, warnings } = await proposalFor(tx, input),
       snapshot = { ...input, proposal, warnings };
     if (
@@ -502,6 +621,7 @@ export class IngestService {
       sourceFacts: json(input.sourceFacts),
       proposal:
         old &&
+        !input.sourceCorrection?.invalidateAgentProposal &&
         hash(old.proposal) !== hash(record(old.revisions[0]?.snapshot).proposal)
           ? json(old.proposal)
           : json(proposal),
@@ -521,10 +641,60 @@ export class IngestService {
         snapshot: json(snapshot),
       },
     });
+    let correctedSourceVersion: number | null = null;
+    if (input.sourceCorrection && row.sourceId) {
+      let source = await tx.source.findUniqueOrThrow({
+        where: { id: row.sourceId },
+      });
+      await lock(tx, "sourceKey:" + source.sourceKey);
+      source = await tx.source.findUniqueOrThrow({
+        where: { id: row.sourceId },
+      });
+      const payload = {
+        ...record(source.payload),
+        ...candidateSourcePayload(row),
+      };
+      if (!Object.hasOwn(candidateSourcePayload(row), "agentProposal"))
+        delete payload.agentProposal;
+      source = await tx.source.update({
+        where: { id: source.id },
+        data: {
+          title: row.titleRaw,
+          payload: json(payload),
+          version: { increment: 1 },
+        },
+      });
+      correctedSourceVersion = source.version;
+      await tx.sourceRevision.create({
+        data: {
+          sourceId: source.id,
+          version: source.version,
+          payload: json(payload),
+        },
+      });
+    }
     await tx.ingestBatchMember.createMany({
       data: [{ batchId, candidateId: row.id, firstVersion: row.version }],
       skipDuplicates: true,
     });
+    if (input.sourceCorrection && correctionContext)
+      await audit(
+        tx,
+        correctionContext.actorId,
+        "INGEST_CANDIDATE_SOURCE_CORRECTED",
+        row.id,
+        {
+          clearFields: input.sourceCorrection.clearFields,
+          retiredAssetSha256: retiredHashes,
+          invalidatedAgentProposal:
+            input.sourceCorrection.invalidateAgentProposal,
+          reason: input.sourceCorrection.reason,
+          agentSessionId: correctionContext.sessionId,
+          ...(row.sourceId
+            ? { sourceId: row.sourceId, sourceVersion: correctedSourceVersion }
+            : {}),
+        },
+      );
     return { id: row.id, version: row.version, unchanged: false };
   }
 
@@ -544,32 +714,7 @@ export class IngestService {
         const sourceKey = `INGEST:${c.procurementSource.code}:${hash([c.procurementSourceId, c.externalKey]).slice(0, 24)}`;
         await lock(tx, "sourceKey:" + sourceKey);
         let source = await tx.source.findUnique({ where: { sourceKey } });
-        const proposal = record(c.proposal),
-          payload = {
-            ingestCandidateId: c.id,
-            externalKey: c.externalKey,
-            sourceItemKey: c.sourceItemKey,
-            titleRaw: c.titleRaw,
-            brandRaw: c.brandRaw,
-            categoryRaw: c.categoryRaw,
-            conditionRaw: c.conditionRaw,
-            statusRaw: c.statusRaw,
-            currency: c.currency,
-            sourceLineAmount: c.sourceLineAmount,
-            sourceLineNetAmount: c.sourceLineNetAmount,
-            sourceCurrentPrice: c.sourceCurrentPrice,
-            sourceEstimatedRetail: c.sourceEstimatedRetail,
-            sourceFacts: c.sourceFacts,
-            ...(Array.isArray(proposal.agentFields)
-              ? {
-                  agentProposal: {
-                    agent: proposal.agent,
-                    fields: proposal.agentFields,
-                  },
-                }
-              : {}),
-            rawPayload: c.rawPayload,
-          };
+        const payload = candidateSourcePayload(c);
         if (!source) {
           source = await tx.source.create({
             data: {
@@ -689,32 +834,7 @@ export class IngestService {
     const sourceKey = `INGEST:${c.procurementSource.code}:${hash([c.procurementSourceId, c.externalKey]).slice(0, 24)}`;
     await lock(tx, "sourceKey:" + sourceKey);
     let source = await tx.source.findUnique({ where: { sourceKey } });
-    const proposal = record(c.proposal),
-      payload = {
-        ingestCandidateId: c.id,
-        externalKey: c.externalKey,
-        sourceItemKey: c.sourceItemKey,
-        titleRaw: c.titleRaw,
-        brandRaw: c.brandRaw,
-        categoryRaw: c.categoryRaw,
-        conditionRaw: c.conditionRaw,
-        statusRaw: c.statusRaw,
-        currency: c.currency,
-        sourceLineAmount: c.sourceLineAmount,
-        sourceLineNetAmount: c.sourceLineNetAmount,
-        sourceCurrentPrice: c.sourceCurrentPrice,
-        sourceEstimatedRetail: c.sourceEstimatedRetail,
-        sourceFacts: c.sourceFacts,
-        ...(Array.isArray(proposal.agentFields)
-          ? {
-              agentProposal: {
-                agent: proposal.agent,
-                fields: proposal.agentFields,
-              },
-            }
-          : {}),
-        rawPayload: c.rawPayload,
-      };
+    const payload = candidateSourcePayload(c);
     if (!source) {
       source = await tx.source.create({
         data: {
@@ -744,7 +864,7 @@ export class IngestService {
     const c = await this.db.ingestCandidate.findUniqueOrThrow({
       where: { id },
       include: {
-        assets: { select: { sha256: true } },
+        assets: { where: { retiredAt: null }, select: { sha256: true } },
         source: { select: { id: true } },
         purchaseLine: {
           select: {
@@ -841,7 +961,7 @@ export class IngestService {
           where: { id },
           include: {
             procurementSource: true,
-            assets: true,
+            assets: { where: { retiredAt: null } },
           },
         });
         const ref = input.itemRef.trim();
@@ -1198,7 +1318,7 @@ export class IngestService {
           include: {
             procurementSource: { include: { supplier: true } },
             batch: true,
-            assets: true,
+            assets: { where: { retiredAt: null } },
           },
         });
         if (current.decision === "CONFIRMED" && current.itemId) {
@@ -1526,6 +1646,7 @@ export class IngestService {
               input,
               batch.procurementSource.defaultCurrency,
               batchProfile,
+              { actorId: session.createdBy, sessionId: session.id },
             ),
           );
         await audit(
@@ -1650,6 +1771,12 @@ export class IngestService {
               candidateId_sha256: { candidateId, sha256: stored.sha256 },
             },
           });
+          if (old?.retiredAt)
+            throw new Fault(
+              "SOURCE_ASSET_RETIRED",
+              "该文件已作为错误来源图片撤下，不能重新加入当前图册",
+              409,
+            );
           if (old)
             return { id: old.id, existing: true, objectKey: old.objectKey };
           const { objectKey } = await persist(tx);
@@ -1699,13 +1826,14 @@ export class IngestService {
   }
   async captureReport(candidate: {
     sourceFacts: unknown;
-    assets: { objectKey: string; sha256: string }[];
+    assets: { objectKey: string; sha256: string; retiredAt?: Date | null }[];
     batch?: { rawManifest: unknown };
     [key: string]: unknown;
   }) {
+    const currentAssets = candidate.assets.filter((asset) => !asset.retiredAt);
     const assets = record(candidate.sourceFacts).capture
       ? await Promise.all(
-          candidate.assets.map(async (a) => {
+          currentAssets.map(async (a) => {
             try {
               const m = await sharp(assetPath(a.objectKey)).metadata();
               return { sha256: a.sha256, width: m.width, height: m.height };
@@ -1714,7 +1842,7 @@ export class IngestService {
             }
           }),
         )
-      : candidate.assets;
+      : currentAssets;
     const manifest = batchManifest.safeParse(candidate.batch?.rawManifest);
     return inspectCapture(
       candidate,
@@ -1745,7 +1873,11 @@ export class IngestService {
     }
     const batch = await tx.ingestBatch.findUniqueOrThrow({
       where: { id },
-      include: { candidates: { include: { assets: true } } },
+      include: {
+        candidates: {
+          include: { assets: { where: { retiredAt: null } } },
+        },
+      },
     });
     const manifest = batchManifest.parse(batch.rawManifest),
       expected = manifest.expectedCandidateKeys;

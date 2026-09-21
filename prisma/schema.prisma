@@ -1163,10 +1163,13 @@ model IngestCandidateAsset {
   roleHint     String          @default("PRODUCT")
   assetId      String?         @unique @db.Uuid
   asset        Asset?          @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  retiredAt    DateTime?
+  retiredReason String         @default("")
   createdAt    DateTime        @default(now())
 
   @@unique([candidateId, sha256])
   @@index([candidateId, createdAt])
+  @@index([candidateId, retiredAt, createdAt])
 }
 
 model ItemSourceLink {

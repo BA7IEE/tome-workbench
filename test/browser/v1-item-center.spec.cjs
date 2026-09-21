@@ -47,8 +47,8 @@ async function machine(
 function standardManifest(extra = {}) {
   return {
     ...extra,
-    protocolVersion: "1.2",
-    skillVersion: "tome-ingest/1.2",
+    protocolVersion: "1.3",
+    skillVersion: "tome-ingest/1.3",
     profile: "GENERIC_MARKETPLACE/1.2",
   };
 }
@@ -400,8 +400,8 @@ test("TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和
     externalBatchKey: "trr14-browser-" + suffix,
     agentName: "Synthetic TRR 1.4 browser",
     rawManifest: {
-      protocolVersion: "1.2",
-      skillVersion: "tome-ingest/1.2",
+      protocolVersion: "1.3",
+      skillVersion: "tome-ingest/1.3",
       profile: "TRR/1.4",
       expectedCandidateKeys: ["TRR14-BROWSER-" + suffix],
     },
@@ -457,6 +457,28 @@ test("TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和
   await expect(dialog).toContainText("购买日期");
   await expect(dialog).toContainText("2026-06-27 · 精确到日");
   expect((await (await page.request.get("/api/items?dataMode=ALL")).json()).total).toBe(before);
+});
+
+test("来源纠错后当前图册隐藏错图并保留撤下审计详情", async ({ page }) => {
+  const x = await setupAgentOrder(page), first = x.imported.rows[0];
+  await uploadCandidatePhoto(page, x.session.token, first.id);
+  const before = await (await page.request.get(`/api/ingest/candidates/${first.id}`)).json();
+  expect(before.assets).toHaveLength(1);
+  const corrected = structuredClone(x.candidates[0]);
+  corrected.sourceCorrection = {
+    retireAssetSha256: [before.assets[0].sha256],
+    reason: "合成测试确认此前串入另一件商品的来源图片",
+  };
+  await machine(page, `/agent-ingest/batches/${x.batch.id}/candidates`, x.session.token, { candidates: [corrected] });
+  await page.goto("/#/candidates?sourceId=" + x.source.id);
+  const row = page.locator(`[data-candidate="${first.id}"]`);
+  await row.getByRole("button", { name: "查看图片与资料", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "商品来源资料" });
+  await expect(dialog.locator(".evidence-gallery img")).toHaveCount(0);
+  await expect(dialog).toContainText("已撤下的错误来源图片（1）");
+  await dialog.getByText("已撤下的错误来源图片（1）", { exact: true }).click();
+  await expect(dialog).toContainText("合成测试确认此前串入另一件商品的来源图片");
+  await expect(dialog.getByRole("link", { name: "查看留存原文件", exact: true })).toBeVisible();
 });
 
 test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async ({ page }) => {

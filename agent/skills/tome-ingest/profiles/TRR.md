@@ -46,6 +46,8 @@
 
 若历史候选曾把订单行金额误写入 `sourceCurrentPrice`，重新核对后只能按标准 Skill 的 `sourceCorrection.clearFields=["sourceCurrentPrice"]` 显式清空，同时在字段检查中标记 `UNAVAILABLE` 并写来源侧原因。普通 `null` 不会删除旧值；不得借纠错改写 `sourceLineAmount`、`sourceLineNetAmount`、成本或其他经营事实。
 
+若商品页、详情字段或来源图片明确串到另一 SKU，应使用标准 Skill 返回的白名单纠错合同：逐项清空受污染字段、按 SHA-256 撤下错图，并作废基于错证据生成的旧 Agent 建议。订单摘要仍能直接证明的标题、品牌、颜色、尺码、订单金额、日期和状态应保留；正确详情或原图受人机验证限制时必须写明 `UNAVAILABLE` 原因，不能拿错页或模型推断补齐。撤下不删除原文件，也不允许机器碰已关联正式 TM 的图片。
+
 ## 图片
 
 逐件记录所有可取得原图。若只能取得最大可用图或缩略图，按真实质量标记并说明限制；禁止从截图、拼图或放大缩略图伪造 ORIGINAL。图片上传后仍是内部 REFERENCE 证据，不能自动公开发布。

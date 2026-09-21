@@ -115,6 +115,15 @@ export async function showSourceEvidence(id: string) {
       sha256: string;
       size: number;
     }[];
+    retiredAssets?: {
+      id: string;
+      sourceUrl: string;
+      originalName: string;
+      sha256: string;
+      size: number;
+      retiredAt: string;
+      retiredReason: string;
+    }[];
     integrity: CaptureIntegrity;
     revisions: unknown[];
   }>(`/ingest/candidates/${id}`);
@@ -153,8 +162,7 @@ export async function showSourceEvidence(id: string) {
       : "来源未提供";
   };
   const order = obj(facts.order);
-  const trrSizingAndDate =
-    typeof facts.sizeEstimated === "boolean";
+  const trrSizingAndDate = typeof facts.sizeEstimated === "boolean";
   const trrFactsHtml = !trrSizingAndDate
     ? ""
     : `<section class="notice"><strong>TRR 尺码与购买日期</strong><p>展示尺码、品牌/标签原始尺码与估算标记分别保留，均为来源证据，不是本地尺码字典或经营判断。</p><dl class="evidence-facts"><div><dt>TRR 展示尺码</dt><dd>${esc(readable(facts.sizeLabel))}</dd></div><div><dt>品牌/标签原始尺码</dt><dd>${facts.foreignSize ? esc(readable(facts.foreignSize)) : `未提供\n${esc(unavailableReason("sourceFacts.foreignSize"))}`}</dd></div><div><dt>来源按测量估算尺码</dt><dd>${facts.sizeEstimated === true ? "是" : facts.sizeEstimated === false ? "否" : "未记录"}</dd></div><div><dt>购买日期</dt><dd>${order.orderedAt ? `${esc(readable(order.orderedAt))} · ${esc(datePrecisionLabels[String(order.datePrecision)] || String(order.datePrecision || "精度未记录"))}` : `未提供\n${esc(unavailableReason("sourceFacts.order.orderedAt"))}`}</dd></div><div><dt>购买日期原文</dt><dd>${esc(readable(order.orderDateRaw))}</dd></div></dl></section>`;
@@ -173,6 +181,12 @@ export async function showSourceEvidence(id: string) {
       return `<figure><a href="/api/ingest/candidate-assets/${a.id}/original" target="_blank" rel="noopener"><img src="/api/ingest/candidate-assets/${a.id}/original" alt="${esc(c.titleRaw)} · 来源图${n + 1}" loading="lazy"></a><figcaption>第${n + 1}张 · ${esc(quality)}${declaration?.width ? ` · ${esc(declaration.width)} × ${esc(declaration.height)}` : ""} · ${(a.size / 1024).toFixed(0)} KB<br><a href="/api/ingest/candidate-assets/${a.id}/original" target="_blank" rel="noopener">查看原文件</a> ${link(a.sourceUrl, "来源图片地址")}</figcaption></figure>`;
     })
     .join("");
+  const retiredAssets = (c.retiredAssets || [])
+    .map(
+      (asset) =>
+        `<li><strong>${esc(asset.originalName)}</strong><small>已于 ${esc(when(asset.retiredAt))} 撤下 · ${esc(asset.retiredReason)}<br>SHA-256 ${esc(asset.sha256)} · <a href="/api/ingest/candidate-assets/${asset.id}/original" target="_blank" rel="noopener">查看留存原文件</a> ${link(asset.sourceUrl, "原来源图片地址")}</small></li>`,
+    )
+    .join("");
   const fieldNames = new Map(
     (Array.isArray(capture.fields) ? capture.fields.map(obj) : []).map((f) => [
       String(f.path).replace(/^sourceFacts\./, ""),
@@ -182,9 +196,13 @@ export async function showSourceEvidence(id: string) {
   const factsHtml = Object.entries(facts)
     .filter(
       ([k]) =>
-        !["capture", "sizeLabel", "foreignSize", "sizeEstimated", "order"].includes(
-          k,
-        ),
+        ![
+          "capture",
+          "sizeLabel",
+          "foreignSize",
+          "sizeEstimated",
+          "order",
+        ].includes(k),
     )
     .map(
       ([k, v]) =>
@@ -212,6 +230,7 @@ export async function showSourceEvidence(id: string) {
   ${otherIssues.length ? `<div class="notice warning"><strong>其他需要留意</strong><ul>${otherIssues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
   ${proposalHtml ? `<div class="notice"><strong>外部Agent整理建议</strong><p>${esc(String(agent.generator || "Agent"))}${agent.model ? ` · ${esc(String(agent.model))}` : ""}${agent.generatedAt ? ` · ${esc(when(String(agent.generatedAt)))}` : ""}。以下是面向 ToMe 字段的建议，不是来源事实；人工确认候选后才会采用。</p><ul>${proposalHtml}</ul></div>` : ""}
   <div class="evidence-gallery">${gallery || "<p>尚未保存来源图片</p>"}</div>
+  ${retiredAssets ? `<details class="notice warning"><summary>已撤下的错误来源图片（${c.retiredAssets?.length || 0}）</summary><p>这些文件不再参与当前图册、完整性或重复判断，但原文件与纠错原因仍保留供审计。</p><ul>${retiredAssets}</ul></details>` : ""}
   ${trrFactsHtml}
   <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div>${factsHtml}</dl>
   ${can("supply") ? `<div class="evidence-prices"><span>订单行原价 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>订单行折后金额 ${esc(money(c.sourceLineNetAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}
