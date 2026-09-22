@@ -18,6 +18,8 @@ rc.12 不新增 migration。新建 TRR 机器批次使用 `TRR/1.4`：`sourceFac
 
 rc.13 新增 forward migration `202609210020_ingest_candidate_asset_retirement`，为候选来源图片增加撤下时间和原因。Agent Ingest Standard 升至 v1.3，`sourceCorrection` 可在白名单内清空被错页污染的来源品类、来源成色、当前平台价、材质、尺寸、商品页和高清补采状态；每个清空字段仍必须在本次 `capture.fields` 写为带来源侧原因的 `UNAVAILABLE`。外部 Agent 还可按精确 SHA-256 撤下尚未关联 TM 的错误候选图片，并作废基于错误证据生成的旧建议。撤下不会删除原文件、修订或审计；图片不再参与当前图册、完整性、重复判断和后续 TM 关联。已关联正式 TM 的图片拒绝机器撤下，正确页面或原图无法取得时必须继续显示缺项，不能补造。该能力不改写订单行金额、TM、库存、本地成色、人民币成本、售价、成交、公开权或发布。rc.12 → rc.13 必须使用停写、备份清单和正式 migration 的维护窗口，不能滚动跳过 schema 升级。
 
+rc.13 当前源码还改进待确认商品列表，不新增 migration 或业务写入：批量生成 TM、批量排除和单件处理完成后保留当前页与滚动位置；只有当前页因处理后越界时才回到最后一个可达页。分页显示总数、当前页/总页、相邻页码并支持指定页跳转。卡片与表格直接显示 `sourceFacts.foreignSize` 原始尺码；`sizeLabel` 仍作为独立的来源展示尺码，只有 `sizeEstimated=true` 时标为估算，不把两项合并或回写本地尺码。
+
 rc.4 最终已核验基线是 `main@522a49198aff933dd2deaae06460ec09486fa5f5`（`522a491`）；该提交的 [main push CI 35248179645](https://github.com/BA7IEE/tome-workbench/actions/runs/35248179645) 已完成且成功。这是历史核验记录，不是动态分支指针；后续源码必须以自身的验证摘要和对应 CI 为准。
 
 rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`（`cb1fe6c`），对应 main CI `35303053133` 成功。其后 PR #23 / #24 在不扩展平台执行边界的前提下补齐发布/停售代际屏障、UPDATE 远端身份一致性、历史在线 Exposure 的同平台多账号保护，以及 OTHER/历史 stop-only Profile；收口后的代码基线是 `main@7d381f9f25aed081f7be0e128894ad659d7034df`，main CI `35339741681` 成功。rc.6 只将这一收口状态形成新的可追溯候选，不代表真实平台 UAT 已完成。

@@ -57,6 +57,7 @@ type Candidate = {
   sourceLineNetAmount: number | null;
   sourceCurrentPrice: number | null;
   sourceEstimatedRetail: number | null;
+  sourceFacts: unknown;
   warnings: string[];
   decision: "PENDING" | "CONFIRMED" | "EXCLUDED";
   possession: "UNKNOWN" | "IN_HAND" | "NOT_IN_HAND";
@@ -96,6 +97,77 @@ const proposalOf = (candidate: Candidate) =>
   !Array.isArray(candidate.proposal)
     ? (candidate.proposal as Record<string, unknown>)
     : {};
+const sourceFactsOf = (candidate: Candidate) =>
+  candidate.sourceFacts &&
+  typeof candidate.sourceFacts === "object" &&
+  !Array.isArray(candidate.sourceFacts)
+    ? (candidate.sourceFacts as Record<string, unknown>)
+    : {};
+const sourceFactText = (facts: Record<string, unknown>, key: string) => {
+  const value = facts[key];
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+};
+function candidateSizeFacts(candidate: Candidate) {
+  const facts = sourceFactsOf(candidate),
+    original = sourceFactText(facts, "foreignSize"),
+    display = sourceFactText(facts, "sizeLabel"),
+    rows = [
+      original
+        ? `<span><small>原始尺码</small><strong>${esc(original)}</strong></span>`
+        : "",
+      display && display !== original
+        ? `<span><small>来源展示尺码</small><strong>${esc(display)}${facts.sizeEstimated === true ? "（估算）" : ""}</strong></span>`
+        : "",
+    ].filter(Boolean);
+  return rows.length
+    ? `<div class="candidate-size-facts" aria-label="来源尺码">${rows.join("")}</div>`
+    : "";
+}
+function candidatePageHref(qs: URLSearchParams, page: number) {
+  const next = new URLSearchParams(qs);
+  if (page <= 1) next.delete("page");
+  else next.set("page", String(page));
+  const query = next.toString();
+  return "#/candidates" + (query ? "?" + query : "");
+}
+function candidatePageNumbers(current: number, last: number) {
+  const pages = new Set([1, last, current - 1, current, current + 1]);
+  if (current <= 3)
+    for (let page = 1; page <= Math.min(4, last); page++) pages.add(page);
+  if (current >= last - 2)
+    for (let page = Math.max(1, last - 3); page <= last; page++) pages.add(page);
+  return [...pages]
+    .filter((page) => page >= 1 && page <= last)
+    .sort((a, b) => a - b);
+}
+function candidatePagination(
+  qs: URLSearchParams,
+  data: CandidateResult,
+  lastPage: number,
+  root: string,
+) {
+  const pages = candidatePageNumbers(data.page, lastPage),
+    links: string[] = [];
+  for (const [index, page] of pages.entries()) {
+    if (index && page - pages[index - 1] > 1)
+      links.push(
+        '<span class="candidate-page-ellipsis" aria-hidden="true">…</span>',
+      );
+    links.push(
+      page === data.page
+        ? `<span class="btn primary candidate-page-number" aria-current="page" aria-label="第 ${page} 页，当前页">${page}</span>`
+        : `<a class="btn candidate-page-number" aria-label="第 ${page} 页" href="${esc(candidatePageHref(qs, page))}">${page}</a>`,
+    );
+  }
+  const controls =
+    lastPage > 1
+      ? `<div class="candidate-page-links">${data.page > 1 ? `<a class="btn" href="${esc(candidatePageHref(qs, data.page - 1))}">上一页</a>` : ""}${links.join("")}${data.page < lastPage ? `<a class="btn" href="${esc(candidatePageHref(qs, data.page + 1))}">下一页</a>` : ""}</div>
+         <form class="candidate-page-jump"><label for="${root}-jump-page">跳至</label><input id="${root}-jump-page" name="page" type="number" inputmode="numeric" min="1" max="${lastPage}" step="1" required aria-label="跳转页码"><span>页</span><button class="btn" type="submit">跳转</button></form>`
+      : "";
+  return `<nav class="pagination candidate-pagination" aria-label="待确认商品分页"><span class="candidate-pagination-summary">共 ${data.total} 件 · 每页 ${data.size} 件 · 第 <strong>${data.page}</strong> / ${lastPage} 页</span>${controls}</nav>`;
+}
 const proposalFields = (candidate: Candidate) => {
   const fields = proposalOf(candidate).agentFields;
   return Array.isArray(fields)
@@ -684,7 +756,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
   return `<article class="candidate-card" data-candidate="${candidate.id}">
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
     <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
-    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${agentFields.length ? `<small>Agent整理 ${agentFields.length} 项${uncertainAgentFields ? ` · ${uncertainAgentFields} 项需重点复核` : " · 均标为确定"}</small>` : ""}${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
+    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidateSizeFacts(candidate)}${agentFields.length ? `<small>Agent整理 ${agentFields.length} 项${uncertainAgentFields ? ` · ${uncertainAgentFields} 项需重点复核` : " · 均标为确定"}</small>` : ""}${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
     <div class="candidate-prices"><span>订单行原价 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
   </article>`;
@@ -697,7 +769,7 @@ function candidateTable(candidates: Candidate[], after: () => Promise<void>) {
         brand = String(
           proposal.brandLabel || candidate.brandRaw || "品牌待确认",
         );
-      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${esc(candidate.conditionRaw || "来源成色未记录")}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small></td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))} · 平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${candidate.warnings.length ? candidate.warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
+      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${esc(candidate.conditionRaw || "来源成色未记录")}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small>${candidateSizeFacts(candidate)}</td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))} · 平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${candidate.warnings.length ? candidate.warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
     })
     .join("")}</tbody></table></div>`;
 }
@@ -721,6 +793,20 @@ export async function candidatesPage() {
     request<CandidateResult>(`/ingest/candidates?${params}`),
     request<Source[]>("/procurement/sources"),
   ]);
+  const lastPage = Math.max(1, Math.ceil(data.total / data.size));
+  if (page > lastPage) {
+    const next = new URLSearchParams(qs);
+    if (lastPage === 1) next.delete("page");
+    else next.set("page", String(lastPage));
+    const query = next.toString();
+    history.replaceState(
+      null,
+      "",
+      "#/candidates" + (query ? "?" + query : ""),
+    );
+    window.dispatchEvent(new Event("route-replaced"));
+    return candidatesPage();
+  }
   const root = "candidates-" + crypto.randomUUID(),
     selected = rememberSelection(
       JSON.stringify({ q, decision, sourceId, batchId }),
@@ -736,12 +822,9 @@ export async function candidatesPage() {
     "": "全部",
   };
   const refresh = async () => {
-    if (page > 1) {
-      const next = new URLSearchParams(qs);
-      next.delete("page");
-      history.replaceState(null, "", "#/candidates?" + next);
-    }
+    const scrollTop = window.scrollY;
     await reload();
+    window.scrollTo(0, scrollTop);
   };
   const scopedHref = (status = decision) => {
     const next = new URLSearchParams({ view, decision: status });
@@ -771,7 +854,7 @@ export async function candidatesPage() {
     <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="${scopedHref()}">重置</a></form>
     <div class="candidate-viewbar"><label ${decision === "PENDING" && can("edit") ? "" : "hidden"}><input type="checkbox" id="select-candidate-page"> 选择本页</label><div><a class="btn ${view === "cards" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "cards" })}">图片模式</a><a class="btn ${view === "table" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "table" })}">表格模式</a></div></div>
     ${decision === "CONFIRMED" ? '<p class="note">这些商品已归入TM。后续文案、成色和库存请进入对应商品维护，下方保留导入时的来源记录。</p>' : ""}<div id="candidate-bulk" class="bulk-toolbar" hidden></div>${body}
-    <div class="pagination"><span>共${data.total}件 · 每页100件</span>${page > 1 ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page - 1) })}">上一页</a>` : ""}${page * data.size < data.total ? `<a class="btn" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page + 1) })}">下一页</a>` : ""}</div>
+    ${candidatePagination(qs, data, lastPage, root)}
   </div>`;
   onPageReady(root, (el, signal) => {
     if (qs.get("access") === "1" && can("supply"))
@@ -860,6 +943,23 @@ export async function candidatesPage() {
         if (view !== "cards") next.set("view", view);
         const hash = "#/candidates" + (next.toString() ? "?" + next : "");
         if (location.hash === hash) void reload();
+        else location.hash = hash;
+      },
+      { signal },
+    );
+    el.querySelector<HTMLFormElement>(".candidate-page-jump")?.addEventListener(
+      "submit",
+      (event) => {
+        event.preventDefault();
+        const target = Number(
+          text(new FormData(event.currentTarget as HTMLFormElement), "page"),
+        );
+        if (!Number.isInteger(target) || target < 1 || target > lastPage) {
+          toast(`请输入 1 到 ${lastPage} 之间的页码`, true);
+          return;
+        }
+        const hash = candidatePageHref(qs, target);
+        if (location.hash === hash) window.scrollTo(0, 0);
         else location.hash = hash;
       },
       { signal },
