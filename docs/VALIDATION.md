@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-21T09:29:25.249Z`。验证源码指纹为
-`cc3f70c4799a6fcc6e95d3ddabe8b29e902393329760e6d664fa0cde5d468834`；
+本地完整验证完成：`2026-09-22T07:22:31.862Z`。验证源码指纹为
+`a786ceeab5374426eb8cbceb43bceee687a130f50c44bf45ddf3ac6347b45b8b`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -13,11 +13,11 @@
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、166/166、8/8；失败均为 0 |
-| Chromium | 179 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 179 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 250.176ms、Dashboard 217.877ms、Work Queue 20.127ms，均小于 1 秒 |
+| Chromium | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 219.808ms、Dashboard 217.345ms、Work Queue 14.401ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 897ms、Worker 恢复 1950ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 899ms、Worker 恢复 1956ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
@@ -29,6 +29,10 @@
 ## 1.1.0-rc.13 来源污染纠错与错图撤下
 
 本候选新增 forward migration `202609210020_ingest_candidate_asset_retirement`。`tome-ingest/1.3` 允许在明确白名单内清空受污染来源字段、按 SHA-256 撤下未关联 TM 的错误候选图片，并作废基于错误证据的旧 Agent 建议。撤下记录和原文件继续留存，当前图册、完整性、重复判断与候选确认不再使用错图；已关联 TM 的图片由服务端拒绝机器撤下。单元测试覆盖纠错结构和矛盾清单拒绝；真实 PostgreSQL 集成测试覆盖稀疏保值、多字段清空、原字节与 Audit 留存、重复上传拒绝、旧建议作废及已关联图片拒绝；Chromium/WebKit 均打开候选资料核对当前图册隐藏与撤下审计详情。本轮不连接真实 TRR，不补造受限商品页或原图，也不改生产 TM、库存、成本、售价、成交或发布。rc.12 → rc.13 部署必须走维护窗口、备份清单和 existing-production migration；本地验证不等于已部署。
+
+## 1.1.0-rc.13 待确认分页、批量位置与来源原始尺码
+
+本增量不新增 migration，也不修改候选来源事实或 TM 写入合同。待确认商品分页显示当前页/总页、相邻页码与指定页跳转；批量生成 TM、批量排除和单件处理刷新后保留当前页与滚动位置，处理到页码越界时回到最后可达页。卡片和表格分别显示来源 `foreignSize` 原始尺码及 `sizeLabel` 展示尺码，只有 `sizeEstimated=true` 时标记估算。`test/browser/v1-item-center.spec.cjs` 使用 132 条合成候选在 Chromium/WebKit 覆盖上述交互、末页回退和 390px 布局；不使用真实经营数据或外部平台。
 
 ## 1.1.0-rc.12 TRR 结构化尺码与购买日期
 

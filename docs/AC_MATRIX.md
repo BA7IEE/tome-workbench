@@ -429,3 +429,7 @@ Settlement 仍可保留本地预览，但在没有 FX basis 的当前模型中�
 渠道 Readiness 只在激活 `DistributionTarget` 与历史真实 Exposure 的 Item × Channel 配对上动态计算；不创建或更新持久 `PREPARE` Task，历史 PREPARE 也不作为当前工作队列事实。`GET /api/distribution/operations` 先限制这些配对并批量加载发布健康事实，避免全量 Item × Channel 笛卡尔积和按行 N+1；未批准的正式 TM 由分页的全局 ITEM_REVIEW 队列提供。Quick Intake 明确写入 `ownership=OWN`，成本批量页一次预览最多 100 个订单，导航将“商品分发”提升为一级入口并将“发布记录”改称“远端身份记录”。
 
 `scripts/benchmark-launch-scale.mjs` 在隔离 `tome_test` 写入 1,000 件商品、8 个交易 Channel、激活目标、历史 Exposure、5,000 个 Asset 与 1,200 条 Attempt，验证 Operations、Dashboard 和工作队列各自小于 1 秒。集成测试同时覆盖无持久 PREPARE、全局审核队列和一次批量成本预览；浏览器测试在 Chromium/WebKit 真实点击链中覆盖 OWN 边界、导航和远端身份记录文案。它们不代表真实账号、平台页面、真实商品或外部经营 UAT。
+
+## 1.1.0-rc.13 待确认分页与来源尺码
+
+AC17/24 的候选批量入口补充操作连续性：`test/browser/v1-item-center.spec.cjs` 在 Chromium/WebKit 写入 132 条合成候选，核对页码链接、指定页跳转、390px 无横向溢出、批量生成 TM 与排除后保留当前页和滚动位置，以及清空末页后回退到最后可达页。同一用例核对卡片显示来源原始尺码、独立展示尺码与估算标记。测试只使用隔离 `tome_test`，不改来源合同、历史候选、TM 业务事实或生产数据。

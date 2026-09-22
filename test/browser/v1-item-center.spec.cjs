@@ -601,6 +601,147 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
   ).json();
   expect(pending.total).toBe(1);
 });
+test("待确认显示来源尺码并可按页码跳转，批量操作保留位置且末页清空才回退", async ({
+  page,
+}) => {
+  const suffix = randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase();
+  const source = await api(page, "/procurement/sources", {
+    code: "P" + suffix,
+    name: "分页保持 " + suffix,
+    kind: "OFFLINE",
+    defaultCurrency: "CNY",
+    notes: "candidate bulk position regression",
+  });
+  const session = await api(page, "/ingest/sessions", {
+    procurementSourceId: source.id,
+    label: "分页保持 Agent",
+    ttlMinutes: 60,
+  });
+  const batch = await machine(page, "/agent-ingest/batches", session.token, {
+    externalBatchKey: "position-" + suffix,
+    agentName: "Position Synthetic Agent",
+    rawManifest: standardManifest({ synthetic: true }),
+  });
+  const candidates = Array.from({ length: 132 }, (_, n) =>
+    standardizeGenericCandidate({
+      externalKey: `POSITION:${suffix}:${n + 1}`,
+      sourceItemKey: `P${String(n + 1).padStart(3, "0")}`,
+      titleRaw: `分页保持候选 ${suffix} ${n + 1}`,
+      brandRaw: "",
+      categoryRaw: "Clothing",
+      conditionRaw: "",
+      statusRaw: "",
+      currency: "CNY",
+      sourceLineAmount: 10000 + n,
+      sourceCurrentPrice: null,
+      sourceEstimatedRetail: null,
+      sourceFacts: {
+        foreignSize: "FR 38",
+        sizeLabel: "M",
+        sizeEstimated: true,
+      },
+      rawPayload: { synthetic: true, index: n + 1 },
+    }),
+  );
+  await machine(
+    page,
+    `/agent-ingest/batches/${batch.id}/candidates`,
+    session.token,
+    { candidates },
+  );
+  await sealAgentBatch(page, { batch, session });
+
+  await page.goto(`/#/candidates?sourceId=${source.id}&page=2`);
+  await expect(page.locator(".candidate-card")).toHaveCount(32);
+  const firstCard = page.locator(".candidate-card").first(),
+    pagination = page.getByRole("navigation", {
+      name: "待确认商品分页",
+    });
+  await expect(firstCard.getByLabel("来源尺码")).toContainText("原始尺码");
+  await expect(firstCard.getByLabel("来源尺码")).toContainText("FR 38");
+  await expect(firstCard.getByLabel("来源尺码")).toContainText(
+    "来源展示尺码",
+  );
+  await expect(firstCard.getByLabel("来源尺码")).toContainText("M（估算）");
+  await expect(pagination).toContainText("第 2 / 2 页");
+  await expect(pagination.getByLabel("第 1 页", { exact: true })).toBeVisible();
+  await expect(pagination.locator('[aria-current="page"]')).toHaveText("2");
+  await page.getByRole("link", { name: "表格模式", exact: true }).click();
+  await expect(page.locator(".candidate-table tbody tr")).toHaveCount(32);
+  await expect(
+    page.locator(".candidate-table tbody tr").first().getByLabel("来源尺码"),
+  ).toContainText("FR 38");
+  await page.getByRole("link", { name: "图片模式", exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(32);
+  const desktopViewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page
+      .locator(".candidate-page")
+      .evaluate((el) => el.scrollWidth <= el.clientWidth + 2),
+  ).toBe(true);
+  await firstCard.screenshot({
+    path: "reports/screenshots/v1-candidate-size-mobile.png",
+  });
+  await pagination.screenshot({
+    path: "reports/screenshots/v1-candidates-pagination-mobile.png",
+  });
+  if (desktopViewport) await page.setViewportSize(desktopViewport);
+  await pagination.getByLabel("跳转页码").fill("1");
+  await pagination.getByRole("button", { name: "跳转", exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(100);
+  expect(new URL(page.url()).hash).not.toContain("page=");
+  await page.getByLabel("第 2 页", { exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(32);
+  expect(new URL(page.url()).hash).toContain("page=2");
+  await page.locator("[data-pick]").first().check();
+  await page.evaluate(() => window.scrollTo(0, 1200));
+  const confirmScroll = await page.evaluate(() => window.scrollY);
+  expect(confirmScroll).toBeGreaterThan(600);
+  await page
+    .getByRole("button", { name: "批量生成TM", exact: true })
+    .click();
+  let dialog = page.getByRole("dialog", { name: "批量生成TM · 1件" });
+  await dialog
+    .getByLabel("我已确认所选商品为实际持有并应纳入经营")
+    .check();
+  await dialog
+    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .check();
+  await dialog.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
+  await dialog
+    .getByRole("button", { name: "确认生成TM", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  expect(new URL(page.url()).hash).toContain("page=2");
+  await expect(page.locator(".candidate-card")).toHaveCount(31);
+  expect(await page.evaluate(() => window.scrollY)).toBe(confirmScroll);
+
+  await page.locator("[data-pick]").first().check();
+  await page.evaluate(() => window.scrollTo(0, 1200));
+  const excludeScroll = await page.evaluate(() => window.scrollY);
+  await page
+    .getByRole("button", { name: "批量排除", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "批量排除 · 1件" });
+  await dialog.getByLabel("排除原因").fill("合成分页回归排除");
+  await dialog.getByRole("button", { name: "确认排除", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(new URL(page.url()).hash).toContain("page=2");
+  await expect(page.locator(".candidate-card")).toHaveCount(30);
+  expect(await page.evaluate(() => window.scrollY)).toBe(excludeScroll);
+
+  await page.getByLabel("选择本页").check();
+  await page
+    .getByRole("button", { name: "批量排除", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "批量排除 · 30件" });
+  await dialog.getByLabel("排除原因").fill("合成末页清空回归");
+  await dialog.getByRole("button", { name: "确认排除", exact: true }).click();
+  await expect(dialog).not.toBeVisible({ timeout: 45000 });
+  expect(new URL(page.url()).hash).not.toContain("page=");
+  await expect(page.locator(".candidate-card")).toHaveCount(100);
+});
 test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本", async ({
   page,
 }) => {

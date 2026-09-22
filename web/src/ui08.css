@@ -3379,6 +3379,29 @@
     font-size: 10px;
     line-height: 1.5;
   }
+  .candidate-size-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #eef0f2;
+  }
+  .candidate-size-facts > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+  }
+  .candidate-size-facts small {
+    color: var(--ui-muted);
+    font-size: 9px;
+  }
+  .candidate-size-facts strong {
+    color: #344054;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
   .candidate-warning {
     display: grid;
     gap: 2px;
@@ -3428,6 +3451,61 @@
   }
   .candidate-table td {
     vertical-align: middle;
+  }
+  .candidate-table .candidate-size-facts {
+    display: grid;
+    gap: 2px;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .candidate-pagination {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--ui-border);
+  }
+  .candidate-pagination > .candidate-pagination-summary {
+    margin: 0;
+    font-size: 12px;
+  }
+  .candidate-page-links,
+  .candidate-page-jump {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .candidate-page-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .candidate-page-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+  .candidate-page-ellipsis {
+    padding: 0 3px;
+    color: var(--ui-muted);
+  }
+  .candidate-page-jump {
+    color: var(--ui-muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .candidate-page-jump input {
+    width: 62px;
+    min-height: 34px;
+    padding: 5px 7px;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ui-text);
+    text-align: center;
   }
   .warn-text {
     display: block;
@@ -4036,6 +4114,20 @@
     #work-queue-filter .btn,
     dialog > header .close,
     .quick-edit-dialog .btn {
+      min-height: 40px;
+    }
+    .candidate-pagination {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+    }
+    .candidate-page-links {
+      justify-content: flex-start;
+    }
+    .candidate-page-number {
+      min-width: 40px;
+    }
+    .candidate-page-jump input {
       min-height: 40px;
     }
     .product-check {
