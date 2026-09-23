@@ -54,7 +54,7 @@ export const actionLabels: Record<string, string> = {
   INGEST_BATCH_SEALED: "封闭Agent导入批次",
   INGEST_CANDIDATES_UPSERTED: "更新待确认商品",
   INGEST_CANDIDATE_ASSET_ADDED: "导入候选商品图片",
-  INGEST_CANDIDATE_REVIEWED: "调整待确认商品",
+  INGEST_CANDIDATE_REVIEWED: "核对候选商品",
   INGEST_CANDIDATE_CONFIRMED: "待确认商品生成TM",
   INGEST_CANDIDATE_SOURCE_CREATED: "生成候选来源记录",
   SOURCE_COST_POLICY_UPDATED: "修改来源成本规则",

@@ -234,7 +234,7 @@ function candidateEdit(candidate: Candidate, after: () => Promise<void>) {
         {
           version: candidate.version,
           possession: candidate.possession,
-          decision: candidate.decision === "EXCLUDED" ? "EXCLUDED" : "PENDING",
+          decision: "PENDING",
           title: text(d, "title"),
           category: text(d, "category"),
           material: text(d, "material"),
@@ -247,6 +247,37 @@ function candidateEdit(candidate: Candidate, after: () => Promise<void>) {
         key,
       ),
     "保存调整",
+    after,
+  );
+}
+function candidateRestore(candidate: Candidate, after: () => Promise<void>) {
+  form(
+    "恢复为待确认",
+    note(
+      "只撤销这次排除决定，让商品重新进入待确认队列；原排除记录和来源资料都会保留，也不会自动生成TM或库存。",
+    ) +
+      area("note", "恢复原因", "", 3) +
+      check(
+        "confirmed",
+        "我已核对这是误排除，确认恢复为待确认商品",
+      ),
+    (d, key) => {
+      const reason = text(d, "note").trim();
+      if (reason.length < 3) throw new Error("请填写恢复原因，至少3个字");
+      if (!d.has("confirmed")) throw new Error("请先核对并确认恢复");
+      return request(
+        `/ingest/candidates/${candidate.id}/review`,
+        "POST",
+        {
+          version: candidate.version,
+          possession: candidate.possession,
+          decision: "PENDING",
+          note: reason,
+        },
+        key,
+      );
+    },
+    "确认恢复",
     after,
   );
 }
@@ -717,7 +748,7 @@ function candidateActions(candidate: Candidate, after: () => Promise<void>) {
   if (candidate.item)
     return `<a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
   if (candidate.decision === "EXCLUDED")
-    return button("重新核对", () => candidateEdit(candidate, after));
+    return button("恢复为待确认", () => candidateRestore(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
   return button(
     duplicate ? "核对重复" : "单件处理",

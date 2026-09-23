@@ -739,8 +739,8 @@ test("待确认显示来源尺码并可按页码跳转，批量操作保留位�
   await dialog.getByLabel("排除原因").fill("合成末页清空回归");
   await dialog.getByRole("button", { name: "确认排除", exact: true }).click();
   await expect(dialog).not.toBeVisible({ timeout: 45000 });
-  expect(new URL(page.url()).hash).not.toContain("page=");
   await expect(page.locator(".candidate-card")).toHaveCount(100);
+  expect(new URL(page.url()).hash).not.toContain("page=");
 });
 test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本", async ({
   page,
