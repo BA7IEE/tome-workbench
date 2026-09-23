@@ -48,7 +48,6 @@ export async function proposalFor(tx: Tx, input: CandidateInput) {
   }
   if (category === "OTHER" && input.categoryRaw)
     warnings.push(`品类“${input.categoryRaw}”需要人工确认一级分类`);
-  if (input.conditionRaw) warnings.push("来源成色仅作参考，未映射成本地成色");
   if (agentFields.length) {
     warnings.push("含外部Agent整理建议，生成TM前请人工核对");
     const uncertain = agentFields.filter(

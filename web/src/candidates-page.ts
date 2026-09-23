@@ -77,6 +77,15 @@ type CandidateResult = {
   size: number;
   rows: Candidate[];
 };
+const historicalSourceConditionWarning = "来源成色仅作参考，未映射成本地成色";
+function actionableWarnings(candidate: Candidate): string[] {
+  return candidate.warnings.filter(warning => warning !== historicalSourceConditionWarning);
+}
+function sourceConditionReference(candidate: Candidate): string {
+  return candidate.conditionRaw
+    ? `来源成色 ${esc(candidate.conditionRaw)}（仅来源参考，本地成色待实物检查）`
+    : "";
+}
 type CandidateMatch = {
   id: string;
   serial: number;
@@ -490,7 +499,7 @@ function reviewCandidateSelection() {
     );
   const duplicates = rows.filter((x) => x.possibleDuplicateCount > 0).length,
     gaps = rows.filter((x) => x.integrity?.state === "GAPS").length,
-    warnings = rows.filter((x) => x.warnings.length).length;
+    warnings = rows.filter((x) => actionableWarnings(x).length).length;
   viewDialog(
     `已选候选 · ${rows.length}件`,
     `<div class="candidate-selection-summary"><p><strong>来源</strong></p>${[
@@ -502,7 +511,7 @@ function reviewCandidateSelection() {
       )}<p><strong>需要特别核对</strong></p><p>疑似重复 ${duplicates}件 · 来源有缺项 ${gaps}件 · 其他系统提示 ${warnings}件</p></div><details><summary>查看全部已选商品</summary><ol>${rows
       .map(
         (candidate) =>
-          `<li>${esc(candidate.procurementSource.name)} · ${esc(candidate.brandRaw || "品牌待确认")} · ${esc(candidate.titleRaw)}</li>`,
+          `<li>${esc(candidate.procurementSource.name)} · ${esc(candidate.brandRaw || "品牌待确认")} · ${esc(candidate.titleRaw)}${candidate.conditionRaw ? ` · ${sourceConditionReference(candidate)}` : ""}</li>`,
       )
       .join("")}</ol></details>`,
   );
@@ -778,7 +787,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
       ...(candidate.possibleDuplicateCount > 0
         ? [`发现 ${candidate.possibleDuplicateCount} 件疑似同一实物的已有TM`]
         : []),
-      ...candidate.warnings,
+      ...actionableWarnings(candidate),
       ...(candidate.integrity?.issues || []),
     ],
     warning = warningParts.length
@@ -787,7 +796,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
   return `<article class="candidate-card" data-candidate="${candidate.id}">
     <label class="candidate-pick" ${selectableCandidate(candidate) ? "" : "hidden"}><input type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></label>
     <div class="candidate-photo">${button("查看图片与资料", () => candidateDetails(candidate), "candidate-evidence-open")}${candidatePhoto(candidate)}<span>${esc(candidate.procurementSource.name)}</span></div>
-    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · 来源成色 ${esc(candidate.conditionRaw)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidateSizeFacts(candidate)}${agentFields.length ? `<small>Agent整理 ${agentFields.length} 项${uncertainAgentFields ? ` · ${uncertainAgentFields} 项需重点复核` : " · 均标为确定"}</small>` : ""}${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
+    <div class="candidate-info"><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><small>${esc(candidate.sourceItemKey || candidate.batch.agentName)} · ${esc(integrityLabel(candidate.integrity))} · ${candidate.assets.length}张</small><h3>${esc(brand)} · ${esc(title)}</h3><p>${esc(category)}${candidate.conditionRaw ? ` · ${sourceConditionReference(candidate)}` : ""}${candidate.statusRaw ? ` · 来源状态 ${esc(candidate.statusRaw)}` : ""}</p>${candidateSizeFacts(candidate)}${agentFields.length ? `<small>Agent整理 ${agentFields.length} 项${uncertainAgentFields ? ` · ${uncertainAgentFields} 项需重点复核` : " · 均标为确定"}</small>` : ""}${candidate.decision === "CONFIRMED" && warning ? `<details class="candidate-history-note"><summary>导入时提示</summary>${warning}</details>` : warning}</div>
     <div class="candidate-prices"><span>订单行原价 ${esc(money(candidate.sourceLineAmount, candidate.currency))}</span><span>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))}</span><span>平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</span></div>
     <div class="candidate-actions">${candidateActions(candidate, after)}</div>
   </article>`;
@@ -800,7 +809,8 @@ function candidateTable(candidates: Candidate[], after: () => Promise<void>) {
         brand = String(
           proposal.brandLabel || candidate.brandRaw || "品牌待确认",
         );
-      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${esc(candidate.conditionRaw || "来源成色未记录")}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small>${candidateSizeFacts(candidate)}</td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))} · 平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${candidate.warnings.length ? candidate.warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
+      const warnings = actionableWarnings(candidate);
+      return `<tr><td><input ${selectableCandidate(candidate) ? "" : "hidden"} type="checkbox" data-pick="${candidate.id}" ${selectableCandidate(candidate) ? "" : "disabled"} aria-label="选择 ${esc(title)}"></td><td><div class="table-product"><div class="candidate-thumb">${candidatePhoto(candidate)}</div>${button("查看资料", () => candidateDetails(candidate), "subtle")}<div><strong>${esc(brand)} · ${esc(title)}</strong><small>${esc(candidate.sourceItemKey || "无原货号")} · ${esc(candidate.procurementSource.name)}</small></div></div></td><td>${candidate.conditionRaw ? sourceConditionReference(candidate) : "来源成色未记录"}<small>${esc(candidate.statusRaw || "来源状态未记录")}</small>${candidateSizeFacts(candidate)}</td><td>${esc(money(candidate.sourceLineAmount, candidate.currency))}<small>折后 ${esc(money(candidate.sourceLineNetAmount, candidate.currency))} · 平台现价 ${esc(money(candidate.sourceCurrentPrice, candidate.currency))}</small></td><td>${candidate.decision === "CONFIRMED" ? "<small>导入时提示，以TM维护资料为准</small>" : ""}${candidate.possibleDuplicateCount > 0 ? `<small class="warn-text">发现 ${candidate.possibleDuplicateCount} 件疑似已有TM</small>` : ""}${warnings.length ? warnings.map((x) => `<small class="warn-text">${esc(x)}</small>`).join("") : candidate.possibleDuplicateCount > 0 ? "" : "无"}</td><td><span class="status-pill">${esc(decisionNames[candidate.decision] || "待确认")}</span><div class="button-row compact">${candidateActions(candidate, after)}</div></td></tr>`;
     })
     .join("")}</tbody></table></div>`;
 }

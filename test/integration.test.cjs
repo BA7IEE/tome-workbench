@@ -3069,6 +3069,17 @@ test('品牌治理预览与批量绑定逐件校验来源、版本和字典，�
   assert.equal(after.brandRaw,rawBrand);assert.notDeepEqual(after.sourceFacts,sourceFactsBefore);
   assert.ok(after.revisions.length>revisionCount);assert.equal(after.itemId,null);
 });
+test('新候选的来源成色不产生行动警告，历史提示仍存储可追溯',async()=>{
+  const x=await setupAgentTrr('来源成色参考合成来源'),id=x.imported.rows[0].id;
+  const current=await db.ingestCandidate.findUniqueOrThrow({where:{id}});
+  assert.equal(current.conditionRaw,'Excellent');
+  assert.ok(!current.warnings.includes('来源成色仅作参考，未映射成本地成色'));
+  const historical='来源成色仅作参考，未映射成本地成色';
+  await db.ingestCandidate.update({where:{id},data:{warnings:[...current.warnings,historical]}});
+  const retained=await ok(`/ingest/candidates/${id}`);
+  assert.equal(retained.conditionRaw,'Excellent');assert.ok(retained.warnings.includes(historical));
+  assert.equal((await db.ingestCandidateRevision.count({where:{candidateId:id}})),1);
+});
 test('误排除候选必须带原因恢复为待确认，并保留采购行、审计与幂等边界',async()=>{
   const beforeItems=await db.item.count(),x=await setupAgentTrr('候选恢复合成来源'),candidate=x.imported.rows[0],purchaseLineId=x.candidates[0].purchaseLineId;
   const sourceFacts=(await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id},select:{sourceFacts:true}})).sourceFacts;
