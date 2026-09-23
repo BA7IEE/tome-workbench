@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-23T08:50:36.479Z`。验证源码指纹为
-`53e7d6c484a280fc5934d411c1979c20ec3faa4f1f2b3d921d3872c64c5afcdb`；
+本地完整验证完成：`2026-09-23T14:28:37.540Z`。验证源码指纹为
+`751032ef7913ea78666cbca2e511ae373172a132c6ba77cf4605a93c56f8d682`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,12 +12,12 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、167/167、8/8；失败均为 0 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、168/168、8/8；失败均为 0 |
 | Chromium | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 225.518ms、Dashboard 185.154ms、Work Queue 13.624ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 230.124ms、Dashboard 209.980ms、Work Queue 12.902ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 883ms、Worker 恢复 1950ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 898ms、Worker 恢复 1948ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
@@ -33,6 +33,10 @@
 ## 1.1.0-rc.13 待确认分页、批量位置与来源原始尺码
 
 本增量不新增 migration，也不修改候选来源事实或 TM 写入合同。待确认商品分页显示当前页/总页、相邻页码与指定页跳转；批量生成 TM、批量排除和单件处理刷新后保留当前页与滚动位置，处理到页码越界时回到最后可达页。卡片和表格分别显示来源 `foreignSize` 原始尺码及 `sizeLabel` 展示尺码，只有 `sizeEstimated=true` 时标记估算。`test/browser/v1-item-center.spec.cjs` 使用 132 条合成候选在 Chromium/WebKit 覆盖上述交互、末页回退和 390px 布局；不使用真实经营数据或外部平台。
+
+## 本分支：品牌治理源码切片
+
+本分支新增字典管理员的只读品牌分组预览及独立批量绑定命令，无 migration、无 Agent Skill/Profile 变更。真实 PostgreSQL 集成用合成来源验证候选版本、原文、建议、字典版本、权限、批量跳过、审计、Receipt、人工修改保留与机器重导。真实数据 dry-run 只提供执行合同和私有报告流程；未访问生产数据，未执行真实字典或候选写入，亦未进行业务 UAT、部署或合并。
 
 ## 1.1.0-rc.13 已排除候选恢复
 

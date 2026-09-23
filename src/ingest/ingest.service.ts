@@ -21,6 +21,7 @@ import {
   type IngestProfile,
 } from "./ingest-standard";
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { PrismaService } from "../database/prisma.service";
 import {
@@ -34,6 +35,7 @@ import {
 import { digest, permission, type Actor, type Role } from "../auth/auth";
 import { authorizationContext } from "../auth/request-context";
 import { Fault } from "../common/errors";
+import { normalizeTerm } from "../dictionaries/dictionary-rules";
 import {
   createItemInTx,
   newItem,
@@ -42,10 +44,11 @@ import {
 import { factsSchema, tm } from "../common/domain";
 import { proposalFor } from "./ingest.logic";
 import type { z } from "zod";
-import { assertTrr14SourceFacts, ingestCandidateInput } from "./ingest.schemas";
+import { assertTrr14SourceFacts, candidateBrandBindInput, ingestCandidateInput } from "./ingest.schemas";
 import { assertNoSensitiveIngestData } from "./ingest-security";
 
 type CandidateInput = z.infer<typeof ingestCandidateInput>;
+type BrandBindInput = z.infer<typeof candidateBrandBindInput>;
 type MachineSession = {
   id: string;
   createdBy: string;
@@ -133,6 +136,149 @@ export class IngestService {
     private db: PrismaService,
     private commands: Commands,
   ) {}
+
+  async brandGovernancePreview() {
+    return this.db.$transaction(async tx => {
+      const [candidates, terms] = await Promise.all([
+        tx.ingestCandidate.findMany({
+          where: { decision: "PENDING", itemId: null },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: {
+            id: true, version: true, procurementSourceId: true,
+            procurementSource: { select: { code: true, name: true } },
+            sourceItemKey: true, titleRaw: true, brandRaw: true,
+            proposal: true, sourceFacts: true,
+          },
+        }),
+        tx.dictionaryTerm.findMany({
+          where: { kind: "BRAND" },
+          include: { entry: { select: { id: true, label: true, version: true, active: true } } },
+        }),
+      ]);
+      const termMap = new Map(terms.map(term => [term.normalized, term.entry]));
+      type Member = {
+        id: string; version: number; procurementSourceId: string;
+        sourceCode: string; sourceName: string; sourceItemKey: string;
+        titleRaw: string; brandRaw: string; suggestedBrand: string;
+        agentBrand: unknown; evidencePageUrl: string;
+      };
+      const groups = new Map<string, {
+        brandRaw: string; suggestedBrand: string; count: number;
+        boundCount: number; recommendation: string; reason: string;
+        rawMatch: unknown; suggestedMatch: unknown; members: Member[];
+      }>();
+      for (const candidate of candidates) {
+        const proposal = record(candidate.proposal);
+        const suggestedBrand = String(proposal.suggestedBrand || candidate.brandRaw);
+        const key = JSON.stringify([candidate.brandRaw, suggestedBrand]);
+        const rawMatch = termMap.get(normalizeTerm(candidate.brandRaw));
+        const suggestedMatch = termMap.get(normalizeTerm(suggestedBrand));
+        const activeRaw = rawMatch?.active ? rawMatch : null;
+        const activeSuggested = suggestedMatch?.active ? suggestedMatch : null;
+        const bound = typeof proposal.brandEntryId === "string" && !!proposal.brandEntryId;
+        let recommendation = "UNRESOLVED", reason = "来源原文与建议需人工核实";
+        if (activeSuggested && activeRaw && activeSuggested.id !== activeRaw.id) {
+          reason = "来源原文与 Agent 建议命中不同标准项，必须逐件核实";
+        } else if (activeSuggested || activeRaw) {
+          recommendation = activeSuggested && candidate.brandRaw &&
+            normalizeTerm(candidate.brandRaw) !== normalizeTerm(suggestedBrand) && !activeRaw
+            ? "REVIEW_ALIAS" : "MATCH_EXISTING";
+          reason = recommendation === "REVIEW_ALIAS"
+            ? "建议品牌命中现有标准项；来源原文是否为别名需人工核实"
+            : "名称精确命中现有标准项；仍需核对来源证据";
+        } else if (candidate.brandRaw &&
+          normalizeTerm(candidate.brandRaw) === normalizeTerm(suggestedBrand)) {
+          recommendation = "REVIEW_NEW_ENTRY";
+          reason = "暂无精确字典命中；是否建立标准项需人工核实";
+        }
+        if (!groups.has(key)) groups.set(key, {
+          brandRaw: candidate.brandRaw, suggestedBrand, count: 0,
+          boundCount: 0, recommendation, reason,
+          rawMatch: activeRaw, suggestedMatch: activeSuggested, members: [],
+        });
+        const group = groups.get(key)!;
+        group.count++;
+        if (bound) group.boundCount++;
+        const agentBrand = Array.isArray(proposal.agentFields)
+          ? proposal.agentFields.find(field => record(field).path === "brand") ?? null : null;
+        group.members.push({
+          id: candidate.id, version: candidate.version,
+          procurementSourceId: candidate.procurementSourceId,
+          sourceCode: candidate.procurementSource.code,
+          sourceName: candidate.procurementSource.name,
+          sourceItemKey: candidate.sourceItemKey,
+          titleRaw: candidate.titleRaw, brandRaw: candidate.brandRaw,
+          suggestedBrand, agentBrand,
+          evidencePageUrl: String(record(record(candidate.sourceFacts).capture).pageUrl || ""),
+        });
+      }
+      return {
+        generatedAt: new Date().toISOString(),
+        pendingUnlinkedCount: candidates.length,
+        groups: [...groups.values()].sort((a,b) => b.count - a.count ||
+          a.brandRaw.localeCompare(b.brandRaw) || a.suggestedBrand.localeCompare(b.suggestedBrand)),
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  bindCandidateBrands(actor: Actor, key: unknown, input: BrandBindInput) {
+    return this.commands.run(actor.id, "ingest.candidate.brand.bind", key, input, async tx => {
+      await lock(tx, "dictionary:catalog");
+      const results: { id: string; status: string; reason?: string; version?: number }[] = [];
+      for (const target of input.rows) {
+        await lock(tx, "ingest-candidate:" + target.id);
+        const candidate = await tx.ingestCandidate.findUnique({ where: { id: target.id } });
+        if (!candidate) { results.push({ id: target.id, status: "SKIPPED", reason: "NOT_FOUND" }); continue; }
+        if (candidate.decision !== "PENDING" || candidate.itemId) {
+          results.push({ id: target.id, status: "SKIPPED", reason: "NOT_PENDING_OR_LINKED" }); continue;
+        }
+        if (candidate.version !== target.version ||
+          candidate.procurementSourceId !== target.expectedProcurementSourceId ||
+          candidate.brandRaw !== target.expectedBrandRaw) {
+          results.push({ id: target.id, status: "SKIPPED", reason: "CANDIDATE_CHANGED" }); continue;
+        }
+        const proposal = record(candidate.proposal);
+        const suggestedBrand = String(proposal.suggestedBrand || candidate.brandRaw);
+        if (suggestedBrand !== target.expectedSuggestedBrand) {
+          results.push({ id: target.id, status: "SKIPPED", reason: "SUGGESTION_CHANGED" }); continue;
+        }
+        if (proposal.brandEntryId) {
+          results.push({ id: target.id, status: "SKIPPED", reason: "BRAND_ALREADY_BOUND" }); continue;
+        }
+        const entry = await tx.dictionaryEntry.findUnique({ where: { id: target.brandEntryId } });
+        if (!entry || entry.kind !== "BRAND" || !entry.active ||
+          entry.version !== target.brandEntryVersion) {
+          results.push({ id: target.id, status: "SKIPPED", reason: "DICTIONARY_CHANGED" }); continue;
+        }
+        const next = {
+          ...proposal, brandEntryId: entry.id, brandLabel: entry.label,
+          approvedBrand: {
+            entryId: entry.id, entryVersion: entry.version,
+            brandRaw: candidate.brandRaw, suggestedBrand,
+          },
+        };
+        const oldWarnings = candidate.warnings;
+        const warnings = oldWarnings.filter(message =>
+          message !== `品牌“${suggestedBrand}”尚未标准化`);
+        const row = await tx.ingestCandidate.update({
+          where: { id: candidate.id },
+          data: { proposal: json(next), warnings, version: { increment: 1 } },
+        });
+        await audit(tx, actor.id, "INGEST_CANDIDATE_BRAND_BOUND", row.id, {
+          reason: input.reason,
+          before: { version: candidate.version, brandEntryId: proposal.brandEntryId ?? null,
+            brandLabel: proposal.brandLabel ?? "", warnings: oldWarnings },
+          after: { version: row.version, brandEntryId: entry.id,
+            brandLabel: entry.label, brandEntryVersion: entry.version, warnings },
+          expected: { procurementSourceId: target.expectedProcurementSourceId,
+            brandRaw: target.expectedBrandRaw, suggestedBrand: target.expectedSuggestedBrand },
+        });
+        results.push({ id: row.id, status: "UPDATED", version: row.version });
+      }
+      return { rows: results, updated: results.filter(row => row.status === "UPDATED").length,
+        skipped: results.filter(row => row.status === "SKIPPED").length };
+    });
+  }
 
   private async credentialCommand<T extends Record<string, unknown>>(
     actor: Actor,
@@ -602,6 +748,24 @@ export class IngestService {
       hash(old.revisions[0].snapshot) === hash(snapshot)
     )
       return { id: old.id, version: old.version, unchanged: true };
+    const oldProposal = record(old?.proposal);
+    const approvedBrand = record(oldProposal.approvedBrand);
+    const hasApprovedBrand = typeof approvedBrand.entryId === "string" &&
+      oldProposal.brandEntryId === approvedBrand.entryId;
+    const retainOperatorProposal = !!old &&
+      !input.sourceCorrection?.invalidateAgentProposal &&
+      hash(old.proposal) !== hash(record(old.revisions[0]?.snapshot).proposal);
+    const nextProposal: Record<string, unknown> = retainOperatorProposal ? { ...oldProposal } : { ...proposal };
+    if (hasApprovedBrand) {
+      nextProposal.brandEntryId = oldProposal.brandEntryId;
+      nextProposal.brandLabel = oldProposal.brandLabel;
+      nextProposal.approvedBrand = oldProposal.approvedBrand;
+      warnings.splice(0, warnings.length, ...warnings.filter(message =>
+        message !== `品牌“${proposal.suggestedBrand}”尚未标准化`));
+      if (approvedBrand.brandRaw !== input.brandRaw ||
+          approvedBrand.suggestedBrand !== proposal.suggestedBrand)
+        warnings.push("来源品牌或Agent建议已变化，人工批准品牌需复核");
+    }
     const values = {
       batchId,
       procurementSourceId: sourceId,
@@ -619,12 +783,7 @@ export class IngestService {
       sourceCurrentPrice: input.sourceCurrentPrice,
       sourceEstimatedRetail: input.sourceEstimatedRetail,
       sourceFacts: json(input.sourceFacts),
-      proposal:
-        old &&
-        !input.sourceCorrection?.invalidateAgentProposal &&
-        hash(old.proposal) !== hash(record(old.revisions[0]?.snapshot).proposal)
-          ? json(old.proposal)
-          : json(proposal),
+      proposal: json(nextProposal),
       rawPayload: json(input.rawPayload),
       warnings,
     };

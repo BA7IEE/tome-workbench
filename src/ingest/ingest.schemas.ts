@@ -433,6 +433,24 @@ export const candidateReviewInput = z
   })
   .strict();
 
+export const candidateBrandBindInput = z
+  .object({
+    reason: safeText(1000).min(3),
+    rows: z.array(z.object({
+      id: uuid,
+      version: z.number().int().positive(),
+      expectedProcurementSourceId: uuid,
+      expectedBrandRaw: safeText(160),
+      expectedSuggestedBrand: safeText(160),
+      brandEntryId: uuid,
+      brandEntryVersion: z.number().int().positive(),
+    }).strict()).min(1).max(100).refine(
+      rows => new Set(rows.map(row => row.id)).size === rows.length,
+      "同一候选不能在同批出现两次",
+    ),
+  })
+  .strict();
+
 export const candidateLinkItemInput = z
   .object({
     version: z.number().int().positive(),
