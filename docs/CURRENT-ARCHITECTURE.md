@@ -49,6 +49,8 @@ UploadBudget 是**每进程同时 2 个**图片处理预算。两个 API 合计�
 
 ## 验证环境
 
+品牌治理读取面由 ingest 在可重复读事务中按来源品牌与 Agent 建议分组，并只查现有 BRAND DictionaryTerm。字典创建和别名维护仍归 dictionaries；候选品牌绑定由 ingest 独立命令在字典目录锁和候选锁下复核版本，只写候选 proposal、当前提示、Audit 与 Receipt，不复用会改采购行的 `reviewCandidate`。机器重导保留人工批准的品牌，来源变化另提示复核；来源证据与历史修订不被覆盖。
+
 正式 Release CI 固定 Node 22.22.3、Ubuntu 24.04 与 deploy/images.json 相同 PostgreSQL digest。compatibility.yml 为手工触发的独立非阻断任务，使用 Node 22 / PG16 最新补丁；其结果不替代发布指纹或 release gate。发布汇总同时拒绝双浏览器通过数量不等、flaky、skip 和非零 retry。
 
 2026-09-16 本地 Docker 合成压力验收：两 API 同时共 4 张图片，每张原文件 20MiB / 40M pixels，全部 HTTP 201；超过文件上限为 413，超过像素上限为 400。最新镜像重复演练的 cgroup memory.peak 分别 240529408 / 260296704 bytes，均低于 768MiB，无 OOM。结果见 reports/upload-budget.json；这只证明该合成负载在本地 ARM 容器的表现，腾讯云实际机型仍需部署前复核，不是全局并发上限或长期吞吐保证。

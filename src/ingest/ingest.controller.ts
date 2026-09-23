@@ -37,6 +37,7 @@ import {
   candidateConfirmInput,
   candidateLinkItemInput,
   candidateReviewInput,
+  candidateBrandBindInput,
   ingestBatchInput,
   ingestCandidatesInput,
   ingestSessionInput,
@@ -59,6 +60,19 @@ export class IngestAdminController {
     private db: PrismaService,
     private service: IngestService,
   ) {}
+  @Access("dictionary") @Get("brand-governance/preview") brandPreview() {
+    return this.service.brandGovernancePreview();
+  }
+  @Access("dictionary") @Post("brand-governance/bind") bindBrands(
+    @Body() raw: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return this.service.bindCandidateBrands(
+      r.actor,
+      r.get("Idempotency-Key"),
+      candidateBrandBindInput.parse(raw),
+    );
+  }
   @Access("supply") @Post("sessions") createSession(
     @Body() raw: unknown,
     @Req() r: AuthRequest,

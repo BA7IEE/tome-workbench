@@ -23,3 +23,5 @@
 14. **询盘转成交**：普通询盘状态只有 OPEN/FOLLOWUP/LOST；`FOLLOWUP` 必须有 `nextFollowUpAt`，OPEN 可为空，WON/LOST 一律清空该日程。WON 只能由确认成交命令在同一事务中产生。该命令锁定 Item，检查 Inquiry 版本、可售性、历史 Sale 和预留，创建带 channel/channelId 历史快照、`inquiryId` 和原 Inquiry 币种的 Sale，停售、消费匹配预留、更新 Inquiry、写 Audit/Outbox 并为每个成功分发资料代际计划来源关联的 DELIST。金额、成本、费用和到账仍可为 NULL 后补，不能因此跳过停售安全动作。
 
 长期蓝图仍有未实现项，以 [AC_MATRIX](AC_MATRIX.md) 为准。未接外部连接器、在线支付、联网 AI、自动发布、自动退款/分账，默认副作用 OFF。
+
+品牌标准化是人工字典决策：Agent 的品牌建议与来源原文均只是证据。管理员先审阅分组清单，再通过现有字典命令维护标准项/别名，并以候选、来源、建议和字典的精确版本逐件绑定。候选确认、排除、已关联或冲突不自动回填；`Unsigned`、副线和同名项不按字面自动归并。品牌绑定不改采购行、TM 或任何库存与财务事实，重导不得覆盖人工批准品牌。

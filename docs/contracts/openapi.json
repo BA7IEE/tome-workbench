@@ -107,6 +107,34 @@
         ]
       }
     },
+    "/api/ingest/brand-governance/preview": {
+      "get": {
+        "operationId": "IngestAdminController_brandPreview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/brand-governance/bind": {
+      "post": {
+        "operationId": "IngestAdminController_bindBrands",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
     "/api/ingest/sessions": {
       "post": {
         "operationId": "IngestAdminController_createSession",

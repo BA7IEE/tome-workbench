@@ -3002,6 +3002,73 @@ test('外部Agent按目标字段选择、格式化并标注置信度，来源完
   assert.deepEqual(proof.detail.agentProposalPathsPresented,['title','category','facts.material','facts.descriptionZh']);
   assert.deepEqual(proof.detail.agentProposalPathsModifiedByOperator,['facts.descriptionZh','facts.material']);
 });
+test('品牌治理预览与批量绑定逐件校验来源、版本和字典，并保留人工建议与重导结果',async()=>{
+  const suffix=randomUUID().slice(0,8),x=await setupAgentTrr('品牌治理合成来源 '+suffix);
+  const rawBrand='Unsigned Synthetic '+suffix,suggestedBrand='Synthetic House '+suffix;
+  const input=standardizeGenericCandidate({
+    externalKey:'BRAND-'+suffix,sourceItemKey:'BRAND-'+suffix,titleRaw:'Synthetic brand evidence',
+    brandRaw:rawBrand,categoryRaw:'Women / Clothing / Dresses',conditionRaw:'Excellent',
+    currency:'USD',sourceFacts:{description:'Synthetic source evidence'},rawPayload:{synthetic:true},
+    agentProposal:{generator:'RULES',model:'synthetic-rules',generatedAt:'2026-09-20T08:00:00.000Z',
+      fields:[{path:'brand',value:suggestedBrand,method:'NORMALIZED',confidence:0.72,evidencePaths:['brandRaw'],evidenceImageSha256:[],note:'Synthetic brand suggestion'}]},
+  });
+  const imported=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[input]});
+  let candidate=await ok(`/ingest/candidates/${imported.rows[0].id}`);
+  assert.equal(candidate.proposal.brandEntryId,null);
+  const previewBefore=await ok('/ingest/brand-governance/preview');
+  const groupBefore=previewBefore.groups.find(group=>group.brandRaw===rawBrand&&group.suggestedBrand===suggestedBrand);
+  assert.equal(groupBefore.count,1);assert.equal(groupBefore.recommendation,'UNRESOLVED');
+  assert.deepEqual(groupBefore.members[0].agentBrand.evidencePaths,['brandRaw']);
+  assert.equal(groupBefore.members[0].id,candidate.id);
+  assert.equal((await api('/ingest/brand-governance/preview','GET',undefined,operator)).status,403);
+  const entry=await ok('/dictionaries','POST',{kind:'BRAND',label:suggestedBrand});
+  const previewAfter=await ok('/ingest/brand-governance/preview');
+  const groupAfter=previewAfter.groups.find(group=>group.brandRaw===rawBrand&&group.suggestedBrand===suggestedBrand);
+  assert.equal(groupAfter.recommendation,'REVIEW_ALIAS');assert.equal(groupAfter.suggestedMatch.id,entry.id);
+  const reviewed=await ok(`/ingest/candidates/${candidate.id}/review`,'POST',{
+    version:candidate.version,possession:'UNKNOWN',decision:'PENDING',title:'人工保留标题',note:'人工修正标题',
+  });
+  const target={id:candidate.id,version:reviewed.version,expectedProcurementSourceId:x.source.id,
+    expectedBrandRaw:rawBrand,expectedSuggestedBrand:suggestedBrand,brandEntryId:entry.id,brandEntryVersion:entry.version};
+  const stale=await ok('/ingest/brand-governance/bind','POST',{reason:'人工核对品牌证据',rows:[{...target,version:candidate.version}]});
+  assert.equal(stale.updated,0);assert.equal(stale.rows[0].reason,'CANDIDATE_CHANGED');
+  const wrongSource=await ok('/ingest/brand-governance/bind','POST',{reason:'人工核对品牌证据',rows:[{...target,expectedBrandRaw:'Other Brand'}]});
+  assert.equal(wrongSource.rows[0].reason,'CANDIDATE_CHANGED');
+  const wrongSuggestion=await ok('/ingest/brand-governance/bind','POST',{reason:'人工核对品牌证据',rows:[{...target,expectedSuggestedBrand:'Other Suggestion'}]});
+  assert.equal(wrongSuggestion.rows[0].reason,'SUGGESTION_CHANGED');
+  const wrongDictionaryVersion=await ok('/ingest/brand-governance/bind','POST',{reason:'人工核对品牌证据',rows:[{...target,brandEntryVersion:entry.version+1}]});
+  assert.equal(wrongDictionaryVersion.rows[0].reason,'DICTIONARY_CHANGED');
+  const excludedCandidate=await ok(`/ingest/candidates/${x.imported.rows[0].id}`);
+  await ok(`/ingest/candidates/${excludedCandidate.id}/review`,'POST',{version:excludedCandidate.version,possession:'UNKNOWN',decision:'EXCLUDED',note:'合成排除原因'});
+  const lineBefore=await db.purchaseLine.findUniqueOrThrow({where:{id:x.candidates[0].purchaseLineId}});
+  const excludedTarget={id:excludedCandidate.id,version:excludedCandidate.version+1,
+    expectedProcurementSourceId:x.source.id,expectedBrandRaw:excludedCandidate.brandRaw,
+    expectedSuggestedBrand:excludedCandidate.proposal.suggestedBrand,brandEntryId:entry.id,brandEntryVersion:entry.version};
+  const body={reason:'人工核对品牌证据',rows:[target,excludedTarget]},key=randomUUID();
+  const bound=await ok('/ingest/brand-governance/bind','POST',body,admin,key);
+  assert.equal(bound.updated,1);assert.equal(bound.skipped,1);assert.equal(bound.rows[1].reason,'NOT_PENDING_OR_LINKED');
+  assert.deepEqual(await ok('/ingest/brand-governance/bind','POST',body,admin,key),bound);
+  assert.deepEqual(await db.purchaseLine.findUniqueOrThrow({where:{id:x.candidates[0].purchaseLineId}}),lineBefore);
+  assert.equal((await api('/ingest/brand-governance/bind','POST',{...body,reason:'不同依据'},admin,key)).data.error.code,'IDEMPOTENCY_CONFLICT');
+  candidate=await ok(`/ingest/candidates/${candidate.id}`);
+  assert.equal(candidate.proposal.title,'人工保留标题');assert.equal(candidate.proposal.brandEntryId,entry.id);
+  assert.equal(candidate.proposal.suggestedBrand,suggestedBrand);
+  assert.ok(!candidate.warnings.some(message=>message.includes('尚未标准化')));
+  assert.equal(candidate.brandRaw,rawBrand);assert.equal(candidate.proposal.agentFields[0].confidence,0.72);
+  const auditRow=await db.audit.findFirstOrThrow({where:{resourceId:candidate.id,action:'INGEST_CANDIDATE_BRAND_BOUND'}});
+  assert.equal(auditRow.detail.before.brandEntryId,null);assert.equal(auditRow.detail.after.brandEntryId,entry.id);
+  assert.equal((await db.receipt.findMany({where:{operation:'ingest.candidate.brand.bind',key}})).length,1);
+  const second=await ok('/ingest/brand-governance/bind','POST',{reason:'再次核对',rows:[{...target,version:candidate.version}]});
+  assert.equal(second.rows[0].reason,'BRAND_ALREADY_BOUND');
+  const sourceFactsBefore=candidate.sourceFacts,revisionCount=candidate.revisions.length;
+  input.sourceFacts.description='Synthetic source evidence enriched';
+  const reimport=await machineOk(`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,'POST',{candidates:[input]});
+  assert.ok(reimport.rows[0].version>candidate.version);
+  const after=await ok(`/ingest/candidates/${candidate.id}`);
+  assert.equal(after.proposal.brandEntryId,entry.id);assert.equal(after.proposal.title,'人工保留标题');
+  assert.equal(after.brandRaw,rawBrand);assert.notDeepEqual(after.sourceFacts,sourceFactsBefore);
+  assert.ok(after.revisions.length>revisionCount);assert.equal(after.itemId,null);
+});
 test('误排除候选必须带原因恢复为待确认，并保留采购行、审计与幂等边界',async()=>{
   const beforeItems=await db.item.count(),x=await setupAgentTrr('候选恢复合成来源'),candidate=x.imported.rows[0],purchaseLineId=x.candidates[0].purchaseLineId;
   const sourceFacts=(await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id},select:{sourceFacts:true}})).sourceFacts;
