@@ -3002,6 +3002,31 @@ test('外部Agent按目标字段选择、格式化并标注置信度，来源完
   assert.deepEqual(proof.detail.agentProposalPathsPresented,['title','category','facts.material','facts.descriptionZh']);
   assert.deepEqual(proof.detail.agentProposalPathsModifiedByOperator,['facts.descriptionZh','facts.material']);
 });
+test('误排除候选必须带原因恢复为待确认，并保留采购行、审计与幂等边界',async()=>{
+  const beforeItems=await db.item.count(),x=await setupAgentTrr('候选恢复合成来源'),candidate=x.imported.rows[0],purchaseLineId=x.candidates[0].purchaseLineId;
+  const sourceFacts=(await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id},select:{sourceFacts:true}})).sourceFacts;
+  const excluded=await ok(`/ingest/candidates/${candidate.id}/review`,'POST',{version:candidate.version,possession:'UNKNOWN',decision:'EXCLUDED',note:'批量操作时排除'});
+  assert.equal(excluded.decision,'EXCLUDED');
+  assert.equal((await db.purchaseLine.findUniqueOrThrow({where:{id:purchaseLineId}})).businessDecision,'EXCLUDE');
+
+  const missingReason=await api(`/ingest/candidates/${candidate.id}/review`,'POST',{version:excluded.version,possession:'UNKNOWN',decision:'PENDING',note:' '});
+  assert.equal(missingReason.status,409);assert.equal(missingReason.data.error.code,'CANDIDATE_RESTORE_REASON_REQUIRED');
+  assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id}})).decision,'EXCLUDED');
+  assert.equal((await db.purchaseLine.findUniqueOrThrow({where:{id:purchaseLineId}})).businessDecision,'EXCLUDE');
+
+  const restoreBody={version:excluded.version,possession:'UNKNOWN',decision:'PENDING',note:'操作时误选了该商品'},restoreKey=randomUUID();
+  const restored=await ok(`/ingest/candidates/${candidate.id}/review`,'POST',restoreBody,admin,restoreKey);
+  assert.deepEqual(await ok(`/ingest/candidates/${candidate.id}/review`,'POST',restoreBody,admin,restoreKey),restored);
+  assert.equal(restored.decision,'PENDING');
+  const current=await db.ingestCandidate.findUniqueOrThrow({where:{id:candidate.id}}),line=await db.purchaseLine.findUniqueOrThrow({where:{id:purchaseLineId}});
+  assert.equal(current.decision,'PENDING');assert.equal(current.itemId,null);assert.deepEqual(current.sourceFacts,sourceFacts);
+  assert.equal(line.businessDecision,'UNDECIDED');assert.equal(line.reviewNote,restoreBody.note);
+  assert.equal(await db.item.count(),beforeItems);
+  const reviews=await db.audit.findMany({where:{resourceId:candidate.id,action:'INGEST_CANDIDATE_REVIEWED'},orderBy:{createdAt:'asc'}});
+  assert.equal(reviews.length,2);assert.deepEqual(reviews[1].detail.before,{possession:'UNKNOWN',decision:'EXCLUDED'});assert.deepEqual(reviews[1].detail.after,{possession:'UNKNOWN',decision:'PENDING'});assert.equal(reviews[1].detail.note,restoreBody.note);
+  const stale=await api(`/ingest/candidates/${candidate.id}/review`,'POST',{...restoreBody,note:'使用过期版本再次恢复'});
+  assert.equal(stale.status,409);assert.equal(stale.data.error.code,'VERSION_CONFLICT');
+});
 test('v1.3 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实',async()=>{
   const suffix=randomUUID().slice(0,8).toUpperCase();
   const httpSource=await ok('/procurement/sources','POST',{code:'TRR-H-'+suffix,name:'HTTP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'}),mcpSource=await ok('/procurement/sources','POST',{code:'TRR-M-'+suffix,name:'MCP Golden 来源',kind:'MARKETPLACE',defaultCurrency:'USD'});

@@ -1184,6 +1184,16 @@ export class IngestService {
             "候选已被其他人修改，请重新读取后再处理",
             409,
           );
+        if (
+          c.decision === "EXCLUDED" &&
+          input.decision === "PENDING" &&
+          input.note.trim().length < 3
+        )
+          throw new Fault(
+            "CANDIDATE_RESTORE_REASON_REQUIRED",
+            "恢复已排除候选必须填写至少3个字的原因",
+            409,
+          );
         const proposal =
           c.proposal &&
           typeof c.proposal === "object" &&

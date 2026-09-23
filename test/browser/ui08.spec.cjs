@@ -387,7 +387,7 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
   ).toBeLessThanOrEqual(2);
 });
 
-test("候选全部筛选包含已排除，空结果有恢复入口，手机筛选不溢出", async ({
+test("已排除候选可带原因恢复，空结果有恢复入口，手机筛选不溢出", async ({
   page,
 }) => {
   const suffix = randomUUID().slice(0, 8),
@@ -447,6 +447,34 @@ test("候选全部筛选包含已排除，空结果有恢复入口，手机筛�
   await expect(page.locator(".candidate-card")).toHaveCount(1);
   await expect(page.getByLabel("状态", { exact: true })).toHaveValue("");
   await expect(page.locator(".candidate-card")).toContainText("已排除");
+  await page
+    .getByRole("button", { name: "恢复为待确认", exact: true })
+    .click();
+  let restore = page.getByRole("dialog", { name: "恢复为待确认" });
+  await restore
+    .getByRole("button", { name: "确认恢复", exact: true })
+    .click();
+  await expect(restore.getByRole("alert")).toContainText(
+    "请填写恢复原因，至少3个字",
+  );
+  await restore.getByLabel("恢复原因", { exact: true }).fill("操作时误选了该商品");
+  await restore
+    .getByRole("button", { name: "确认恢复", exact: true })
+    .click();
+  await expect(restore.getByRole("alert")).toContainText(
+    "请先核对并确认恢复",
+  );
+  await restore
+    .getByLabel("我已核对这是误排除，确认恢复为待确认商品")
+    .check();
+  await restore
+    .getByRole("button", { name: "确认恢复", exact: true })
+    .click();
+  await expect(restore).not.toBeVisible();
+  await expect(page.locator(".candidate-card")).toContainText("待确认");
+  await expect(
+    page.getByRole("button", { name: "单件处理", exact: true }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "表格模式", exact: true }).click();
   await expect(page.locator(".candidate-table tbody tr")).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });

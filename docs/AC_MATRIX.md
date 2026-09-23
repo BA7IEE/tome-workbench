@@ -433,3 +433,5 @@ Settlement 仍可保留本地预览，但在没有 FX basis 的当前模型中�
 ## 1.1.0-rc.13 待确认分页与来源尺码
 
 AC17/24 的候选批量入口补充操作连续性：`test/browser/v1-item-center.spec.cjs` 在 Chromium/WebKit 写入 132 条合成候选，核对页码链接、指定页跳转、390px 无横向溢出、批量生成 TM 与排除后保留当前页和滚动位置，以及清空末页后回退到最后可达页。同一用例核对卡片显示来源原始尺码、独立展示尺码与估算标记。测试只使用隔离 `tome_test`，不改来源合同、历史候选、TM 业务事实或生产数据。
+
+AC17 的误排除恢复由 `test/integration.test.cjs` 验证原因必填、版本冲突、同键重放、候选 `EXCLUDED → PENDING`、采购行 `EXCLUDE → UNDECIDED`、前后审计、来源事实和 Item 数量不变；`test/browser/ui08.spec.cjs` 在 Chromium/WebKit 从实际排除后的商品卡填写原因、勾选确认并恢复到待确认。恢复不删除原排除证据，不创建 TM、库存或可售状态，也不接触生产数据。
