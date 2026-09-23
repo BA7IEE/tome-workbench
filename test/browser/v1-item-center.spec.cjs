@@ -382,6 +382,51 @@ async function sealAgentBatch(page, { batch, session }) {
 }
 test.beforeEach(async ({ page }) => login(page));
 
+test("来源成色在待确认卡片、表格和批量预检仅作参考，品牌与低置信建议仍提示", async ({ page }) => {
+  const x=await setupAgentOrder(page), first=x.imported.rows[0];
+  const brand='合成未标准化品牌-'+randomUUID();
+  const input=standardizeGenericCandidate({...x.candidates[0],brandRaw:brand,conditionRaw:'Excellent',
+    agentProposal:{generator:'RULES',model:'synthetic-rules',generatedAt:'2026-09-20T08:00:00.000Z',
+      fields:[{path:'brand',value:brand,method:'NORMALIZED',confidence:0.65,evidencePaths:['brandRaw'],evidenceImageSha256:[],note:'合成品牌建议'}]}});
+  await machine(page,`/agent-ingest/batches/${x.batch.id}/candidates`,x.session.token,{candidates:[input]});
+  const stored=await (await page.request.get(`/api/ingest/candidates/${first.id}`)).json();
+  expect(stored.warnings).not.toContain('来源成色仅作参考，未映射成本地成色');
+  expect(stored.warnings.some(warning=>warning.includes('尚未标准化'))).toBe(true);
+  expect(stored.warnings.some(warning=>warning.includes('存疑或推断'))).toBe(true);
+  const historicalWarning='来源成色仅作参考，未映射成本地成色';
+  const { PrismaClient } = require('@prisma/client');
+  const db=new PrismaClient({datasources:{db:{url:fixture.databaseUrl}}});
+  try{
+    await db.ingestCandidate.update({where:{id:first.id},data:{warnings:[...stored.warnings,historicalWarning]}});
+    await db.ingestCandidate.update({where:{id:x.imported.rows[1].id},data:{warnings:[historicalWarning],conditionRaw:'Very Good'}});
+  }
+  finally{await db.$disconnect();}
+  expect((await (await page.request.get(`/api/ingest/candidates/${first.id}`)).json()).warnings).toContain(historicalWarning);
+  await page.goto('/#/candidates?sourceId='+x.source.id);
+  const card=page.locator(`[data-candidate="${first.id}"]`);
+  await expect(card).toContainText('来源成色 Excellent（仅来源参考，本地成色待实物检查）');
+  await expect(card.locator('.candidate-warning')).toContainText('尚未标准化');
+  await expect(card.locator('.candidate-warning')).toContainText('存疑或推断');
+  await expect(card.locator('.candidate-warning')).not.toContainText('来源成色仅作参考');
+  await page.locator(`[data-pick="${x.imported.rows[1].id}"]`).check();
+  await page.getByRole('button',{name:'查看已选'}).click();
+  await expect(page.getByRole('dialog')).toContainText('来源成色 Very Good（仅来源参考，本地成色待实物检查）');
+  await expect(page.getByRole('dialog')).toContainText('其他系统提示 0件');
+  await page.getByRole('dialog').getByRole('button',{name:'关闭'}).click();
+  await page.locator(`[data-pick="${x.imported.rows[1].id}"]`).uncheck();
+  await page.locator(`[data-pick="${first.id}"]`).check();
+  await page.getByRole('button',{name:'查看已选'}).click();
+  await expect(page.getByRole('dialog')).toContainText('来源成色 Excellent（仅来源参考，本地成色待实物检查）');
+  await expect(page.getByRole('dialog')).toContainText('其他系统提示 1件');
+  await page.getByRole('dialog').getByRole('button',{name:'关闭'}).click();
+  await page.goto('/#/candidates?sourceId='+x.source.id+'&view=table');
+  const targetRow=page.locator('tbody tr').filter({hasText:x.candidates[0].sourceItemKey}).first();
+  await expect(targetRow).toContainText('来源成色 Excellent（仅来源参考，本地成色待实物检查）');
+  await expect(targetRow).toContainText('尚未标准化');
+  await expect(targetRow).toContainText('存疑或推断');
+  await expect(targetRow).not.toContainText('来源成色仅作参考，未映射成本地成色');
+});
+
 test("TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示", async ({ page }) => {
   const suffix = randomUUID().replace(/-/g, "").slice(0, 7).toUpperCase();
   const before = (await (await page.request.get("/api/items?dataMode=ALL")).json()).total;

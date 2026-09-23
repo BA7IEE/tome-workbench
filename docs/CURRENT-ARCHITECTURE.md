@@ -19,6 +19,8 @@
 
 ## 前端
 
+来源成色降噪只改变 ingest 的新候选提示生成与待确认页面表示：`conditionRaw` 原文留在候选与来源证据，历史 `warnings`/修订不迁移；表示层过滤旧来源成色警告的当前行动计数，并以普通文本显示原文及本地等级待实物检查。`conditionGrade`、TM 和字典写入路径不变。
+
 React/Arco 负责商品库和商品字段表示层，现有领域控制器继续负责写入、权限、版本和断线恢复。其余页面仍有原生 DOM，未做全量重写。根组件与页面生命周期绑定，ControllerSlot 保持 DOM 归属清晰。
 
 main.ts 仅导入 ui08.css，层顺序 arco-base/workbench/arco/product。六份旧样式和 legacy 层已移除。品牌为搜索组合框，成色/颜色/材质为原生 select；选择更新不能擦除正在输入的筛选。

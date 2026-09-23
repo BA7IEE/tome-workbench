@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-23T14:28:37.540Z`。验证源码指纹为
-`751032ef7913ea78666cbca2e511ae373172a132c6ba77cf4605a93c56f8d682`；
+本地完整验证完成：`2026-09-23T16:07:23.763Z`。验证源码指纹为
+`65c25ab7dc2f5b3bc0e08ce3d01dd2456dae92eb7fd1f4d00c74cdefeeced73f`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -12,12 +12,12 @@
 | 检查 | 实际结果 |
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
-| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、168/168、8/8；失败均为 0 |
-| Chromium | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 180 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 230.124ms、Dashboard 209.980ms、Work Queue 12.902ms，均小于 1 秒 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
+| Chromium | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 228.982ms、Dashboard 213.923ms、Work Queue 14.748ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 898ms、Worker 恢复 1948ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 894ms、Worker 恢复 1953ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
@@ -33,10 +33,6 @@
 ## 1.1.0-rc.13 待确认分页、批量位置与来源原始尺码
 
 本增量不新增 migration，也不修改候选来源事实或 TM 写入合同。待确认商品分页显示当前页/总页、相邻页码与指定页跳转；批量生成 TM、批量排除和单件处理刷新后保留当前页与滚动位置，处理到页码越界时回到最后可达页。卡片和表格分别显示来源 `foreignSize` 原始尺码及 `sizeLabel` 展示尺码，只有 `sizeEstimated=true` 时标记估算。`test/browser/v1-item-center.spec.cjs` 使用 132 条合成候选在 Chromium/WebKit 覆盖上述交互、末页回退和 390px 布局；不使用真实经营数据或外部平台。
-
-## 本分支：品牌治理源码切片
-
-本分支新增字典管理员的只读品牌分组预览及独立批量绑定命令，无 migration、无 Agent Skill/Profile 变更。真实 PostgreSQL 集成用合成来源验证候选版本、原文、建议、字典版本、权限、批量跳过、审计、Receipt、人工修改保留与机器重导。真实数据 dry-run 只提供执行合同和私有报告流程；未访问生产数据，未执行真实字典或候选写入，亦未进行业务 UAT、部署或合并。
 
 ## 1.1.0-rc.13 已排除候选恢复
 
@@ -127,3 +123,15 @@ ChannelPrice、Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 均未重�
 也未使用真实经营资料；自动化仅使用隔离 `tome_test` 与本地恢复目标。上述通过证明
 当前源码在本地隔离环境的行为，不构成真实 AnQiCMS API、账号、archive ID、真实经营
 UAT、PR 合并或部署批准。真正的 REST Connector 与经授权的脱敏 UAT 仍需单独切片。
+
+## 本分支：来源成色提示降噪
+
+本分支仅调整新候选提示与待确认页面展示，未迁移历史提示、未映射本地成色。合成 PostgreSQL 测试覆盖新旧提示存储；Chromium/WebKit 真实页面测试覆盖卡片、表格、批量预检与其他行动提示保留。未访问生产数据，未做真实 UAT、部署或合并。
+
+本机在早期源码指纹 `a8cb6ba5fa0b824802aa2cc758fc909dce2c72b368780d4ac76e75a26728e400` 的两次全量运行分别有 3 项和 1 项 WebKit 页面导航在原有 45 秒限制内未完成；失败均发生在既有用例的登录前置 `page.goto`，页面截图空白，失败用例按原配置单独及所在文件顺序运行通过。把仅供新增用例造历史夹具的 Prisma 导入移到用例内部后，以当时指纹 `5d340028af96e356e33e04c6a293e6576d454a96a6cb50d1feac660776ea45da` 从头重跑并完整通过。此改动与先前导航超时的因果关系未被证明；未加重试、跳过或延长超时。前两次失败日志保存在本机工作区，不纳入通过报告。
+
+接入已合并的品牌治理后，当前源码指纹 `65c25ab7dc2f5b3bc0e08ce3d01dd2456dae92eb7fd1f4d00c74cdefeeced73f` 的完整验证覆盖两项新增集成测试，合计 169/169；Chromium 与 WebKit 各 181/181。首次组合运行在离线恢复阶段失败：隔离测试数据库使用新容器，但备份脚本默认找到了另一台本地开发容器；显式设置 `TOME_PG_CONTAINER=codex-tome-merge-pg` 后从头重跑，恢复演练及完整 Harness 均通过。没有修改测试断言、重试或超时，也没有连接生产数据库。
+
+## 已合并切片：品牌治理
+
+当前完整验证保留品牌治理的分组预览、权限、字典命中、候选与字典版本、逐件跳过、幂等回执、审计和重导保护测试。真实品牌归属仍须人工逐组审核；本次合成验证不构成生产字典维护或候选回填授权。
