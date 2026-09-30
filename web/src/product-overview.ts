@@ -6,7 +6,7 @@ import {
   sourceFieldNote,
 } from "./item-source-facts";
 import { productHref, productReturn } from "./product-navigation";
-import { productImages, showProductImages } from "./product-images";
+import { isAiImage, productImages, showProductImages } from "./product-images";
 import { exportMaterials } from "./materials";
 import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
@@ -16,9 +16,8 @@ import { deleteProduct } from "./recycle-bin";
 
 export function productOverview(item: Item) {
   const root = "product-overview-" + crypto.randomUUID();
-  const images = productImages(item.assets).filter(
-      (a) => a.role !== "AI_MARKETING",
-    ),
+  const images = productImages(item.assets).filter((a) => !isAiImage(a)),
+    aiImages = productImages(item.assets).filter(isAiImage),
     f = item.facts;
   const back = productReturn(item);
   const self = productHref(item.id, back.href);
@@ -78,6 +77,7 @@ export function productOverview(item: Item) {
     )}${sourceFieldNote(item, "condition")}</section>
     <section class="panel product-overview-operations"><h2>经营操作</h2><div data-stock-controls></div><p class="note">售出、暂停等操作独立生效。资料未补齐也可以登记实际经营情况。</p></section>
     ${missing.length ? `<p class="product-overview-gaps">还可补充：${missing.join("、")}。${can("edit") ? `<a href="${esc(edit)}">去补充</a>` : ""}</p>` : ""}</div></div>
+    <section class="panel product-overview-ai" aria-label="AI 上身效果"><h2>AI 上身效果</h2><p class="note">AI 生成，上身效果仅供参考；请以实物图片和尺寸为准。</p>${aiImages.length ? `<div class="product-ai-grid">${aiImages.map((a, n) => button("", () => showProductImages(aiImages, a.id), "overview-ai-button").replace("></button>", ` aria-label="查看第 ${n + 1} 张 AI 上身效果"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button>`)).join("")}</div>` : '<p class="note">还没有 AI 效果图。可在素材管理中上传，用途和来源均选择“AI营销图”。</p>'}${link("assets", "管理 AI 图片")}</section>
     ${section("商品介绍", `<div class="product-overview-descriptions"><div><h3>中文介绍</h3><div class="copy">${esc(f.descriptionZh || "未填写")}</div></div><div><h3>英文介绍</h3><div class="copy">${esc(f.descriptionEn || "未填写")}</div></div></div>`)}
     ${section(
       "尺寸、材质与品相",

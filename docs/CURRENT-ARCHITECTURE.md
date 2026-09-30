@@ -27,6 +27,8 @@ main.ts 仅导入 ui08.css，层顺序 arco-base/workbench/arco/product。六份
 
 浏览入口只读，明确编辑后保存/取消返回同商品及原目录/批次上下文。IndexedDB 保存同账号、同浏览器的原文件和未完成命令键；不是跨设备同步。原图查看使用鉴权端点，不写元数据。
 
+AI 上身效果沿用 Asset 的 `role=AI_MARKETING` / `origin=AI`；`product-images` 统一识别，`product-overview` 将其与常规图册分开，大图查看保持 AI 说明。`studio-media` 隐藏 AI 图片的封面/瑕疵动作和封面标签；上传、存档、原文件、权限及发布过滤仍由既有领域路径负责，不增加生成服务或数据表。
+
 ## 部署与资源边界
 
 Caddy → api-a/api-b → 单个 PostgreSQL；worker-a/worker-b 与 API 共享 tome_media。Docker 非 root、只读根目录、最小数据库权限，迁移另用维护账户。属于单机进程冗余；主机、数据库、媒体卷和 Caddy 数据仍是单点。

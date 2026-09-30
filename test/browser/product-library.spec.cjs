@@ -922,3 +922,142 @@ test("只读角色默认详情不暴露成本、编辑或库存写入入口", as
     await context.close();
   }
 });
+
+for (const width of [1440, 390]) {
+  test(`AI 上身效果 ${width}px 独立浏览且不替换实物封面`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const item = await api(page, "/items", {
+      title: "AI 效果合成测试 " + randomUUID().slice(0, 8),
+    });
+    await page.goto(`/#/items/${item.id}`);
+    const gallery = page.getByRole("region", {
+      name: "AI 上身效果",
+      exact: true,
+    });
+    await expect(gallery).toContainText("还没有 AI 效果图");
+    await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
+    await page
+      .getByRole("button", { name: "＋ 上传图片", exact: true })
+      .click();
+    const upload = page.getByRole("dialog");
+    const aiFile = await photo("ai-fitting-front.png");
+    await upload
+      .getByLabel("用途", { exact: true })
+      .selectOption("AI_MARKETING");
+    await upload.getByLabel("来源", { exact: true }).selectOption("AI");
+    await upload
+      .getByLabel("来源与授权说明")
+      .fill("隔离环境合成图片，仅用于界面验证");
+    await upload
+      .getByLabel("选择图片", { exact: true })
+      .setInputFiles([aiFile, await photo("ai-fitting-back.png")]);
+    await upload.getByRole("button", { name: "开始上传", exact: true }).click();
+    await expect(upload.locator("#upload-summary")).toHaveText("已保存 2 / 2");
+    await upload.getByRole("button", { name: "关闭", exact: true }).click();
+    const saved = await api(page, `/items/${item.id}`, undefined, "GET");
+    const ai = saved.assets.filter((a) => a.role === "AI_MARKETING");
+    expect(ai).toHaveLength(2);
+    expect(
+      ai.every(
+        (a) => a.origin === "AI" && a.rights === "INTERNAL" && !a.verified,
+      ),
+    ).toBe(true);
+    // AI files precede the real photograph; neither the cover label nor the
+    // overview may mistake the first stored asset for a real product photo.
+    await page.goto(`/#/items/${item.id}`);
+    await expect(page.locator(".overview-cover-button")).toHaveCount(0);
+    await expect(gallery.locator("img")).toHaveCount(2);
+    await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
+    await page.getByRole("button", { name: "＋ 上传图片", exact: true }).click();
+    await upload.getByLabel("选择图片", { exact: true }).setInputFiles(await photo("real-product.png"));
+    await upload.getByRole("button", { name: "开始上传", exact: true }).click();
+    await expect(upload.locator("#upload-summary")).toHaveText("已保存 1 / 1");
+    await upload.getByRole("button", { name: "关闭", exact: true }).click();
+    const withReal = await api(page, `/items/${item.id}`, undefined, "GET");
+    const real = withReal.assets.find((a) => a.role === "PRODUCT");
+    expect(real).toBeTruthy();
+    await page.goto(`/#/items/${item.id}`);
+    await expect(page.locator(".overview-cover-button img")).toHaveAttribute(
+      "src",
+      `/api/assets/${real.id}/preview`,
+    );
+    await expect(
+      page.locator(".product-overview-gallery .overview-thumbnail"),
+    ).toHaveCount(1);
+    await expect(gallery).toContainText("AI 生成，上身效果仅供参考");
+    await expect
+      .poll(() =>
+        gallery
+          .locator("img")
+          .first()
+          .evaluate((img) => img.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 2,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `reports/screenshots/ai-fitting-${testInfo.project.use.browserName || "chromium"}-${width}.png`,
+      fullPage: true,
+    });
+    const first = gallery.getByRole("button", {
+      name: "查看第 1 张 AI 上身效果",
+      exact: true,
+    });
+    await first.focus();
+    await page.keyboard.press("Enter");
+    const viewer = page.getByRole("dialog", { name: "查看商品图片" });
+    await expect(viewer).toContainText("AI 生成，上身效果仅供参考");
+    await expect(viewer.locator(".image-viewer-name")).toHaveText(aiFile.name);
+    await page.keyboard.press("ArrowRight");
+    await expect(viewer.locator(".image-viewer-name")).toHaveText(
+      "ai-fitting-back.png",
+    );
+    await expect(
+      viewer.getByRole("button", { name: "下一张", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("ArrowLeft");
+    const download = page.waitForEvent("download");
+    await viewer.getByRole("link", { name: "下载原图", exact: true }).click();
+    expect(
+      fs.readFileSync(await (await download).path()).equals(aiFile.buffer),
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(viewer).not.toBeVisible();
+    await page.getByRole("button", { name: "编辑商品", exact: true }).click();
+    for (const a of ai) {
+      const card = page.locator(`[data-asset="${a.id}"]`);
+      await expect(card).toContainText("AI素材");
+      await expect(card).not.toContainText("封面");
+      await expect(
+        card.locator("[data-photo-first], [data-photo-defect]"),
+      ).toHaveCount(0);
+      await expect(
+        card.getByRole("button", { name: "移除", exact: true }),
+      ).toBeVisible();
+    }
+    await expect(page.locator(`[data-asset="${real.id}"]`)).toContainText(
+      "封面 · 实拍",
+    );
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator(`[data-photo-remove="${ai[0].id}"]`).click();
+    await expect(page.locator(`[data-asset="${ai[0].id}"]`)).toHaveCount(0);
+    await page.goto(`/#/items/${item.id}`);
+    await expect(gallery.locator("img")).toHaveCount(1);
+    await expect(page.locator(".overview-cover-button img")).toHaveAttribute(
+      "src",
+      `/api/assets/${real.id}/preview`,
+    );
+    const current = await api(page, `/items/${item.id}`, undefined, "GET");
+    expect(current.assets.find((a) => a.id === ai[0].id).archived).toBe(true);
+    expect(current.assets.find((a) => a.id === real.id).sha256).toBe(
+      createHash("sha256")
+        .update((await photo()).buffer)
+        .digest("hex"),
+    );
+  });
+}
