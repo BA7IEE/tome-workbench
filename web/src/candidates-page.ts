@@ -24,6 +24,7 @@ import {
   reload,
   me,
   dialog,
+  dialogReturnTarget,
 } from "./core";
 import { onPageReady } from "./page-lifecycle";
 import { categories } from "./types";
@@ -733,10 +734,12 @@ function candidateConfirmNew(candidate: Candidate, after: () => Promise<void>) {
     },
   );
 }
-function candidateProcess(candidate: Candidate, after: () => Promise<void>) {
+function candidateProcess(candidate: Candidate, after: () => Promise<void>, returnFocus = dialogReturnTarget()) {
   const duplicate = candidate.possibleDuplicateCount > 0;
+  const title = String(proposalOf(candidate).title || candidate.titleRaw);
   viewDialog(
     duplicate ? "核对疑似重复商品" : "单件处理",
+    `<div class="candidate-review-identity"><div class="candidate-review-photo">${candidatePhoto(candidate)}</div><div><small>${esc(candidate.procurementSource.name)} · ${esc(candidate.sourceItemKey || "原货号未提供")}</small><h3>${esc(title)}</h3>${candidateSizeFacts(candidate)}</div></div>` +
     note(
       duplicate
         ? `系统发现 ${candidate.possibleDuplicateCount} 件已有TM与本候选来源图完全相同。先判断是不是同一件实物，再决定关联还是新建。`
@@ -746,11 +749,16 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>) {
         duplicate ? "核对并关联已有TM" : "关联已有TM",
         () => candidateLink(candidate, after),
         duplicate ? "primary" : "",
-      )}${button("确认这是另一件并新建TM", () => candidateConfirmNew(candidate, after))}${button(
+      )}${button(duplicate ? "确认这是另一件并新建TM" : "核对并归入商品库", () => candidateConfirmNew(candidate, after), duplicate ? "" : "primary")}${button(
         "调整本地字段",
         () => candidateEdit(candidate, after),
         "subtle",
-      )}${button("查看来源事实", () => candidateDetails(candidate), "subtle")}</div>`,
+      )}${button("查看来源事实", () => showSourceEvidence(candidate.id, {
+        returnFocus,
+        onBack: () => candidateProcess(candidate, after, returnFocus),
+        backLabel: "返回处理",
+      }), "subtle")}</div>`,
+    { returnFocus },
   );
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {

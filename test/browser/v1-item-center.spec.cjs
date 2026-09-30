@@ -1002,6 +1002,8 @@ test("v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同
   await card.getByRole("button", { name: "核对重复", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "核对疑似重复商品" });
   await expect(dialog).toContainText("先判断是不是同一件实物");
+  await expect(dialog.getByRole("button", { name: "确认这是另一件并新建TM", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "核对并归入商品库", exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "核对并关联已有TM", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "关联已有TM" });
   await expect(dialog).toContainText(created.code);
@@ -1065,9 +1067,56 @@ test("rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹
   await card.getByRole("button", { name: "单件处理", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "单件处理" });
   await expect(dialog.getByRole("button", { name: "关联已有TM", exact: true })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "确认这是另一件并新建TM", exact: true })).toBeVisible();
+  // Ordinary candidates have no duplicate evidence; only the duplicate path
+  // should ask the operator to confirm that this is a different physical item.
+  await expect(dialog.getByRole("button", { name: "核对并归入商品库", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "确认这是另一件并新建TM", exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "调整本地字段", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "查看来源事实", exact: true })).toBeVisible();
+});
+
+test("来源核对在桌面和手机保留商品身份、返回入口、选择和键盘焦点", async ({ page }) => {
+  const x = await setupAgentOrder(page), first = x.imported.rows[0];
+  await uploadCandidatePhoto(page, x.session.token, first.id);
+  const before = await (await page.request.get(`/api/ingest/candidates/${first.id}`)).json();
+  const itemCount = (await (await page.request.get('/api/items?dataMode=ALL')).json()).total;
+  await page.goto('/#/candidates?sourceId=' + x.source.id);
+  const card = page.locator(`[data-candidate="${first.id}"]`);
+  await card.getByRole('checkbox').check();
+  const trigger = card.getByRole('button', { name: '单件处理', exact: true });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await trigger.focus();
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await trigger.press('Enter');
+    const process = page.getByRole('dialog', { name: '单件处理', exact: true });
+    await expect(process.locator('.candidate-review-identity')).toContainText(before.titleRaw);
+    await expect(process.locator('.candidate-review-identity')).toContainText(before.sourceItemKey);
+    await expect.poll(() => process.locator('.candidate-review-photo img').evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+    await process.getByRole('button', { name: '查看来源事实', exact: true }).click();
+    const evidence = page.getByRole('dialog', { name: '商品来源资料', exact: true });
+    await expect(evidence.getByRole('button', { name: '返回处理', exact: true })).toBeFocused();
+    await evidence.getByRole('button', { name: '返回处理', exact: true }).click();
+    await expect(process).toBeVisible();
+    await expect(process.locator('.candidate-review-identity')).toContainText(before.sourceItemKey);
+    await process.getByRole('button', { name: '关闭', exact: true }).press('Escape');
+    await expect(process).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+    await expect(card.getByRole('checkbox')).toBeChecked();
+    // Closing directly from evidence must also return to the original card,
+    // rather than to a removed button inside the previous dialog step.
+    await trigger.press('Enter');
+    await process.getByRole('button', { name: '查看来源事实', exact: true }).click();
+    await evidence.getByRole('button', { name: '关闭', exact: true }).click();
+    await expect(trigger).toBeFocused();
+  }
+  const after = await (await page.request.get(`/api/ingest/candidates/${first.id}`)).json();
+  expect(after.version).toBe(before.version);
+  expect(after.decision).toBe(before.decision);
+  expect(after.sourceFacts).toEqual(before.sourceFacts);
+  expect(after.assets).toEqual(before.assets);
+  expect((await (await page.request.get('/api/items?dataMode=ALL')).json()).total).toBe(itemCount);
 });
 
 test('跨页选择101件分段确认，真实写入回执丢失后重试不重复建档',async({page})=>{
@@ -1138,12 +1187,34 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
   await expect(card).toContainText('Agent整理 2 项');await expect(card).toContainText('1 项需重点复核');
   await card.getByRole('button',{name:'查看图片与资料',exact:true}).click();
   const d=page.getByRole('dialog',{name:'商品来源资料'});
+  await expect(d.locator('.evidence-proposals')).not.toHaveAttribute('open', '');
+  await expect(d.locator('.evidence-proposals summary')).toContainText('1项需重点复核');
+  await d.locator('.evidence-proposals summary').click();
   await expect(d).toContainText('100% Silk');await expect(d).toContainText('37 in');await expect(d).toContainText('合成来源完整描述');await expect(d).toContainText('外部Agent整理建议');await expect(d).toContainText('合成浏览器用例的中文商品介绍');await expect(d).toContainText('置信度 88%');
   await expect(d.locator('.evidence-gallery img')).toHaveCount(2);
   for(let n=0;n<2;n++) await expect.poll(()=>d.locator('.evidence-gallery img').nth(n).evaluate(i=>i.naturalWidth)).toBe(1800+n);
-  await page.setViewportSize({width:390,height:844});
-  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
-  await page.screenshot({path:'reports/screenshots/ingest-original-evidence-mobile.png',fullPage:true});
+  await d.locator('.evidence-proposals summary').click();
+  for (const width of [1440, 1024, 390, 375]) {
+    await page.setViewportSize({width,height:844});
+    // Reopen naturally so each viewport is measured at the initial reading
+    // position rather than scrolling to manufacture a first-screen result.
+    await d.getByRole('button',{name:'关闭',exact:true}).click();
+    const open = card.getByRole('button',{name:'查看图片与资料',exact:true});
+    await expect(open).toBeFocused();
+    await open.press('Enter');
+    await expect(d).toBeVisible();
+    await expect.poll(() => d.locator('.evidence-gallery img').first().evaluate(img => img.naturalWidth)).toBe(1800);
+    const layout = await d.evaluate(el => {
+      const image = el.querySelector('.evidence-gallery img').getBoundingClientRect();
+      const gallery = el.querySelector('.source-review-images').getBoundingClientRect();
+      const summary = el.querySelector('.source-review-summary').getBoundingClientRect();
+      return { overflow: el.scrollWidth - el.clientWidth, imageVisible: image.top >= 0 && image.bottom <= innerHeight, sideBySide: summary.left >= gallery.right, stacked: summary.top >= gallery.bottom };
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+    expect(layout.imageVisible).toBe(true);
+    expect(width > 700 ? layout.sideBySide : layout.stacked).toBe(true);
+    await page.screenshot({path:`reports/screenshots/source-review-${width}.png`,fullPage:false});
+  }
   await d.getByRole('button',{name:'关闭',exact:true}).click();
   await page.setViewportSize({width:1440,height:1000});
   await page.getByRole('button',{name:'导入检查',exact:true}).click();
@@ -1206,7 +1277,7 @@ test('单件建档清除该件批量勾选并保留其他候选',async({page})=>
   await page.locator(`[data-pick="${first.id}"]`).check();
   await page.locator(`[data-pick="${second.id}"]`).check();
   await page.locator(`[data-candidate="${first.id}"]`).getByRole('button',{name:'单件处理',exact:true}).click();
-  await page.getByRole('button',{name:'确认这是另一件并新建TM',exact:true}).click();
+  await page.getByRole('button',{name:'核对并归入商品库',exact:true}).click();
   await page.getByLabel('我已确认实物在手并应纳入经营').check();
   await page.getByLabel('我已核对来源缺项，接受先建档后补充').check();
   await page.getByRole('button',{name:'确认生成新TM',exact:true}).click();

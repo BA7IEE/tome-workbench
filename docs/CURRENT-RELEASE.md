@@ -2,6 +2,8 @@
 
 当前源码版本：**1.1.0-rc.13**，新增可审计的来源污染纠错：受限来源字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、逐件折后金额成本分摊、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 
+当前界面增量为来源资料与单件核对：图片前置、PC 图文对照、手机全屏、逐字段 Agent 建议按需展开；普通候选使用“核对并归入商品库”，疑似重复仍明确确认另一件实物。单件处理保留商品身份和来源返回入口，关闭后恢复焦点。没有 migration、依赖升级或经营数据变更，未部署；范围与验收见 [SOURCE-REVIEW-UX](SOURCE-REVIEW-UX.md)。
+
 `tome.23cc.cn` 的实际 1Panel/OpenResty 运行拓扑、部署 SHA、人工 UAT 记录和后续升级步骤另见 [1Panel 当前生产运行与升级维护记录](PRODUCTION-1PANEL.md)。该文档是指定环境的时间点运维事实，不能反向替代本文件的源码范围、当前验证指纹或目标版本迁移门禁。
 
 rc.7 新增正式生产部署模式 `EXTERNAL_REVERSE_PROXY`：同一生产 Compose 将两个 API 仅发布到宿主机 loopback，内置 Caddy 改为显式 `internal-proxy` profile；配置生成器记录部署模式和外部代理提供方，生产 preflight 对 1Panel/OpenResty 等外部入口验证 loopback 端口、禁止内置 proxy 常驻、正式域名 HTTPS readiness 与版本一致性。默认 `INTERNAL_CADDY` 行为仍保留；这不等于真实服务器、域名、防火墙、备份或业务 UAT 已经人工验收。

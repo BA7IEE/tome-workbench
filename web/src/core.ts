@@ -4,6 +4,20 @@ export let me: User | null = null;
 let csrf = "";
 let lastUser: User | null = null;
 let dialogScope = new AbortController();
+let actionTrigger: HTMLButtonElement | null = null;
+export function dialogReturnTarget(): HTMLElement | null {
+  const target = actionTrigger || document.activeElement;
+  return target instanceof HTMLElement &&
+    target !== document.body &&
+    !dialog.contains(target)
+    ? target
+    : null;
+}
+export type ViewDialogOptions = {
+  returnFocus?: HTMLElement | null;
+  onBack?: () => void;
+  backLabel?: string;
+};
 function newDialogScope() {
   dialogScope.abort();
   dialogScope = new AbortController();
@@ -363,14 +377,26 @@ export function form(
   );
   if (!dialog.open) dialog.showModal();
 }
-export function viewDialog(title: string, html: string) {
+export function viewDialog(
+  title: string,
+  html: string,
+  options: ViewDialogOptions = {},
+) {
+  const returnFocus = options.returnFocus ?? dialogReturnTarget();
   newDialogScope();
   dialog.oncancel = null;
-  dialog.innerHTML = `<header><h2 id="dialog-title">${esc(title)}</h2><button class="btn close" type="button">关闭</button></header><div class="dialog-content">${html}</div>`;
+  dialog.innerHTML = `<header>${options.onBack ? button(options.backLabel || "返回", options.onBack, "dialog-back") : ""}<h2 id="dialog-title">${esc(title)}</h2><button class="btn close" type="button">关闭</button></header><div class="dialog-content">${html}</div>`;
   dialog
     .querySelector(".close")!
     .addEventListener("click", () => dialog.close());
+  onDialogClosed(() => {
+    if (returnFocus?.isConnected && !returnFocus.matches(":disabled"))
+      returnFocus.focus({ preventScroll: true });
+  });
   if (!dialog.open) dialog.showModal();
+  dialog
+    .querySelector<HTMLElement>(options.onBack ? ".dialog-back" : ".close")!
+    .focus({ preventScroll: true });
 }
 export const empty = (message = "暂无记录") =>
   `<div class="empty"><span>◇</span><p>${esc(message)}</p></div>`;
@@ -431,7 +457,17 @@ document.addEventListener("click", async (e) => {
   if (!action) return;
   button.disabled = true;
   try {
-    await action();
+    // Capture the trigger during the synchronous start of an action, before an
+    // async read loses its focus. Do not keep a global trigger across awaits.
+    const previous = actionTrigger;
+    let pending: void | Promise<void>;
+    try {
+      actionTrigger = button;
+      pending = action();
+    } finally {
+      actionTrigger = previous;
+    }
+    await pending;
   } catch (error) {
     toast((error as Error).message, true);
   } finally {

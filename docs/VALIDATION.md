@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-23T16:07:23.763Z`。验证源码指纹为
-`65c25ab7dc2f5b3bc0e08ce3d01dd2456dae92eb7fd1f4d00c74cdefeeced73f`；
+本地完整验证完成：`2026-09-30T17:08:30.346Z`。验证源码指纹为
+`3969dfb4828043b93bafc0723e1eb9571fe2fe9440f93800a7448aa5a0bfa38a`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -13,18 +13,26 @@
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
-| Chromium | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 228.982ms、Dashboard 213.923ms、Work Queue 14.748ms，均小于 1 秒 |
+| Chromium | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 237.106ms、Dashboard 200.869ms、Work Queue 12.952ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 894ms、Worker 恢复 1953ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 778ms、Worker 恢复 1962ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
-| npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
+| npm audit | 本次 exit 1：1 high、2 moderate；现有 brace-expansion / multer 依赖链，package.json 与 lockfile 未改。发布阻断，不能称全部门禁通过 |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
 | 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.13.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
 完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
 [audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
+
+## 本次界面增量：来源资料与单件核对
+
+来源资料采用 PC 图文双栏、手机全屏单栏，原图前置，Agent 建议保留摘要并按需展开。单件处理显示商品身份，来源资料可返回同一候选；关闭或 Escape 恢复原入口焦点。普通候选入口改为“核对并归入商品库”，疑似重复分支仍明确确认另一件实物，确认表单和领域约束不变。
+
+两浏览器使用隔离合成资料，经真实 UI 登录覆盖 1440/1024/390/375px 首屏原图、布局及无横向溢出；新增完整往返用例核对版本、来源事实、原图关联和 TM 数量不变，以及选择、滚动和键盘焦点保留。既有原图字节、人工草稿、缺项确认、来源修订、批量回执恢复与部分失败用例继续执行。截图位于本地 `reports/screenshots/source-review-*.png`，只证明合成页面渲染，不代表真实手机或经营 UAT。
+
+**发布阻断：** 本次 `npm audit --audit-level=high` 为 exit 1，报告 1 high、2 moderate。高危来自 `brace-expansion` 间接依赖；中危来自 `multer` 及其上游 `@nestjs/platform-express`。本次未改 package.json、lockfile 或依赖版本；需要独立依赖修复切片及完整复验。完整 Harness 通过或打包成功不抵消审计失败，不能据此合并或上线。本次未做生产写入、部署或真实经营验收。
 
 ## 1.1.0-rc.13 来源污染纠错与错图撤下
 
