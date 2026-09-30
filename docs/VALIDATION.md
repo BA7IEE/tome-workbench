@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-30T17:08:30.346Z`。验证源码指纹为
-`3969dfb4828043b93bafc0723e1eb9571fe2fe9440f93800a7448aa5a0bfa38a`；
+本地完整验证完成：`2026-09-30T17:45:56.419Z`。验证源码指纹为
+`673f2668e31e20a137ac3b7c6a32ac62cb6b788642c0fd2ca005b26bafe2444a`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -15,11 +15,11 @@
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
 | Chromium | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 237.106ms、Dashboard 200.869ms、Work Queue 12.952ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 361.038ms、Dashboard 361.607ms、Work Queue 25.144ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 778ms、Worker 恢复 1962ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 794ms、Worker 恢复 1990ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
-| npm audit | 本次 exit 1：1 high、2 moderate；现有 brace-expansion / multer 依赖链，package.json 与 lockfile 未改。发布阻断，不能称全部门禁通过 |
+| npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities；已引入独立依赖修复 |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
 | 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.13.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
@@ -32,7 +32,7 @@
 
 两浏览器使用隔离合成资料，经真实 UI 登录覆盖 1440/1024/390/375px 首屏原图、布局及无横向溢出；新增完整往返用例核对版本、来源事实、原图关联和 TM 数量不变，以及选择、滚动和键盘焦点保留。既有原图字节、人工草稿、缺项确认、来源修订、批量回执恢复与部分失败用例继续执行。截图位于本地 `reports/screenshots/source-review-*.png`，只证明合成页面渲染，不代表真实手机或经营 UAT。
 
-**发布阻断：** 本次 `npm audit --audit-level=high` 为 exit 1，报告 1 high、2 moderate。高危来自 `brace-expansion` 间接依赖；中危来自 `multer` 及其上游 `@nestjs/platform-express`。本次未改 package.json、lockfile 或依赖版本；需要独立依赖修复切片及完整复验。完整 Harness 通过或打包成功不抵消审计失败，不能据此合并或上线。本次未做生产写入、部署或真实经营验收。
+当前 UI 分支已引入独立依赖修复 PR #54：multer 2.4.0，brace-expansion 1.1.21 / 2.1.7 / 5.0.12。审计为 0 vulnerabilities；本页报告记录组合源码的完整复验结果，未复用依赖分支或旧 UI 的验证指纹。依赖修复范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。本次未做 main 合并、生产写入、部署或真实经营验收。
 
 ## 1.1.0-rc.13 来源污染纠错与错图撤下
 
