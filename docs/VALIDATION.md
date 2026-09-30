@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-30T17:45:56.419Z`。验证源码指纹为
-`673f2668e31e20a137ac3b7c6a32ac62cb6b788642c0fd2ca005b26bafe2444a`；
+本地完整验证完成：`2026-09-30T18:58:24.932Z`。验证源码指纹为
+`84799086b439211adfa56c0de241bfb58003cd70677f91df209e6ad68f8b8743`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -13,11 +13,11 @@
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
-| Chromium | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 361.038ms、Dashboard 361.607ms、Work Queue 25.144ms，均小于 1 秒 |
+| Chromium | 184 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 184 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 308.352ms、Dashboard 248.763ms、Work Queue 32.487ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 794ms、Worker 恢复 1990ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 761ms、Worker 恢复 1952ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities；已引入独立依赖修复 |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
@@ -25,6 +25,10 @@
 
 完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
 [audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
+
+## 本次界面增量：AI 上身效果
+
+商品详情独立展示 AI 素材，图册与大图明确标注 AI 生成；完整编辑页取消 AI 图设封面、标瑕疵和封面标签。复用上传、下载与存档，未改原文件、授权、资料导出或发布合同，未接入生成服务。新增合成浏览器场景覆盖 1440/390px 的真实上传、AI-only 空实物封面、实物封面保留、独立翻图与键盘操作、原文件字节、手机布局及移除后保留档案；两浏览器范围相同。截图为 `reports/screenshots/ai-fitting-*.png`。本次没有修改既有测试期望，没有 migration、依赖升级、生产数据操作、合并或部署。
 
 ## 本次界面增量：来源资料与单件核对
 

@@ -33,10 +33,10 @@ transforming...
 rendering chunks...
 computing gzip size...
 ../dist/web/index.html                      0.67 kB │ gzip:   0.43 kB
-../dist/web/assets/index-QuLul6-n.css     281.32 kB │ gzip:  37.78 kB
-../dist/web/assets/index-TIpOF-Ng.js      341.54 kB │ gzip: 119.45 kB
+../dist/web/assets/index-Cp3oYHMp.css     281.63 kB │ gzip:  37.82 kB
+../dist/web/assets/index-DBXhpSAS.js      342.41 kB │ gzip: 119.72 kB
 ../dist/web/assets/ui-vendor-HDszOhK0.js  451.34 kB │ gzip: 135.65 kB
-✓ built in 1.93s
+✓ built in 1.87s
 
 > tome-workbench@1.1.0-rc.13 test:unit
 > node --test test/unit.test.cjs test/production-tools.test.mjs
@@ -45,193 +45,193 @@ TAP version 13
 # Subtest: configuration generator derives an arbitrary package version and refuses overwrite
 ok 1 - configuration generator derives an arbitrary package version and refuses overwrite
   ---
-  duration_ms: 69.993209
+  duration_ms: 71.850583
   type: 'test'
   ...
 # Subtest: external reverse proxy configuration is explicit and loopback-only
 ok 2 - external reverse proxy configuration is explicit and loopback-only
   ---
-  duration_ms: 64.067584
+  duration_ms: 82.909333
   type: 'test'
   ...
 # Subtest: preflight rejects stale configuration, either API and either worker version
 ok 3 - preflight rejects stale configuration, either API and either worker version
   ---
-  duration_ms: 0.517625
+  duration_ms: 1.279959
   type: 'test'
   ...
 # Subtest: production approvals require hashed, dated local evidence; booleans alone cannot enable GO
 ok 4 - production approvals require hashed, dated local evidence; booleans alone cannot enable GO
   ---
-  duration_ms: 6.036167
+  duration_ms: 12.319958
   type: 'test'
   ...
 # Subtest: PushPlus sends only allowlisted health checks and distinguishes accepted from delivered
 ok 5 - PushPlus sends only allowlisted health checks and distinguishes accepted from delivered
   ---
-  duration_ms: 1.40875
+  duration_ms: 2.68875
   type: 'test'
   ...
 # Subtest: 现金与Credit支付退款同值，净额只扣一次且允许全额退回
 ok 6 - 现金与Credit支付退款同值，净额只扣一次且允许全额退回
   ---
-  duration_ms: 0.932375
+  duration_ms: 2.062583
   type: 'test'
   ...
 # Subtest: TM号稳定且六位耗尽后自然增长
 ok 7 - TM号稳定且六位耗尽后自然增长
   ---
-  duration_ms: 0.151167
+  duration_ms: 0.377916
   type: 'test'
   ...
 # Subtest: 标题保留完整TM号且不重复附加
 ok 8 - 标题保留完整TM号且不重复附加
   ---
-  duration_ms: 0.247375
+  duration_ms: 0.731666
   type: 'test'
   ...
 # Subtest: 金额小数转换没有浮点累计误差
 ok 9 - 金额小数转换没有浮点累计误差
   ---
-  duration_ms: 0.124583
+  duration_ms: 0.272875
   type: 'test'
   ...
 # Subtest: 首次900，全退-100，再售720，累计620
 ok 10 - 首次900，全退-100，再售720，累计620
   ---
-  duration_ms: 0.084292
+  duration_ms: 0.2805
   type: 'test'
   ...
 # Subtest: 部分退款不恢复成本
 ok 11 - 部分退款不恢复成本
   ---
-  duration_ms: 0.042875
+  duration_ms: 0.083167
   type: 'test'
   ...
 # Subtest: 未知成本不当作0，例外整笔排除
 ok 12 - 未知成本不当作0，例外整笔排除
   ---
-  duration_ms: 0.109584
+  duration_ms: 0.2345
   type: 'test'
   ...
 # Subtest: 素材必须实物、公开、核验且未过期
 ok 13 - 素材必须实物、公开、核验且未过期
   ---
-  duration_ms: 0.08
+  duration_ms: 0.605833
   type: 'test'
   ...
 # Subtest: 供应商资料齐全时不派生拍摄测量任务
 ok 14 - 供应商资料齐全时不派生拍摄测量任务
   ---
-  duration_ms: 1.630959
+  duration_ms: 6.306375
   type: 'test'
   ...
 # Subtest: 只缺英文只生成英文缺项
 ok 15 - 只缺英文只生成英文缺项
   ---
-  duration_ms: 0.4775
+  duration_ms: 1.999458
   type: 'test'
   ...
 # Subtest: 供货失效只标明供货缺项，不能略过
 ok 16 - 供货失效只标明供货缺项，不能略过
   ---
-  duration_ms: 0.153625
+  duration_ms: 0.548208
   type: 'test'
   ...
 # Subtest: 客户资料卡不强制交易鉴定价格条件
 ok 17 - 客户资料卡不强制交易鉴定价格条件
   ---
-  duration_ms: 0.206125
+  duration_ms: 0.826333
   type: 'test'
   ...
 # Subtest: 字段校验不接受未声明任意结构
 ok 18 - 字段校验不接受未声明任意结构
   ---
-  duration_ms: 0.509917
+  duration_ms: 1.262459
   type: 'test'
   ...
 # Subtest: 请求摘要与字段顺序无关，但正文变化不同
 ok 19 - 请求摘要与字段顺序无关，但正文变化不同
   ---
-  duration_ms: 0.303042
+  duration_ms: 0.57775
   type: 'test'
   ...
 # Subtest: 运营不具财务/复核权限，只读不能写
 ok 20 - 运营不具财务/复核权限，只读不能写
   ---
-  duration_ms: 0.038208
+  duration_ms: 0.049958
   type: 'test'
   ...
 # Subtest: 密码带随机盐，原文不保存，错误密码失败
 ok 21 - 密码带随机盐，原文不保存，错误密码失败
   ---
-  duration_ms: 121.800875
+  duration_ms: 149.259125
   type: 'test'
   ...
 # Subtest: 数据库破坏性测试只允许本地专用test库
 ok 22 - 数据库破坏性测试只允许本地专用test库
   ---
-  duration_ms: 0.282125
+  duration_ms: 0.2525
   type: 'test'
   ...
 # Subtest: 运行版本必须与交付包版本一致，不能沿用旧硬编码
 ok 23 - 运行版本必须与交付包版本一致，不能沿用旧硬编码
   ---
-  duration_ms: 0.559666
+  duration_ms: 0.477208
   type: 'test'
   ...
 # Subtest: 采集检查区分来源缺项、漏传文件和未核验，不能用空字段冒充完整
 ok 24 - 采集检查区分来源缺项、漏传文件和未核验，不能用空字段冒充完整
   ---
-  duration_ms: 1.790834
+  duration_ms: 1.413459
   type: 'test'
   ...
 # Subtest: 同一图位补到已保存高清图后，旧缩略图只作历史证据，不再是当前图片缺项
 ok 25 - 同一图位补到已保存高清图后，旧缩略图只作历史证据，不再是当前图片缺项
   ---
-  duration_ms: 0.350667
+  duration_ms: 0.254834
   type: 'test'
   ...
 # Subtest: 文件型来源凭据无需伪造网址，缺少原文件或记录位置仍拒绝
 ok 26 - 文件型来源凭据无需伪造网址，缺少原文件或记录位置仍拒绝
   ---
-  duration_ms: 0.426167
+  duration_ms: 0.325125
   type: 'test'
   ...
 # Subtest: AnQiCMS 标准交付合同：20件脱敏商品冻结 USD、图片、库存、SEO 与售出页
 ok 27 - AnQiCMS 标准交付合同：20件脱敏商品冻结 USD、图片、库存、SEO 与售出页
   ---
-  duration_ms: 2.772584
+  duration_ms: 2.309166
   type: 'test'
   ...
 # Subtest: AnQiCMS 标准交付合同：archive ID 复用更新，回执规范化并拒绝伪远端身份
 ok 28 - AnQiCMS 标准交付合同：archive ID 复用更新，回执规范化并拒绝伪远端身份
   ---
-  duration_ms: 0.373792
+  duration_ms: 0.300291
   type: 'test'
   ...
 # Subtest: styleNumber 统一新写入，旧 style_number 只作兼容读取
 ok 29 - styleNumber 统一新写入，旧 style_number 只作兼容读取
   ---
-  duration_ms: 0.183458
+  duration_ms: 0.148292
   type: 'test'
   ...
 # Subtest: Agent整理建议逐字段校验目标格式、模型和来源依据
 ok 30 - Agent整理建议逐字段校验目标格式、模型和来源依据
   ---
-  duration_ms: 1.925542
+  duration_ms: 0.804708
   type: 'test'
   ...
 # Subtest: 来源现价只能通过带字段缺项依据的显式纠错清空
 ok 31 - 来源现价只能通过带字段缺项依据的显式纠错清空
   ---
-  duration_ms: 0.39875
+  duration_ms: 0.367958
   type: 'test'
   ...
 # Subtest: 错配来源图片只能按哈希撤下且不能留在当前图片清单
 ok 32 - 错配来源图片只能按哈希撤下且不能留在当前图片清单
   ---
-  duration_ms: 0.266917
+  duration_ms: 0.525875
   type: 'test'
   ...
 1..32
@@ -242,7 +242,7 @@ ok 32 - 错配来源图片只能按哈希撤下且不能留在当前图片清单
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 424.891666
+# duration_ms 642.948625
 
 > tome-workbench@1.1.0-rc.13 harness:selftest
 > node --test test/harness.test.cjs
@@ -251,187 +251,187 @@ TAP version 13
 # Subtest: harness baseline passes
 ok 1 - harness baseline passes
   ---
-  duration_ms: 82.016666
+  duration_ms: 88.85225
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: 未合并 main
 ok 2 - harness rejects stale release state: 未合并 main
   ---
-  duration_ms: 48.522625
+  duration_ms: 48.200709
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: 尚未合并到 `main`
 ok 3 - harness rejects stale release state: 尚未合并到 `main`
   ---
-  duration_ms: 47.671583
+  duration_ms: 46.573083
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: 未合入 **main**
 ok 4 - harness rejects stale release state: 未合入 **main**
   ---
-  duration_ms: 47.087542
+  duration_ms: 48.255834
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: UX 1.0.2 在独立分支实现本机选品草稿
 ok 5 - harness rejects stale release state: UX 1.0.2 在独立分支实现本机选品草稿
   ---
-  duration_ms: 47.621125
+  duration_ms: 56.870917
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: 独立分支实现
 ok 6 - harness rejects stale release state: 独立分支实现
   ---
-  duration_ms: 48.206417
+  duration_ms: 144.954875
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: 独立分支待验收
 ok 7 - harness rejects stale release state: 独立分支待验收
   ---
-  duration_ms: 48.776333
+  duration_ms: 96.904167
   type: 'test'
   ...
 # Subtest: harness rejects stale release state: UX 1.0.2 独立切片尚未交付
 ok 8 - harness rejects stale release state: UX 1.0.2 独立切片尚未交付
   ---
-  duration_ms: 48.049459
+  duration_ms: 62.309917
   type: 'test'
   ...
 # Subtest: harness permits outstanding production and business acceptance
 ok 9 - harness permits outstanding production and business acceptance
   ---
-  duration_ms: 47.33775
+  duration_ms: 98.048875
   type: 'test'
   ...
 # Subtest: harness rejects stale current version
 ok 10 - harness rejects stale current version
   ---
-  duration_ms: 44.914708
+  duration_ms: 60.347167
   type: 'test'
   ...
 # Subtest: harness rejects stale production title
 ok 11 - harness rejects stale production title
   ---
-  duration_ms: 43.719792
+  duration_ms: 63.929791
   type: 'test'
   ...
 # Subtest: harness rejects stale validation version
 ok 12 - harness rejects stale validation version
   ---
-  duration_ms: 43.272333
+  duration_ms: 61.840459
   type: 'test'
   ...
 # Subtest: harness rejects stale validation source
 ok 13 - harness rejects stale validation source
   ---
-  duration_ms: 37.120375
+  duration_ms: 38.139709
   type: 'test'
   ...
 # Subtest: harness rejects stale validation report version
 ok 14 - harness rejects stale validation report version
   ---
-  duration_ms: 48.554417
+  duration_ms: 44.509459
   type: 'test'
   ...
 # Subtest: harness rejects stale validation report source
 ok 15 - harness rejects stale validation report source
   ---
-  duration_ms: 50.909833
+  duration_ms: 38.107292
   type: 'test'
   ...
 # Subtest: harness rejects stale validation artifact version
 ok 16 - harness rejects stale validation artifact version
   ---
-  duration_ms: 61.702
+  duration_ms: 45.805667
   type: 'test'
   ...
 # Subtest: harness rejects one-off agent PR state
 ok 17 - harness rejects one-off agent PR state
   ---
-  duration_ms: 58.246417
+  duration_ms: 49.232458
   type: 'test'
   ...
 # Subtest: harness rejects hardcoded release tag
 ok 18 - harness rejects hardcoded release tag
   ---
-  duration_ms: 46.64
+  duration_ms: 48.477208
   type: 'test'
   ...
 # Subtest: harness rejects silent release default
 ok 19 - harness rejects silent release default
   ---
-  duration_ms: 62.523041
+  duration_ms: 49.617708
   type: 'test'
   ...
 # Subtest: harness rejects external default
 ok 20 - harness rejects external default
   ---
-  duration_ms: 54.490583
+  duration_ms: 57.344417
   type: 'test'
   ...
 # Subtest: harness rejects DB guard
 ok 21 - harness rejects DB guard
   ---
-  duration_ms: 49.050875
+  duration_ms: 46.959042
   type: 'test'
   ...
 # Subtest: harness rejects reset guard
 ok 22 - harness rejects reset guard
   ---
-  duration_ms: 48.9605
+  duration_ms: 53.745416
   type: 'test'
   ...
 # Subtest: harness rejects reused browser server
 ok 23 - harness rejects reused browser server
   ---
-  duration_ms: 49.498542
+  duration_ms: 53.096958
   type: 'test'
   ...
 # Subtest: harness rejects hidden skipped tests
 ok 24 - harness rejects hidden skipped tests
   ---
-  duration_ms: 46.379959
+  duration_ms: 55.880417
   type: 'test'
   ...
 # Subtest: harness rejects missing UX WebKit suite
 ok 25 - harness rejects missing UX WebKit suite
   ---
-  duration_ms: 60.602375
+  duration_ms: 49.12725
   type: 'test'
   ...
 # Subtest: harness rejects skipped UX browser journey
 ok 26 - harness rejects skipped UX browser journey
   ---
-  duration_ms: 52.702542
+  duration_ms: 131.840166
   type: 'test'
   ...
 # Subtest: harness rejects sales truth
 ok 27 - harness rejects sales truth
   ---
-  duration_ms: 49.349
+  duration_ms: 56.66025
   type: 'test'
   ...
 # Subtest: harness rejects network in domain
 ok 28 - harness rejects network in domain
   ---
-  duration_ms: 46.771209
+  duration_ms: 54.910958
   type: 'test'
   ...
 # Subtest: harness rejects mutated migration
 ok 29 - harness rejects mutated migration
   ---
-  duration_ms: 43.492667
+  duration_ms: 67.392083
   type: 'test'
   ...
 # Subtest: harness rejects lost documentation
 ok 30 - harness rejects lost documentation
   ---
-  duration_ms: 55.389583
+  duration_ms: 47.907583
   type: 'test'
   ...
 # Subtest: harness rejects retired stylesheet import
 ok 31 - harness rejects retired stylesheet import
   ---
-  duration_ms: 55.972166
+  duration_ms: 51.362708
   type: 'test'
   ...
 1..31
@@ -442,14 +442,14 @@ ok 31 - harness rejects retired stylesheet import
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1632.007875
+# duration_ms 1974.909417
 
 > tome-workbench@1.1.0-rc.13 benchmark:launch-scale
 > node scripts/benchmark-launch-scale.mjs
 
 {
   "kind": "isolated-launch-scale-benchmark",
-  "at": "2026-09-30T17:29:22.030Z",
+  "at": "2026-09-30T18:45:35.394Z",
   "source": "tome_test",
   "externalActionsExecuted": 0,
   "data": {
@@ -461,12 +461,12 @@ ok 31 - harness rejects retired stylesheet import
     "attempts": 1200
   },
   "durationsMs": {
-    "operations": 361.038458,
-    "dashboard": 361.607084,
-    "workQueue": 25.144417
+    "operations": 308.351708,
+    "dashboard": 248.762667,
+    "workQueue": 32.486959
   },
   "passed": true,
-  "finishedAt": "2026-09-30T17:29:25.675Z"
+  "finishedAt": "2026-09-30T18:45:42.778Z"
 }
 
 > tome-workbench@1.1.0-rc.13 test:integration
@@ -476,1018 +476,1018 @@ TAP version 13
 # Subtest: HTTP: unauthorized read, bad origin and missing CSRF are rejected
 ok 1 - HTTP: unauthorized read, bad origin and missing CSRF are rejected
   ---
-  duration_ms: 2949.050208
+  duration_ms: 2608.802792
   type: 'test'
   ...
 # Subtest: TM number, default cooperation and request replay are atomic
 ok 2 - TM number, default cooperation and request replay are atomic
   ---
-  duration_ms: 104.255375
+  duration_ms: 44.259042
   type: 'test'
   ...
 # Subtest: Source preview writes nothing; raw revisions never overwrite maintained Item
 ok 3 - Source preview writes nothing; raw revisions never overwrite maintained Item
   ---
-  duration_ms: 231.0645
+  duration_ms: 117.767
   type: 'test'
   ...
 # Subtest: Partial fact edits preserve unrelated values and concurrent edits conflict
 ok 4 - Partial fact edits preserve unrelated values and concurrent edits conflict
   ---
-  duration_ms: 236.74875
+  duration_ms: 71.656208
   type: 'test'
   ...
 # Subtest: Real image upload preserves original bytes, role and public rights are protected
 ok 5 - Real image upload preserves original bytes, role and public rights are protected
   ---
-  duration_ms: 298.50875
+  duration_ms: 120.673041
   type: 'test'
   ...
 # Subtest: Complete supplier item needs no local photography/measurement workflow
 ok 6 - Complete supplier item needs no local photography/measurement workflow
   ---
-  duration_ms: 182.340375
+  duration_ms: 160.593166
   type: 'test'
   ...
 # Subtest: Preparation requirements stay live by target and never create stale PREPARE tasks
 ok 7 - Preparation requirements stay live by target and never create stale PREPARE tasks
   ---
-  duration_ms: 149.417208
+  duration_ms: 57.2
   type: 'test'
   ...
 # Subtest: Approved copy stays fixed while drafts change; actual critical changes revoke it
 ok 8 - Approved copy stays fixed while drafts change; actual critical changes revoke it
   ---
-  duration_ms: 229.011167
+  duration_ms: 251.564625
   type: 'test'
   ...
 # Subtest: Frozen package has full TM code but no supplier cost, credentials or internal identifiers
 ok 9 - Frozen package has full TM code but no supplier cost, credentials or internal identifiers
   ---
-  duration_ms: 139.656792
+  duration_ms: 141.987667
   type: 'test'
   ...
 # Subtest: Customer card cannot bypass trade checks through Listing receipt
 ok 10 - Customer card cannot bypass trade checks through Listing receipt
   ---
-  duration_ms: 118.91575
+  duration_ms: 110.462541
   type: 'test'
   ...
 # Subtest: Manual listing receipt is explicitly MANUAL, not API-confirmed
 ok 11 - Manual listing receipt is explicitly MANUAL, not API-confirmed
   ---
-  duration_ms: 215.113625
+  duration_ms: 117.167833
   type: 'test'
   ...
 # Subtest: Sold with incomplete finances stops inventory immediately with a real source-linked delist
 ok 12 - Sold with incomplete finances stops inventory immediately with a real source-linked delist
   ---
-  duration_ms: 423.612833
+  duration_ms: 452.894375
   type: 'test'
   ...
 # Subtest: Unique effective reservation survives concurrent attempts
 ok 13 - Unique effective reservation survives concurrent attempts
   ---
-  duration_ms: 104.775459
+  duration_ms: 78.076125
   type: 'test'
   ...
 # Subtest: Expired reservation does not auto-relist
 ok 14 - Expired reservation does not auto-relist
   ---
-  duration_ms: 215.792667
+  duration_ms: 281.005083
   type: 'test'
   ...
 # Subtest: Ordinary own offline sale is included; valid friend intent is transaction-scoped
 ok 15 - Ordinary own offline sale is included; valid friend intent is transaction-scoped
   ---
-  duration_ms: 118.571542
+  duration_ms: 101.054667
   type: 'test'
   ...
 # Subtest: Invalid exception never blocks safe sold recording; classification requires admin evidence
 ok 16 - Invalid exception never blocks safe sold recording; classification requires admin evidence
   ---
-  duration_ms: 68.20525
+  duration_ms: 72.317208
   type: 'test'
   ...
 # Subtest: Gift and independent supplier sale do not create our income
 ok 17 - Gift and independent supplier sale do not create our income
   ---
-  duration_ms: 70.154334
+  duration_ms: 62.210166
   type: 'test'
   ...
 # Subtest: Same external order is deduplicated independently from request key
 ok 18 - Same external order is deduplicated independently from request key
   ---
-  duration_ms: 52.038208
+  duration_ms: 81.5915
   type: 'test'
   ...
 # Subtest: Concurrent sale registration never creates two confirmed sales
 ok 19 - Concurrent sale registration never creates two confirmed sales
   ---
-  duration_ms: 48.798958
+  duration_ms: 61.673875
   type: 'test'
   ...
 # Subtest: Refund + intact return + resale produces 620, not duplicated acquisition costs
 ok 20 - Refund + intact return + resale produces 620, not duplicated acquisition costs
   ---
-  duration_ms: 298.19375
+  duration_ms: 199.6615
   type: 'test'
   ...
 # Subtest: Partial refund retains cost and excess refunds are rejected
 ok 21 - Partial refund retains cost and excess refunds are rejected
   ---
-  duration_ms: 97.517166
+  duration_ms: 79.07075
   type: 'test'
   ...
 # Subtest: Cost estimates, confirmed costs and void history are separate from sale snapshot
 ok 22 - Cost estimates, confirmed costs and void history are separate from sale snapshot
   ---
-  duration_ms: 63.781958
+  duration_ms: 39.593958
   type: 'test'
   ...
 # Subtest: Same remote listing can be explicitly republished to new valid package without losing audit
 ok 23 - Same remote listing can be explicitly republished to new valid package without losing audit
   ---
-  duration_ms: 230.900792
+  duration_ms: 243.04225
   type: 'test'
   ...
 # Subtest: Showroom dynamically removes sold goods before worker catches up
 ok 24 - Showroom dynamically removes sold goods before worker catches up
   ---
-  duration_ms: 160.478333
+  duration_ms: 135.841917
   type: 'test'
   ...
 # Subtest: Withdrawal or expiry of rights creates a local source-linked stop even with a Listing
 ok 25 - Withdrawal or expiry of rights creates a local source-linked stop even with a Listing
   ---
-  duration_ms: 507.157541
+  duration_ms: 466.500792
   type: 'test'
   ...
 # Subtest: Old worker event cannot resurrect a sold item; persisted jobs finish after fresh worker starts
 ok 26 - Old worker event cannot resurrect a sold item; persisted jobs finish after fresh worker starts
   ---
-  duration_ms: 2151.512708
+  duration_ms: 1532.387833
   type: 'test'
   ...
 # Subtest: Worker failure preserves durable job for bounded retry rather than claiming success
 ok 27 - Worker failure preserves durable job for bounded retry rather than claiming success
   ---
-  duration_ms: 17.83725
+  duration_ms: 33.302458
   type: 'test'
   ...
-# {"level":"error","requestId":"92839e84-3c08-4ef0-bfb1-c3dcaf52586f","kind":"Fault"}
+# {"level":"error","requestId":"e41becef-1402-47e6-8241-9b8aacf77dfc","kind":"Fault"}
 # Subtest: AI candidate is version-bound and only changes draft; live AI cannot make billable calls
 ok 28 - AI candidate is version-bound and only changes draft; live AI cannot make billable calls
   ---
-  duration_ms: 82.831333
+  duration_ms: 78.518917
   type: 'test'
   ...
 # Subtest: Database protects append-only evidence and composite item anchors
 ok 29 - Database protects append-only evidence and composite item anchors
   ---
-  duration_ms: 100.346416
+  duration_ms: 139.574333
   type: 'test'
   ...
 # Subtest: Revoked access prevents replaying an earlier command response
 ok 30 - Revoked access prevents replaying an earlier command response
   ---
-  duration_ms: 32.97675
+  duration_ms: 35.71375
   type: 'test'
   ...
 # Subtest: Concurrent different items receive distinct complete TM codes
 ok 31 - Concurrent different items receive distinct complete TM codes
   ---
-  duration_ms: 221.025208
+  duration_ms: 230.791083
   type: 'test'
   ...
 # Subtest: Browser fixture uses synthetic-only records and route contract has protected endpoint inventory
 ok 32 - Browser fixture uses synthetic-only records and route contract has protected endpoint inventory
   ---
-  duration_ms: 5.694541
+  duration_ms: 5.662042
   type: 'test'
   ...
 # Subtest: Aliases are searchable, globally exclusive, and cannot occupy TM namespace
 ok 33 - Aliases are searchable, globally exclusive, and cannot occupy TM namespace
   ---
-  duration_ms: 76.741792
+  duration_ms: 108.330416
   type: 'test'
   ...
 # Subtest: A reviewer may declare measurements inapplicable but never waive authentication
 ok 34 - A reviewer may declare measurements inapplicable but never waive authentication
   ---
-  duration_ms: 115.801459
+  duration_ms: 170.614542
   type: 'test'
   ...
 # Subtest: Batch intake preserves originals without manufacturing inventory or approval
 ok 35 - Batch intake preserves originals without manufacturing inventory or approval
   ---
-  duration_ms: 70.76725
+  duration_ms: 71.413875
   type: 'test'
   ...
 # Subtest: Two operators cannot attach one intake original to different physical items
 ok 36 - Two operators cannot attach one intake original to different physical items
   ---
-  duration_ms: 56.048375
+  duration_ms: 69.797166
   type: 'test'
   ...
 # Subtest: Collection rechecks each product and withholds only unavailable entries
 ok 37 - Collection rechecks each product and withholds only unavailable entries
   ---
-  duration_ms: 206.867708
+  duration_ms: 204.550708
   type: 'test'
   ...
 # Subtest: Operations health is authenticated, reports real queue state, and declares infrastructure limits
 ok 38 - Operations health is authenticated, reports real queue state, and declares infrastructure limits
   ---
-  duration_ms: 7.022458
+  duration_ms: 7.149875
   type: 'test'
   ...
 # Subtest: Statement rules require explicit activation and incomplete sales cannot be confirmed
 ok 39 - Statement rules require explicit activation and incomplete sales cannot be confirmed
   ---
-  duration_ms: 150.37425
+  duration_ms: 111.820416
   type: 'test'
   ...
 # Subtest: Statement confirmation detects stale fees and only confirms one immutable snapshot
 ok 40 - Statement confirmation detects stale fees and only confirms one immutable snapshot
   ---
-  duration_ms: 127.569917
+  duration_ms: 124.264292
   type: 'test'
   ...
 # Subtest: Closed transaction currencies cannot move into another statement or currency
 ok 41 - Closed transaction currencies cannot move into another statement or currency
   ---
-  duration_ms: 18.792334
+  duration_ms: 15.156458
   type: 'test'
   ...
 # Subtest: Later refund creates a delta correction without rewriting the closed period
 ok 42 - Later refund creates a delta correction without rewriting the closed period
   ---
-  duration_ms: 124.591042
+  duration_ms: 137.441958
   type: 'test'
   ...
 # Subtest: Statement arithmetic rounds signed minor units once and never combines currencies
 ok 43 - Statement arithmetic rounds signed minor units once and never combines currencies
   ---
-  duration_ms: 92.881125
+  duration_ms: 143.474459
   type: 'test'
   ...
 # Subtest: An expired claim cannot acknowledge a new worker's lease
 ok 44 - An expired claim cannot acknowledge a new worker's lease
   ---
-  duration_ms: 49.748875
+  duration_ms: 65.454917
   type: 'test'
   ...
 # Subtest: Repeated worker crashes reach a bounded failed state, not an infinite reclaim loop
 ok 45 - Repeated worker crashes reach a bounded failed state, not an infinite reclaim loop
   ---
-  duration_ms: 37.527584
+  duration_ms: 40.278584
   type: 'test'
   ...
 # Subtest: A corrupt item cannot starve the bounded expiry sweep
 ok 46 - A corrupt item cannot starve the bounded expiry sweep
   ---
-  duration_ms: 120.582417
+  duration_ms: 153.657417
   type: 'test'
   ...
 # Subtest: Assigned private documents cannot be read through the former intake URL
 ok 47 - Assigned private documents cannot be read through the former intake URL
   ---
-  duration_ms: 210.002625
+  duration_ms: 130.158041
   type: 'test'
   ...
 # Subtest: Channel drafts persist independently without approving or publishing a product
 ok 48 - Channel drafts persist independently without approving or publishing a product
   ---
-  duration_ms: 116.336458
+  duration_ms: 119.057625
   type: 'test'
   ...
 # Subtest: Saving a stale channel draft cannot overwrite another operator's saved content
 ok 49 - Saving a stale channel draft cannot overwrite another operator's saved content
   ---
-  duration_ms: 121.409834
+  duration_ms: 193.378209
   type: 'test'
   ...
 # Subtest: Current channel copy can complete publishing without duplicating it into master description
 ok 50 - Current channel copy can complete publishing without duplicating it into master description
   ---
-  duration_ms: 109.090375
+  duration_ms: 125.329834
   type: 'test'
   ...
 # Subtest: A changed product basis preserves channel text but blocks freezing until explicitly reconciled
 ok 51 - A changed product basis preserves channel text but blocks freezing until explicitly reconciled
   ---
-  duration_ms: 232.439833
+  duration_ms: 237.279583
   type: 'test'
   ...
 # Subtest: Publication selection is item-bound and cannot hide approved defect photos
 ok 52 - Publication selection is item-bound and cannot hide approved defect photos
   ---
-  duration_ms: 207.135959
+  duration_ms: 186.505958
   type: 'test'
   ...
 # Subtest: Archiving preserves originals, invalidates reuse, and restore requires a new image review
 ok 53 - Archiving preserves originals, invalidates reuse, and restore requires a new image review
   ---
-  duration_ms: 142.907834
+  duration_ms: 100.747834
   type: 'test'
   ...
 # Subtest: Image ordering has an explicit expected set and does not overwrite a changed gallery
 ok 54 - Image ordering has an explicit expected set and does not overwrite a changed gallery
   ---
-  duration_ms: 199.209625
+  duration_ms: 124.859417
   type: 'test'
   ...
 # Subtest: Manual publishing download contains ordered JPEGs and separate title/body files; sold copies are refused
 ok 55 - Manual publishing download contains ordered JPEGs and separate title/body files; sold copies are refused
   ---
-  duration_ms: 155.921291
+  duration_ms: 114.154833
   type: 'test'
   ...
 # Subtest: Chinese attribute labels and research values persist, and foreign revision anchors are rejected
 ok 56 - Chinese attribute labels and research values persist, and foreign revision anchors are rejected
   ---
-  duration_ms: 64.616292
+  duration_ms: 39.893708
   type: 'test'
   ...
 # Subtest: Source pagination and server-side search reach older records without treating a page as the whole inventory
 ok 57 - Source pagination and server-side search reach older records without treating a page as the whole inventory
   ---
-  duration_ms: 166.340375
+  duration_ms: 192.200875
   type: 'test'
   ...
 # Subtest: Catalog filters apply before counts and pagination, not only to the visible page
 ok 58 - Catalog filters apply before counts and pagination, not only to the visible page
   ---
-  duration_ms: 47.326583
+  duration_ms: 61.492084
   type: 'test'
   ...
 # Subtest: Empty and out-of-range catalog pages report an accurate reachable page
 ok 59 - Empty and out-of-range catalog pages report an accurate reachable page
   ---
-  duration_ms: 22.999417
+  duration_ms: 35.428209
   type: 'test'
   ...
 # Subtest: Source prefill endpoint preserves supplier facts and requires supply permission
 ok 60 - Source prefill endpoint preserves supplier facts and requires supply permission
   ---
-  duration_ms: 13.794542
+  duration_ms: 17.270167
   type: 'test'
   ...
 # Subtest: Recycle bin hides unused items but preserves identity, originals and invalidates old packages
 ok 61 - Recycle bin hides unused items but preserves identity, originals and invalidates old packages
   ---
-  duration_ms: 289.206875
+  duration_ms: 305.171875
   type: 'test'
   ...
 # Subtest: Deletion requires permission, explicit confirmation and a current item version
 ok 62 - Deletion requires permission, explicit confirmation and a current item version
   ---
-  duration_ms: 44.582792
+  duration_ms: 57.938625
   type: 'test'
   ...
 # Subtest: Sales and cost history cannot be erased through inventory deletion
 ok 63 - Sales and cost history cannot be erased through inventory deletion
   ---
-  duration_ms: 79.793875
+  duration_ms: 75.229791
   type: 'test'
   ...
 # Subtest: Active reservations and listings block deletion until actually resolved
 ok 64 - Active reservations and listings block deletion until actually resolved
   ---
-  duration_ms: 259.718
+  duration_ms: 279.832666
   type: 'test'
   ...
 # Subtest: Deleting versus recording a sale cannot leave a sold item hidden in the recycle bin
 ok 65 - Deleting versus recording a sale cannot leave a sold item hidden in the recycle bin
   ---
-  duration_ms: 56.605583
+  duration_ms: 42.96
   type: 'test'
   ...
 # Subtest: Deletion replay does not duplicate audit or re-delete a later restored item
 ok 66 - Deletion replay does not duplicate audit or re-delete a later restored item
   ---
-  duration_ms: 72.544583
+  duration_ms: 78.202417
   type: 'test'
   ...
 # Subtest: Deleted source items cannot be re-adopted and old events cannot revive deleted stock
 ok 67 - Deleted source items cannot be re-adopted and old events cannot revive deleted stock
   ---
-  duration_ms: 86.854375
+  duration_ms: 109.485083
   type: 'test'
   ...
 # Subtest: Database constraint rejects reopening a deleted item even outside the ordinary state endpoint
 ok 68 - Database constraint rejects reopening a deleted item even outside the ordinary state endpoint
   ---
-  duration_ms: 48.174542
+  duration_ms: 53.366458
   type: 'test'
   ...
 # Subtest: Dictionary aliases resolve to one identity and unregistered brand text is rejected
 ok 69 - Dictionary aliases resolve to one identity and unregistered brand text is rejected
   ---
-  duration_ms: 60.81475
+  duration_ms: 62.675334
   type: 'test'
   ...
 # Subtest: Condition choices use exactly the five VC labels and cannot be redefined as percent grades
 ok 70 - Condition choices use exactly the five VC labels and cannot be redefined as percent grades
   ---
-  duration_ms: 12.631334
+  duration_ms: 18.252916
   type: 'test'
   ...
 # Subtest: Dictionary management has fresh permission checks and case-normalized alias uniqueness
 ok 71 - Dictionary management has fresh permission checks and case-normalized alias uniqueness
   ---
-  duration_ms: 18.704625
+  duration_ms: 36.560625
   type: 'test'
   ...
 # Subtest: Typed selections persist with product snapshots, filtering, and English condition copy
 ok 72 - Typed selections persist with product snapshots, filtering, and English condition copy
   ---
-  duration_ms: 116.083583
+  duration_ms: 162.806291
   type: 'test'
   ...
 # Subtest: Disabling a used dictionary entry preserves prior selections but rejects new use
 ok 73 - Disabling a used dictionary entry preserves prior selections but rejects new use
   ---
-  duration_ms: 76.585542
+  duration_ms: 95.595833
   type: 'test'
   ...
 # Subtest: Renaming a dictionary does not rewrite approved product snapshots
 ok 74 - Renaming a dictionary does not rewrite approved product snapshots
   ---
-  duration_ms: 97.223959
+  duration_ms: 123.167083
   type: 'test'
   ...
 # Subtest: Readable logs preserve access control and expose human operation and task descriptions
 ok 75 - Readable logs preserve access control and expose human operation and task descriptions
   ---
-  duration_ms: 32.741083
+  duration_ms: 54.043
   type: 'test'
   ...
 # Subtest: Test scope is explicit, admin-only and not editable through ordinary item patches
 ok 76 - Test scope is explicit, admin-only and not editable through ordinary item patches
   ---
-  duration_ms: 49.738417
+  duration_ms: 39.267291
   type: 'test'
   ...
 # Subtest: Test cleanup preserves simulated sales, refunds, costs and originals while excluding business totals
 ok 77 - Test cleanup preserves simulated sales, refunds, costs and originals while excluding business totals
   ---
-  duration_ms: 328.856042
+  duration_ms: 235.271708
   type: 'test'
   ...
 # Subtest: Test cleanup rejects missing declarations, wrong identities, revoked roles and changed previews
 ok 78 - Test cleanup rejects missing declarations, wrong identities, revoked roles and changed previews
   ---
-  duration_ms: 88.099625
+  duration_ms: 52.783625
   type: 'test'
   ...
 # Subtest: Concurrent test cleanup and sale cannot silently turn a new actual-operation record into a test record
 ok 79 - Concurrent test cleanup and sale cannot silently turn a new actual-operation record into a test record
   ---
-  duration_ms: 46.980125
+  duration_ms: 44.462917
   type: 'test'
   ...
 # Subtest: Test inventory is never exposed through public showroom or public image endpoints
 ok 80 - Test inventory is never exposed through public showroom or public image endpoints
   ---
-  duration_ms: 190.465125
+  duration_ms: 95.359167
   type: 'test'
   ...
 # Subtest: Isolating a simulated confirmed sale preserves the old statement and supports an explicit correction
 ok 81 - Isolating a simulated confirmed sale preserves the old statement and supports an explicit correction
   ---
-  duration_ms: 215.823833
+  duration_ms: 147.15025
   type: 'test'
   ...
 # Subtest: Audit search understands operator names, product names and human TM codes
 ok 82 - Audit search understands operator names, product names and human TM codes
   ---
-  duration_ms: 100.355625
+  duration_ms: 47.949
   type: 'test'
   ...
 # Subtest: Studio preview works before approval but does not publish or silently verify anything
 ok 83 - Studio preview works before approval but does not publish or silently verify anything
   ---
-  duration_ms: 133.338708
+  duration_ms: 43.010125
   type: 'test'
   ...
 # Subtest: Studio review combines explicit selection and shared item approval in one atomic audited command
 ok 84 - Studio review combines explicit selection and shared item approval in one atomic audited command
   ---
-  duration_ms: 95.876291
+  duration_ms: 93.574416
   type: 'test'
   ...
 # Subtest: Studio review refuses operator authority, changed metadata and foreign-item image substitutions
 ok 85 - Studio review refuses operator authority, changed metadata and foreign-item image substitutions
   ---
-  duration_ms: 104.920292
+  duration_ms: 109.400125
   type: 'test'
   ...
 # Subtest: Studio cannot promote revoked, expired, AI or reference images through the shorter flow
 ok 86 - Studio cannot promote revoked, expired, AI or reference images through the shorter flow
   ---
-  duration_ms: 212.382833
+  duration_ms: 230.820833
   type: 'test'
   ...
 # Subtest: Studio review cannot omit marked defects and does not overwrite existing authorized image evidence
 ok 87 - Studio review cannot omit marked defects and does not overwrite existing authorized image evidence
   ---
-  duration_ms: 122.064292
+  duration_ms: 77.770875
   type: 'test'
   ...
 # Subtest: 采购订单保留TRR原始事实，不把平台状态和价格偷换成本地库存或成本
 ok 88 - 采购订单保留TRR原始事实，不把平台状态和价格偷换成本地库存或成本
   ---
-  duration_ms: 153.883125
+  duration_ms: 89.574292
   type: 'test'
   ...
 # Subtest: 采购订单行只有人工确认在手且纳入经营后才能进入货源池，并自动关联TM
 ok 89 - 采购订单行只有人工确认在手且纳入经营后才能进入货源池，并自动关联TM
   ---
-  duration_ms: 156.762584
+  duration_ms: 127.54625
   type: 'test'
   ...
 # Subtest: 人民币采购成本必须人工确认，不能从美元订单金额或平台现价自动生成
 ok 90 - 人民币采购成本必须人工确认，不能从美元订单金额或平台现价自动生成
   ---
-  duration_ms: 128.216458
+  duration_ms: 106.229375
   type: 'test'
   ...
 # Subtest: 采购来源再次导入只更新来源事实，保留人工经营判断并追加修订
 ok 91 - 采购来源再次导入只更新来源事实，保留人工经营判断并追加修订
   ---
-  duration_ms: 135.907292
+  duration_ms: 122.582917
   type: 'test'
   ...
 # Subtest: 取消、RMA和平台Sold均只保留为来源事实，不自动改变本地库存
 ok 92 - 取消、RMA和平台Sold均只保留为来源事实，不自动改变本地库存
   ---
-  duration_ms: 80.858292
+  duration_ms: 55.923833
   type: 'test'
   ...
 # Subtest: v1.3 标准 Agent 协议校验 Skill/Profile、显式纠错目录，且服务端 Profile 必查项不能被 Manifest 降低
 ok 93 - v1.3 标准 Agent 协议校验 Skill/Profile、显式纠错目录，且服务端 Profile 必查项不能被 Manifest 降低
   ---
-  duration_ms: 320.526041
+  duration_ms: 298.412417
   type: 'test'
   ...
 # Subtest: TRR/1.4 将展示尺码、标签原始尺码、估算标记与无时分秒购买日期分开，并保留TRR/1.3历史批次
 ok 94 - TRR/1.4 将展示尺码、标签原始尺码、估算标记与无时分秒购买日期分开，并保留TRR/1.3历史批次
   ---
-  duration_ms: 248.201375
+  duration_ms: 233.424208
   type: 'test'
   ...
 # Subtest: TRR/1.3 订单来源事实可前向回填到1.4，保留旧字段并继续校验购买日期
 ok 95 - TRR/1.3 订单来源事实可前向回填到1.4，保留旧字段并继续校验购买日期
   ---
-  duration_ms: 203.510834
+  duration_ms: 171.8715
   type: 'test'
   ...
 # Subtest: 外部Agent按目标字段选择、格式化并标注置信度，来源完整性与人工确认边界保持独立
 ok 96 - 外部Agent按目标字段选择、格式化并标注置信度，来源完整性与人工确认边界保持独立
   ---
-  duration_ms: 213.400959
+  duration_ms: 161.349792
   type: 'test'
   ...
 # Subtest: 品牌治理预览与批量绑定逐件校验来源、版本和字典，并保留人工建议与重导结果
 ok 97 - 品牌治理预览与批量绑定逐件校验来源、版本和字典，并保留人工建议与重导结果
   ---
-  duration_ms: 476.595791
+  duration_ms: 405.496042
   type: 'test'
   ...
 # Subtest: 新候选的来源成色不产生行动警告，历史提示仍存储可追溯
 ok 98 - 新候选的来源成色不产生行动警告，历史提示仍存储可追溯
   ---
-  duration_ms: 175.251375
+  duration_ms: 273.118083
   type: 'test'
   ...
 # Subtest: 误排除候选必须带原因恢复为待确认，并保留采购行、审计与幂等边界
 ok 99 - 误排除候选必须带原因恢复为待确认，并保留采购行、审计与幂等边界
   ---
-  duration_ms: 238.591083
+  duration_ms: 235.685583
   type: 'test'
   ...
 # Subtest: v1.3 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实
 ok 100 - v1.3 薄 MCP 只复用 IngestService，和 HTTP 写出相同候选事实
   ---
-  duration_ms: 350.422959
+  duration_ms: 269.435042
   type: 'test'
   ...
 # Subtest: v1.3 确定性 tome-ingest CLI 重启后复用本地幂等状态且不保存 Token
 ok 101 - v1.3 确定性 tome-ingest CLI 重启后复用本地幂等状态且不保存 Token
   ---
-  duration_ms: 253.886875
+  duration_ms: 336.218458
   type: 'test'
   ...
 # Subtest: v1 Agent短期Token只能写采集层，重复抓取和显式来源纠错只追加修订不制造TM
 ok 102 - v1 Agent短期Token只能写采集层，重复抓取和显式来源纠错只追加修订不制造TM
   ---
-  duration_ms: 344.494208
+  duration_ms: 362.287625
   type: 'test'
   ...
 # Subtest: v1 Agent候选图片持久入库，封批后禁止继续写，重复上传不重复候选素材
 ok 103 - v1 Agent候选图片持久入库，封批后禁止继续写，重复上传不重复候选素材
   ---
-  duration_ms: 236.563541
+  duration_ms: 350.556625
   type: 'test'
   ...
 # Subtest: 已关联正式TM的候选图片不能由后续机器纠错撤下
 ok 104 - 已关联正式TM的候选图片不能由后续机器纠错撤下
   ---
-  duration_ms: 386.115375
+  duration_ms: 349.230875
   type: 'test'
   ...
 # Subtest: v1 批量确认把候选一次生成TM，来源Sold/Excellent/颜色不污染本地库存与标准字段
 ok 105 - v1 批量确认把候选一次生成TM，来源Sold/Excellent/颜色不污染本地库存与标准字段
   ---
-  duration_ms: 507.642791
+  duration_ms: 443.314875
   type: 'test'
   ...
 # Subtest: v1 未识别品牌不会阻断生成TM，标准品牌留空而原始品牌完整保存在来源证据
 ok 106 - v1 未识别品牌不会阻断生成TM，标准品牌留空而原始品牌完整保存在来源证据
   ---
-  duration_ms: 315.297833
+  duration_ms: 255.126667
   type: 'test'
   ...
 # Subtest: v1 TRR成本按逐件折后金额分摊经济支付价值并均摊每单¥200，最终人民币成本严格闭合
 ok 107 - v1 TRR成本按逐件折后金额分摊经济支付价值并均摊每单¥200，最终人民币成本严格闭合
   ---
-  duration_ms: 639.951875
+  duration_ms: 447.505084
   type: 'test'
   ...
 # Subtest: v1 RMA或排除商品时自动成本被阻断，必须人工确认本单最终经济支付金额
 ok 108 - v1 RMA或排除商品时自动成本被阻断，必须人工确认本单最终经济支付金额
   ---
-  duration_ms: 545.01475
+  duration_ms: 389.326875
   type: 'test'
   ...
 # Subtest: v1 售出自动冻结当时人民币成本，后续采购成本重算不反改历史成交
 ok 109 - v1 售出自动冻结当时人民币成本，后续采购成本重算不反改历史成交
   ---
-  duration_ms: 658.917167
+  duration_ms: 634.697167
   type: 'test'
   ...
 # Subtest: Credit退款无RMA仍须核对，净支付只扣一次且不反改售出快照
 ok 110 - Credit退款无RMA仍须核对，净支付只扣一次且不反改售出快照
   ---
-  duration_ms: 838.649875
+  duration_ms: 1175.577958
   type: 'test'
   ...
 # Subtest: 成本的现金与确认汇率模式遵守同一Credit规则，混币种拒绝合计
 ok 111 - 成本的现金与确认汇率模式遵守同一Credit规则，混币种拒绝合计
   ---
-  duration_ms: 494.421875
+  duration_ms: 414.29675
   type: 'test'
   ...
 # Subtest: Cost Batch：一个请求返回当前页各订单的同一成本预览
 ok 112 - Cost Batch：一个请求返回当前页各订单的同一成本预览
   ---
-  duration_ms: 237.511792
+  duration_ms: 139.987333
   type: 'test'
   ...
 # Subtest: v1 经营行动中心统一投影候选、任务、询盘、成交补账和事实冲突，并按角色收口敏感事项
 ok 113 - v1 经营行动中心统一投影候选、任务、询盘、成交补账和事实冲突，并按角色收口敏感事项
   ---
-  duration_ms: 367.391625
+  duration_ms: 252.474125
   type: 'test'
   ...
 # Subtest: 询盘下次跟进时间驱动待办，逾期优先且结束状态清空日程
 ok 114 - 询盘下次跟进时间驱动待办，逾期优先且结束状态清空日程
   ---
-  duration_ms: 173.070083
+  duration_ms: 139.906041
   type: 'test'
   ...
 # Subtest: v1.0.0-rc.3 同图候选阻止静默重复建TM，可人工关联已有TM或明确覆盖新建
 ok 115 - v1.0.0-rc.3 同图候选阻止静默重复建TM，可人工关联已有TM或明确覆盖新建
   ---
-  duration_ms: 1514.760208
+  duration_ms: 951.864083
   type: 'test'
   ...
 # Subtest: 导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且原文件与权限保留
 ok 116 - 导入清单拒绝漏件漏原图和错误尺寸，缺项单件确认且原文件与权限保留
   ---
-  duration_ms: 407.881208
+  duration_ms: 480.770792
   type: 'test'
   ...
 # Subtest: 再次稀疏导入保留已采集来源和人工建议，批量确认拒绝过期版本
 ok 117 - 再次稀疏导入保留已采集来源和人工建议，批量确认拒绝过期版本
   ---
-  duration_ms: 440.65675
+  duration_ms: 406.491417
   type: 'test'
   ...
 # Subtest: 多平台异构字段与无订单门店来源共用协议，来源身份隔离且关联不覆盖TM
 ok 118 - 多平台异构字段与无订单门店来源共用协议，来源身份隔离且关联不覆盖TM
   ---
-  duration_ms: 502.348459
+  duration_ms: 474.146708
   type: 'test'
   ...
 # Subtest: 询盘精确定位绕过列表上限但保留TEST隔离和角色权限
 ok 119 - 询盘精确定位绕过列表上限但保留TEST隔离和角色权限
   ---
-  duration_ms: 162.945833
+  duration_ms: 162.658542
   type: 'test'
   ...
 # Subtest: 完整经营检索先排序筛选再分页，旧事项与紧急下架都可达
 ok 120 - 完整经营检索先排序筛选再分页，旧事项与紧急下架都可达
   ---
-  duration_ms: 70.146125
+  duration_ms: 83.016042
   type: 'test'
   ...
 # Subtest: Launch Closure workflow scale：全局待确认商品不受首屏限制，旧 PREPARE 不进入队列
 ok 121 - Launch Closure workflow scale：全局待确认商品不受首屏限制，旧 PREPARE 不进入队列
   ---
-  duration_ms: 370.286209
+  duration_ms: 354.891709
   type: 'test'
   ...
 # Subtest: 经营账1001笔全量汇总导出和分页保持日期客户币种与精确成交一致
 ok 122 - 经营账1001笔全量汇总导出和分页保持日期客户币种与精确成交一致
   ---
-  duration_ms: 366.924042
+  duration_ms: 261.403541
   type: 'test'
   ...
 # Subtest: 询盘并发写入阻断旧版本，重试保留逐次沟通历史且库存不变
 ok 123 - 询盘并发写入阻断旧版本，重试保留逐次沟通历史且库存不变
   ---
-  duration_ms: 111.585708
+  duration_ms: 82.676083
   type: 'test'
   ...
 # Subtest: 渠道版本维护保护冻结快照与权限，停用后资料不可再取用且发布分离TEST
 ok 124 - 渠道版本维护保护冻结快照与权限，停用后资料不可再取用且发布分离TEST
   ---
-  duration_ms: 323.049709
+  duration_ms: 318.195
   type: 'test'
   ...
 # Subtest: 选品预检集中返回缺项且不写资料包，权限及TEST边界保留
 ok 125 - 选品预检集中返回缺项且不写资料包，权限及TEST边界保留
   ---
-  duration_ms: 166.418167
+  duration_ms: 636.757042
   type: 'test'
   ...
 # Subtest: 询盘变更使旧清理预览失效并保留沟通与正式商品
 ok 126 - 询盘变更使旧清理预览失效并保留沟通与正式商品
   ---
-  duration_ms: 66.496375
+  duration_ms: 84.032333
   type: 'test'
   ...
 # Subtest: 归档原图保留原文件哈希，归入内部凭证后原图和预览同时限制财务权限
 ok 127 - 归档原图保留原文件哈希，归入内部凭证后原图和预览同时限制财务权限
   ---
-  duration_ms: 61.332417
+  duration_ms: 51.890291
   type: 'test'
   ...
 # Subtest: 货源池用来源名称和原货号找到已关联TM，不把多来源关系误判为待建档
 ok 128 - 货源池用来源名称和原货号找到已关联TM，不把多来源关系误判为待建档
   ---
-  duration_ms: 293.333417
+  duration_ms: 260.215875
   type: 'test'
   ...
 # Subtest: 商品资料库：零成本与未知分开，尺码位置来源及缺项组合在分页前过滤
 ok 129 - 商品资料库：零成本与未知分开，尺码位置来源及缺项组合在分页前过滤
   ---
-  duration_ms: 121.59625
+  duration_ms: 110.587083
   type: 'test'
   ...
 # Subtest: 商品资料库：批量逐件缺项依据绑定版本且不绕过漏图或同图身份检查
 ok 130 - 商品资料库：批量逐件缺项依据绑定版本且不绕过漏图或同图身份检查
   ---
-  duration_ms: 404.81575
+  duration_ms: 274.459667
   type: 'test'
   ...
 # Subtest: 商品资料库：跨批次补采保留历史成员与封存检查，候选只生成同一TM
 ok 131 - 商品资料库：跨批次补采保留历史成员与封存检查，候选只生成同一TM
   ---
-  duration_ms: 313.691209
+  duration_ms: 234.98625
   type: 'test'
   ...
 # Subtest: 商品资料库：通用资料包含逐件文字和原文件，金额单位清楚且默认不含内部资料
 ok 132 - 商品资料库：通用资料包含逐件文字和原文件，金额单位清楚且默认不含内部资料
   ---
-  duration_ms: 474.629792
+  duration_ms: 232.826917
   type: 'test'
   ...
 # Subtest: 商品资料库：补图、已售和删除改变资料包，旧包不能继续下载且清理摘要检测新依赖
 ok 133 - 商品资料库：补图、已售和删除改变资料包，旧包不能继续下载且清理摘要检测新依赖
   ---
-  duration_ms: 594.320916
+  duration_ms: 267.826292
   type: 'test'
   ...
 # Subtest: 商品资料库：500件按批处理后可重试，明确版本和身份保护保持生效
 ok 134 - 商品资料库：500件按批处理后可重试，明确版本和身份保护保持生效
   ---
-  duration_ms: 37989.708042
+  duration_ms: 20209.9285
   type: 'test'
   ...
 # Subtest: 商品资料库：内部导出重放重新核验财务权限，测试范围与内部凭证不泄露
 ok 135 - 商品资料库：内部导出重放重新核验财务权限，测试范围与内部凭证不泄露
   ---
-  duration_ms: 415.881458
+  duration_ms: 307.576375
   type: 'test'
   ...
 # Subtest: 图片重试只持久化一次，相同命令不同图片冲突且没有新文件
 ok 136 - 图片重试只持久化一次，相同命令不同图片冲突且没有新文件
   ---
-  duration_ms: 475.675292
+  duration_ms: 377.717125
   type: 'test'
   ...
-# {"level":"error","requestId":"83f845d5-9d79-4aa8-baf7-fdbeef6ebb90","kind":"PrismaClientUnknownRequestError"}
-# {"level":"error","requestId":"69bcf0d3-b31d-49e3-93c4-bd00c2443b09","kind":"Error"}
+# {"level":"error","requestId":"b95f5339-9594-4455-8da9-f9eb896d0165","kind":"PrismaClientUnknownRequestError"}
+# {"level":"error","requestId":"f1e15f7e-b8d8-4de6-9c79-04c1d703145c","kind":"Error"}
 # Subtest: 图片数据库回滚及预览写盘失败均不留下半套文件
 ok 137 - 图片数据库回滚及预览写盘失败均不留下半套文件
   ---
-  duration_ms: 362.126959
+  duration_ms: 230.421667
   type: 'test'
   ...
 # Subtest: 孤儿扫描默认只读，保留 Asset/Intake/Candidate 引用及年轻文件
 ok 138 - 孤儿扫描默认只读，保留 Asset/Intake/Candidate 引用及年轻文件
   ---
-  duration_ms: 173.971042
+  duration_ms: 89.516166
   type: 'test'
   ...
 # Subtest: 登录和当前会话能力来自后端权限，角色变化撤销旧会话
 ok 139 - 登录和当前会话能力来自后端权限，角色变化撤销旧会话
   ---
-  duration_ms: 968.662125
+  duration_ms: 544.510167
   type: 'test'
   ...
 # Subtest: Distribution Intent：经营目标只记录交易意图并保留同平台确认、审计与幂等
 ok 140 - Distribution Intent：经营目标只记录交易意图并保留同平台确认、审计与幂等
   ---
-  duration_ms: 876.404833
+  duration_ms: 454.929459
   type: 'test'
   ...
 # Subtest: Distribution Foundation：渠道配置、会话令牌和同包计划保持受限且不落明文
 ok 141 - Distribution Foundation：渠道配置、会话令牌和同包计划保持受限且不落明文
   ---
-  duration_ms: 436.087291
+  duration_ms: 220.250958
   type: 'test'
   ...
 # Subtest: 标准分发交付合同：冻结资料、薄 MCP、渠道隔离与人工核对保持受控
 ok 142 - 标准分发交付合同：冻结资料、薄 MCP、渠道隔离与人工核对保持受控
   ---
-  duration_ms: 1801.225875
+  duration_ms: 1087.453208
   type: 'test'
   ...
 # Subtest: Distribution Handoff Closure：发现合同、AnQi 回执、兼容开关与动态核对均不替代外部执行
 ok 143 - Distribution Handoff Closure：发现合同、AnQi 回执、兼容开关与动态核对均不替代外部执行
   ---
-  duration_ms: 1926.346375
+  duration_ms: 776.098959
   type: 'test'
   ...
 # Subtest: Distribution Foundation：并发领取、过期租约与失败重试只复用同一执行事实
 ok 144 - Distribution Foundation：并发领取、过期租约与失败重试只复用同一执行事实
   ---
-  duration_ms: 625.487084
+  duration_ms: 385.309583
   type: 'test'
   ...
 # Subtest: Distribution Foundation：UNKNOWN 必须复核原 Attempt，成功可无远端ID，稳定ID才创建 Listing
 ok 145 - Distribution Foundation：UNKNOWN 必须复核原 Attempt，成功可无远端ID，稳定ID才创建 Listing
   ---
-  duration_ms: 715.357166
+  duration_ms: 532.616208
   type: 'test'
   ...
 # Subtest: Distribution handoff：人工核对与资料指纹防止重复交付
 ok 146 - Distribution handoff：人工核对与资料指纹防止重复交付
   ---
-  duration_ms: 843.328666
+  duration_ms: 649.775209
   type: 'test'
   ...
 # Subtest: Distribution stop records：不可继续出售状态绑定发布代际且恢复不自动重发
 ok 147 - Distribution stop records：不可继续出售状态绑定发布代际且恢复不自动重发
   ---
-  duration_ms: 2236.878417
+  duration_ms: 2164.80475
   type: 'test'
   ...
 # Subtest: Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号快照均不伪造历史
 ok 148 - Distribution Foundation：人工无ID结果和 Sale/Inquiry 渠道账号快照均不伪造历史
   ---
-  duration_ms: 289.513291
+  duration_ms: 228.30075
   type: 'test'
   ...
 # Subtest: Real Operations：ChannelPrice 解析冻结到使用包，默认价不覆盖渠道价
 ok 149 - Real Operations：ChannelPrice 解析冻结到使用包，默认价不覆盖渠道价
   ---
-  duration_ms: 448.272333
+  duration_ms: 333.163625
   type: 'test'
   ...
 # Subtest: 渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种
 ok 150 - 渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种
   ---
-  duration_ms: 322.128167
+  duration_ms: 253.311792
   type: 'test'
   ...
 # Subtest: 成交币种保留询盘和渠道事实，外币不自动写人民币成本
 ok 151 - 成交币种保留询盘和渠道事实，外币不自动写人民币成本
   ---
-  duration_ms: 706.969292
+  duration_ms: 516.14925
   type: 'test'
   ...
 # Subtest: Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发布渠道计划下架
 ok 152 - Real Operations：Inquiry 转成交原子停售并为无 Listing 的已发布渠道计划下架
   ---
-  duration_ms: 462.275667
+  duration_ms: 412.564125
   type: 'test'
   ...
 # Subtest: Real Operations：售出与迟到发布成功交错时仍生成去重下架执行
 ok 153 - Real Operations：售出与迟到发布成功交错时仍生成去重下架执行
   ---
-  duration_ms: 296.316542
+  duration_ms: 216.529125
   type: 'test'
   ...
 # Subtest: Real Operations：批量批准预检保留逐件版本与证据阻断
 ok 154 - Real Operations：批量批准预检保留逐件版本与证据阻断
   ---
-  duration_ms: 103.78525
+  duration_ms: 62.751333
   type: 'test'
   ...
 # Subtest: Real Operations：工作队列优先已售下架、未知分发和客户跟进
 ok 155 - Real Operations：工作队列优先已售下架、未知分发和客户跟进
   ---
-  duration_ms: 446.276292
+  duration_ms: 494.095042
   type: 'test'
   ...
 # Subtest: Operations cleanup：超时Handoff进入统一待办，外币成交显示结算依据而非人民币成本
 ok 156 - Operations cleanup：超时Handoff进入统一待办，外币成交显示结算依据而非人民币成本
   ---
-  duration_ms: 1015.333292
+  duration_ms: 794.774834
   type: 'test'
   ...
 # Subtest: Distribution 经营投影：动态区分资料、交付、发布、更新、停售和异常并先筛选后分页
 ok 157 - Distribution 经营投影：动态区分资料、交付、发布、更新、停售和异常并先筛选后分页
   ---
-  duration_ms: 1492.100208
+  duration_ms: 1116.400958
   type: 'test'
   ...
 # Subtest: AnQiCMS 标准交付合同：受限会话以脱敏本地资料覆盖建页、archive ID 更新与售出保页
 ok 158 - AnQiCMS 标准交付合同：受限会话以脱敏本地资料覆盖建页、archive ID 更新与售出保页
   ---
-  duration_ms: 1535.398292
+  duration_ms: 633.700541
   type: 'test'
   ...
 # Subtest: Publication Health：无稳定远端ID的成功发布按当前经营事实判定，而非使用包TTL
 ok 159 - Publication Health：无稳定远端ID的成功发布按当前经营事实判定，而非使用包TTL
   ---
-  duration_ms: 2136.176042
+  duration_ms: 1368.974917
   type: 'test'
   ...
 # Subtest: Publication stop scope：停用渠道只交付未完成停售，回收站不忽略无ID远端暴露
 ok 160 - Publication stop scope：停用渠道只交付未完成停售，回收站不忽略无ID远端暴露
   ---
-  duration_ms: 1467.265167
+  duration_ms: 1001.269958
   type: 'test'
   ...
 # Subtest: Distribution generation guard：关闭经营目标会取消未交付发布，旧停售未核对前不得重新发布
 ok 161 - Distribution generation guard：关闭经营目标会取消未交付发布，旧停售未核对前不得重新发布
   ---
-  duration_ms: 514.024458
+  duration_ms: 263.868792
   type: 'test'
   ...
 # Subtest: Distribution remote identity guard：UPDATE 不得把同一商品静默变成第二个远端商品
 ok 162 - Distribution remote identity guard：UPDATE 不得把同一商品静默变成第二个远端商品
   ---
-  duration_ms: 517.699333
+  duration_ms: 341.5415
   type: 'test'
   ...
 # Subtest: Distribution target/profile guard：历史在线暴露参与同平台确认，停用空目标不污染投影，OTHER 有标准 Profile
 ok 163 - Distribution target/profile guard：历史在线暴露参与同平台确认，停用空目标不污染投影，OTHER 有标准 Profile
   ---
-  duration_ms: 461.19475
+  duration_ms: 260.744958
   type: 'test'
   ...
 # Subtest: Distribution legacy edge：历史 CANCELLED 事实保留但新的发布仍须明确Target，同平台进行中交付也要求确认
 ok 164 - Distribution legacy edge：历史 CANCELLED 事实保留但新的发布仍须明确Target，同平台进行中交付也要求确认
   ---
-  duration_ms: 467.925209
+  duration_ms: 317.66325
   type: 'test'
   ...
 # Subtest: Distribution legacy stop：没有专用发布 Profile 的停用/内容渠道仍可取得 GENERIC_STOP 合同完成历史停售
 ok 165 - Distribution legacy stop：没有专用发布 Profile 的停用/内容渠道仍可取得 GENERIC_STOP 合同完成历史停售
   ---
-  duration_ms: 151.201
+  duration_ms: 114.820958
   type: 'test'
   ...
 # Subtest: Ingest credential security：Token只显示一次、Receipt不保存明文且会话列表不暴露tokenHash
 ok 166 - Ingest credential security：Token只显示一次、Receipt不保存明文且会话列表不暴露tokenHash
   ---
-  duration_ms: 56.746
+  duration_ms: 32.587291
   type: 'test'
   ...
 # Subtest: Ingest credential security：创建者权限或来源失效会立即撤销机器会话
 ok 167 - Ingest credential security：创建者权限或来源失效会立即撤销机器会话
   ---
-  duration_ms: 690.759375
+  duration_ms: 162.913166
   type: 'test'
   ...
 # Subtest: Ingest credential security：宽松来源事实拒绝凭据字段与带签名URL
 ok 168 - Ingest credential security：宽松来源事实拒绝凭据字段与带签名URL
   ---
-  duration_ms: 254.801708
+  duration_ms: 106.771042
   type: 'test'
   ...
 # Subtest: 采购来源默认币种更正只影响后续缺省候选，3,422件TRR-1历史候选和成本事实保持不变
 ok 169 - 采购来源默认币种更正只影响后续缺省候选，3,422件TRR-1历史候选和成本事实保持不变
   ---
-  duration_ms: 28458.097042
+  duration_ms: 22853.332917
   type: 'test'
   ...
 1..169
@@ -1498,397 +1498,401 @@ ok 169 - 采购来源默认币种更正只影响后续缺省候选，3,422件TRR
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 124235.212167
+# duration_ms 88689.201084
 
 > tome-workbench@1.1.0-rc.13 test:browser
 > playwright test
 
 
-Running 182 tests using 1 worker
+Running 184 tests using 1 worker
 
-(node:10261) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:14634) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:10261) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:14634) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✓    1 test/browser/arco-workspace.spec.cjs:36:1 › 选择商品和操作菜单不擦除尚未提交的筛选输入，键盘可继续筛选 (3.0s)
-  ✓    2 test/browser/arco-workspace.spec.cjs:82:1 › 完整编辑遇到并发改价后保留中文草稿，合并仍需主动保存 (1.4s)
-  ✓    3 test/browser/arco-workspace.spec.cjs:124:3 › 1440px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (3.7s)
-  ✓    4 test/browser/arco-workspace.spec.cjs:124:3 › 390px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (4.7s)
-  ✓    5 test/browser/arco-workspace.spec.cjs:218:3 › 1440px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.3s)
-  ✓    6 test/browser/arco-workspace.spec.cjs:218:3 › 390px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.0s)
-  ✓    7 test/browser/dictionaries.spec.cjs:51:1 › 录商品直接选择品牌、国际成色、颜色与材质，保存后筛选到同一件 (2.1s)
-  ✓    8 test/browser/dictionaries.spec.cjs:101:1 › 录货中新增缺少的品牌，原商品输入不丢且新选项立即可选 (845ms)
-  ✓    9 test/browser/dictionaries.spec.cjs:124:1 › 字典维护可编辑和停用，重复别名有明确提示 (1.1s)
-  ✓   10 test/browser/dictionaries.spec.cjs:150:1 › 大量品牌时通过服务器搜索找到首批选项之外的品牌 (1.6s)
-  ✓   11 test/browser/dictionaries.spec.cjs:177:1 › 成色只显示VC五级与说明，不要求填写九成新或程序编码 (379ms)
-  ✓   12 test/browser/dictionaries.spec.cjs:195:1 › 操作记录与失败任务默认展示中文，不把JSON放在主表格 (536ms)
-  ✓   13 test/browser/dictionaries.spec.cjs:212:1 › 只搜索未选择品牌时明确提示，不能把搜索词当作已保存的选项 (1.0s)
+  ✓    1 test/browser/arco-workspace.spec.cjs:36:1 › 选择商品和操作菜单不擦除尚未提交的筛选输入，键盘可继续筛选 (1.8s)
+  ✓    2 test/browser/arco-workspace.spec.cjs:82:1 › 完整编辑遇到并发改价后保留中文草稿，合并仍需主动保存 (1.1s)
+  ✓    3 test/browser/arco-workspace.spec.cjs:124:3 › 1440px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (3.1s)
+  ✓    4 test/browser/arco-workspace.spec.cjs:124:3 › 390px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (3.2s)
+  ✓    5 test/browser/arco-workspace.spec.cjs:218:3 › 1440px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.1s)
+  ✓    6 test/browser/arco-workspace.spec.cjs:218:3 › 390px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.2s)
+  ✓    7 test/browser/dictionaries.spec.cjs:51:1 › 录商品直接选择品牌、国际成色、颜色与材质，保存后筛选到同一件 (1.8s)
+  ✓    8 test/browser/dictionaries.spec.cjs:101:1 › 录货中新增缺少的品牌，原商品输入不丢且新选项立即可选 (762ms)
+  ✓    9 test/browser/dictionaries.spec.cjs:124:1 › 字典维护可编辑和停用，重复别名有明确提示 (1.0s)
+  ✓   10 test/browser/dictionaries.spec.cjs:150:1 › 大量品牌时通过服务器搜索找到首批选项之外的品牌 (1.7s)
+  ✓   11 test/browser/dictionaries.spec.cjs:177:1 › 成色只显示VC五级与说明，不要求填写九成新或程序编码 (363ms)
+  ✓   12 test/browser/dictionaries.spec.cjs:195:1 › 操作记录与失败任务默认展示中文，不把JSON放在主表格 (537ms)
+  ✓   13 test/browser/dictionaries.spec.cjs:212:1 › 只搜索未选择品牌时明确提示，不能把搜索词当作已保存的选项 (935ms)
   ✓   14 test/browser/dictionaries.spec.cjs:234:1 › 手机录货选择国际成色并保存，新增选项入口不遮挡提交 (1.1s)
-  ✓   15 test/browser/dictionaries.spec.cjs:261:1 › 测试商品从建档即分区，保存返回测试列表，不混入正式商品 (659ms)
-  ✓   16 test/browser/dictionaries.spec.cjs:284:1 › 有模拟成交也能从删除窗口清理，保留历史金额并显示测试成交 (1.2s)
+  ✓   15 test/browser/dictionaries.spec.cjs:261:1 › 测试商品从建档即分区，保存返回测试列表，不混入正式商品 (623ms)
+  ✓   16 test/browser/dictionaries.spec.cjs:284:1 › 有模拟成交也能从删除窗口清理，保留历史金额并显示测试成交 (1.0s)
   ✓   17 test/browser/dictionaries.spec.cjs:331:1 › 批量改品牌只影响勾选商品与指定字段，版本冲突单独显示 (1.5s)
-  ✓   18 test/browser/interaction.spec.cjs:88:5 › pointer 1440 › 图库真实点击选择和批量复核可以提交 (944ms)
-  ✓   19 test/browser/interaction.spec.cjs:121:5 › pointer 1440 › 渠道确认勾选后能生成发布资料 (674ms)
-  ✓   20 test/browser/interaction.spec.cjs:88:5 › pointer 390 › 图库真实点击选择和批量复核可以提交 (861ms)
-  ✓   21 test/browser/interaction.spec.cjs:121:5 › pointer 390 › 渠道确认勾选后能生成发布资料 (719ms)
-  ✓   22 test/browser/interaction.spec.cjs:140:3 › failure journeys › 原生必填缺项也显示可读错误而非没有反应 (541ms)
-  ✓   23 test/browser/interaction.spec.cjs:152:3 › failure journeys › 渠道保存响应中断重试使用同一请求，不陷入版本冲突 (758ms)
-  ✓   24 test/browser/interaction.spec.cjs:175:3 › failure journeys › 研究资料确认框可用文字标签勾选并保存 (862ms)
-  ✓   25 test/browser/interaction.spec.cjs:194:3 › edit and retry › 确认后修改正文必须重新勾选，不能沿用旧确认 (714ms)
-  ✓   26 test/browser/interaction.spec.cjs:213:3 › edit and retry › 生成资料响应丢失后重试不会重复生成 (779ms)
+  ✓   18 test/browser/interaction.spec.cjs:88:5 › pointer 1440 › 图库真实点击选择和批量复核可以提交 (968ms)
+  ✓   19 test/browser/interaction.spec.cjs:121:5 › pointer 1440 › 渠道确认勾选后能生成发布资料 (673ms)
+  ✓   20 test/browser/interaction.spec.cjs:88:5 › pointer 390 › 图库真实点击选择和批量复核可以提交 (909ms)
+  ✓   21 test/browser/interaction.spec.cjs:121:5 › pointer 390 › 渠道确认勾选后能生成发布资料 (914ms)
+  ✓   22 test/browser/interaction.spec.cjs:140:3 › failure journeys › 原生必填缺项也显示可读错误而非没有反应 (577ms)
+  ✓   23 test/browser/interaction.spec.cjs:152:3 › failure journeys › 渠道保存响应中断重试使用同一请求，不陷入版本冲突 (826ms)
+  ✓   24 test/browser/interaction.spec.cjs:175:3 › failure journeys › 研究资料确认框可用文字标签勾选并保存 (860ms)
+  ✓   25 test/browser/interaction.spec.cjs:194:3 › edit and retry › 确认后修改正文必须重新勾选，不能沿用旧确认 (734ms)
+  ✓   26 test/browser/interaction.spec.cjs:213:3 › edit and retry › 生成资料响应丢失后重试不会重复生成 (795ms)
   ✓   27 test/browser/interaction.spec.cjs:245:3 › form recovery › 登录失效后原位重新登录并保留表单内容 (1.0s)
-  ✓   28 test/browser/interaction.spec.cjs:277:3 › form recovery › 上传被明确拒绝后修正来源可以重新提交 (774ms)
-  ✓   29 test/browser/interaction.spec.cjs:305:3 › selection and in-flight writes › 本页全选和部分选择状态一致 (590ms)
+  ✓   28 test/browser/interaction.spec.cjs:277:3 › form recovery › 上传被明确拒绝后修正来源可以重新提交 (813ms)
+  ✓   29 test/browser/interaction.spec.cjs:305:3 › selection and in-flight writes › 本页全选和部分选择状态一致 (751ms)
   ✓   30 test/browser/interaction.spec.cjs:324:3 › selection and in-flight writes › 双击保存只提交一次且请求期间不能修改输入 (1.5s)
-  ✓   31 test/browser/interaction.spec.cjs:354:3 › selection and in-flight writes › 未核验图片明确说明不可选原因并提供处理入口 (627ms)
-  ✓   32 test/browser/interaction.spec.cjs:429:3 › 回执丢失后登录失效 › 建档原请求在登录失效后仍待核对，改名不会再建一件 (1.1s)
-  ✓   33 test/browser/interaction.spec.cjs:464:3 › 回执丢失后登录失效 › 询盘回执丢失再登录失效，修改输入仍不能重复提交 (1.4s)
-  ✓   34 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 完整录货上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.4s)
-  ✓   35 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 图片弹窗上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.1s)
-  ✓   36 test/browser/operations.spec.cjs:120:1 › 手工录一件衣服：同页填写和选图，保存后继续维护而不是进入固定流水线 (1.8s)
-  ✓   37 test/browser/operations.spec.cjs:157:1 › 手工连续录货：保存并新增不会带入上一件资料，编号各自唯一 (2.0s)
-  ✓   38 test/browser/operations.spec.cjs:182:1 › 供应商包袋：接手时复用资料和保管方式，不抄供货价为售价 (836ms)
-  ✓   39 test/browser/operations.spec.cjs:227:1 › 保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图 (764ms)
+  ✓   31 test/browser/interaction.spec.cjs:354:3 › selection and in-flight writes › 未核验图片明确说明不可选原因并提供处理入口 (681ms)
+  ✓   32 test/browser/interaction.spec.cjs:429:3 › 回执丢失后登录失效 › 建档原请求在登录失效后仍待核对，改名不会再建一件 (1.3s)
+  ✓   33 test/browser/interaction.spec.cjs:464:3 › 回执丢失后登录失效 › 询盘回执丢失再登录失效，修改输入仍不能重复提交 (1.2s)
+  ✓   34 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 完整录货上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.3s)
+  ✓   35 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 图片弹窗上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.4s)
+  ✓   36 test/browser/operations.spec.cjs:120:1 › 手工录一件衣服：同页填写和选图，保存后继续维护而不是进入固定流水线 (1.3s)
+  ✓   37 test/browser/operations.spec.cjs:157:1 › 手工连续录货：保存并新增不会带入上一件资料，编号各自唯一 (1.5s)
+  ✓   38 test/browser/operations.spec.cjs:182:1 › 供应商包袋：接手时复用资料和保管方式，不抄供货价为售价 (803ms)
+  ✓   39 test/browser/operations.spec.cjs:227:1 › 保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图 (679ms)
   ✓   40 test/browser/operations.spec.cjs:260:1 › 跨页选择后逐件编辑，保存回到原筛选页且不混淆两件商品 (2.0s)
   ✓   41 test/browser/operations.spec.cjs:318:1 › 两人改同一件：显示差异、保留本次输入，确认合并后才写入 (1.1s)
-  ✓   42 test/browser/operations.spec.cjs:393:1 › 建档回执丢失后先核对原请求，仍只保存一件商品 (764ms)
-  ✓   43 test/browser/operations.spec.cjs:422:1 › 手机整页录货：触摸确认、保存及返回可操作，无整页横向溢出 (955ms)
-  ✓   44 test/browser/operations.spec.cjs:456:1 › 完整手工路径：录货、图片核对、准备渠道资料、登记发布、售出停售 (2.6s)
-  ✓   45 test/browser/operations.spec.cjs:561:1 › 分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人工核对为失败 (1.1s)
-  ✓   46 test/browser/operations.spec.cjs:634:1 › 无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因 (781ms)
-  ✓   47 test/browser/operations.spec.cjs:691:1 › 询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进 (697ms)
-  ✓   48 test/browser/operations.spec.cjs:731:1 › 批量渠道价不会用零伪造未知默认报价，必须由操作者明确填写 (870ms)
-  ✓   49 test/browser/operations.spec.cjs:784:1 › 批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录 (930ms)
-  ✓   50 test/browser/operations.spec.cjs:828:1 › 渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元 (913ms)
-  ✓   51 test/browser/operations.spec.cjs:886:1 › 记录询盘会预填目标渠道的有效价格和币种 (544ms)
-  ✓   52 test/browser/operations.spec.cjs:911:1 › 回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品 (897ms)
-  ✓   53 test/browser/procurement.spec.cjs:239:1 › 采购来源默认币种可经正式后台入口更正 (817ms)
-  ✓   54 test/browser/procurement.spec.cjs:274:1 › TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本 (1.2s)
-  ✓   55 test/browser/procurement.spec.cjs:306:1 › 订单行人工确认在手且纳入经营后才出现货源候选入口 (1.9s)
-  ✓   56 test/browser/procurement.spec.cjs:336:1 › v1 采购历史不再逐件手填成本，统一由订单级成本面板计算 (1.4s)
-  ✓   57 test/browser/procurement.spec.cjs:364:1 › 采购订单手机端按订单事实与本地核对分层，不横向溢出 (2.7s)
-  ✓   58 test/browser/product-library.spec.cjs:242:1 › 商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换 (3.1s)
-  ✓   59 test/browser/product-library.spec.cjs:292:1 › 导入记录精确进入本批，来源缺项可集中核对并逐件保留依据 (5.8s)
-  ✓   60 test/browser/product-library.spec.cjs:333:1 › 批量真实写入后丢回执，关闭页面再继续只保留一份TM (11.4s)
-  ✓   61 test/browser/product-library.spec.cjs:394:1 › 从商品库真实下载原图资料包，售价用元且能查看后续补图变化 (6.8s)
-  ✓   62 test/browser/product-library.spec.cjs:450:1 › 原图实际上传后断线，关闭页面再进入可恢复文件和原请求 (5.6s)
-  ✓   63 test/browser/product-library.spec.cjs:506:1 › 商品页保存后直接整理资料，真实回执丢失并关页后仍只产生一份记录 (9.2s)
-  ✓   64 test/browser/product-library.spec.cjs:570:1 › 商品从列表先查看，取消不写入，保存回详情并保留原筛选与相邻商品 (8.1s)
-  ✓   65 test/browser/product-library.spec.cjs:669:3 › 商品详情 1440px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (4.7s)
-  ✓   66 test/browser/product-library.spec.cjs:669:3 › 商品详情 390px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (5.8s)
-  ✓   67 test/browser/product-library.spec.cjs:729:1 › 完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批 (16.5s)
-  ✓   68 test/browser/product-library.spec.cjs:780:1 › 单件录货可保存关闭，下载失败只重试文件不重复整理 (4.4s)
-  ✓   69 test/browser/product-library.spec.cjs:837:1 › 详情暂停需要确认，真实写入丢回执后同键重试且不产生销售 (2.1s)
-  ✓   70 test/browser/product-library.spec.cjs:877:1 › 只读角色默认详情不暴露成本、编辑或库存写入入口 (4.4s)
-  ✓   71 test/browser/studio.spec.cjs:107:1 › 只录标题、价格和图片即可保存，不要求先走审核或流水线 (3.4s)
-  ✓   72 test/browser/studio.spec.cjs:145:1 › 一页录货到可复制资料：集中核对一次，不往返商品、素材和渠道页 (6.1s)
-  ✓   73 test/browser/studio.spec.cjs:210:1 › 发布缺项直接在本页补齐，已经修改的渠道文案保留 (9.9s)
-  ✓   74 test/browser/studio.spec.cjs:243:1 › 集中复核回执丢失后可继续，不能重复生成或误报已发到平台 (8.2s)
-  ✓   75 test/browser/studio.spec.cjs:281:1 › 已保存图片可以原地查看、标瑕疵和移除，未保存文字不丢失 (5.2s)
-  ✓   76 test/browser/studio.spec.cjs:323:1 › 手机主流程可触摸使用，基础表单无横向溢出 (3.8s)
-  ✓   77 test/browser/studio.spec.cjs:365:1 › 别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖对方 (4.7s)
-  ✓   78 test/browser/studio.spec.cjs:434:1 › 图片回执丢失显示可操作错误，重试后原地恢复而不是空白或死按钮 (3.4s)
-  ✓   79 test/browser/studio.spec.cjs:464:1 › 已经生成资料后仍能编辑并再次生成，回执恢复不会锁死输入框 (5.9s)
-  ✓   80 test/browser/studio.spec.cjs:504:1 › 供应商持有的包袋在本页补供货确认，不要求调货或重新拍摄 (4.2s)
-  ✓   81 test/browser/studio.spec.cjs:548:1 › 渠道切换先保存各自文案，返回原账号不丢内容不串号 (4.9s)
-  ✓   82 test/browser/studio.spec.cjs:579:1 › 在工作区登记售出后停止旧资料取用，不离开或清空未保存输入 (8.4s)
-  ✓   83 test/browser/studio.spec.cjs:611:1 › 点击可见上传区域就打开文件选择器，不需要寻找隐藏的素材入口 (4.7s)
-  ✓   84 test/browser/studio.spec.cjs:628:1 › 服务端发现同平台历史暴露时可二次确认加入分发渠道 (3.1s)
-  ✓   85 test/browser/studio.spec.cjs:684:1 › 登记已发布使用本页回执，不跳转或重载工作区 (2.9s)
-  ✓   86 test/browser/studio.spec.cjs:730:1 › 保存并返回同时保留当前渠道的未保存文案，不会悄悄丢弃 (1.9s)
-  ✓   87 test/browser/studio.spec.cjs:760:1 › 未改过的预览在补齐尺寸后直接更新，不再要求手工重填一遍 (1.6s)
-  ✓   88 test/browser/studio.spec.cjs:780:1 › 读取发布预览失败可原地重试，已经保存的商品和图片不会消失 (1.7s)
-  ✓   89 test/browser/studio.spec.cjs:810:1 › 触摸设备的发布排序 › 发布图片可拖动键盘及手机指定位置，排序只改发布草稿 (3.3s)
-  ✓   90 test/browser/system-review.spec.cjs:86:1 › 批量定价逐件展示并在真实写入回执丢失后重试，不重写成功项 (3.8s)
-  ✓   91 test/browser/system-review.spec.cjs:140:1 › 询盘旧窗口保留本次输入，核对最新沟通后追加历史 (2.2s)
-  ✓   92 test/browser/system-review.spec.cjs:177:1 › 商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交 (2.0s)
-  ✓   93 test/browser/system-review.spec.cjs:240:1 › 二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包 (14.8s)
-  ✓   94 test/browser/system-review.spec.cjs:295:1 › 看图选品真实创建后丢失回执，重试只生成一个合集和资料包 (3.5s)
-  ✓   95 test/browser/system-review.spec.cjs:366:1 › 渠道维护可修改停用，发布查询保留显式范围且手机可操作 (1.3s)
-  ✓   96 test/browser/system-review.spec.cjs:468:1 › 集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次 (3.3s)
-  ✓   97 test/browser/system-review.spec.cjs:544:1 › 采购第二页往返TM保留关键词来源页码和列表位置 (4.6s)
-  ✓   98 test/browser/system-review.spec.cjs:601:1 › 图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用 (1.6s)
-  ✓   99 test/browser/system-review.spec.cjs:661:1 › 分次加入选品按合并后的数量限制，超限不改变已有选择 (24.3s)
-  ✓  100 test/browser/system-review.spec.cjs:691:3 › sales重置保留商品与返回路径，查看全部才解除商品范围 (1.2s)
-  ✓  101 test/browser/system-review.spec.cjs:691:3 › inquiries重置保留商品与返回路径，查看全部才解除商品范围 (957ms)
-  ✓  102 test/browser/system-review.spec.cjs:691:3 › listings重置保留商品与返回路径，查看全部才解除商品范围 (1.0s)
-  ✓  103 test/browser/system-review.spec.cjs:742:1 › 待办进入单条询盘后重置仍只显示原记录，返回保留待办筛选 (964ms)
-  ✓  104 test/browser/system-review.spec.cjs:780:1 › 选品草稿关页恢复时重读商品且只保存账号范围内的必要字段 (2.2s)
-  ✓  105 test/browser/ui08.spec.cjs:97:1 › 桌面商品编辑器保持清晰主栏与侧栏，不横向溢出 (881ms)
-  ✓  106 test/browser/ui08.spec.cjs:111:1 › 手机商品页按真实录货顺序排布且所有卡片占满宽度 (469ms)
-  ✓  107 test/browser/ui08.spec.cjs:145:1 › 手机顶级业务导航全部可达 (671ms)
-  ✓  108 test/browser/ui08.spec.cjs:170:1 › 正式商品列表状态标签克制，页头只保留一个主动作 (694ms)
-  ✓  109 test/browser/ui08.spec.cjs:188:1 › 视觉层只有一个最终设计系统所有者 (536ms)
-  ✓  110 test/browser/ui08.spec.cjs:224:1 › 列表末行菜单不被裁切，外部点击与Escape收起并可实际修改 (1.8s)
-  ✓  111 test/browser/ui08.spec.cjs:273:1 › 商品重置保留测试范围和图片视图，空状态可恢复且选择可见 (1.1s)
-  ✓  112 test/browser/ui08.spec.cjs:303:1 › 快速修改完整页入口保护未保存输入，来源等级仍待人工选择 (1.3s)
-  ✓  113 test/browser/ui08.spec.cjs:348:1 › 手机批量操作随滚动可达，菜单和快速修改不溢出 (1.6s)
-  ✓  114 test/browser/ui08.spec.cjs:390:1 › 已排除候选可带原因恢复，空结果有恢复入口，手机筛选不溢出 (2.3s)
-  ✓  115 test/browser/ui08.spec.cjs:498:1 › 空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用 (1.2s)
-  ✓  116 test/browser/ui08.spec.cjs:533:1 › 商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿 (1.3s)
-  ✓  117 test/browser/ui08.spec.cjs:586:1 › 从经营待办直接跟进指定询盘，完成后返回待办且不改变库存 (1.8s)
-  ✓  118 test/browser/ui08.spec.cjs:633:1 › 已确认候选不再提供无效勾选，维护商品后返回原候选筛选 (2.9s)
-  ✓  119 test/browser/ui08.spec.cjs:724:1 › 最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖 (948ms)
-  ✓  120 test/browser/ux09-audit.spec.cjs:12:1 › 低频经营页面使用统一后台语言和布局 (3.0s)
-  ✓  121 test/browser/ux09-audit.spec.cjs:24:1 › 设置页角色使用业务中文，技术入口默认收起 (665ms)
-  ✓  122 test/browser/ux09-audit.spec.cjs:35:1 › 成交记录每行只突出补收支，其余危险动作收进更多 (611ms)
-  ✓  123 test/browser/ux09.spec.cjs:27:1 › 字典控件按选项规模选择正确交互，不再一律做搜索框 (802ms)
-  ✓  124 test/browser/ux09.spec.cjs:44:1 › 品牌输入即搜索，鼠标和键盘都能完成真实选择 (1.4s)
-  ✓  125 test/browser/ux09.spec.cjs:65:1 › 列表筛选输入了品牌但没真正选择时明确阻止，不会静默忽略 (1.0s)
-  ✓  126 test/browser/ux09.spec.cjs:80:1 › 新增品牌从当前输入预填，保存后回到同一个商品并自动选中 (1.8s)
-  ✓  127 test/browser/ux09.spec.cjs:104:1 › 已生效的字典筛选刷新后仍明确显示当前选项 (2.6s)
-  ✓  128 test/browser/ux09.spec.cjs:112:1 › 已选品牌继续输入时替换旧值而不是拼接到旧标签后面 (2.2s)
-  ✓  129 test/browser/ux10.spec.cjs:13:1 › 快速录货只暴露首次需要的字段，完整建档退到更多 (1.1s)
-  ✓  130 test/browser/ux10.spec.cjs:18:1 › 快速录入只接收我方现货，供应商和远端货源明确转到来源维护 (828ms)
-  ✓  131 test/browser/ux10.spec.cjs:21:1 › 快速录货保存图片后直接下一件，上一件内容不带入 (2.2s)
-  ✓  132 test/browser/ux10.spec.cjs:27:1 › 快速录货保存并完善，无缝进入同一件完整商品页 (2.1s)
-  ✓  133 test/browser/ux10.spec.cjs:33:1 › 快速录货打开即聚焦名称，Ctrl+Enter保存并进入下一件 (1.3s)
-  ✓  134 test/browser/ux10.spec.cjs:37:1 › 快速录货可在提交前单张移除图片，服务器只保存保留项 (1.5s)
-  ✓  135 test/browser/ux10.spec.cjs:41:1 › 快速录货桌面与手机布局保持单一主任务，不横向溢出 (3.7s)
-  ✓  136 test/browser/ux10.spec.cjs:48:1 › 商品列表可快速修改常用信息，不必进入完整编辑页 (3.7s)
-  ✓  137 test/browser/ux10.spec.cjs:52:1 › 快速修改遇到并发变更时保留输入并阻止覆盖 (2.9s)
-  ✓  138 test/browser/ux101.spec.cjs:33:1 › 无hash登录后默认进入工作台而不是全量商品库 (1.3s)
-  ✓  139 test/browser/ux101.spec.cjs:41:1 › 快速录货先校验图片，坏文件不会留下半成品TM (2.3s)
-  ✓  140 test/browser/ux101.spec.cjs:62:1 › 运营可以看成交事实但不能读取经营财务账 (1.2s)
-  ✓  141 test/browser/ux101.spec.cjs:124:1 › 只读详情直接预留和解除，真实写入丢回执后同键重试且不自动恢复可售 (1.7s)
-  ✓  142 test/browser/ux101.spec.cjs:183:1 › 登录真实响应延迟时先等确定回执，保留页面断言且只提交一次 (6.4s)
-  ✓  143 test/browser/ux101.spec.cjs:229:1 › 各角色界面使用服务端能力，商品编辑与销售入口符合真实权限 (3.5s)
-  ✓  144 test/browser/ux2.spec.cjs:16:1 › 新建商品首屏提供保存和下载资料，发布从更多进入 (478ms)
-  ✓  145 test/browser/ux2.spec.cjs:39:1 › 次要保存动作放入更多菜单，不和主动作抢界面 (481ms)
-  ✓  146 test/browser/ux2.spec.cjs:54:1 › 商品列表行内不再同时堆编辑加图删除发布按钮 (764ms)
-  ✓  147 test/browser/v1-item-center.spec.cjs:385:1 › 来源成色在待确认卡片、表格和批量预检仅作参考，品牌与低置信建议仍提示 (1.9s)
-  ✓  148 test/browser/v1-item-center.spec.cjs:430:1 › TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示 (824ms)
-  ✓  149 test/browser/v1-item-center.spec.cjs:507:1 › 来源纠错后当前图册隐藏错图并保留撤下审计详情 (1.1s)
-  ✓  150 test/browser/v1-item-center.spec.cjs:529:1 › v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM (1.7s)
-  ✓  151 test/browser/v1-item-center.spec.cjs:577:1 › v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批 (6.2s)
-  ✓  152 test/browser/v1-item-center.spec.cjs:649:1 › 待确认显示来源尺码并可按页码跳转，批量操作保留位置且末页清空才回退 (3.6s)
-  ✓  153 test/browser/v1-item-center.spec.cjs:790:1 › v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本 (1.7s)
-  ✓  154 test/browser/v1-item-center.spec.cjs:845:1 › Credit退款明细校验后一次算净额，重开保留明细与固定汇率 (2.0s)
-  ✓  155 test/browser/v1-item-center.spec.cjs:894:1 › v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据 (957ms)
-  ✓  156 test/browser/v1-item-center.spec.cjs:925:1 › v1 手机待确认保持单一批量任务且无横向溢出 (1.6s)
-  ✓  157 test/browser/v1-item-center.spec.cjs:956:1 › v1 经营待办把Agent候选直接带回对应来源的待确认处理页 (905ms)
-  ✓  158 test/browser/v1-item-center.spec.cjs:969:1 › v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同一主档 (1.8s)
-  ✓  159 test/browser/v1-item-center.spec.cjs:1027:1 › rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表 (938ms)
-  ✓  160 test/browser/v1-item-center.spec.cjs:1060:1 › rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹窗 (799ms)
-  ✓  161 test/browser/v1-item-center.spec.cjs:1078:1 › 来源核对在桌面和手机保留商品身份、返回入口、选择和键盘焦点 (1.9s)
-  ✓  162 test/browser/v1-item-center.spec.cjs:1122:1 › 跨页选择101件分段确认，真实写入回执丢失后重试不重复建档 (9.8s)
-  ✓  163 test/browser/v1-item-center.spec.cjs:1171:1 › 来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿 (4.3s)
-  ✓  164 test/browser/v1-item-center.spec.cjs:1246:1 › 批量部分失败显示逐件原因，成功移除而失败保留供重新核对 (3.3s)
-  ✓  165 test/browser/v1-item-center.spec.cjs:1273:1 › 单件建档清除该件批量勾选并保留其他候选 (1.6s)
-  ✓  166 test/browser/v1-item-center.spec.cjs:1290:1 › 来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典 (2.5s)
-  ✓  167 test/browser/workbench.spec.cjs:55:1 › 真实登录、商品列表与全部运营入口可读取 (3.3s)
-  ✓  168 test/browser/workbench.spec.cjs:83:1 › 资料不完整仍可建档、维护并按缺项安排工作 (2.5s)
-  ✓  169 test/browser/workbench.spec.cjs:114:1 › 卖出先停推广，金额未知不会被填成零 (2.5s)
-  ✓  170 test/browser/workbench.spec.cjs:137:1 › 货源批次先预览再写入，不直接变成自有库存 (931ms)
-  ✓  171 test/browser/workbench.spec.cjs:150:1 › 上传图片保存原件，待复核授权不冒充已核验 (1.7s)
-  ✓  172 test/browser/workbench.spec.cjs:176:1 › 手机尺寸商品列表无整页横向溢出 (644ms)
-  ✓  173 test/browser/workbench.spec.cjs:190:1 › 未登录展厅可看有效公开展示，不泄漏内部经营字段 (644ms)
-  ✓  174 test/browser/workbench.spec.cjs:199:1 › 退出后无法返回受保护内容 (676ms)
-  ✓  175 test/browser/workbench.spec.cjs:270:1 › 新增作业入口与运行健康页面读取真实数据 (1.1s)
-  ✓  176 test/browser/workbench.spec.cjs:289:1 › 操作人员可关联旧编号并显式记录和撤回尺寸不适用 (1.7s)
-  ✓  177 test/browser/workbench.spec.cjs:316:1 › 批量上传可先暂存，人工确认归属后才加入商品素材 (2.4s)
-  ✓  178 test/browser/workbench.spec.cjs:385:1 › 客户合集直接使用TM编号创建，售出一件只停止该件取用 (1.9s)
-  ✓  179 test/browser/workbench.spec.cjs:412:1 › 外币对账快照缺少汇率基础时保持草稿，不执行打款 (1.6s)
-  ✓  180 test/browser/workbench.spec.cjs:528:1 › 商品列表可删除、取消删除并在回收站恢复原编号 (2.2s)
-  ✓  181 test/browser/workbench.spec.cjs:564:1 › 批量清理仅影响本测试创建并勾选的两件样本 (1.2s)
-  ✓  182 test/browser/workbench.spec.cjs:587:1 › 手机商品详情提供删除，旧编辑页提示先恢复 (954ms)
+  ✓   42 test/browser/operations.spec.cjs:393:1 › 建档回执丢失后先核对原请求，仍只保存一件商品 (724ms)
+  ✓   43 test/browser/operations.spec.cjs:422:1 › 手机整页录货：触摸确认、保存及返回可操作，无整页横向溢出 (908ms)
+  ✓   44 test/browser/operations.spec.cjs:456:1 › 完整手工路径：录货、图片核对、准备渠道资料、登记发布、售出停售 (2.7s)
+  ✓   45 test/browser/operations.spec.cjs:561:1 › 分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人工核对为失败 (1.0s)
+  ✓   46 test/browser/operations.spec.cjs:634:1 › 无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因 (668ms)
+  ✓   47 test/browser/operations.spec.cjs:691:1 › 询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进 (701ms)
+  ✓   48 test/browser/operations.spec.cjs:731:1 › 批量渠道价不会用零伪造未知默认报价，必须由操作者明确填写 (868ms)
+  ✓   49 test/browser/operations.spec.cjs:784:1 › 批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录 (892ms)
+  ✓   50 test/browser/operations.spec.cjs:828:1 › 渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元 (713ms)
+  ✓   51 test/browser/operations.spec.cjs:886:1 › 记录询盘会预填目标渠道的有效价格和币种 (675ms)
+  ✓   52 test/browser/operations.spec.cjs:911:1 › 回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品 (798ms)
+  ✓   53 test/browser/procurement.spec.cjs:239:1 › 采购来源默认币种可经正式后台入口更正 (809ms)
+  ✓   54 test/browser/procurement.spec.cjs:274:1 › TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本 (1.0s)
+  ✓   55 test/browser/procurement.spec.cjs:306:1 › 订单行人工确认在手且纳入经营后才出现货源候选入口 (1.2s)
+  ✓   56 test/browser/procurement.spec.cjs:336:1 › v1 采购历史不再逐件手填成本，统一由订单级成本面板计算 (918ms)
+  ✓   57 test/browser/procurement.spec.cjs:364:1 › 采购订单手机端按订单事实与本地核对分层，不横向溢出 (1.4s)
+  ✓   58 test/browser/product-library.spec.cjs:242:1 › 商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换 (2.2s)
+  ✓   59 test/browser/product-library.spec.cjs:292:1 › 导入记录精确进入本批，来源缺项可集中核对并逐件保留依据 (1.6s)
+  ✓   60 test/browser/product-library.spec.cjs:333:1 › 批量真实写入后丢回执，关闭页面再继续只保留一份TM (2.4s)
+  ✓   61 test/browser/product-library.spec.cjs:394:1 › 从商品库真实下载原图资料包，售价用元且能查看后续补图变化 (2.0s)
+  ✓   62 test/browser/product-library.spec.cjs:450:1 › 原图实际上传后断线，关闭页面再进入可恢复文件和原请求 (2.4s)
+  ✓   63 test/browser/product-library.spec.cjs:506:1 › 商品页保存后直接整理资料，真实回执丢失并关页后仍只产生一份记录 (1.4s)
+  ✓   64 test/browser/product-library.spec.cjs:570:1 › 商品从列表先查看，取消不写入，保存回详情并保留原筛选与相邻商品 (1.6s)
+  ✓   65 test/browser/product-library.spec.cjs:669:3 › 商品详情 1440px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (1.2s)
+  ✓   66 test/browser/product-library.spec.cjs:669:3 › 商品详情 390px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (1.1s)
+  ✓   67 test/browser/product-library.spec.cjs:729:1 › 完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批 (2.1s)
+  ✓   68 test/browser/product-library.spec.cjs:780:1 › 单件录货可保存关闭，下载失败只重试文件不重复整理 (1.9s)
+  ✓   69 test/browser/product-library.spec.cjs:837:1 › 详情暂停需要确认，真实写入丢回执后同键重试且不产生销售 (951ms)
+  ✓   70 test/browser/product-library.spec.cjs:877:1 › 只读角色默认详情不暴露成本、编辑或库存写入入口 (952ms)
+  ✓   71 test/browser/product-library.spec.cjs:927:3 › AI 上身效果 1440px 独立浏览且不替换实物封面 (2.3s)
+  ✓   72 test/browser/product-library.spec.cjs:927:3 › AI 上身效果 390px 独立浏览且不替换实物封面 (2.2s)
+  ✓   73 test/browser/studio.spec.cjs:107:1 › 只录标题、价格和图片即可保存，不要求先走审核或流水线 (1.5s)
+  ✓   74 test/browser/studio.spec.cjs:145:1 › 一页录货到可复制资料：集中核对一次，不往返商品、素材和渠道页 (1.8s)
+  ✓   75 test/browser/studio.spec.cjs:210:1 › 发布缺项直接在本页补齐，已经修改的渠道文案保留 (1.9s)
+  ✓   76 test/browser/studio.spec.cjs:243:1 › 集中复核回执丢失后可继续，不能重复生成或误报已发到平台 (1.8s)
+  ✓   77 test/browser/studio.spec.cjs:281:1 › 已保存图片可以原地查看、标瑕疵和移除，未保存文字不丢失 (1.1s)
+  ✓   78 test/browser/studio.spec.cjs:323:1 › 手机主流程可触摸使用，基础表单无横向溢出 (702ms)
+  ✓   79 test/browser/studio.spec.cjs:365:1 › 别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖对方 (2.0s)
+  ✓   80 test/browser/studio.spec.cjs:434:1 › 图片回执丢失显示可操作错误，重试后原地恢复而不是空白或死按钮 (1.3s)
+  ✓   81 test/browser/studio.spec.cjs:464:1 › 已经生成资料后仍能编辑并再次生成，回执恢复不会锁死输入框 (1.9s)
+  ✓   82 test/browser/studio.spec.cjs:504:1 › 供应商持有的包袋在本页补供货确认，不要求调货或重新拍摄 (1.7s)
+  ✓   83 test/browser/studio.spec.cjs:548:1 › 渠道切换先保存各自文案，返回原账号不丢内容不串号 (1.8s)
+  ✓   84 test/browser/studio.spec.cjs:579:1 › 在工作区登记售出后停止旧资料取用，不离开或清空未保存输入 (2.0s)
+  ✓   85 test/browser/studio.spec.cjs:611:1 › 点击可见上传区域就打开文件选择器，不需要寻找隐藏的素材入口 (768ms)
+  ✓   86 test/browser/studio.spec.cjs:628:1 › 服务端发现同平台历史暴露时可二次确认加入分发渠道 (1.7s)
+  ✓   87 test/browser/studio.spec.cjs:684:1 › 登记已发布使用本页回执，不跳转或重载工作区 (2.4s)
+  ✓   88 test/browser/studio.spec.cjs:730:1 › 保存并返回同时保留当前渠道的未保存文案，不会悄悄丢弃 (1.8s)
+  ✓   89 test/browser/studio.spec.cjs:760:1 › 未改过的预览在补齐尺寸后直接更新，不再要求手工重填一遍 (1.5s)
+  ✓   90 test/browser/studio.spec.cjs:780:1 › 读取发布预览失败可原地重试，已经保存的商品和图片不会消失 (1.5s)
+  ✓   91 test/browser/studio.spec.cjs:810:1 › 触摸设备的发布排序 › 发布图片可拖动键盘及手机指定位置，排序只改发布草稿 (1.8s)
+  ✓   92 test/browser/system-review.spec.cjs:86:1 › 批量定价逐件展示并在真实写入回执丢失后重试，不重写成功项 (974ms)
+  ✓   93 test/browser/system-review.spec.cjs:140:1 › 询盘旧窗口保留本次输入，核对最新沟通后追加历史 (804ms)
+  ✓   94 test/browser/system-review.spec.cjs:177:1 › 商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交 (1.3s)
+  ✓   95 test/browser/system-review.spec.cjs:240:1 › 二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包 (2.9s)
+  ✓   96 test/browser/system-review.spec.cjs:295:1 › 看图选品真实创建后丢失回执，重试只生成一个合集和资料包 (1.5s)
+  ✓   97 test/browser/system-review.spec.cjs:366:1 › 渠道维护可修改停用，发布查询保留显式范围且手机可操作 (700ms)
+  ✓   98 test/browser/system-review.spec.cjs:468:1 › 集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次 (1.5s)
+  ✓   99 test/browser/system-review.spec.cjs:544:1 › 采购第二页往返TM保留关键词来源页码和列表位置 (2.3s)
+  ✓  100 test/browser/system-review.spec.cjs:601:1 › 图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用 (968ms)
+  ✓  101 test/browser/system-review.spec.cjs:661:1 › 分次加入选品按合并后的数量限制，超限不改变已有选择 (12.9s)
+  ✓  102 test/browser/system-review.spec.cjs:691:3 › sales重置保留商品与返回路径，查看全部才解除商品范围 (824ms)
+  ✓  103 test/browser/system-review.spec.cjs:691:3 › inquiries重置保留商品与返回路径，查看全部才解除商品范围 (1.3s)
+  ✓  104 test/browser/system-review.spec.cjs:691:3 › listings重置保留商品与返回路径，查看全部才解除商品范围 (828ms)
+  ✓  105 test/browser/system-review.spec.cjs:742:1 › 待办进入单条询盘后重置仍只显示原记录，返回保留待办筛选 (677ms)
+  ✓  106 test/browser/system-review.spec.cjs:780:1 › 选品草稿关页恢复时重读商品且只保存账号范围内的必要字段 (1.4s)
+  ✓  107 test/browser/ui08.spec.cjs:97:1 › 桌面商品编辑器保持清晰主栏与侧栏，不横向溢出 (457ms)
+  ✓  108 test/browser/ui08.spec.cjs:111:1 › 手机商品页按真实录货顺序排布且所有卡片占满宽度 (397ms)
+  ✓  109 test/browser/ui08.spec.cjs:145:1 › 手机顶级业务导航全部可达 (597ms)
+  ✓  110 test/browser/ui08.spec.cjs:170:1 › 正式商品列表状态标签克制，页头只保留一个主动作 (471ms)
+  ✓  111 test/browser/ui08.spec.cjs:188:1 › 视觉层只有一个最终设计系统所有者 (412ms)
+  ✓  112 test/browser/ui08.spec.cjs:224:1 › 列表末行菜单不被裁切，外部点击与Escape收起并可实际修改 (1.5s)
+  ✓  113 test/browser/ui08.spec.cjs:273:1 › 商品重置保留测试范围和图片视图，空状态可恢复且选择可见 (848ms)
+  ✓  114 test/browser/ui08.spec.cjs:303:1 › 快速修改完整页入口保护未保存输入，来源等级仍待人工选择 (3.4s)
+  ✓  115 test/browser/ui08.spec.cjs:348:1 › 手机批量操作随滚动可达，菜单和快速修改不溢出 (1.1s)
+  ✓  116 test/browser/ui08.spec.cjs:390:1 › 已排除候选可带原因恢复，空结果有恢复入口，手机筛选不溢出 (1.7s)
+  ✓  117 test/browser/ui08.spec.cjs:498:1 › 空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用 (861ms)
+  ✓  118 test/browser/ui08.spec.cjs:533:1 › 商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿 (903ms)
+  ✓  119 test/browser/ui08.spec.cjs:586:1 › 从经营待办直接跟进指定询盘，完成后返回待办且不改变库存 (1.1s)
+  ✓  120 test/browser/ui08.spec.cjs:633:1 › 已确认候选不再提供无效勾选，维护商品后返回原候选筛选 (1.3s)
+  ✓  121 test/browser/ui08.spec.cjs:724:1 › 最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖 (589ms)
+  ✓  122 test/browser/ux09-audit.spec.cjs:12:1 › 低频经营页面使用统一后台语言和布局 (2.4s)
+  ✓  123 test/browser/ux09-audit.spec.cjs:24:1 › 设置页角色使用业务中文，技术入口默认收起 (484ms)
+  ✓  124 test/browser/ux09-audit.spec.cjs:35:1 › 成交记录每行只突出补收支，其余危险动作收进更多 (540ms)
+  ✓  125 test/browser/ux09.spec.cjs:27:1 › 字典控件按选项规模选择正确交互，不再一律做搜索框 (444ms)
+  ✓  126 test/browser/ux09.spec.cjs:44:1 › 品牌输入即搜索，鼠标和键盘都能完成真实选择 (1.2s)
+  ✓  127 test/browser/ux09.spec.cjs:65:1 › 列表筛选输入了品牌但没真正选择时明确阻止，不会静默忽略 (898ms)
+  ✓  128 test/browser/ux09.spec.cjs:80:1 › 新增品牌从当前输入预填，保存后回到同一个商品并自动选中 (687ms)
+  ✓  129 test/browser/ux09.spec.cjs:104:1 › 已生效的字典筛选刷新后仍明确显示当前选项 (1.0s)
+  ✓  130 test/browser/ux09.spec.cjs:112:1 › 已选品牌继续输入时替换旧值而不是拼接到旧标签后面 (1.3s)
+  ✓  131 test/browser/ux10.spec.cjs:13:1 › 快速录货只暴露首次需要的字段，完整建档退到更多 (618ms)
+  ✓  132 test/browser/ux10.spec.cjs:18:1 › 快速录入只接收我方现货，供应商和远端货源明确转到来源维护 (594ms)
+  ✓  133 test/browser/ux10.spec.cjs:21:1 › 快速录货保存图片后直接下一件，上一件内容不带入 (1.4s)
+  ✓  134 test/browser/ux10.spec.cjs:27:1 › 快速录货保存并完善，无缝进入同一件完整商品页 (1.3s)
+  ✓  135 test/browser/ux10.spec.cjs:33:1 › 快速录货打开即聚焦名称，Ctrl+Enter保存并进入下一件 (727ms)
+  ✓  136 test/browser/ux10.spec.cjs:37:1 › 快速录货可在提交前单张移除图片，服务器只保存保留项 (1.7s)
+  ✓  137 test/browser/ux10.spec.cjs:41:1 › 快速录货桌面与手机布局保持单一主任务，不横向溢出 (1.5s)
+  ✓  138 test/browser/ux10.spec.cjs:48:1 › 商品列表可快速修改常用信息，不必进入完整编辑页 (1.3s)
+  ✓  139 test/browser/ux10.spec.cjs:52:1 › 快速修改遇到并发变更时保留输入并阻止覆盖 (969ms)
+  ✓  140 test/browser/ux101.spec.cjs:33:1 › 无hash登录后默认进入工作台而不是全量商品库 (465ms)
+  ✓  141 test/browser/ux101.spec.cjs:41:1 › 快速录货先校验图片，坏文件不会留下半成品TM (664ms)
+  ✓  142 test/browser/ux101.spec.cjs:62:1 › 运营可以看成交事实但不能读取经营财务账 (945ms)
+  ✓  143 test/browser/ux101.spec.cjs:124:1 › 只读详情直接预留和解除，真实写入丢回执后同键重试且不自动恢复可售 (1.3s)
+  ✓  144 test/browser/ux101.spec.cjs:183:1 › 登录真实响应延迟时先等确定回执，保留页面断言且只提交一次 (6.4s)
+  ✓  145 test/browser/ux101.spec.cjs:229:1 › 各角色界面使用服务端能力，商品编辑与销售入口符合真实权限 (3.6s)
+  ✓  146 test/browser/ux2.spec.cjs:16:1 › 新建商品首屏提供保存和下载资料，发布从更多进入 (458ms)
+  ✓  147 test/browser/ux2.spec.cjs:39:1 › 次要保存动作放入更多菜单，不和主动作抢界面 (490ms)
+  ✓  148 test/browser/ux2.spec.cjs:54:1 › 商品列表行内不再同时堆编辑加图删除发布按钮 (746ms)
+  ✓  149 test/browser/v1-item-center.spec.cjs:385:1 › 来源成色在待确认卡片、表格和批量预检仅作参考，品牌与低置信建议仍提示 (1.3s)
+  ✓  150 test/browser/v1-item-center.spec.cjs:430:1 › TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示 (728ms)
+  ✓  151 test/browser/v1-item-center.spec.cjs:507:1 › 来源纠错后当前图册隐藏错图并保留撤下审计详情 (1.1s)
+  ✓  152 test/browser/v1-item-center.spec.cjs:529:1 › v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM (3.5s)
+  ✓  153 test/browser/v1-item-center.spec.cjs:577:1 › v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批 (6.5s)
+  ✓  154 test/browser/v1-item-center.spec.cjs:649:1 › 待确认显示来源尺码并可按页码跳转，批量操作保留位置且末页清空才回退 (5.5s)
+  ✓  155 test/browser/v1-item-center.spec.cjs:790:1 › v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本 (2.0s)
+  ✓  156 test/browser/v1-item-center.spec.cjs:845:1 › Credit退款明细校验后一次算净额，重开保留明细与固定汇率 (2.5s)
+  ✓  157 test/browser/v1-item-center.spec.cjs:894:1 › v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据 (1.2s)
+  ✓  158 test/browser/v1-item-center.spec.cjs:925:1 › v1 手机待确认保持单一批量任务且无横向溢出 (1.4s)
+  ✓  159 test/browser/v1-item-center.spec.cjs:956:1 › v1 经营待办把Agent候选直接带回对应来源的待确认处理页 (864ms)
+  ✓  160 test/browser/v1-item-center.spec.cjs:969:1 › v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同一主档 (1.6s)
+  ✓  161 test/browser/v1-item-center.spec.cjs:1027:1 › rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表 (1.0s)
+  ✓  162 test/browser/v1-item-center.spec.cjs:1060:1 › rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹窗 (947ms)
+  ✓  163 test/browser/v1-item-center.spec.cjs:1078:1 › 来源核对在桌面和手机保留商品身份、返回入口、选择和键盘焦点 (1.7s)
+  ✓  164 test/browser/v1-item-center.spec.cjs:1122:1 › 跨页选择101件分段确认，真实写入回执丢失后重试不重复建档 (6.9s)
+  ✓  165 test/browser/v1-item-center.spec.cjs:1171:1 › 来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿 (3.4s)
+  ✓  166 test/browser/v1-item-center.spec.cjs:1246:1 › 批量部分失败显示逐件原因，成功移除而失败保留供重新核对 (1.7s)
+  ✓  167 test/browser/v1-item-center.spec.cjs:1273:1 › 单件建档清除该件批量勾选并保留其他候选 (1.1s)
+  ✓  168 test/browser/v1-item-center.spec.cjs:1290:1 › 来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典 (1.7s)
+  ✓  169 test/browser/workbench.spec.cjs:55:1 › 真实登录、商品列表与全部运营入口可读取 (1.6s)
+  ✓  170 test/browser/workbench.spec.cjs:83:1 › 资料不完整仍可建档、维护并按缺项安排工作 (2.2s)
+  ✓  171 test/browser/workbench.spec.cjs:114:1 › 卖出先停推广，金额未知不会被填成零 (1.8s)
+  ✓  172 test/browser/workbench.spec.cjs:137:1 › 货源批次先预览再写入，不直接变成自有库存 (1.2s)
+  ✓  173 test/browser/workbench.spec.cjs:150:1 › 上传图片保存原件，待复核授权不冒充已核验 (1.7s)
+  ✓  174 test/browser/workbench.spec.cjs:176:1 › 手机尺寸商品列表无整页横向溢出 (589ms)
+  ✓  175 test/browser/workbench.spec.cjs:190:1 › 未登录展厅可看有效公开展示，不泄漏内部经营字段 (632ms)
+  ✓  176 test/browser/workbench.spec.cjs:199:1 › 退出后无法返回受保护内容 (563ms)
+  ✓  177 test/browser/workbench.spec.cjs:270:1 › 新增作业入口与运行健康页面读取真实数据 (1.1s)
+  ✓  178 test/browser/workbench.spec.cjs:289:1 › 操作人员可关联旧编号并显式记录和撤回尺寸不适用 (1.9s)
+  ✓  179 test/browser/workbench.spec.cjs:316:1 › 批量上传可先暂存，人工确认归属后才加入商品素材 (2.4s)
+  ✓  180 test/browser/workbench.spec.cjs:385:1 › 客户合集直接使用TM编号创建，售出一件只停止该件取用 (1.4s)
+  ✓  181 test/browser/workbench.spec.cjs:412:1 › 外币对账快照缺少汇率基础时保持草稿，不执行打款 (1.5s)
+  ✓  182 test/browser/workbench.spec.cjs:528:1 › 商品列表可删除、取消删除并在回收站恢复原编号 (1.8s)
+  ✓  183 test/browser/workbench.spec.cjs:564:1 › 批量清理仅影响本测试创建并勾选的两件样本 (911ms)
+  ✓  184 test/browser/workbench.spec.cjs:587:1 › 手机商品详情提供删除，旧编辑页提示先恢复 (873ms)
 
-  182 passed (7.9m)
+  184 passed (4.7m)
 
 > tome-workbench@1.1.0-rc.13 test:browser:webkit
 > playwright test -c playwright.webkit.config.cjs
 
 
-Running 182 tests using 1 worker
+Running 184 tests using 1 worker
 
-(node:26490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:19443) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:26490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:19443) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✓    1 test/browser/arco-workspace.spec.cjs:36:1 › 选择商品和操作菜单不擦除尚未提交的筛选输入，键盘可继续筛选 (4.0s)
-  ✓    2 test/browser/arco-workspace.spec.cjs:82:1 › 完整编辑遇到并发改价后保留中文草稿，合并仍需主动保存 (2.4s)
-  ✓    3 test/browser/arco-workspace.spec.cjs:124:3 › 1440px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (6.1s)
-  ✓    4 test/browser/arco-workspace.spec.cjs:124:3 › 390px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (4.6s)
-  ✓    5 test/browser/arco-workspace.spec.cjs:218:3 › 1440px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (5.7s)
-  ✓    6 test/browser/arco-workspace.spec.cjs:218:3 › 390px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (6.2s)
-  ✓    7 test/browser/dictionaries.spec.cjs:51:1 › 录商品直接选择品牌、国际成色、颜色与材质，保存后筛选到同一件 (2.6s)
-  ✓    8 test/browser/dictionaries.spec.cjs:101:1 › 录货中新增缺少的品牌，原商品输入不丢且新选项立即可选 (1.1s)
-  ✓    9 test/browser/dictionaries.spec.cjs:124:1 › 字典维护可编辑和停用，重复别名有明确提示 (1.7s)
-  ✓   10 test/browser/dictionaries.spec.cjs:150:1 › 大量品牌时通过服务器搜索找到首批选项之外的品牌 (2.4s)
-  ✓   11 test/browser/dictionaries.spec.cjs:177:1 › 成色只显示VC五级与说明，不要求填写九成新或程序编码 (624ms)
-  ✓   12 test/browser/dictionaries.spec.cjs:195:1 › 操作记录与失败任务默认展示中文，不把JSON放在主表格 (964ms)
-  ✓   13 test/browser/dictionaries.spec.cjs:212:1 › 只搜索未选择品牌时明确提示，不能把搜索词当作已保存的选项 (1.4s)
+  ✓    1 test/browser/arco-workspace.spec.cjs:36:1 › 选择商品和操作菜单不擦除尚未提交的筛选输入，键盘可继续筛选 (2.6s)
+  ✓    2 test/browser/arco-workspace.spec.cjs:82:1 › 完整编辑遇到并发改价后保留中文草稿，合并仍需主动保存 (1.2s)
+  ✓    3 test/browser/arco-workspace.spec.cjs:124:3 › 1440px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (3.6s)
+  ✓    4 test/browser/arco-workspace.spec.cjs:124:3 › 390px 商品排序与每页数量即时生效，翻页保留选择且待输入筛选不被丢弃 (3.7s)
+  ✓    5 test/browser/arco-workspace.spec.cjs:218:3 › 1440px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.8s)
+  ✓    6 test/browser/arco-workspace.spec.cjs:218:3 › 390px 全系统页面沿用同一主题且采购样式和原生控件不再受旧规则影响 (4.5s)
+  ✓    7 test/browser/dictionaries.spec.cjs:51:1 › 录商品直接选择品牌、国际成色、颜色与材质，保存后筛选到同一件 (2.1s)
+  ✓    8 test/browser/dictionaries.spec.cjs:101:1 › 录货中新增缺少的品牌，原商品输入不丢且新选项立即可选 (1.0s)
+  ✓    9 test/browser/dictionaries.spec.cjs:124:1 › 字典维护可编辑和停用，重复别名有明确提示 (1.3s)
+  ✓   10 test/browser/dictionaries.spec.cjs:150:1 › 大量品牌时通过服务器搜索找到首批选项之外的品牌 (2.2s)
+  ✓   11 test/browser/dictionaries.spec.cjs:177:1 › 成色只显示VC五级与说明，不要求填写九成新或程序编码 (677ms)
+  ✓   12 test/browser/dictionaries.spec.cjs:195:1 › 操作记录与失败任务默认展示中文，不把JSON放在主表格 (687ms)
+  ✓   13 test/browser/dictionaries.spec.cjs:212:1 › 只搜索未选择品牌时明确提示，不能把搜索词当作已保存的选项 (1.2s)
   ✓   14 test/browser/dictionaries.spec.cjs:234:1 › 手机录货选择国际成色并保存，新增选项入口不遮挡提交 (1.3s)
-  ✓   15 test/browser/dictionaries.spec.cjs:261:1 › 测试商品从建档即分区，保存返回测试列表，不混入正式商品 (857ms)
-  ✓   16 test/browser/dictionaries.spec.cjs:284:1 › 有模拟成交也能从删除窗口清理，保留历史金额并显示测试成交 (1.3s)
-  ✓   17 test/browser/dictionaries.spec.cjs:331:1 › 批量改品牌只影响勾选商品与指定字段，版本冲突单独显示 (1.7s)
-  ✓   18 test/browser/interaction.spec.cjs:88:5 › pointer 1440 › 图库真实点击选择和批量复核可以提交 (1.3s)
-  ✓   19 test/browser/interaction.spec.cjs:121:5 › pointer 1440 › 渠道确认勾选后能生成发布资料 (1.3s)
-  ✓   20 test/browser/interaction.spec.cjs:88:5 › pointer 390 › 图库真实点击选择和批量复核可以提交 (1.0s)
-  ✓   21 test/browser/interaction.spec.cjs:121:5 › pointer 390 › 渠道确认勾选后能生成发布资料 (1.2s)
-  ✓   22 test/browser/interaction.spec.cjs:140:3 › failure journeys › 原生必填缺项也显示可读错误而非没有反应 (802ms)
-  ✓   23 test/browser/interaction.spec.cjs:152:3 › failure journeys › 渠道保存响应中断重试使用同一请求，不陷入版本冲突 (955ms)
-  ✓   24 test/browser/interaction.spec.cjs:175:3 › failure journeys › 研究资料确认框可用文字标签勾选并保存 (1.1s)
-  ✓   25 test/browser/interaction.spec.cjs:194:3 › edit and retry › 确认后修改正文必须重新勾选，不能沿用旧确认 (1.2s)
-  ✓   26 test/browser/interaction.spec.cjs:213:3 › edit and retry › 生成资料响应丢失后重试不会重复生成 (1.1s)
-  ✓   27 test/browser/interaction.spec.cjs:245:3 › form recovery › 登录失效后原位重新登录并保留表单内容 (1.2s)
-  ✓   28 test/browser/interaction.spec.cjs:277:3 › form recovery › 上传被明确拒绝后修正来源可以重新提交 (1.0s)
-  ✓   29 test/browser/interaction.spec.cjs:305:3 › selection and in-flight writes › 本页全选和部分选择状态一致 (921ms)
+  ✓   15 test/browser/dictionaries.spec.cjs:261:1 › 测试商品从建档即分区，保存返回测试列表，不混入正式商品 (768ms)
+  ✓   16 test/browser/dictionaries.spec.cjs:284:1 › 有模拟成交也能从删除窗口清理，保留历史金额并显示测试成交 (1.1s)
+  ✓   17 test/browser/dictionaries.spec.cjs:331:1 › 批量改品牌只影响勾选商品与指定字段，版本冲突单独显示 (1.5s)
+  ✓   18 test/browser/interaction.spec.cjs:88:5 › pointer 1440 › 图库真实点击选择和批量复核可以提交 (1.1s)
+  ✓   19 test/browser/interaction.spec.cjs:121:5 › pointer 1440 › 渠道确认勾选后能生成发布资料 (826ms)
+  ✓   20 test/browser/interaction.spec.cjs:88:5 › pointer 390 › 图库真实点击选择和批量复核可以提交 (989ms)
+  ✓   21 test/browser/interaction.spec.cjs:121:5 › pointer 390 › 渠道确认勾选后能生成发布资料 (1.1s)
+  ✓   22 test/browser/interaction.spec.cjs:140:3 › failure journeys › 原生必填缺项也显示可读错误而非没有反应 (804ms)
+  ✓   23 test/browser/interaction.spec.cjs:152:3 › failure journeys › 渠道保存响应中断重试使用同一请求，不陷入版本冲突 (1.2s)
+  ✓   24 test/browser/interaction.spec.cjs:175:3 › failure journeys › 研究资料确认框可用文字标签勾选并保存 (1.0s)
+  ✓   25 test/browser/interaction.spec.cjs:194:3 › edit and retry › 确认后修改正文必须重新勾选，不能沿用旧确认 (1.9s)
+  ✓   26 test/browser/interaction.spec.cjs:213:3 › edit and retry › 生成资料响应丢失后重试不会重复生成 (1.0s)
+  ✓   27 test/browser/interaction.spec.cjs:245:3 › form recovery › 登录失效后原位重新登录并保留表单内容 (1.6s)
+  ✓   28 test/browser/interaction.spec.cjs:277:3 › form recovery › 上传被明确拒绝后修正来源可以重新提交 (1.1s)
+  ✓   29 test/browser/interaction.spec.cjs:305:3 › selection and in-flight writes › 本页全选和部分选择状态一致 (977ms)
   ✓   30 test/browser/interaction.spec.cjs:324:3 › selection and in-flight writes › 双击保存只提交一次且请求期间不能修改输入 (1.9s)
-  ✓   31 test/browser/interaction.spec.cjs:354:3 › selection and in-flight writes › 未核验图片明确说明不可选原因并提供处理入口 (941ms)
+  ✓   31 test/browser/interaction.spec.cjs:354:3 › selection and in-flight writes › 未核验图片明确说明不可选原因并提供处理入口 (2.1s)
   ✓   32 test/browser/interaction.spec.cjs:429:3 › 回执丢失后登录失效 › 建档原请求在登录失效后仍待核对，改名不会再建一件 (1.5s)
-  ✓   33 test/browser/interaction.spec.cjs:464:3 › 回执丢失后登录失效 › 询盘回执丢失再登录失效，修改输入仍不能重复提交 (1.6s)
-  ✓   34 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 完整录货上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.8s)
-  ✓   35 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 图片弹窗上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (2.2s)
-  ✓   36 test/browser/operations.spec.cjs:120:1 › 手工录一件衣服：同页填写和选图，保存后继续维护而不是进入固定流水线 (1.6s)
-  ✓   37 test/browser/operations.spec.cjs:157:1 › 手工连续录货：保存并新增不会带入上一件资料，编号各自唯一 (1.6s)
-  ✓   38 test/browser/operations.spec.cjs:182:1 › 供应商包袋：接手时复用资料和保管方式，不抄供货价为售价 (1.1s)
-  ✓   39 test/browser/operations.spec.cjs:227:1 › 保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图 (1.3s)
-  ✓   40 test/browser/operations.spec.cjs:260:1 › 跨页选择后逐件编辑，保存回到原筛选页且不混淆两件商品 (3.9s)
-  ✓   41 test/browser/operations.spec.cjs:318:1 › 两人改同一件：显示差异、保留本次输入，确认合并后才写入 (2.0s)
-  ✓   42 test/browser/operations.spec.cjs:393:1 › 建档回执丢失后先核对原请求，仍只保存一件商品 (1.4s)
-  ✓   43 test/browser/operations.spec.cjs:422:1 › 手机整页录货：触摸确认、保存及返回可操作，无整页横向溢出 (2.1s)
-  ✓   44 test/browser/operations.spec.cjs:456:1 › 完整手工路径：录货、图片核对、准备渠道资料、登记发布、售出停售 (4.6s)
-  ✓   45 test/browser/operations.spec.cjs:561:1 › 分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人工核对为失败 (1.7s)
-  ✓   46 test/browser/operations.spec.cjs:634:1 › 无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因 (1.3s)
-  ✓   47 test/browser/operations.spec.cjs:691:1 › 询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进 (1.1s)
-  ✓   48 test/browser/operations.spec.cjs:731:1 › 批量渠道价不会用零伪造未知默认报价，必须由操作者明确填写 (1.2s)
-  ✓   49 test/browser/operations.spec.cjs:784:1 › 批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录 (1.3s)
-  ✓   50 test/browser/operations.spec.cjs:828:1 › 渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元 (1.2s)
-  ✓   51 test/browser/operations.spec.cjs:886:1 › 记录询盘会预填目标渠道的有效价格和币种 (912ms)
-  ✓   52 test/browser/operations.spec.cjs:911:1 › 回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品 (1.1s)
-  ✓   53 test/browser/procurement.spec.cjs:239:1 › 采购来源默认币种可经正式后台入口更正 (1.2s)
-  ✓   54 test/browser/procurement.spec.cjs:274:1 › TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本 (1.6s)
-  ✓   55 test/browser/procurement.spec.cjs:306:1 › 订单行人工确认在手且纳入经营后才出现货源候选入口 (1.8s)
+  ✓   33 test/browser/interaction.spec.cjs:464:3 › 回执丢失后登录失效 › 询盘回执丢失再登录失效，修改输入仍不能重复提交 (1.5s)
+  ✓   34 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 完整录货上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.3s)
+  ✓   35 test/browser/interaction.spec.cjs:499:5 › 回执丢失后登录失效 › 图片弹窗上传回执丢失再登录失效，恢复后保留原图和来源且不重复 (1.6s)
+  ✓   36 test/browser/operations.spec.cjs:120:1 › 手工录一件衣服：同页填写和选图，保存后继续维护而不是进入固定流水线 (1.3s)
+  ✓   37 test/browser/operations.spec.cjs:157:1 › 手工连续录货：保存并新增不会带入上一件资料，编号各自唯一 (1.4s)
+  ✓   38 test/browser/operations.spec.cjs:182:1 › 供应商包袋：接手时复用资料和保管方式，不抄供货价为售价 (955ms)
+  ✓   39 test/browser/operations.spec.cjs:227:1 › 保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图 (846ms)
+  ✓   40 test/browser/operations.spec.cjs:260:1 › 跨页选择后逐件编辑，保存回到原筛选页且不混淆两件商品 (2.1s)
+  ✓   41 test/browser/operations.spec.cjs:318:1 › 两人改同一件：显示差异、保留本次输入，确认合并后才写入 (1.3s)
+  ✓   42 test/browser/operations.spec.cjs:393:1 › 建档回执丢失后先核对原请求，仍只保存一件商品 (948ms)
+  ✓   43 test/browser/operations.spec.cjs:422:1 › 手机整页录货：触摸确认、保存及返回可操作，无整页横向溢出 (1.2s)
+  ✓   44 test/browser/operations.spec.cjs:456:1 › 完整手工路径：录货、图片核对、准备渠道资料、登记发布、售出停售 (3.0s)
+  ✓   45 test/browser/operations.spec.cjs:561:1 › 分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人工核对为失败 (1.4s)
+  ✓   46 test/browser/operations.spec.cjs:634:1 › 无稳定远端ID的成功发布在图片权利失效后明确显示需停售原因 (837ms)
+  ✓   47 test/browser/operations.spec.cjs:691:1 › 询盘确认成交通过原子动作停售，已转化记录不再显示普通跟进 (851ms)
+  ✓   48 test/browser/operations.spec.cjs:731:1 › 批量渠道价不会用零伪造未知默认报价，必须由操作者明确填写 (1.3s)
+  ✓   49 test/browser/operations.spec.cjs:784:1 › 批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录 (1.1s)
+  ✓   50 test/browser/operations.spec.cjs:828:1 › 渠道账号和批量渠道价会同步目标币种，不把人民币金额带成美元 (954ms)
+  ✓   51 test/browser/operations.spec.cjs:886:1 › 记录询盘会预填目标渠道的有效价格和币种 (710ms)
+  ✓   52 test/browser/operations.spec.cjs:911:1 › 回执未确认时继续编辑不会把新内容误当已保存，核对后正确更新同一件商品 (985ms)
+  ✓   53 test/browser/procurement.spec.cjs:239:1 › 采购来源默认币种可经正式后台入口更正 (1.3s)
+  ✓   54 test/browser/procurement.spec.cjs:274:1 › TRR结构订单导入后只形成采购事实，不自动生成库存或人民币成本 (2.3s)
+  ✓   55 test/browser/procurement.spec.cjs:306:1 › 订单行人工确认在手且纳入经营后才出现货源候选入口 (1.6s)
   ✓   56 test/browser/procurement.spec.cjs:336:1 › v1 采购历史不再逐件手填成本，统一由订单级成本面板计算 (1.3s)
-  ✓   57 test/browser/procurement.spec.cjs:364:1 › 采购订单手机端按订单事实与本地核对分层，不横向溢出 (1.9s)
-  ✓   58 test/browser/product-library.spec.cjs:242:1 › 商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换 (2.3s)
-  ✓   59 test/browser/product-library.spec.cjs:292:1 › 导入记录精确进入本批，来源缺项可集中核对并逐件保留依据 (2.3s)
-  ✓   60 test/browser/product-library.spec.cjs:333:1 › 批量真实写入后丢回执，关闭页面再继续只保留一份TM (3.0s)
+  ✓   57 test/browser/procurement.spec.cjs:364:1 › 采购订单手机端按订单事实与本地核对分层，不横向溢出 (2.0s)
+  ✓   58 test/browser/product-library.spec.cjs:242:1 › 商品资料库按尺码位置来源及缺项找货，手机日常入口可实际切换 (2.0s)
+  ✓   59 test/browser/product-library.spec.cjs:292:1 › 导入记录精确进入本批，来源缺项可集中核对并逐件保留依据 (1.8s)
+  ✓   60 test/browser/product-library.spec.cjs:333:1 › 批量真实写入后丢回执，关闭页面再继续只保留一份TM (2.6s)
   ✓   61 test/browser/product-library.spec.cjs:394:1 › 从商品库真实下载原图资料包，售价用元且能查看后续补图变化 (1.6s)
-  ✓   62 test/browser/product-library.spec.cjs:450:1 › 原图实际上传后断线，关闭页面再进入可恢复文件和原请求 (1.6s)
+  ✓   62 test/browser/product-library.spec.cjs:450:1 › 原图实际上传后断线，关闭页面再进入可恢复文件和原请求 (2.0s)
   ✓   63 test/browser/product-library.spec.cjs:506:1 › 商品页保存后直接整理资料，真实回执丢失并关页后仍只产生一份记录 (1.7s)
   ✓   64 test/browser/product-library.spec.cjs:570:1 › 商品从列表先查看，取消不写入，保存回详情并保留原筛选与相邻商品 (1.6s)
   ✓   65 test/browser/product-library.spec.cjs:669:3 › 商品详情 1440px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (1.3s)
-  ✓   66 test/browser/product-library.spec.cjs:669:3 › 商品详情 390px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (1.4s)
-  ✓   67 test/browser/product-library.spec.cjs:729:1 › 完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批 (2.2s)
-  ✓   68 test/browser/product-library.spec.cjs:780:1 › 单件录货可保存关闭，下载失败只重试文件不重复整理 (1.6s)
+  ✓   66 test/browser/product-library.spec.cjs:669:3 › 商品详情 390px 可连续翻图查看真正原图，下载字节不变且不显示编辑控件 (1.3s)
+  ✓   67 test/browser/product-library.spec.cjs:729:1 › 完成批次直达本批商品，重置和查看已归入不丢范围，详情往返仍在本批 (2.1s)
+  ✓   68 test/browser/product-library.spec.cjs:780:1 › 单件录货可保存关闭，下载失败只重试文件不重复整理 (1.5s)
   ✓   69 test/browser/product-library.spec.cjs:837:1 › 详情暂停需要确认，真实写入丢回执后同键重试且不产生销售 (1.1s)
   ✓   70 test/browser/product-library.spec.cjs:877:1 › 只读角色默认详情不暴露成本、编辑或库存写入入口 (1.3s)
-  ✓   71 test/browser/studio.spec.cjs:107:1 › 只录标题、价格和图片即可保存，不要求先走审核或流水线 (1.3s)
-  ✓   72 test/browser/studio.spec.cjs:145:1 › 一页录货到可复制资料：集中核对一次，不往返商品、素材和渠道页 (2.3s)
-  ✓   73 test/browser/studio.spec.cjs:210:1 › 发布缺项直接在本页补齐，已经修改的渠道文案保留 (1.9s)
-  ✓   74 test/browser/studio.spec.cjs:243:1 › 集中复核回执丢失后可继续，不能重复生成或误报已发到平台 (1.9s)
-  ✓   75 test/browser/studio.spec.cjs:281:1 › 已保存图片可以原地查看、标瑕疵和移除，未保存文字不丢失 (1.4s)
-  ✓   76 test/browser/studio.spec.cjs:323:1 › 手机主流程可触摸使用，基础表单无横向溢出 (746ms)
-  ✓   77 test/browser/studio.spec.cjs:365:1 › 别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖对方 (2.3s)
-  ✓   78 test/browser/studio.spec.cjs:434:1 › 图片回执丢失显示可操作错误，重试后原地恢复而不是空白或死按钮 (1.9s)
-  ✓   79 test/browser/studio.spec.cjs:464:1 › 已经生成资料后仍能编辑并再次生成，回执恢复不会锁死输入框 (2.2s)
-  ✓   80 test/browser/studio.spec.cjs:504:1 › 供应商持有的包袋在本页补供货确认，不要求调货或重新拍摄 (2.8s)
-  ✓   81 test/browser/studio.spec.cjs:548:1 › 渠道切换先保存各自文案，返回原账号不丢内容不串号 (2.0s)
-  ✓   82 test/browser/studio.spec.cjs:579:1 › 在工作区登记售出后停止旧资料取用，不离开或清空未保存输入 (2.0s)
-  ✓   83 test/browser/studio.spec.cjs:611:1 › 点击可见上传区域就打开文件选择器，不需要寻找隐藏的素材入口 (747ms)
-  ✓   84 test/browser/studio.spec.cjs:628:1 › 服务端发现同平台历史暴露时可二次确认加入分发渠道 (1.8s)
-  ✓   85 test/browser/studio.spec.cjs:684:1 › 登记已发布使用本页回执，不跳转或重载工作区 (2.5s)
-  ✓   86 test/browser/studio.spec.cjs:730:1 › 保存并返回同时保留当前渠道的未保存文案，不会悄悄丢弃 (1.8s)
-  ✓   87 test/browser/studio.spec.cjs:760:1 › 未改过的预览在补齐尺寸后直接更新，不再要求手工重填一遍 (1.7s)
-  ✓   88 test/browser/studio.spec.cjs:780:1 › 读取发布预览失败可原地重试，已经保存的商品和图片不会消失 (1.7s)
-  ✓   89 test/browser/studio.spec.cjs:810:1 › 触摸设备的发布排序 › 发布图片可拖动键盘及手机指定位置，排序只改发布草稿 (1.9s)
-  ✓   90 test/browser/system-review.spec.cjs:86:1 › 批量定价逐件展示并在真实写入回执丢失后重试，不重写成功项 (1.2s)
-  ✓   91 test/browser/system-review.spec.cjs:140:1 › 询盘旧窗口保留本次输入，核对最新沟通后追加历史 (980ms)
-  ✓   92 test/browser/system-review.spec.cjs:177:1 › 商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交 (1.5s)
-  ✓   93 test/browser/system-review.spec.cjs:240:1 › 二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包 (3.8s)
-  ✓   94 test/browser/system-review.spec.cjs:295:1 › 看图选品真实创建后丢失回执，重试只生成一个合集和资料包 (1.8s)
-  ✓   95 test/browser/system-review.spec.cjs:366:1 › 渠道维护可修改停用，发布查询保留显式范围且手机可操作 (853ms)
-  ✓   96 test/browser/system-review.spec.cjs:468:1 › 集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次 (1.8s)
-  ✓   97 test/browser/system-review.spec.cjs:544:1 › 采购第二页往返TM保留关键词来源页码和列表位置 (2.4s)
-  ✓   98 test/browser/system-review.spec.cjs:601:1 › 图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用 (1.2s)
-  ✓   99 test/browser/system-review.spec.cjs:661:1 › 分次加入选品按合并后的数量限制，超限不改变已有选择 (13.2s)
-  ✓  100 test/browser/system-review.spec.cjs:691:3 › sales重置保留商品与返回路径，查看全部才解除商品范围 (967ms)
-  ✓  101 test/browser/system-review.spec.cjs:691:3 › inquiries重置保留商品与返回路径，查看全部才解除商品范围 (935ms)
-  ✓  102 test/browser/system-review.spec.cjs:691:3 › listings重置保留商品与返回路径，查看全部才解除商品范围 (924ms)
-  ✓  103 test/browser/system-review.spec.cjs:742:1 › 待办进入单条询盘后重置仍只显示原记录，返回保留待办筛选 (841ms)
-  ✓  104 test/browser/system-review.spec.cjs:780:1 › 选品草稿关页恢复时重读商品且只保存账号范围内的必要字段 (1.8s)
-  ✓  105 test/browser/ui08.spec.cjs:97:1 › 桌面商品编辑器保持清晰主栏与侧栏，不横向溢出 (552ms)
-  ✓  106 test/browser/ui08.spec.cjs:111:1 › 手机商品页按真实录货顺序排布且所有卡片占满宽度 (500ms)
-  ✓  107 test/browser/ui08.spec.cjs:145:1 › 手机顶级业务导航全部可达 (763ms)
-  ✓  108 test/browser/ui08.spec.cjs:170:1 › 正式商品列表状态标签克制，页头只保留一个主动作 (598ms)
-  ✓  109 test/browser/ui08.spec.cjs:188:1 › 视觉层只有一个最终设计系统所有者 (585ms)
-  ✓  110 test/browser/ui08.spec.cjs:224:1 › 列表末行菜单不被裁切，外部点击与Escape收起并可实际修改 (1.6s)
-  ✓  111 test/browser/ui08.spec.cjs:273:1 › 商品重置保留测试范围和图片视图，空状态可恢复且选择可见 (1.0s)
-  ✓  112 test/browser/ui08.spec.cjs:303:1 › 快速修改完整页入口保护未保存输入，来源等级仍待人工选择 (1.2s)
-  ✓  113 test/browser/ui08.spec.cjs:348:1 › 手机批量操作随滚动可达，菜单和快速修改不溢出 (1.2s)
-  ✓  114 test/browser/ui08.spec.cjs:390:1 › 已排除候选可带原因恢复，空结果有恢复入口，手机筛选不溢出 (1.6s)
-  ✓  115 test/browser/ui08.spec.cjs:498:1 › 空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用 (999ms)
-  ✓  116 test/browser/ui08.spec.cjs:533:1 › 商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿 (1.0s)
-  ✓  117 test/browser/ui08.spec.cjs:586:1 › 从经营待办直接跟进指定询盘，完成后返回待办且不改变库存 (1.1s)
-  ✓  118 test/browser/ui08.spec.cjs:633:1 › 已确认候选不再提供无效勾选，维护商品后返回原候选筛选 (1.4s)
-  ✓  119 test/browser/ui08.spec.cjs:724:1 › 最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖 (750ms)
-  ✓  120 test/browser/ux09-audit.spec.cjs:12:1 › 低频经营页面使用统一后台语言和布局 (2.0s)
-  ✓  121 test/browser/ux09-audit.spec.cjs:24:1 › 设置页角色使用业务中文，技术入口默认收起 (606ms)
-  ✓  122 test/browser/ux09-audit.spec.cjs:35:1 › 成交记录每行只突出补收支，其余危险动作收进更多 (571ms)
-  ✓  123 test/browser/ux09.spec.cjs:27:1 › 字典控件按选项规模选择正确交互，不再一律做搜索框 (574ms)
-  ✓  124 test/browser/ux09.spec.cjs:44:1 › 品牌输入即搜索，鼠标和键盘都能完成真实选择 (1.3s)
-  ✓  125 test/browser/ux09.spec.cjs:65:1 › 列表筛选输入了品牌但没真正选择时明确阻止，不会静默忽略 (1.1s)
-  ✓  126 test/browser/ux09.spec.cjs:80:1 › 新增品牌从当前输入预填，保存后回到同一个商品并自动选中 (740ms)
-  ✓  127 test/browser/ux09.spec.cjs:104:1 › 已生效的字典筛选刷新后仍明确显示当前选项 (1.4s)
-  ✓  128 test/browser/ux09.spec.cjs:112:1 › 已选品牌继续输入时替换旧值而不是拼接到旧标签后面 (1.4s)
-  ✓  129 test/browser/ux10.spec.cjs:13:1 › 快速录货只暴露首次需要的字段，完整建档退到更多 (747ms)
-  ✓  130 test/browser/ux10.spec.cjs:18:1 › 快速录入只接收我方现货，供应商和远端货源明确转到来源维护 (694ms)
-  ✓  131 test/browser/ux10.spec.cjs:21:1 › 快速录货保存图片后直接下一件，上一件内容不带入 (1.6s)
-  ✓  132 test/browser/ux10.spec.cjs:27:1 › 快速录货保存并完善，无缝进入同一件完整商品页 (1.5s)
-  ✓  133 test/browser/ux10.spec.cjs:33:1 › 快速录货打开即聚焦名称，Ctrl+Enter保存并进入下一件 (795ms)
-  ✓  134 test/browser/ux10.spec.cjs:37:1 › 快速录货可在提交前单张移除图片，服务器只保存保留项 (1.2s)
-  ✓  135 test/browser/ux10.spec.cjs:41:1 › 快速录货桌面与手机布局保持单一主任务，不横向溢出 (1.6s)
-  ✓  136 test/browser/ux10.spec.cjs:48:1 › 商品列表可快速修改常用信息，不必进入完整编辑页 (1.5s)
-  ✓  137 test/browser/ux10.spec.cjs:52:1 › 快速修改遇到并发变更时保留输入并阻止覆盖 (1.1s)
-  ✓  138 test/browser/ux101.spec.cjs:33:1 › 无hash登录后默认进入工作台而不是全量商品库 (612ms)
-  ✓  139 test/browser/ux101.spec.cjs:41:1 › 快速录货先校验图片，坏文件不会留下半成品TM (766ms)
-  ✓  140 test/browser/ux101.spec.cjs:62:1 › 运营可以看成交事实但不能读取经营财务账 (1.1s)
-  ✓  141 test/browser/ux101.spec.cjs:124:1 › 只读详情直接预留和解除，真实写入丢回执后同键重试且不自动恢复可售 (1.5s)
-  ✓  142 test/browser/ux101.spec.cjs:183:1 › 登录真实响应延迟时先等确定回执，保留页面断言且只提交一次 (6.5s)
-  ✓  143 test/browser/ux101.spec.cjs:229:1 › 各角色界面使用服务端能力，商品编辑与销售入口符合真实权限 (4.3s)
-  ✓  144 test/browser/ux2.spec.cjs:16:1 › 新建商品首屏提供保存和下载资料，发布从更多进入 (548ms)
-  ✓  145 test/browser/ux2.spec.cjs:39:1 › 次要保存动作放入更多菜单，不和主动作抢界面 (563ms)
-  ✓  146 test/browser/ux2.spec.cjs:54:1 › 商品列表行内不再同时堆编辑加图删除发布按钮 (779ms)
-  ✓  147 test/browser/v1-item-center.spec.cjs:385:1 › 来源成色在待确认卡片、表格和批量预检仅作参考，品牌与低置信建议仍提示 (1.2s)
-  ✓  148 test/browser/v1-item-center.spec.cjs:430:1 › TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示 (854ms)
-  ✓  149 test/browser/v1-item-center.spec.cjs:507:1 › 来源纠错后当前图册隐藏错图并保留撤下审计详情 (1.1s)
-  ✓  150 test/browser/v1-item-center.spec.cjs:529:1 › v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM (1.6s)
-  ✓  151 test/browser/v1-item-center.spec.cjs:577:1 › v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批 (5.3s)
-  ✓  152 test/browser/v1-item-center.spec.cjs:649:1 › 待确认显示来源尺码并可按页码跳转，批量操作保留位置且末页清空才回退 (3.5s)
-  ✓  153 test/browser/v1-item-center.spec.cjs:790:1 › v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本 (1.8s)
-  ✓  154 test/browser/v1-item-center.spec.cjs:845:1 › Credit退款明细校验后一次算净额，重开保留明细与固定汇率 (2.0s)
-  ✓  155 test/browser/v1-item-center.spec.cjs:894:1 › v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据 (1.1s)
-  ✓  156 test/browser/v1-item-center.spec.cjs:925:1 › v1 手机待确认保持单一批量任务且无横向溢出 (1.4s)
-  ✓  157 test/browser/v1-item-center.spec.cjs:956:1 › v1 经营待办把Agent候选直接带回对应来源的待确认处理页 (913ms)
-  ✓  158 test/browser/v1-item-center.spec.cjs:969:1 › v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同一主档 (1.8s)
-  ✓  159 test/browser/v1-item-center.spec.cjs:1027:1 › rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表 (1.2s)
-  ✓  160 test/browser/v1-item-center.spec.cjs:1060:1 › rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹窗 (830ms)
-  ✓  161 test/browser/v1-item-center.spec.cjs:1078:1 › 来源核对在桌面和手机保留商品身份、返回入口、选择和键盘焦点 (1.5s)
-  ✓  162 test/browser/v1-item-center.spec.cjs:1122:1 › 跨页选择101件分段确认，真实写入回执丢失后重试不重复建档 (8.1s)
-  ✓  163 test/browser/v1-item-center.spec.cjs:1171:1 › 来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿 (3.2s)
-  ✓  164 test/browser/v1-item-center.spec.cjs:1246:1 › 批量部分失败显示逐件原因，成功移除而失败保留供重新核对 (1.5s)
-  ✓  165 test/browser/v1-item-center.spec.cjs:1273:1 › 单件建档清除该件批量勾选并保留其他候选 (1.0s)
-  ✓  166 test/browser/v1-item-center.spec.cjs:1290:1 › 来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典 (1.8s)
-  ✓  167 test/browser/workbench.spec.cjs:55:1 › 真实登录、商品列表与全部运营入口可读取 (1.8s)
-  ✓  168 test/browser/workbench.spec.cjs:83:1 › 资料不完整仍可建档、维护并按缺项安排工作 (2.5s)
-  ✓  169 test/browser/workbench.spec.cjs:114:1 › 卖出先停推广，金额未知不会被填成零 (1.9s)
-  ✓  170 test/browser/workbench.spec.cjs:137:1 › 货源批次先预览再写入，不直接变成自有库存 (941ms)
-  ✓  171 test/browser/workbench.spec.cjs:150:1 › 上传图片保存原件，待复核授权不冒充已核验 (1.7s)
-  ✓  172 test/browser/workbench.spec.cjs:176:1 › 手机尺寸商品列表无整页横向溢出 (789ms)
-  ✓  173 test/browser/workbench.spec.cjs:190:1 › 未登录展厅可看有效公开展示，不泄漏内部经营字段 (869ms)
-  ✓  174 test/browser/workbench.spec.cjs:199:1 › 退出后无法返回受保护内容 (687ms)
-  ✓  175 test/browser/workbench.spec.cjs:270:1 › 新增作业入口与运行健康页面读取真实数据 (966ms)
-  ✓  176 test/browser/workbench.spec.cjs:289:1 › 操作人员可关联旧编号并显式记录和撤回尺寸不适用 (1.8s)
-  ✓  177 test/browser/workbench.spec.cjs:316:1 › 批量上传可先暂存，人工确认归属后才加入商品素材 (2.5s)
-  ✓  178 test/browser/workbench.spec.cjs:385:1 › 客户合集直接使用TM编号创建，售出一件只停止该件取用 (1.6s)
-  ✓  179 test/browser/workbench.spec.cjs:412:1 › 外币对账快照缺少汇率基础时保持草稿，不执行打款 (1.7s)
-  ✓  180 test/browser/workbench.spec.cjs:528:1 › 商品列表可删除、取消删除并在回收站恢复原编号 (1.9s)
-  ✓  181 test/browser/workbench.spec.cjs:564:1 › 批量清理仅影响本测试创建并勾选的两件样本 (1.2s)
-  ✓  182 test/browser/workbench.spec.cjs:587:1 › 手机商品详情提供删除，旧编辑页提示先恢复 (1.2s)
+  ✓   71 test/browser/product-library.spec.cjs:927:3 › AI 上身效果 1440px 独立浏览且不替换实物封面 (3.0s)
+  ✓   72 test/browser/product-library.spec.cjs:927:3 › AI 上身效果 390px 独立浏览且不替换实物封面 (2.4s)
+  ✓   73 test/browser/studio.spec.cjs:107:1 › 只录标题、价格和图片即可保存，不要求先走审核或流水线 (1.2s)
+  ✓   74 test/browser/studio.spec.cjs:145:1 › 一页录货到可复制资料：集中核对一次，不往返商品、素材和渠道页 (2.3s)
+  ✓   75 test/browser/studio.spec.cjs:210:1 › 发布缺项直接在本页补齐，已经修改的渠道文案保留 (1.9s)
+  ✓   76 test/browser/studio.spec.cjs:243:1 › 集中复核回执丢失后可继续，不能重复生成或误报已发到平台 (2.1s)
+  ✓   77 test/browser/studio.spec.cjs:281:1 › 已保存图片可以原地查看、标瑕疵和移除，未保存文字不丢失 (1.5s)
+  ✓   78 test/browser/studio.spec.cjs:323:1 › 手机主流程可触摸使用，基础表单无横向溢出 (766ms)
+  ✓   79 test/browser/studio.spec.cjs:365:1 › 别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖对方 (2.2s)
+  ✓   80 test/browser/studio.spec.cjs:434:1 › 图片回执丢失显示可操作错误，重试后原地恢复而不是空白或死按钮 (1.8s)
+  ✓   81 test/browser/studio.spec.cjs:464:1 › 已经生成资料后仍能编辑并再次生成，回执恢复不会锁死输入框 (2.5s)
+  ✓   82 test/browser/studio.spec.cjs:504:1 › 供应商持有的包袋在本页补供货确认，不要求调货或重新拍摄 (2.0s)
+  ✓   83 test/browser/studio.spec.cjs:548:1 › 渠道切换先保存各自文案，返回原账号不丢内容不串号 (2.2s)
+  ✓   84 test/browser/studio.spec.cjs:579:1 › 在工作区登记售出后停止旧资料取用，不离开或清空未保存输入 (2.3s)
+  ✓   85 test/browser/studio.spec.cjs:611:1 › 点击可见上传区域就打开文件选择器，不需要寻找隐藏的素材入口 (929ms)
+  ✓   86 test/browser/studio.spec.cjs:628:1 › 服务端发现同平台历史暴露时可二次确认加入分发渠道 (1.7s)
+  ✓   87 test/browser/studio.spec.cjs:684:1 › 登记已发布使用本页回执，不跳转或重载工作区 (2.4s)
+  ✓   88 test/browser/studio.spec.cjs:730:1 › 保存并返回同时保留当前渠道的未保存文案，不会悄悄丢弃 (1.7s)
+  ✓   89 test/browser/studio.spec.cjs:760:1 › 未改过的预览在补齐尺寸后直接更新，不再要求手工重填一遍 (2.1s)
+  ✓   90 test/browser/studio.spec.cjs:780:1 › 读取发布预览失败可原地重试，已经保存的商品和图片不会消失 (1.7s)
+  ✓   91 test/browser/studio.spec.cjs:810:1 › 触摸设备的发布排序 › 发布图片可拖动键盘及手机指定位置，排序只改发布草稿 (1.9s)
+  ✓   92 test/browser/system-review.spec.cjs:86:1 › 批量定价逐件展示并在真实写入回执丢失后重试，不重写成功项 (1.2s)
+  ✓   93 test/browser/system-review.spec.cjs:140:1 › 询盘旧窗口保留本次输入，核对最新沟通后追加历史 (933ms)
+  ✓   94 test/browser/system-review.spec.cjs:177:1 › 商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交 (1.5s)
+  ✓   95 test/browser/system-review.spec.cjs:240:1 › 二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包 (3.9s)
+  ✓   96 test/browser/system-review.spec.cjs:295:1 › 看图选品真实创建后丢失回执，重试只生成一个合集和资料包 (2.2s)
+  ✓   97 test/browser/system-review.spec.cjs:366:1 › 渠道维护可修改停用，发布查询保留显式范围且手机可操作 (872ms)
+  ✓   98 test/browser/system-review.spec.cjs:468:1 › 集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次 (1.8s)
+  ✓   99 test/browser/system-review.spec.cjs:544:1 › 采购第二页往返TM保留关键词来源页码和列表位置 (2.7s)
+  ✓  100 test/browser/system-review.spec.cjs:601:1 › 图片归档按商品名称选择，保留来源输入且原图与中文批次状态可用 (1.3s)
+  ✓  101 test/browser/system-review.spec.cjs:661:1 › 分次加入选品按合并后的数量限制，超限不改变已有选择 (11.8s)
+  ✓  102 test/browser/system-review.spec.cjs:691:3 › sales重置保留商品与返回路径，查看全部才解除商品范围 (1.0s)
+  ✓  103 test/browser/system-review.spec.cjs:691:3 › inquiries重置保留商品与返回路径，查看全部才解除商品范围 (919ms)
+  ✓  104 test/browser/system-review.spec.cjs:691:3 › listings重置保留商品与返回路径，查看全部才解除商品范围 (900ms)
+  ✓  105 test/browser/system-review.spec.cjs:742:1 › 待办进入单条询盘后重置仍只显示原记录，返回保留待办筛选 (836ms)
+  ✓  106 test/browser/system-review.spec.cjs:780:1 › 选品草稿关页恢复时重读商品且只保存账号范围内的必要字段 (1.8s)
+  ✓  107 test/browser/ui08.spec.cjs:97:1 › 桌面商品编辑器保持清晰主栏与侧栏，不横向溢出 (528ms)
+  ✓  108 test/browser/ui08.spec.cjs:111:1 › 手机商品页按真实录货顺序排布且所有卡片占满宽度 (583ms)
+  ✓  109 test/browser/ui08.spec.cjs:145:1 › 手机顶级业务导航全部可达 (803ms)
+  ✓  110 test/browser/ui08.spec.cjs:170:1 › 正式商品列表状态标签克制，页头只保留一个主动作 (716ms)
+  ✓  111 test/browser/ui08.spec.cjs:188:1 › 视觉层只有一个最终设计系统所有者 (578ms)
+  ✓  112 test/browser/ui08.spec.cjs:224:1 › 列表末行菜单不被裁切，外部点击与Escape收起并可实际修改 (1.6s)
+  ✓  113 test/browser/ui08.spec.cjs:273:1 › 商品重置保留测试范围和图片视图，空状态可恢复且选择可见 (1.0s)
+  ✓  114 test/browser/ui08.spec.cjs:303:1 › 快速修改完整页入口保护未保存输入，来源等级仍待人工选择 (1.3s)
+  ✓  115 test/browser/ui08.spec.cjs:348:1 › 手机批量操作随滚动可达，菜单和快速修改不溢出 (1.3s)
+  ✓  116 test/browser/ui08.spec.cjs:390:1 › 已排除候选可带原因恢复，空结果有恢复入口，手机筛选不溢出 (1.9s)
+  ✓  117 test/browser/ui08.spec.cjs:498:1 › 空待办给出继续操作入口，手机资料弹窗标题与关闭按钮可用 (1.1s)
+  ✓  118 test/browser/ui08.spec.cjs:533:1 › 商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿 (1.0s)
+  ✓  119 test/browser/ui08.spec.cjs:586:1 › 从经营待办直接跟进指定询盘，完成后返回待办且不改变库存 (1.2s)
+  ✓  120 test/browser/ui08.spec.cjs:633:1 › 已确认候选不再提供无效勾选，维护商品后返回原候选筛选 (1.5s)
+  ✓  121 test/browser/ui08.spec.cjs:724:1 › 最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖 (789ms)
+  ✓  122 test/browser/ux09-audit.spec.cjs:12:1 › 低频经营页面使用统一后台语言和布局 (2.0s)
+  ✓  123 test/browser/ux09-audit.spec.cjs:24:1 › 设置页角色使用业务中文，技术入口默认收起 (701ms)
+  ✓  124 test/browser/ux09-audit.spec.cjs:35:1 › 成交记录每行只突出补收支，其余危险动作收进更多 (775ms)
+  ✓  125 test/browser/ux09.spec.cjs:27:1 › 字典控件按选项规模选择正确交互，不再一律做搜索框 (613ms)
+  ✓  126 test/browser/ux09.spec.cjs:44:1 › 品牌输入即搜索，鼠标和键盘都能完成真实选择 (1.9s)
+  ✓  127 test/browser/ux09.spec.cjs:65:1 › 列表筛选输入了品牌但没真正选择时明确阻止，不会静默忽略 (1.2s)
+  ✓  128 test/browser/ux09.spec.cjs:80:1 › 新增品牌从当前输入预填，保存后回到同一个商品并自动选中 (742ms)
+  ✓  129 test/browser/ux09.spec.cjs:104:1 › 已生效的字典筛选刷新后仍明确显示当前选项 (1.5s)
+  ✓  130 test/browser/ux09.spec.cjs:112:1 › 已选品牌继续输入时替换旧值而不是拼接到旧标签后面 (1.6s)
+  ✓  131 test/browser/ux10.spec.cjs:13:1 › 快速录货只暴露首次需要的字段，完整建档退到更多 (812ms)
+  ✓  132 test/browser/ux10.spec.cjs:18:1 › 快速录入只接收我方现货，供应商和远端货源明确转到来源维护 (785ms)
+  ✓  133 test/browser/ux10.spec.cjs:21:1 › 快速录货保存图片后直接下一件，上一件内容不带入 (1.7s)
+  ✓  134 test/browser/ux10.spec.cjs:27:1 › 快速录货保存并完善，无缝进入同一件完整商品页 (1.6s)
+  ✓  135 test/browser/ux10.spec.cjs:33:1 › 快速录货打开即聚焦名称，Ctrl+Enter保存并进入下一件 (980ms)
+  ✓  136 test/browser/ux10.spec.cjs:37:1 › 快速录货可在提交前单张移除图片，服务器只保存保留项 (1.5s)
+  ✓  137 test/browser/ux10.spec.cjs:41:1 › 快速录货桌面与手机布局保持单一主任务，不横向溢出 (1.9s)
+  ✓  138 test/browser/ux10.spec.cjs:48:1 › 商品列表可快速修改常用信息，不必进入完整编辑页 (1.6s)
+  ✓  139 test/browser/ux10.spec.cjs:52:1 › 快速修改遇到并发变更时保留输入并阻止覆盖 (1.2s)
+  ✓  140 test/browser/ux101.spec.cjs:33:1 › 无hash登录后默认进入工作台而不是全量商品库 (674ms)
+  ✓  141 test/browser/ux101.spec.cjs:41:1 › 快速录货先校验图片，坏文件不会留下半成品TM (881ms)
+  ✓  142 test/browser/ux101.spec.cjs:62:1 › 运营可以看成交事实但不能读取经营财务账 (1.4s)
+  ✓  143 test/browser/ux101.spec.cjs:124:1 › 只读详情直接预留和解除，真实写入丢回执后同键重试且不自动恢复可售 (1.8s)
+  ✓  144 test/browser/ux101.spec.cjs:183:1 › 登录真实响应延迟时先等确定回执，保留页面断言且只提交一次 (7.1s)
+  ✓  145 test/browser/ux101.spec.cjs:229:1 › 各角色界面使用服务端能力，商品编辑与销售入口符合真实权限 (5.1s)
+  ✓  146 test/browser/ux2.spec.cjs:16:1 › 新建商品首屏提供保存和下载资料，发布从更多进入 (636ms)
+  ✓  147 test/browser/ux2.spec.cjs:39:1 › 次要保存动作放入更多菜单，不和主动作抢界面 (640ms)
+  ✓  148 test/browser/ux2.spec.cjs:54:1 › 商品列表行内不再同时堆编辑加图删除发布按钮 (812ms)
+  ✓  149 test/browser/v1-item-center.spec.cjs:385:1 › 来源成色在待确认卡片、表格和批量预检仅作参考，品牌与低置信建议仍提示 (1.3s)
+  ✓  150 test/browser/v1-item-center.spec.cjs:430:1 › TRR/1.4 候选资料把展示尺码、标签原始尺码、估算标记和购买日期分栏显示 (886ms)
+  ✓  151 test/browser/v1-item-center.spec.cjs:507:1 › 来源纠错后当前图册隐藏错图并保留撤下审计详情 (1.1s)
+  ✓  152 test/browser/v1-item-center.spec.cjs:529:1 › v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM (1.7s)
+  ✓  153 test/browser/v1-item-center.spec.cjs:577:1 › v1 待确认真实支持一页100件，101件时确认一页后只剩1件待下一批 (6.5s)
+  ✓  154 test/browser/v1-item-center.spec.cjs:649:1 › 待确认显示来源尺码并可按页码跳转，批量操作保留位置且末页清空才回退 (4.9s)
+  ✓  155 test/browser/v1-item-center.spec.cjs:790:1 › v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本 (2.0s)
+  ✓  156 test/browser/v1-item-center.spec.cjs:845:1 › Credit退款明细校验后一次算净额，重开保留明细与固定汇率 (2.8s)
+  ✓  157 test/browser/v1-item-center.spec.cjs:894:1 › v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据 (1.2s)
+  ✓  158 test/browser/v1-item-center.spec.cjs:925:1 › v1 手机待确认保持单一批量任务且无横向溢出 (1.3s)
+  ✓  159 test/browser/v1-item-center.spec.cjs:956:1 › v1 经营待办把Agent候选直接带回对应来源的待确认处理页 (885ms)
+  ✓  160 test/browser/v1-item-center.spec.cjs:969:1 › v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同一主档 (1.7s)
+  ✓  161 test/browser/v1-item-center.spec.cjs:1027:1 › rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表 (1.1s)
+  ✓  162 test/browser/v1-item-center.spec.cjs:1060:1 › rc.4 普通候选只保留单件处理入口，复杂动作退到二级弹窗 (830ms)
+  ✓  163 test/browser/v1-item-center.spec.cjs:1078:1 › 来源核对在桌面和手机保留商品身份、返回入口、选择和键盘焦点 (1.5s)
+  ✓  164 test/browser/v1-item-center.spec.cjs:1122:1 › 跨页选择101件分段确认，真实写入回执丢失后重试不重复建档 (7.8s)
+  ✓  165 test/browser/v1-item-center.spec.cjs:1171:1 › 来源图册直接查看全部原图与参数，建档后原地查看不丢人工草稿 (3.2s)
+  ✓  166 test/browser/v1-item-center.spec.cjs:1246:1 › 批量部分失败显示逐件原因，成功移除而失败保留供重新核对 (1.5s)
+  ✓  167 test/browser/v1-item-center.spec.cjs:1273:1 › 单件建档清除该件批量勾选并保留其他候选 (1.1s)
+  ✓  168 test/browser/v1-item-center.spec.cjs:1290:1 › 来源品牌成色与品相在商品常用位置可见，人工等级优先且不伪造字典 (2.1s)
+  ✓  169 test/browser/workbench.spec.cjs:55:1 › 真实登录、商品列表与全部运营入口可读取 (2.0s)
+  ✓  170 test/browser/workbench.spec.cjs:83:1 › 资料不完整仍可建档、维护并按缺项安排工作 (2.4s)
+  ✓  171 test/browser/workbench.spec.cjs:114:1 › 卖出先停推广，金额未知不会被填成零 (1.9s)
+  ✓  172 test/browser/workbench.spec.cjs:137:1 › 货源批次先预览再写入，不直接变成自有库存 (907ms)
+  ✓  173 test/browser/workbench.spec.cjs:150:1 › 上传图片保存原件，待复核授权不冒充已核验 (1.7s)
+  ✓  174 test/browser/workbench.spec.cjs:176:1 › 手机尺寸商品列表无整页横向溢出 (665ms)
+  ✓  175 test/browser/workbench.spec.cjs:190:1 › 未登录展厅可看有效公开展示，不泄漏内部经营字段 (817ms)
+  ✓  176 test/browser/workbench.spec.cjs:199:1 › 退出后无法返回受保护内容 (645ms)
+  ✓  177 test/browser/workbench.spec.cjs:270:1 › 新增作业入口与运行健康页面读取真实数据 (935ms)
+  ✓  178 test/browser/workbench.spec.cjs:289:1 › 操作人员可关联旧编号并显式记录和撤回尺寸不适用 (1.7s)
+  ✓  179 test/browser/workbench.spec.cjs:316:1 › 批量上传可先暂存，人工确认归属后才加入商品素材 (2.3s)
+  ✓  180 test/browser/workbench.spec.cjs:385:1 › 客户合集直接使用TM编号创建，售出一件只停止该件取用 (1.6s)
+  ✓  181 test/browser/workbench.spec.cjs:412:1 › 外币对账快照缺少汇率基础时保持草稿，不执行打款 (1.5s)
+  ✓  182 test/browser/workbench.spec.cjs:528:1 › 商品列表可删除、取消删除并在回收站恢复原编号 (1.8s)
+  ✓  183 test/browser/workbench.spec.cjs:564:1 › 批量清理仅影响本测试创建并勾选的两件样本 (1.1s)
+  ✓  184 test/browser/workbench.spec.cjs:587:1 › 手机商品详情提供删除，旧编辑页提示先恢复 (1.1s)
 
-  182 passed (5.4m)
+  184 passed (5.2m)
 
 > tome-workbench@1.1.0-rc.13 test:ha
 > node --test --test-concurrency=1 test/high-availability.test.mjs
@@ -1897,49 +1901,49 @@ TAP version 13
 # Subtest: Two real API processes share sessions and deduplicate concurrent writes
 ok 1 - Two real API processes share sessions and deduplicate concurrent writes
   ---
-  duration_ms: 1291.752875
+  duration_ms: 1234.53425
   type: 'test'
   ...
 # Subtest: Killing one owned API process leaves the other serving authenticated traffic
 ok 2 - Killing one owned API process leaves the other serving authenticated traffic
   ---
-  duration_ms: 915.620042
+  duration_ms: 882.031333
   type: 'test'
   ...
 # Subtest: Database maintenance gates work across working directories and reject new runtimes
 ok 3 - Database maintenance gates work across working directories and reject new runtimes
   ---
-  duration_ms: 355.122833
+  duration_ms: 357.82075
   type: 'test'
   ...
 # Subtest: A real SIGKILL after durable claim is recovered by replacement workers
 ok 4 - A real SIGKILL after durable claim is recovered by replacement workers
   ---
-  duration_ms: 3194.012042
+  duration_ms: 2772.043083
   type: 'test'
   ...
 # Subtest: Loss of the owned database transport makes an API fail closed without stopping PostgreSQL
 ok 5 - Loss of the owned database transport makes an API fail closed without stopping PostgreSQL
   ---
-  duration_ms: 756.05075
+  duration_ms: 746.909958
   type: 'test'
   ...
 # Subtest: Occupied listen ports fail startup cleanly without orphaning the runtime lease
 ok 6 - Occupied listen ports fail startup cleanly without orphaning the runtime lease
   ---
-  duration_ms: 610.132
+  duration_ms: 489.956042
   type: 'test'
   ...
 # Subtest: Gateway does not replay a write after a backend loses its response
 ok 7 - Gateway does not replay a write after a backend loses its response
   ---
-  duration_ms: 207.510208
+  duration_ms: 211.076625
   type: 'test'
   ...
 # Subtest: The real supervisor automatically replaces its failed API and worker children
 ok 8 - The real supervisor automatically replaces its failed API and worker children
   ---
-  duration_ms: 5920.401
+  duration_ms: 5911.211917
   type: 'test'
   ...
 1..8
@@ -1950,17 +1954,17 @@ ok 8 - The real supervisor automatically replaces its failed API and worker chil
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 13361.554916
+# duration_ms 12727.862208
 
 > tome-workbench@1.1.0-rc.13 test:recovery
 > node scripts/verify-recovery.mjs
 
 {
   "kind": "actual-local-offline-recovery-drill",
-  "at": "2026-09-30T17:45:55.971Z",
+  "at": "2026-09-30T18:58:24.508Z",
   "passed": true,
   "source": "tome_test",
-  "target": "tome_restore_muoebp48",
+  "target": "tome_restore_muogwsks",
   "checks": {
     "liveProcessBlocksBackup": true,
     "allSelectedTableHashesEqual": true,
@@ -1970,283 +1974,283 @@ ok 8 - The real supervisor automatically replaces its failed API and worker chil
   "tables": {
     "user": {
       "count": 27,
-      "sha256": "038dbe262af48391d4336d5b4df6f0c0967c272b752fc5ed0a644ed5ca43fe91"
+      "sha256": "77b68e6e3a796081a099880ceec74de6decfca4cdd694bc12cb9e4adef6d5048"
     },
     "session": {
-      "count": 387,
-      "sha256": "a63a921a7fa2ea3da1f7a30463a04c2606254d391a9b9f44a770f6697565bdac"
+      "count": 391,
+      "sha256": "0f0cf328b19d97052c9113df907a43a28c6be12a285af1d86c4a11831fe85a00"
     },
     "loginThrottle": {
       "count": 10,
-      "sha256": "3f29b75d22cac0f36073eee8115949125ebd84029f46ae4abd1b4cf3872f456b"
+      "sha256": "620e0fa802e76888c6d8eb4a2820e56021b28b2888cd04929dfb7536f4b6b2e8"
     },
     "supplier": {
       "count": 3,
-      "sha256": "b58656c46a2e46caa71fcbd7ede6fc594034bfb1400f9dd0053f0cdbf9de0a17"
+      "sha256": "7ee1cd0115b611d242c50d9813bd831a2c1d76277561743632d1a646f6cdff55"
     },
     "source": {
       "count": 1101,
-      "sha256": "71f52d1efcd89ba7886dec7519076eaaaf06464b0d173f87056de0f3c493ec90"
+      "sha256": "fb12921251a8e8a6535064441fef956a4804ddde7ebd589e29e67f57b353cf60"
     },
     "sourceRevision": {
       "count": 1103,
-      "sha256": "87362865d196f13d75b08cc37f500bf4784f3e8331bf1fa1442a798be97e8d0b"
+      "sha256": "326fafb7825bfd0f0cabba7901cdeef2deeb00dac7f2802903f9fd8e75be4ba4"
     },
     "procurementSource": {
       "count": 114,
-      "sha256": "067227544d0068c905e94f92cef0e605480837868a461a5589e399e8a9c6a3f3"
+      "sha256": "da7ba6f6c2d9c469baf8db3ae00904ea972c067e8c2cac75d43f251a733cdb14"
     },
     "purchaseOrder": {
       "count": 138,
-      "sha256": "786a2a04f02a18ae39fb501fac38523dd6b4bdd933e00b7fe3b8e529fe611474"
+      "sha256": "75d9bc72395a9a9d3d8c93d172d33580506f661e4538e8848f5f3984df789c92"
     },
     "purchaseOrderRevision": {
       "count": 145,
-      "sha256": "cae53da19bbf99157e62aeeaa238ca8d410eae009a19f6ee7afb482967d12380"
+      "sha256": "69ae08ffa3f523d85ed9e55158516dfc263f1b3bc85a9e4b308bef3a169ef214"
     },
     "purchaseOrderAdjustment": {
       "count": 399,
-      "sha256": "4fea916debca381d547360595f828fcb7da2072cf7311cbe1b6b7a7a03469516"
+      "sha256": "71f691c38db1952ad8138630c5ee7cf7248d5344b2e85f3bed56f539847be1e3"
     },
     "purchaseLine": {
       "count": 534,
-      "sha256": "f7a997a5362c06065019ba10e6cb52026356d445430d9bf5dbfd903dc90ced74"
+      "sha256": "2c3cae3d62deff39a60f0de970c0f014d1e3505c2803d0e5b6ad2140405bd6d8"
     },
     "purchaseLineRevision": {
       "count": 536,
-      "sha256": "f7806bcf32992c9f3db9d8841ec4da9d59ebaade0fafab09276561082967d5aa"
+      "sha256": "75a030995d6266a10452b30d9e03c0f253ab2f348d63ff1fa4c69a7de18f7f07"
     },
     "purchaseShipment": {
       "count": 132,
-      "sha256": "806dee737f9ef9b7c6f54804b3a6ee6263723a1f43ee623b764cc604e43cc864"
+      "sha256": "718705032948fdf7a2f09e8dc70a2181c97636c3ed23d001d26bc549b25bbc9c"
     },
     "purchaseShipmentLine": {
       "count": 462,
-      "sha256": "6840fcf1b9b52e7b42a3efae19b903dc55d6961ddd4f342a6d723bfb90e715aa"
+      "sha256": "b43dceb06dd55e55fc67d61c82e0f4d1f9e9a54c5fdf8339c7910778a02f849f"
     },
     "purchaseReturn": {
       "count": 2,
-      "sha256": "690cf248facbdfbf71f948b470c1fc725466355ac2396e2ee2d8896e7a8c9187"
+      "sha256": "9ad403067807eed65d38c340c0dc4fb9143da4833dec29782e2ed666e2f6e4cb"
     },
     "purchaseReturnLine": {
       "count": 2,
-      "sha256": "bbfbb0d95d5150aacf46500b8dacb44d96986882e81ba3712d3de624fdd9fe12"
+      "sha256": "8fb39d8a5fa3f60487c8c12c1833914bc46db20b8444dfb16b6bf00d11c42983"
     },
     "itemPurchaseLink": {
       "count": 115,
-      "sha256": "f4ee01cd2b9ab36d8f3f4ec0ffa6e45601eb1d0729bcc72c0cd9da51820649b7"
+      "sha256": "52dff58090a647fd39c07cf33974740a812caf9f6b662b4c74a6b0eaebdab977"
     },
     "purchaseCostConfirmation": {
       "count": 2,
-      "sha256": "baa4c75b815cfb048c05a4f83d9ea0e5d74d139bdc7e3f1b983e9b8acac82374"
+      "sha256": "dbb03253908e3998a9d89bf3658b67a69c09600b2a32938ea26eb09362a0f32e"
     },
     "purchaseOrderCostBasis": {
       "count": 13,
-      "sha256": "53f66ba6d076580b2d16eb52ee44d27e9235126532bd6b64028f1574257955af"
+      "sha256": "a604ca900bb8d258f9595d91f45ccdd1d5825de308cd4f378f88b63284b59169"
     },
     "purchaseOrderCostBasisRevision": {
       "count": 23,
-      "sha256": "7cab2f66f810ccc2c5d2104a32c7ea010be2037721c4f124ae8e94fd3ca600f2"
+      "sha256": "75b303ab21a1e402fa79aaa25cd740cbcca787719b2b4824b5c22bbf9249ec0a"
     },
     "item": {
-      "count": 1809,
-      "sha256": "7aace34c1396c4602d047fdb344ad1f415320e7b570cf45a502f6df94cc66b8a"
+      "count": 1813,
+      "sha256": "ed5a7d72bb31fa5e6d031ce69d125b4a23be73f519fadbf1c2a4dd956a419627"
     },
     "cycle": {
-      "count": 1809,
-      "sha256": "55ad23163eee1b1903a049d0fa572ffd632465028a7d823f52c56f69b37bc31c"
+      "count": 1813,
+      "sha256": "7be402f8c46deda29cd66508bfd33a242f6a401187883fd048478ab3c358c60b"
     },
     "itemRevision": {
-      "count": 1917,
-      "sha256": "6c1786bb5f4602943f88d8d1746f3eb4d772cbbd27518c922f097ad138141d95"
+      "count": 1921,
+      "sha256": "f17c76cc10c8a21c47c4947ef4fe549ce8abb2bbe35c6bc741fdc329ab805578"
     },
     "offer": {
       "count": 5,
-      "sha256": "c0e85519db72f5c02cbb11c887c3f03e553d552d61809cdade6a9edb256df94c"
+      "sha256": "01bc6005b42974ecaca706fe2c0b3a2776dcc0923a3a9e44b104e153d1db2544"
     },
     "asset": {
-      "count": 329,
-      "sha256": "0e6e2a46dae21958dc8e534a4eebb5929731178da34fec58c9343635c3de17aa"
+      "count": 341,
+      "sha256": "5f3770fabd209e57dbb1d068670eadc3e9fab790de7db8d5eaafc65e93977ccf"
     },
     "channel": {
       "count": 52,
-      "sha256": "a1126f2a47e8cd9d6e0db113c26a0d09ddeb9d1f9442c1ea8eab79cdb5e2805c"
+      "sha256": "3e8ab8a2876cc9e4394ebdeeb2b6a8026b1b4d20133e1fe44fda34ab31222304"
     },
     "usePackage": {
       "count": 142,
-      "sha256": "e78d74d5294f983e9f8db3bcdc994e995b25f02cd4fb87e1aea3341ba82bcbed"
+      "sha256": "8f607e91d952b32ed576f749faad04adf540ccac035985753eee73cb06fece53"
     },
     "listing": {
       "count": 19,
-      "sha256": "3ea05766166d2687b7478e68f151dad359c06f8d7cf22fba8b60069b1e39862a"
+      "sha256": "2f6af4023ffe1ea7547237a823ecc6e079d9a04f3cbfca7e78733d5b1c840e9d"
     },
     "channelPrice": {
       "count": 12,
-      "sha256": "bc03a434d6ba4789815e17dc3bd0fcfcfa9bcdf6b42d1c1dddc14aff562c54e3"
+      "sha256": "b8a2b7a626935eed0115b2b9e10a6f39ec5b1acc25bd7551ac293692b36ebc6e"
     },
     "distributionTarget": {
       "count": 100,
-      "sha256": "9057b97f7169d99d47fd8578963e01565f61bc769504d8092678e36ad4d0d41d"
+      "sha256": "ec6c532ec4b9bf8b1a91c20e5f5b83bd71e01e2b889b623204fe6afc035afd6b"
     },
     "distributionSession": {
       "count": 22,
-      "sha256": "1d1793394c0ed3a59bc8df5d1f54e5e16af75c3526f9a4f6e02cb4e93255b854"
+      "sha256": "3a3b599a840878670d6bb1eedd2cddc2c81f280a88c2ebdac6461cf23158a74c"
     },
     "distributionAttempt": {
-      "count": 134,
-      "sha256": "e68d70a56d35bea860ea7beae268c08574db01bc752247ddd118353a5f1d1e26"
+      "count": 133,
+      "sha256": "ac6002f4334e7d6180b6393dd84eb09e912ac32baa185466bb2a720a3ee13f8a"
     },
     "task": {
       "count": 2,
-      "sha256": "a962527edf93eddf7a93f41e0db88f182e6fe1253082558682b9c923c9c460b6"
+      "sha256": "fb1171621073ac6e1911cb63e1fbdcea7c704182ec1cb572fde84de98eaff745"
     },
     "reservation": {
       "count": 7,
-      "sha256": "f96eb1ad1db327fbed39e4874c4ca0adaaa60832fffaff03291f4fcb85322377"
+      "sha256": "6ba16694fc8d65c25fd432df35cc77f98be4e83df8408f9751bd41790c550a75"
     },
     "exceptionIntent": {
       "count": 1,
-      "sha256": "3228ed91ffcd03f4694bf909ff02b62221b15884c10fdb248e5cb5d0e5257289"
+      "sha256": "6fa869b1092ab2022f013600d20de82ea374ba76a831e1f5941138d1435d550b"
     },
     "sale": {
       "count": 58,
-      "sha256": "ede4ed3c885ae7a861497579cec755571183ae2211211ef4398ea51d952d2463"
+      "sha256": "f257682ba05a4e22ffc66115d9422c688a48f9272410d06ae3d021f36276782b"
     },
     "adjustment": {
       "count": 6,
-      "sha256": "80b6578f33f17df5d94c839e13855d644cde0eed6a9f987e4fe4c1fbb0839bc2"
+      "sha256": "ebc5b93b1f030f6c2e4fe48ad634672d714873011f54b30dbde66e4acf2381e6"
     },
     "observation": {
       "count": 3,
-      "sha256": "11e6b1dd8c86d539fb1399b24611aa85802c69fb3984aa577863acbc8ba8ea02"
+      "sha256": "3af529d620ef96c0ef0984bfc980ecf5f5705e9acf137a088ab25d7c0c4318c1"
     },
     "inquiry": {
       "count": 35,
-      "sha256": "9141d66f4fd3a4bf2f297b73b2bcbfb880bb28411e8d547a043828a0240018f8"
+      "sha256": "0eba5fcf9a809cd03471fb4f656a1789791c97f0392628e71a614459f56c3cb5"
     },
     "suggestion": {
       "count": 2,
-      "sha256": "2101134c903802d079adeeff4f06b22264f57fb136480fc7b663c898670a8b29"
+      "sha256": "819deecb4a80ec23275a353f83abb127f9e5694f37cede37da8a16c7a8c5736d"
     },
     "movement": {
       "count": 2,
-      "sha256": "43e0b43ef97f2f28c285955e3619a2c4ecdd0fadb254370121a5d5f4bb3bc7fa"
+      "sha256": "ca52d2b90922ca5743c07d68c21deb6f8effa815cf275bc3b1ec54b7a62a364d"
     },
     "audit": {
-      "count": 7112,
-      "sha256": "6a741c43ce737e6e5b640a7b6087e151ae0ff64bbb16451a2768d28fd00a3d45"
+      "count": 7136,
+      "sha256": "2f3f418a3f5f8a5f272d911c3f259b91ebd7b79b5d3da32c990e6fe6f84928b2"
     },
     "receipt": {
-      "count": 4376,
-      "sha256": "17cd5791afd496fbcc1fd830be7f5e7b9f826983aef14db1f53ea272d5a275f5"
+      "count": 4397,
+      "sha256": "ac23abe02b81fa95df1f8bdf7eff0060a5107cd9607c594f8cb9bb4110ce81af"
     },
     "outbox": {
-      "count": 1309,
-      "sha256": "b5526623b6e880f42b0ad33f0e347b7fa74459ba8877d4e944b2f935e6786530"
+      "count": 1325,
+      "sha256": "d97b4fd083c2199c6c851bf6868e0129b779655ff3f3abce1571b88c41b0631f"
     },
     "costEntry": {
       "count": 71,
-      "sha256": "4795d2bc2eddc78a8d0bea74d78b2e7f63e1eb941c7a2419cc5eeaa2a1982d71"
+      "sha256": "c2cd0ed8b244a520533e6d197071bd2d83d5d29d92fd71a41f38089d857f4716"
     },
     "runtimeHeartbeat": {
       "count": 17,
-      "sha256": "ecd52cb2ae07611a87550a47e93a9bd0f2719956781c0ebea0b74018795fed04"
+      "sha256": "ae2a11a03b1bb842bff0b19fda94027c3a62bb82c266b53ac5e407171d8fbac3"
     },
     "sweepLease": {
       "count": 1,
-      "sha256": "826b38bade6fa49a50e2690650ea379e4000ae85b954ff882db54e5f639c0a4c"
+      "sha256": "2e61cdff87585d72baa6e2114336e4ce05af3cca3959bd192923cc71c4c33278"
     },
     "itemAlias": {
       "count": 3,
-      "sha256": "1c2d42c1b6b802e7fce67aa4513f8a3001f2487b1c062c6c019b862e9a2158ac"
+      "sha256": "b9db570c8fd76ed2f7f8ac25affcfb4363ec6135f6762d95cc64641385730c49"
     },
     "requirementWaiver": {
       "count": 3,
-      "sha256": "de1d4ce32a43ed923c1e4c6315f016516ffe5b70e45095c27b0ccc36fb6d30d4"
+      "sha256": "5e64482f5e5ee3836568b668e05eb092bf22b2555c8552e194e839c480ac9993"
     },
     "intakeBatch": {
       "count": 8,
-      "sha256": "35f648bba9229b218c430e54eacff286456b064bde070e9e33aad5e3581c0465"
+      "sha256": "9030d150a6c5575bf4b357b6a24824523d0365cfd81964a35288a3e9414a64ea"
     },
     "intakeFile": {
       "count": 10,
-      "sha256": "98267f57d3dbce17a1d1e15af04b86dbc2618ac3126977222fef0481b00e3dfd"
+      "sha256": "9d3b4bd9d069e301bf781cde3ef7c22781022550eea8f31afbb8bc1c9cf354d1"
     },
     "collection": {
       "count": 5,
-      "sha256": "a7b053cb001f7ecf0ccda688ca581e88c633272a5a3735ebce5414261f626803"
+      "sha256": "295f4a3a703dffda303abf12a731dc71b225bd35c787987d1d1978a6b2fa720d"
     },
     "collectionEntry": {
       "count": 8,
-      "sha256": "889620470279b2a04b91195545dd70fae2c030393ca814305146cac08213fa67"
+      "sha256": "1cec2d53ce0836f2997b262f84958f744398d5a3a4648758eed9320d71ba3640"
     },
     "settlementRule": {
       "count": 4,
-      "sha256": "bbdf05de6d090d7d3000a32c94af02546eea7f54ac0e448a724f5695d5c309e4"
+      "sha256": "3489ccd949239650ae157825893ba3246e7801ba2106fbc76836af73102269a6"
     },
     "settlementStatement": {
       "count": 10,
-      "sha256": "da1c26b74e9a8ded0d30b3ee51d07c05f167a5bfa93915d24491aa5c42c22c8f"
+      "sha256": "7ead0a19cf9c82c33baf094082a92a1f63b3a8ece1e25fd3146341ce11ad0be7"
     },
     "settlementLine": {
       "count": 9,
-      "sha256": "1dc54eab09a194b54c9ecbd7a90d78c4f8a1bb13676b8fe5f948c526d083a5b2"
+      "sha256": "72182ffa837a352d85ed8a5c0abf9e6c2fc2b0037c076fc1a7867a187d34cde8"
     },
     "publishingDraft": {
       "count": 42,
-      "sha256": "bf114dce914883641764233d32d054df48d255b0c87f213a9a5c58aec9374956"
+      "sha256": "d155eddac43bd1aa9eba800a8abb892a6414425206840b0443d913acffc6d300"
     },
     "dictionaryEntry": {
       "count": 162,
-      "sha256": "5203196f020bb34c6f1d8c5e09338369d3d8c47451cf4c2b40ac0df9f101b71f"
+      "sha256": "27c4cbcf87d5cf37eef23b49a0b6d7c6937b8ecb7ac9cd4c8d6903e0771a893f"
     },
     "dictionaryTerm": {
       "count": 234,
-      "sha256": "8aefbe1efc46159de5c7fb269c594be4f8d9a275f356afc60b6b88de148b053b"
+      "sha256": "9625efa3bb944f06f47d352abc37c5e365e18b753d87025b53aa7ce568175b47"
     },
     "itemDictionarySelection": {
       "count": 439,
-      "sha256": "4bff61d83ee468193be53516b1f91fad9e3c4d8a762209a6f2143afa870997e8"
+      "sha256": "e954c405b095c4a3b3995c6d744443cfd2cdd0a4c35f9d00f9d97c2d81b48379"
     },
     "ingestSession": {
       "count": 90,
-      "sha256": "0fac552a7bc86e50598bb1d1a662cdbc55e7d564eb70288ca895815ec5ce3263"
+      "sha256": "8108133c36f6f6eb2ba3a8fd40f6b1fb767ef33a9250dbba8817a86f60753e06"
     },
     "ingestBatch": {
       "count": 95,
-      "sha256": "baccb2748c83e2b1e50f8eae992d79392f1d4b8b559d0ef8c7327d42fe6f7718"
+      "sha256": "82d6b65a9afbcba66295e1fc97edad0bcb059c84381282582d158be6c96b5e88"
     },
     "ingestCandidate": {
       "count": 4991,
-      "sha256": "911ba5dd4a2c0c906ae45d905dd9652e7bda9a511c5a471ac53e75e8466c4e7b"
+      "sha256": "ceb8b742f60d1d5269c494a6adae8df455cdb3906e26ef9868fd49c110f615b4"
     },
     "ingestBatchMember": {
       "count": 4997,
-      "sha256": "8bcff75d971ca3c71b0f44f7b9187e24293e49982e16fba629d11399f8112f9b"
+      "sha256": "87fdcc9c7c8ecf38165b4e8ea6e7a37537946c7de04318d95b8350f9a7ae8cf6"
     },
     "materialExport": {
       "count": 14,
-      "sha256": "453f8477e70d7dcd3cf66bab90fd19fc24dec238d2174973fad32bf9a5549b54"
+      "sha256": "9106b849224c33132e60990e72068ea907122254cd5a2a57b3aeee2b36a4892e"
     },
     "materialExportEntry": {
       "count": 14,
-      "sha256": "6a53e1fc8fc7eb379605dcff694117d49e9d4dfe7fca95e5357e048112e594fb"
+      "sha256": "e613b1caaf6bba66abb14ad18827762cad76b2660f708e87f8ae3f19add12583"
     },
     "ingestCandidateRevision": {
       "count": 5013,
-      "sha256": "0021aee2d06ed11a5581e25691f98b2af23c6e7407bdfb1cca44c1e49630cb51"
+      "sha256": "c6eb89411a727f4a3a4d18b77d67798b526e0e255cf7e751f8cfbb963f8cb23e"
     },
     "ingestCandidateAsset": {
       "count": 33,
-      "sha256": "ecf6965640ed6d3b7321cec1ecefbc04ce51e1bc82aa40d7d560277cd40b6e80"
+      "sha256": "1efaee50798f7af7f14e63be69dde396214fa70f59e1a231c8913b1f0cbadcee"
     },
     "itemSourceLink": {
       "count": 1045,
-      "sha256": "5945dbc99fd8629c32ac001febb0068a12cf375bdefc19d309b370522d062caa"
+      "sha256": "d00709a3a8cac4b75b448e7c5934a4c6269570f88b33b801571fc6d240cf8966"
     }
   },
   "comparedModelCount": 69,
-  "mediaFiles": 48902,
+  "mediaFiles": 49636,
   "externalActionsExecuted": 0
 }
 

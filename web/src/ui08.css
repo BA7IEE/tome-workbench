@@ -104,6 +104,24 @@
     height: 100%;
     object-fit: contain;
   }
+  .product-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .product-overview .overview-ai-button {
+    padding: 4px;
+    height: auto;
+    background: var(--ui-surface-2);
+  }
+  .overview-ai-button img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    max-height: 360px;
+    object-fit: contain;
+  }
   .product-overview-info {
     min-width: 0;
   }

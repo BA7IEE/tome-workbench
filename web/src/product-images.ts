@@ -1,6 +1,9 @@
 import { dialog, esc, viewDialog } from "./core";
 import type { Asset } from "./types";
 
+export const isAiImage = (a: Asset) =>
+  a.role === "AI_MARKETING" || a.origin === "AI";
+
 export const productImages = (assets: Asset[]) =>
   assets.filter((a) => !a.archived && a.role !== "DOCUMENT");
 
@@ -26,7 +29,7 @@ export function showProductImages(assets: Asset[], firstId: string) {
     generation++;
     release();
     const a = list[index];
-    root.innerHTML = `<div class="image-viewer-toolbar"><button type="button" class="btn" data-image-prev ${index === 0 ? "disabled" : ""}>上一张</button><span role="status">${index + 1} / ${list.length}</span><button type="button" class="btn" data-image-next ${index === list.length - 1 ? "disabled" : ""}>下一张</button><button type="button" class="btn" data-image-original>查看原图</button><button type="button" class="btn" data-image-zoom aria-pressed="false">放大</button><a class="btn" href="/api/assets/${a.id}/original" download="${esc(a.originalName)}">下载原图</a></div><div class="image-viewer-stage"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}"></div><p class="image-viewer-name">${esc(a.originalName)}</p><p class="form-error" role="alert"></p>`;
+    root.innerHTML = `<div class="image-viewer-toolbar"><button type="button" class="btn" data-image-prev ${index === 0 ? "disabled" : ""}>上一张</button><span role="status">${index + 1} / ${list.length}</span><button type="button" class="btn" data-image-next ${index === list.length - 1 ? "disabled" : ""}>下一张</button><button type="button" class="btn" data-image-original>查看原图</button><button type="button" class="btn" data-image-zoom aria-pressed="false">放大</button><a class="btn" href="/api/assets/${a.id}/original" download="${esc(a.originalName)}">下载原图</a></div><div class="image-viewer-stage"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}"></div><p class="image-viewer-name">${esc(a.originalName)}</p>${isAiImage(a) ? '<p class="note">AI 生成，上身效果仅供参考；请以实物图片和尺寸为准。</p>' : ""}<p class="form-error" role="alert"></p>`;
     root.querySelector("img")!.addEventListener(
       "error",
       () => {
