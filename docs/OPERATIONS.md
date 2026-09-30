@@ -30,6 +30,8 @@
 
 # 当前操作与生产边界
 
+依赖安全更新必须使用随源码提交的 lockfile 执行 `npm ci`，随后生成 Prisma Client 并重跑隔离完整验证、`npm audit --audit-level=high` 和打包。不得只更改已运行环境的 node_modules 或用 `npm audit fix --force` 替代可审查的修复。当前修复范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)；源码和本地验证完成不代表已获合并或部署批准。
+
 本文件保留首版操作说明；0.2.0-rc.2的生产配置、维护锁、Docker多实例、升级和上线条件以 `PRODUCTION.md` 为准。原有本地备份命令不能直接当作正式Compose异地备份服务。
 
 新增可用入口：商品资料页的旧编号/尺寸适用性、批量素材归档、客户选品合集、对账快照、运行状态。

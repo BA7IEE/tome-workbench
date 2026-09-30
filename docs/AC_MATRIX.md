@@ -88,6 +88,9 @@
 来源成色降噪补充 AC24：合成 PostgreSQL 测试核对新候选不生成来源成色行动警告、历史字段仍保留；`test/browser/v1-item-center.spec.cjs` 在 Chromium/WebKit 核对卡片、表格、批量预检的普通来源参考展示，并确认品牌及低置信 Agent 提示仍醒目。本地成色映射和真实业务 UAT 未做，见 [SOURCE-CONDITION-NOISE](SOURCE-CONDITION-NOISE.md)。
 
 ## 持续交付要求
+
+依赖安全补充 AC01/17/20/24：`multer` 与 `brace-expansion` 仅更新到各自兼容的修复版本，使用既有真实上传、原字节、权限、坏文件拒绝、回执丢失恢复、资料包下载和 Agent 原图用例复验；不修改用例期望、浏览器范围、重试或超时。`npm ci` 后重新运行完整 `verify:release`、审计及打包，当前证据见 [VALIDATION](VALIDATION.md)，升级范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。
+
 新增功能应补测试再将对应行从“后续/部分”改为覆盖；不得只改这张表。任何依赖真实账号、交易、费用、协议签署件的步骤没有证据就保留待确认。
 
 ## 生产验收不等于蓝图全覆盖
