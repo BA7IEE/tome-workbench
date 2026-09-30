@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-30T17:26:54.300Z`。验证源码指纹为
-`b567012a2b4e3d297239607badf3d75b0970ed6251f8fd3848cdaf37631fc50d`；
+本地完整验证完成：`2026-09-30T17:45:56.419Z`。验证源码指纹为
+`673f2668e31e20a137ac3b7c6a32ac62cb6b788642c0fd2ca005b26bafe2444a`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -13,24 +13,26 @@
 | --- | --- |
 | syntax / typecheck / lint / build | `verify:release` 内全部通过 |
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
-| Chromium | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| WebKit | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 238.837ms、Dashboard 187.264ms、Work Queue 14.617ms，均小于 1 秒 |
+| Chromium | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 182 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 361.038ms、Dashboard 361.607ms、Work Queue 25.144ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 879ms、Worker 恢复 1957ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 794ms、Worker 恢复 1990ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
-| npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
+| npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities；已引入独立依赖修复 |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
 | 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.13.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
 
 完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
 [audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
 
-## 本次独立依赖安全修复
+## 本次界面增量：来源资料与单件核对
 
-本分支基于 main，独立升级 `multer 2.3.0 → 2.4.0`，将既有三条 `brace-expansion` 版本线更新为 `1.1.21 / 2.1.7 / 5.0.12`。Nest、React、Prisma 等直接框架版本、应用代码、数据库迁移和全部测试期望不变。安装使用 `npm ci`，实际依赖树与 lockfile 一致；审计从 1 high、2 moderate 降为 0 vulnerabilities。上游依据与范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。
+来源资料采用 PC 图文双栏、手机全屏单栏，原图前置，Agent 建议保留摘要并按需展开。单件处理显示商品身份，来源资料可返回同一候选；关闭或 Escape 恢复原入口焦点。普通候选入口改为“核对并归入商品库”，疑似重复分支仍明确确认另一件实物，确认表单和领域约束不变。
 
-本地完整验证使用隔离合成资料，覆盖原图字节、权限、坏文件拒绝、真实上传后丢回执、同键恢复和资料包下载，以及全部既有业务套件。依赖分支的报告仅对应本页源码指纹，不作为包含来源资料 UI 增量的验证证据；UI 分支引入同一修复后须另行完整复验。没有生产写入、main 合并、部署或真实经营 UAT。
+两浏览器使用隔离合成资料，经真实 UI 登录覆盖 1440/1024/390/375px 首屏原图、布局及无横向溢出；新增完整往返用例核对版本、来源事实、原图关联和 TM 数量不变，以及选择、滚动和键盘焦点保留。既有原图字节、人工草稿、缺项确认、来源修订、批量回执恢复与部分失败用例继续执行。截图位于本地 `reports/screenshots/source-review-*.png`，只证明合成页面渲染，不代表真实手机或经营 UAT。
+
+当前 UI 分支已引入独立依赖修复 PR #54：multer 2.4.0，brace-expansion 1.1.21 / 2.1.7 / 5.0.12。审计为 0 vulnerabilities；本页报告记录组合源码的完整复验结果，未复用依赖分支或旧 UI 的验证指纹。依赖修复范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。本次未做 main 合并、生产写入、部署或真实经营验收。
 
 ## 1.1.0-rc.13 来源污染纠错与错图撤下
 

@@ -1,4 +1,14 @@
-import { request, esc, money, when, viewDialog, can, button } from "./core";
+import {
+  request,
+  esc,
+  money,
+  when,
+  viewDialog,
+  can,
+  button,
+  dialogReturnTarget,
+  type ViewDialogOptions,
+} from "./core";
 
 export type CaptureIntegrity = {
   state: "COMPLETE" | "GAPS" | "UNVERIFIED";
@@ -91,7 +101,11 @@ function groupedGaps(gaps: { label: string; reason: string }[]) {
     )
     .join("");
 }
-export async function showSourceEvidence(id: string) {
+export async function showSourceEvidence(
+  id: string,
+  options: ViewDialogOptions = {},
+) {
+  const returnFocus = options.returnFocus ?? dialogReturnTarget();
   const c = await request<{
     titleRaw: string;
     sourceItemKey: string;
@@ -135,6 +149,10 @@ export async function showSourceEvidence(id: string) {
     agentFields = Array.isArray(proposal.agentFields)
       ? proposal.agentFields.map(obj)
       : [];
+  const uncertainAgentFields = agentFields.filter(
+    (field) =>
+      Number(field.confidence) < 1 || String(field.method) === "INFERRED",
+  ).length;
   const fieldGaps = c.integrity.fieldGaps || [],
     imageGaps = c.integrity.imageGaps || [],
     structuredIssues = fieldGaps.length + imageGaps.length,
@@ -223,19 +241,23 @@ export async function showSourceEvidence(id: string) {
     .join("");
   viewDialog(
     "商品来源资料",
-    `<div class="source-evidence"><header><small>${esc(c.procurementSource.name)} · ${esc(c.sourceItemKey || "原货号未提供")}</small><h3>${esc(c.titleRaw)}</h3><p>${esc(integrityLabel(c.integrity))} · 已保存${c.integrity.storedImages}张${c.integrity.expectedImages === null ? "" : ` / 清单${c.integrity.expectedImages}张`}</p>${link(capture.pageUrl || facts.productUrl, "打开来源商品页面")}</header>
+    `<div class="source-evidence"><header><small>${esc(c.procurementSource.name)} · ${esc(c.sourceItemKey || "原货号未提供")}</small><h3>${esc(c.titleRaw)}</h3><p>${esc(integrityLabel(c.integrity))} · 已保存${c.integrity.storedImages}张${c.integrity.expectedImages === null ? "" : ` / 清单${c.integrity.expectedImages}张`}${fieldGaps.length ? ` · ${fieldGaps.length}项来源字段缺失` : ""}${imageGaps.length ? " · 图片有缺项" : ""}</p></header>
+  <div class="source-review-layout"><section class="source-review-images" aria-label="来源图片"><div class="evidence-gallery">${gallery || '<p class="notice">尚未保存来源图片，不能据此判断实物或图片完整性。</p>'}</div></section>
+  <section class="source-review-summary" aria-label="来源核对摘要"><h3>来源核对</h3><p>${link(capture.pageUrl || facts.productUrl, "打开来源商品页面")}</p>
+  <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div></dl><p class="note">来源成色和状态仅供核对，不代表本地验货或库存判断。</p>
   ${storedLargest ? `<div class="notice"><strong>高清图已补采</strong><p>当前已保存${storedLargest}张平台可取得的最大图或原图；旧缩略图仍保留为历史来源证据，不再算作当前图片缺项。</p></div>` : ""}
   ${fieldGaps.length ? `<div class="notice warning"><strong>当前仍缺 ${fieldGaps.length} 项来源字段</strong><ul>${groupedGaps(fieldGaps)}</ul></div>` : ""}
   ${imageGaps.length ? `<div class="notice warning"><strong>当前仍有图片缺项</strong><ul>${groupedGaps(imageGaps)}</ul></div>` : ""}
   ${otherIssues.length ? `<div class="notice warning"><strong>其他需要留意</strong><ul>${otherIssues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
-  ${proposalHtml ? `<div class="notice"><strong>外部Agent整理建议</strong><p>${esc(String(agent.generator || "Agent"))}${agent.model ? ` · ${esc(String(agent.model))}` : ""}${agent.generatedAt ? ` · ${esc(when(String(agent.generatedAt)))}` : ""}。以下是面向 ToMe 字段的建议，不是来源事实；人工确认候选后才会采用。</p><ul>${proposalHtml}</ul></div>` : ""}
-  <div class="evidence-gallery">${gallery || "<p>尚未保存来源图片</p>"}</div>
+  ${proposalHtml ? `<details class="notice evidence-proposals"><summary>外部Agent整理建议 · ${agentFields.length}项${uncertainAgentFields ? ` · ${uncertainAgentFields}项需重点复核` : ""}</summary><p>${esc(String(agent.generator || "Agent"))}${agent.model ? ` · ${esc(String(agent.model))}` : ""}${agent.generatedAt ? ` · ${esc(when(String(agent.generatedAt)))}` : ""}。以下是面向 ToMe 字段的建议，不是来源事实；人工确认候选后才会采用。</p><ul>${proposalHtml}</ul></details>` : ""}
+  </section></div>
   ${retiredAssets ? `<details class="notice warning"><summary>已撤下的错误来源图片（${c.retiredAssets?.length || 0}）</summary><p>这些文件不再参与当前图册、完整性或重复判断，但原文件与纠错原因仍保留供审计。</p><ul>${retiredAssets}</ul></details>` : ""}
   ${trrFactsHtml}
-  <dl class="evidence-facts"><div><dt>品牌原文</dt><dd>${esc(c.brandRaw || "未提供")}</dd></div><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div><div><dt>来源成色</dt><dd>${esc(c.conditionRaw || "未提供")}</dd></div><div><dt>来源状态</dt><dd>${esc(c.statusRaw || "未提供")}</dd></div>${factsHtml}</dl>
+  <h3>完整来源字段</h3><dl class="evidence-facts"><div><dt>来源品类</dt><dd>${esc(c.categoryRaw || "未提供")}</dd></div>${factsHtml}</dl>
   ${can("supply") ? `<div class="evidence-prices"><span>订单行原价 ${esc(money(c.sourceLineAmount, c.currency))}</span><span>订单行折后金额 ${esc(money(c.sourceLineNetAmount, c.currency))}</span><span>平台当前价 ${esc(money(c.sourceCurrentPrice, c.currency))}</span><span>估计零售价 ${esc(money(c.sourceEstimatedRetail, c.currency))}</span></div>` : ""}
   ${capture.capturedAt ? `<small>来源采集时间：${esc(when(String(capture.capturedAt)))}</small>` : ""}<p>图片保存在中台；来源清单核对不等于独立证明网页没有遗漏。资料缺失与是否可售分别管理。</p>
   <details><summary>查看原始证据与修订</summary><small>${c.revisions.length}个最近修订；来源数据不会覆盖人工维护的商品内容。</small><pre class="json-view">${esc(JSON.stringify(c.rawPayload, null, 2))}</pre><pre class="json-view">${esc(JSON.stringify(capture, null, 2))}</pre></details></div>`,
+    { ...options, returnFocus },
   );
 }
 export async function itemEvidenceLinks(itemId: string) {
@@ -246,17 +268,19 @@ export async function itemEvidenceLinks(itemId: string) {
 }
 
 export async function showItemEvidence(itemId: string) {
+  const returnFocus = dialogReturnTarget();
   const rows = await itemEvidenceLinks(itemId);
-  if (rows.length === 1) return showSourceEvidence(rows[0].id);
+  if (rows.length === 1) return showSourceEvidence(rows[0].id, { returnFocus });
   viewDialog(
     "全部来源资料",
     rows.length
       ? rows
           .map(
             (r) =>
-              `<p>${button(`${r.procurementSource.name} · ${r.sourceItemKey || "来源记录"}`, () => showSourceEvidence(r.id))}</p>`,
+              `<p>${button(`${r.procurementSource.name} · ${r.sourceItemKey || "来源记录"}`, () => showSourceEvidence(r.id, { returnFocus }))}</p>`,
           )
           .join("")
       : "<p>这件商品尚无Agent导入的来源记录。手工资料和素材保留在当前商品中。</p>",
+    { returnFocus },
   );
 }

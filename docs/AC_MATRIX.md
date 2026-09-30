@@ -87,6 +87,8 @@
 
 来源成色降噪补充 AC24：合成 PostgreSQL 测试核对新候选不生成来源成色行动警告、历史字段仍保留；`test/browser/v1-item-center.spec.cjs` 在 Chromium/WebKit 核对卡片、表格、批量预检的普通来源参考展示，并确认品牌及低置信 Agent 提示仍醒目。本地成色映射和真实业务 UAT 未做，见 [SOURCE-CONDITION-NOISE](SOURCE-CONDITION-NOISE.md)。
 
+来源资料核对补充 AC06/17/24：`test/browser/v1-item-center.spec.cjs` 在两浏览器覆盖单件身份、来源→返回处理→关闭、Enter/Escape 焦点回到原商品、选择和滚动保留、无候选/来源/原图/TM 写入，以及 1440/1024/390/375px 首屏图片、PC 双栏和手机单栏。既有原图尺寸、内部权利、人工编辑草稿、缺项确认、撤下审计和逐件建档回归保留。普通候选原断言“确认这是另一件并新建TM”改为“核对并归入商品库”，因为没有重复证据时不应暗示另一件实物；疑似重复分支及其确认要求保持。Agent 建议默认折叠，测试通过真实展开核对逐字段内容，不能用不可见文本替代可操作验证。详见 [SOURCE-REVIEW-UX](SOURCE-REVIEW-UX.md)。
+
 ## 持续交付要求
 
 依赖安全补充 AC01/17/20/24：`multer` 与 `brace-expansion` 仅更新到各自兼容的修复版本，使用既有真实上传、原字节、权限、坏文件拒绝、回执丢失恢复、资料包下载和 Agent 原图用例复验；不修改用例期望、浏览器范围、重试或超时。`npm ci` 后重新运行完整 `verify:release`、审计及打包，当前证据见 [VALIDATION](VALIDATION.md)，升级范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。
