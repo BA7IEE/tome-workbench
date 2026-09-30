@@ -1,7 +1,7 @@
 # 当前验证记录 — 1.1.0-rc.13
 
-本地完整验证完成：`2026-09-23T16:07:23.763Z`。验证源码指纹为
-`65c25ab7dc2f5b3bc0e08ce3d01dd2456dae92eb7fd1f4d00c74cdefeeced73f`；
+本地完整验证完成：`2026-09-30T17:26:54.300Z`。验证源码指纹为
+`b567012a2b4e3d297239607badf3d75b0970ed6251f8fd3848cdaf37631fc50d`；
 `verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
 后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
 仍须单独核验。
@@ -15,9 +15,9 @@
 | Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
 | Chromium | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
 | WebKit | 181 通过，unexpected/skipped/flaky 均为 0，retries=0 |
-| 1,000 Item 规模基准 | Operations 228.982ms、Dashboard 213.923ms、Work Queue 14.748ms，均小于 1 秒 |
+| 1,000 Item 规模基准 | Operations 238.837ms、Dashboard 187.264ms、Work Queue 14.617ms，均小于 1 秒 |
 | 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
-| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 894ms、Worker 恢复 1953ms，未执行外部动作 |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 879ms、Worker 恢复 1957ms，未执行外部动作 |
 | Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
 | npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities |
 | Docker runtime | 本次未重跑，不作为本次验证证据 |
@@ -25,6 +25,12 @@
 
 完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
 [audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
+
+## 本次独立依赖安全修复
+
+本分支基于 main，独立升级 `multer 2.3.0 → 2.4.0`，将既有三条 `brace-expansion` 版本线更新为 `1.1.21 / 2.1.7 / 5.0.12`。Nest、React、Prisma 等直接框架版本、应用代码、数据库迁移和全部测试期望不变。安装使用 `npm ci`，实际依赖树与 lockfile 一致；审计从 1 high、2 moderate 降为 0 vulnerabilities。上游依据与范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。
+
+本地完整验证使用隔离合成资料，覆盖原图字节、权限、坏文件拒绝、真实上传后丢回执、同键恢复和资料包下载，以及全部既有业务套件。依赖分支的报告仅对应本页源码指纹，不作为包含来源资料 UI 增量的验证证据；UI 分支引入同一修复后须另行完整复验。没有生产写入、main 合并、部署或真实经营 UAT。
 
 ## 1.1.0-rc.13 来源污染纠错与错图撤下
 
