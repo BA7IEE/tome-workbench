@@ -1,25 +1,6 @@
 @layer arco-base, workbench, arco, product;
 @layer antd, foundation;
-@import "@arco-design/web-react/es/style/index.css" layer(arco-base);
-@import "@arco-design/web-react/es/Button/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Spin/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Card/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Checkbox/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Empty/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Input/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Trigger/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/_class/OverflowEllipsis/style/index.css"
-  layer(arco);
-@import "@arco-design/web-react/es/Tag/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/InputTag/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Select/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Pagination/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Radio/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Space/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Tooltip/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Table/style/index.css" layer(arco);
 
-@import "@arco-design/web-react/es/Dropdown/style/index.css" layer(arco);
 
 @layer product {
   .product-overview {
@@ -409,7 +390,7 @@
   .reauth-dialog .field {
     margin-top: 16px;
   }
-  /* Arco defines its tokens on body, so aliases must resolve in the same scope. */
+  /* Native controller aliases resolve from the shared Foundation token seed. */
   body {
     margin: 0;
     font-family: inherit;

@@ -46,10 +46,19 @@ for (const width of [1280, 1440, 1920]) {
         document.querySelector(".sidebar-bottom small"),
       );
       const aside = getComputedStyle(document.querySelector(".admin-sidebar"));
+      const tags = [...document.querySelectorAll("#content .ant-tag")].map(
+        (tag) => {
+          const style = getComputedStyle(tag);
+          return [style.color, style.backgroundColor];
+        },
+      );
+      if (!tags.length)
+        throw new Error("Real catalog status Tags are required");
       return [
         [body.color, body.backgroundColor],
         [nav.color, nav.backgroundColor],
         [role.color, aside.backgroundColor],
+        ...tags,
       ];
     });
     for (const [foreground, background] of pairs)

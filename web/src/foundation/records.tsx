@@ -128,6 +128,7 @@ export function mountRecordTables(container: HTMLElement, signal: AbortSignal) {
           <ProTable<(typeof rows)[number]>
             rowKey="key"
             dataSource={rows}
+            onRow={(row) => row.attributes}
             columns={heads.map((title, column) => ({
               title,
               key: `display-column-${column}`,

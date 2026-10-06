@@ -86,6 +86,13 @@ if (
 )
   errors.push("main.ts: real entry must use Foundation shell and tokens");
 const css = fs.readFileSync(path.join(sourceRoot, "ui08.css"), "utf8");
+if (css.includes("@arco-design/"))
+  errors.push("ui08.css: retired vendor styles must not return");
+const dependencies = JSON.parse(
+  fs.readFileSync(path.join(root, "package.json"), "utf8"),
+).dependencies;
+if (dependencies["@arco-design/web-react"])
+  errors.push("package.json: retired Arco dependency must not return");
 if (!css.includes("@layer foundation"))
   errors.push("ui08.css: missing Foundation layer");
 let foundationStyles = "";

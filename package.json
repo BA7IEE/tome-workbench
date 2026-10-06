@@ -46,7 +46,6 @@
     "test:browser:webkit": "playwright test -c playwright.webkit.config.cjs"
   },
   "dependencies": {
-    "@arco-design/web-react": "2.66.16",
     "@nestjs/common": "11.2.3",
     "@nestjs/core": "11.2.3",
     "@nestjs/platform-express": "11.2.3",
