@@ -90,6 +90,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
   "browserFiles": [
     "arco-workspace.spec.cjs",
     "dictionaries.spec.cjs",
+    "foundation.spec.cjs",
     "interaction.spec.cjs",
     "operations.spec.cjs",
     "procurement.spec.cjs",
