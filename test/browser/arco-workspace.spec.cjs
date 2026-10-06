@@ -386,7 +386,7 @@ for (const width of [1440, 390]) {
         );
         await expect(page.locator(".procurement-line")).toHaveCSS(
           "background-color",
-          "rgb(255, 255, 255)",
+          "rgb(255, 253, 250)",
         );
         await expect(page.locator(".procurement-page")).toHaveCSS(
           "row-gap",
@@ -407,18 +407,19 @@ for (const width of [1440, 390]) {
         });
       }
     }
+    // Approved Foundation surface, selection and focus tokens replace the legacy blue palette.
     await page.goto("/#/items?q=" + encodeURIComponent("系统样式 " + key));
     await expect(page.locator("tbody tr")).toHaveCount(1);
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
-    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    ).toHaveCSS("background-color", "rgb(237, 227, 215)");
     await page.getByRole("button", { name: "图片", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "图片", exact: true }),
-    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    ).toHaveCSS("background-color", "rgb(237, 227, 215)");
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
-    ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    ).toHaveCSS("background-color", "rgb(255, 253, 250)");
     await page.getByRole("button", { name: "更多筛选", exact: true }).click();
     await page.getByLabel("品牌", { exact: true }).fill("没有选中的合成品牌");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
@@ -432,11 +433,11 @@ for (const width of [1440, 390]) {
     await page.getByLabel("登录邮箱").click();
     await expect(page.getByLabel("登录邮箱")).toHaveCSS(
       "border-top-color",
-      "rgb(22, 93, 255)",
+      "rgb(118, 88, 68)",
     );
     await expect(page.getByRole("button", { name: "进入工作台" })).toHaveCSS(
       "background-color",
-      "rgb(22, 93, 255)",
+      "rgb(118, 88, 68)",
     );
     await page.screenshot({
       path: `reports/screenshots/system-ui-${width}-login.png`,
