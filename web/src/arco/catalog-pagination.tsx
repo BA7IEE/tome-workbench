@@ -1,16 +1,5 @@
-import { useEffect, useState, type AriaAttributes } from "react";
-import { ConfigProvider, Pagination } from "@arco-design/web-react";
-import zhCN from "@arco-design/web-react/es/locale/zh-CN";
-
-const locale = {
-  ...zhCN,
-  Pagination: {
-    ...zhCN.Pagination,
-    countPerPage: "件/页",
-    pageSize: "每页数量",
-  },
-};
-const selectLabel: AriaAttributes = { "aria-label": "每页数量" };
+import { useEffect, useState } from "react";
+import { Pagination } from "../foundation/components";
 
 export function CatalogPagination({
   total,
@@ -34,25 +23,36 @@ export function CatalogPagination({
   }, []);
   return (
     <nav className="catalog-pagination" aria-label="商品分页">
-      <ConfigProvider locale={locale}>
-        <Pagination
-          current={page}
-          pageSize={size}
-          total={total}
-          sizeOptions={[30, 60, 100]}
-          sizeCanChange
-          simple={compact}
-          showJumper={false}
-          bufferSize={1}
-          showTotal={(count, range) =>
-            count
-              ? `显示 ${range[0]}–${Math.min(range[1], count)} 件`
-              : "暂无商品"
-          }
-          selectProps={{ ...selectLabel, size: "default" }}
-          onChange={onChange}
-        />
-      </ConfigProvider>
+      <Pagination
+        current={page}
+        pageSize={size}
+        total={total}
+        pageSizeOptions={[30, 60, 100]}
+        showSizeChanger={{ "aria-label": "每页数量" }}
+        simple={compact}
+        showQuickJumper={false}
+        showLessItems
+        showTotal={(count, range) =>
+          count
+            ? `显示 ${range[0]}–${Math.min(range[1], count)} 件`
+            : "暂无商品"
+        }
+        itemRender={(_page, type, original) => {
+          if (type !== "prev" && type !== "next") return original;
+          const previous = type === "prev";
+          return (
+            <button
+              type="button"
+              className="ant-pagination-item-link"
+              aria-label={previous ? "上一页" : "下一页"}
+              disabled={previous ? page <= 1 : page >= Math.ceil(total / size)}
+            >
+              <span aria-hidden="true">{previous ? "←" : "→"}</span>
+            </button>
+          );
+        }}
+        onChange={onChange}
+      />
     </nav>
   );
 }

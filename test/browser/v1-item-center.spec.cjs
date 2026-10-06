@@ -420,7 +420,7 @@ test("来源成色在待确认卡片、表格和批量预检仅作参考，品�
   await expect(page.getByRole('dialog')).toContainText('其他系统提示 1件');
   await page.getByRole('dialog').getByRole('button',{name:'关闭'}).click();
   await page.goto('/#/candidates?sourceId='+x.source.id+'&view=table');
-  const targetRow=page.locator('tbody tr').filter({hasText:x.candidates[0].sourceItemKey}).first();
+  const targetRow=page.locator('tbody tr:not(.ant-table-measure-row)').filter({hasText:x.candidates[0].sourceItemKey}).first();
   await expect(targetRow).toContainText('来源成色 Excellent（仅来源参考，本地成色待实物检查）');
   await expect(targetRow).toContainText('尚未标准化');
   await expect(targetRow).toContainText('存疑或推断');
@@ -712,9 +712,9 @@ test("待确认显示来源尺码并可按页码跳转，批量操作保留位�
   await expect(pagination.getByLabel("第 1 页", { exact: true })).toBeVisible();
   await expect(pagination.locator('[aria-current="page"]')).toHaveText("2");
   await page.getByRole("link", { name: "表格模式", exact: true }).click();
-  await expect(page.locator(".candidate-table tbody tr")).toHaveCount(32);
+  await expect(page.locator(".candidate-table tbody tr:not(.ant-table-measure-row)")).toHaveCount(32);
   await expect(
-    page.locator(".candidate-table tbody tr").first().getByLabel("来源尺码"),
+    page.locator(".candidate-table tbody tr:not(.ant-table-measure-row)").first().getByLabel("来源尺码"),
   ).toContainText("FR 38");
   await page.getByRole("link", { name: "图片模式", exact: true }).click();
   await expect(page.locator(".candidate-card")).toHaveCount(32);
@@ -822,7 +822,7 @@ test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民
   await expect(d).not.toBeVisible();
   const panel = page.locator(".procurement-cost-panel");
   await expect(panel).toContainText("CNY 5,794.40");
-  await expect(panel.locator("tbody tr")).toHaveCount(7);
+  await expect(panel.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(7);
   await panel
     .getByRole("button", { name: "确认写入 7 件TM成本", exact: true })
     .click();
@@ -958,7 +958,7 @@ test("v1 经营待办把Agent候选直接带回对应来源的待确认处理页
   await page.goto("/#/tasks?scope=CANDIDATE");
   await expect(page.getByRole("heading", { name: "经营待办", exact: true })).toBeVisible();
   await expect(page.locator(".metrics.compact")).toContainText("商品待确认");
-  const row = page.locator("tbody tr").filter({ hasText: "商品待确认" }).filter({ hasText: x.candidates[0].titleRaw }).first();
+  const row = page.locator("tbody tr:not(.ant-table-measure-row)").filter({ hasText: "商品待确认" }).filter({ hasText: x.candidates[0].titleRaw }).first();
   await expect(row).toContainText("商品待确认");
   await row.getByRole("link", { name: "去确认", exact: true }).click();
   await expect(page.getByRole("heading", { name: "待确认商品", exact: true })).toBeVisible();
@@ -1028,7 +1028,7 @@ test("rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不
   await page.goto("/#/tasks");
   await expect(page.getByRole("heading", { name: "经营待办", exact: true })).toBeVisible();
   await expect(page.getByLabel("查看范围")).toHaveValue("IMPORTANT");
-  const desktopRows = page.locator(".work-queue-table tbody tr");
+  const desktopRows = page.locator(".work-queue-table tbody tr:not(.ant-table-measure-row)");
   expect(await desktopRows.count()).toBeLessThanOrEqual(60);
   const context = await browser.newContext({
     baseURL: "http://127.0.0.1:4320",
@@ -1042,7 +1042,7 @@ test("rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不
     const root = mobile.locator(".work-queue-table");
     await expect(root).toBeVisible();
     const layout = await root.evaluate((el) => {
-      const row = el.querySelector("tbody tr");
+      const row = el.querySelector("tbody tr:not(.ant-table-measure-row)");
       return {
         overflow: document.documentElement.scrollWidth - innerWidth,
         rowDisplay: row ? getComputedStyle(row).display : "",
@@ -1232,7 +1232,7 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
   expect(importedItem.assets[0].rights).toBe('INTERNAL');
   expect(importedItem.assets[0].verified).toBe(false);
   await page.goto('/#/items?q='+confirmed.code);
-  const catalogRow=page.locator('tbody tr').filter({hasText:confirmed.code});
+  const catalogRow=page.locator('tbody tr:not(.ant-table-measure-row)').filter({hasText:confirmed.code});
   await expect(catalogRow).toContainText('2 张图片');
   await expect.poll(()=>catalogRow.locator('img').evaluate(i=>i.naturalWidth)).toBeGreaterThan(0);
   await page.goto(`/#/items/${confirmed.itemId}/edit`);
@@ -1305,7 +1305,7 @@ test('来源品牌成色与品相在商品常用位置可见，人工等级优�
   const dictionary=await (await page.request.get('/api/dictionaries?kind=BRAND&exact=1&q='+encodeURIComponent(brand))).json();
   expect(dictionary.total).toBe(0);
   await page.goto('/#/items?q='+confirmed.code);
-  const row=page.locator('tbody tr').filter({hasText:confirmed.code});
+  const row=page.locator('tbody tr:not(.ant-table-measure-row)').filter({hasText:confirmed.code});
   await expect(row).toContainText(brand+'（来源品牌）');
   await expect(row).toContainText('来源成色：Excellent');
   await page.getByRole('button',{name:'图片',exact:true}).click();
@@ -1354,8 +1354,8 @@ test('来源品牌成色与品相在商品常用位置可见，人工等级优�
   await expect(page.getByRole('button',{name:'保存商品',exact:true})).toBeEnabled();
   expect(writes).toBe(1);
   await page.goto('/#/items?q='+confirmed.code);
-  await expect(page.locator('tbody tr').filter({hasText:confirmed.code})).toContainText('良好');
-  await expect(page.locator('tbody tr').filter({hasText:confirmed.code})).not.toContainText('来源成色：Excellent');
+  await expect(page.locator('tbody tr:not(.ant-table-measure-row)').filter({hasText:confirmed.code})).toContainText('良好');
+  await expect(page.locator('tbody tr:not(.ant-table-measure-row)').filter({hasText:confirmed.code})).not.toContainText('来源成色：Excellent');
   await page.goto(`/#/items/${confirmed.itemId}/edit`);
   await expect(page.getByLabel('瑕疵与使用痕迹',{exact:true})).toHaveValue('合成实物核验记录');
   await expect(page.locator('[data-source-field=condition]')).toContainText('Excellent');

@@ -58,7 +58,7 @@ test("商品列表行内不再同时堆编辑加图删除发布按钮", async ({
   ).toBeVisible();
   await expect(page.getByLabel("搜索商品")).toBeVisible();
   await expect(page.getByText("更多筛选", { exact: true })).toBeVisible();
-  const first = page.locator("tbody tr").first();
+  const first = page.locator("tbody tr:not(.ant-table-measure-row)").first();
   if (await first.count()) {
     await expect(
       first.getByRole("button", { name: "编辑", exact: true }),

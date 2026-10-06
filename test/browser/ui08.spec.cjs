@@ -178,7 +178,7 @@ test("正式商品列表状态标签克制，页头只保留一个主动作", as
   await expect(
     page.getByRole("link", { name: "从货源导入", exact: true }),
   ).toHaveCount(0);
-  const row = page.locator("tbody tr").first();
+  const row = page.locator("tbody tr:not(.ant-table-measure-row)").first();
   if (await row.count()) {
     expect(await row.locator(".status-pill").count()).toBeLessThanOrEqual(2);
     await expect(row).not.toContainText("正式商品");
@@ -476,7 +476,7 @@ test("已排除候选可带原因恢复，空结果有恢复入口，手机筛�
     page.getByRole("button", { name: "单件处理", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "表格模式", exact: true }).click();
-  await expect(page.locator(".candidate-table tbody tr")).toHaveCount(1);
+  await expect(page.locator(".candidate-table tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByLabel("搜索候选", { exact: true }).fill("缺失" + suffix);
   await page.getByRole("button", { name: "筛选", exact: true }).click();
@@ -606,7 +606,7 @@ test("从经营待办直接跟进指定询盘，完成后返回待办且不改�
     .filter({ hasText: "路径客户" });
   await row.getByRole("link", { name: "去跟进", exact: true }).click();
   await expect(page).toHaveURL(new RegExp("inquiries\\?id=" + inquiry.id));
-  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("路径客户");
   await expect(page.locator("tbody")).not.toContainText("另一个客户");
   await page.getByRole("button", { name: "更新跟进", exact: true }).click();

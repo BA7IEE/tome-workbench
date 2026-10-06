@@ -1,4 +1,4 @@
-import { Button, Card } from "@arco-design/web-react";
+import { Button, Card } from "../foundation/components";
 import { can, currencies, money } from "../core";
 import { dictionaryField } from "../dictionary-picker";
 import { sourceFieldNote } from "../item-source-facts";

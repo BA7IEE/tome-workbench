@@ -1,24 +1,6 @@
 @layer arco-base, workbench, arco, product;
-@import "@arco-design/web-react/es/style/index.css" layer(arco-base);
-@import "@arco-design/web-react/es/Button/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Spin/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Card/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Checkbox/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Empty/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Input/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Trigger/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/_class/OverflowEllipsis/style/index.css"
-  layer(arco);
-@import "@arco-design/web-react/es/Tag/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/InputTag/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Select/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Pagination/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Radio/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Space/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Tooltip/style/index.css" layer(arco);
-@import "@arco-design/web-react/es/Table/style/index.css" layer(arco);
+@layer antd, foundation;
 
-@import "@arco-design/web-react/es/Dropdown/style/index.css" layer(arco);
 
 @layer product {
   .product-overview {
@@ -408,7 +390,7 @@
   .reauth-dialog .field {
     margin-top: 16px;
   }
-  /* Arco defines its tokens on body, so aliases must resolve in the same scope. */
+  /* Native controller aliases resolve from the shared Foundation token seed. */
   body {
     margin: 0;
     font-family: inherit;
@@ -5752,5 +5734,290 @@
   }
   .studio-order-row .btn {
     padding: 8px 12px;
+  }
+}
+
+/* Foundation adapter: shared tokens, one stylesheet entry, no controller styles. */
+@layer foundation {
+  body {
+    --ui-bg: var(--tome-canvas);
+    --ui-surface: var(--tome-surface);
+    --ui-surface-2: var(--tome-canvas);
+    --ui-border: var(--tome-border);
+    --ui-border-strong: var(--tome-textSecondary);
+    --ui-text: var(--tome-text);
+    --ui-muted: var(--tome-textSecondary);
+    --ui-subtle: var(--tome-textSecondary);
+    --ui-primary: var(--tome-primary);
+    --ui-primary-hover: var(--tome-text);
+    --ui-primary-soft: var(--tome-selected);
+    --ui-danger: var(--tome-errorText);
+    --ui-warning: var(--tome-warningText);
+    --ui-warning-soft: var(--tome-warningBg);
+    --ui-success: var(--tome-successText);
+    --ui-success-soft: var(--tome-successBg);
+    line-height: 1.55;
+  }
+  .foundation-shell {
+    --foundation-sidebar-width: 232px;
+    --foundation-page-padding: 24px;
+    grid-template-columns: var(--foundation-sidebar-width) minmax(0, 1fr);
+  }
+  .foundation-shell[data-collapsed="true"] { --foundation-sidebar-width: 64px; }
+  .foundation-shell .admin-sidebar {
+    width: var(--foundation-sidebar-width);
+    padding: 24px 12px 16px;
+    background: var(--tome-surface);
+  }
+  .foundation-shell .wordmark {
+    color: var(--tome-text);
+    min-height: 64px;
+    padding: 0 4px 24px !important;
+    white-space: nowrap;
+  }
+  .foundation-shell .foundation-brand-full {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    margin: 0;
+  }
+  .foundation-brand-full small {
+    display: block;
+    color: var(--tome-textSecondary);
+    font: 12px/1.5 sans-serif;
+    letter-spacing: 0.06em;
+    margin-top: 8px;
+  }
+  .foundation-brand-short { display: none; font: 18px/1.5 Georgia, serif; }
+  .foundation-shell .library-navigation { display: grid; gap: 6px; }
+  .foundation-shell .library-navigation a {
+    gap: 12px;
+    min-height: 42px;
+    color: var(--tome-textSecondary);
+    padding: 10px;
+  }
+  .foundation-shell .library-navigation a:hover { background: var(--tome-canvas); color: var(--tome-text); }
+  .foundation-shell .library-navigation a.active { background: var(--tome-selected); color: var(--tome-text); box-shadow: inset 3px 0 var(--tome-primary); }
+  .foundation-nav-icon { display: block; width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  .foundation-shell .workspace { grid-column: 2; margin-left: 0; }
+  .foundation-shell .topbar { height: 56px; padding: 0 24px; background: var(--tome-surface); gap: 16px; }
+  .foundation-shell .foundation-location { color: var(--tome-text); gap: 12px; min-width: 0; }
+  .foundation-location > span { font-weight: 600; }
+  .foundation-shell .foundation-collapse { width: 36px; min-width: 36px; height: 36px; padding: 8px; }
+  .foundation-shell[data-collapsed="true"] .foundation-collapse svg { transform: rotate(180deg); }
+  .foundation-shell .foundation-account { gap: 12px; }
+  .foundation-shell .environment { color: var(--tome-textSecondary); background: var(--tome-canvas); font-size: 12px; }
+  .foundation-shell .sidebar-bottom { padding: 16px 4px 0; color: var(--tome-text); }
+  .foundation-shell .sidebar-bottom strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .foundation-shell .sidebar-bottom small { color: var(--tome-textSecondary); font-size: 12px; }
+  .foundation-shell[data-collapsed="true"] .foundation-brand-full,
+  .foundation-shell[data-collapsed="true"] .foundation-nav-label,
+  .foundation-shell[data-collapsed="true"] .sidebar-bottom { display: none; }
+  .foundation-shell[data-collapsed="true"] .foundation-brand-short { display: block; }
+  .foundation-shell[data-collapsed="true"] .library-navigation a { padding: 10px; justify-content: center; }
+  .foundation-shell .foundation-page-container { max-width: 1680px; padding: 24px var(--foundation-page-padding) 56px; }
+  .foundation-skip { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); z-index: 100; padding: 10px 16px; background: var(--tome-surface); color: var(--tome-text); border: 1px solid var(--tome-primary); }
+  .foundation-skip:focus { transform: none; }
+  .foundation-shell :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--tome-primary); outline-offset: 2px; }
+  .foundation-shell .foundation-page-container:focus { outline: none; }
+  .foundation-shell .foundation-page-container:focus-visible { outline: 2px solid var(--tome-primary); outline-offset: -2px; }
+  .foundation-shell :is(.badge, .arco-tag) { color: var(--tome-textSecondary); background: var(--tome-canvas); }
+  .foundation-shell .badge.good { color: var(--tome-successText); background: var(--tome-successBg); }
+  .foundation-shell .badge.warn { color: var(--tome-warningText); background: var(--tome-warningBg); }
+  .foundation-shell :is(.note, .muted, .hint, .form-help) { color: var(--tome-textSecondary); }
+  .foundation-shell .foundation-page-error { border-left: 3px solid var(--tome-errorText); }
+  .foundation-shell .form-error { color: var(--tome-errorText); }
+  @media (min-width: 761px) {
+    .foundation-shell .studio-commandbar { top: 56px; }
+    /* Legacy 28px negative margins cannot exceed the new page gutter. */
+    .foundation-shell .studio-workspace:not(.studio-publish-open) .studio-commandbar {
+      margin-inline: calc(-1 * var(--foundation-page-padding));
+      padding-inline: var(--foundation-page-padding);
+    }
+  }
+  @media (max-width: 1280px) {
+    .foundation-shell { --foundation-page-padding: 16px; }
+    .foundation-shell .topbar { padding: 0 16px; }
+  }
+  /* Preserve the current mobile bottom navigation; desktop collapse never hides it. */
+  @media (max-width: 760px) {
+    .foundation-shell { display: block; }
+    .foundation-shell .admin-sidebar { position: fixed; inset: auto 0 0; width: 100%; padding: 0; display: block; }
+    .foundation-shell .admin-sidebar :is(.wordmark, .sidebar-bottom) { display: none; }
+    .foundation-shell .library-navigation { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; height: 64px; }
+    .foundation-shell .library-navigation a { padding: 6px 2px; gap: 4px; flex-direction: column; font-size: 11px; }
+    .foundation-shell[data-collapsed="true"] .foundation-nav-label { display: block; }
+    .foundation-shell .workspace { padding-bottom: 80px; }
+    .foundation-shell .foundation-collapse, .foundation-shell .foundation-role { display: none; }
+    .foundation-shell .topbar .foundation-logout { display: inline-flex; }
+    .foundation-shell .foundation-account { gap: 4px; }
+  }
+}
+
+@layer foundation {
+  /* Root providers must not change controller-owned grid/flex geometry. */
+  .tome-ant-root { display: contents; }
+  .foundation-field .ant-form-item-label { padding-bottom: 6px; text-align: start; }
+  .foundation-field .ant-form-item-label > label { height: auto; color: var(--tome-text); }
+  .foundation-field .ant-input { width: 100%; font: inherit; }
+  .foundation-field .ant-form-item-row { display: block; }
+  .foundation-field { margin-bottom: 0; }
+  .foundation-selection { display: inline-flex; align-items: center; }
+}
+
+@layer foundation {
+  .foundation-shell .ant-btn { min-height: 36px; }
+  .arco-workspace .ant-card { box-shadow: none; border-color: var(--tome-border); background: var(--tome-surface); }
+  .arco-workspace .ant-card-head { min-height: 44px; padding-inline: 20px; border-color: var(--tome-border); }
+  .arco-workspace .ant-card-body { padding: 20px; }
+  .arco-workspace .studio-inspector .ant-card-body { display: grid; gap: 16px; }
+  .catalog-order > .ant-select { width: 156px; }
+  .arco-workspace .view-switch .ant-btn { height: 36px; min-width: 54px; }
+  .arco-workspace .view-switch .ant-btn[aria-pressed="true"] { color: var(--tome-primary); background: var(--tome-selected); }
+  .arco-workspace .view-switch .ant-btn[aria-pressed="false"] { color: var(--tome-textSecondary); background: var(--tome-surface); }
+  .arco-workspace .ant-table-cell { padding: 12px; vertical-align: middle; }
+  .arco-workspace tr.is-selected > .ant-table-cell { background: var(--tome-selected); }
+  .arco-workspace .ant-table-wrapper { min-width: 0; }
+  .catalog-pagination .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .catalog-pagination .ant-pagination-total-text { margin-right: auto; color: var(--tome-textSecondary); }
+  .catalog-dropdown-actions { background: var(--tome-surface); border-color: var(--tome-border); }
+  .catalog-dropdown-actions .ant-btn { text-align: start; justify-content: flex-start; }
+  .product-overview-facts .ant-descriptions-item-label { color: var(--tome-textSecondary); }
+  .product-overview-facts .ant-descriptions-item-content { color: var(--tome-text); overflow-wrap: anywhere; }
+  @media (max-width: 760px) {
+    .arco-workspace .ant-card-body { padding: 16px; }
+    .catalog-display-controls { width: 100%; margin-left: 0; justify-content: space-between; }
+    .catalog-order > .ant-select { width: 140px; }
+  }
+}
+
+@layer foundation {
+  body {
+    /* Compatibility names belong to Foundation; no legacy blue palette leaks. */
+    --color-text-1: var(--tome-text);
+    --color-text-2: var(--tome-textSecondary);
+    --color-text-3: var(--tome-textSecondary);
+    --color-text-4: var(--tome-textSecondary);
+    --color-bg-2: var(--tome-surface);
+    --color-bg-popup: var(--tome-surface);
+    --color-border-2: var(--tome-border);
+    --color-border-3: var(--tome-border);
+    --color-fill-1: var(--tome-canvas);
+    --color-fill-2: var(--tome-canvas);
+    --color-fill-3: var(--tome-selected);
+    --primary-1: var(--tome-selected-rgb);
+    --primary-5: var(--tome-primary-rgb);
+    --primary-6: var(--tome-primary-rgb);
+    --danger-6: var(--tome-errorText-rgb);
+    --success-1: var(--tome-successBg-rgb);
+    --success-2: var(--tome-border-rgb);
+    --success-6: var(--tome-successText-rgb);
+    --warning-1: var(--tome-warningBg-rgb);
+    --warning-7: var(--tome-warningText-rgb);
+  }
+}
+
+@layer foundation {
+  #toast { padding: 0; background: var(--tome-surface); color: var(--tome-text); border-color: var(--tome-border); }
+  #toast .foundation-feedback { white-space: pre-wrap; text-align: start; }
+  .foundation-records .ant-table-cell { min-width: 80px; }
+  .foundation-records .foundation-record-cell { overflow-wrap: anywhere; }
+  .foundation-records .ant-table-thead > tr > th { color: var(--tome-textSecondary); background: var(--tome-canvas); }
+  .foundation-records .ant-table-tbody > tr > td { color: var(--tome-text); background: var(--tome-surface); }
+}
+
+@layer foundation {
+  .foundation-native-field { display: block; min-width: 0; width: 100%; }
+  .foundation-native-field .ant-input { width: 100%; font: inherit; }
+  .foundation-native-field :is(input, textarea):disabled { color: var(--tome-textSecondary); background: var(--tome-canvas); }
+  .foundation-native-field :is(input, textarea):focus-visible { outline: 2px solid var(--tome-primary); outline-offset: 2px; }
+}
+
+@layer foundation {
+  .product-overview-facts:has(.ant-descriptions), .details.foundation-descriptions { display: block; }
+  .details.foundation-descriptions > div { padding: 0; border: 0; }
+  .foundation-descriptions .ant-descriptions-item-content { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--tome-text); }
+  .foundation-descriptions .ant-descriptions-item-label { color: var(--tome-textSecondary); }
+}
+
+@layer foundation {
+  .arco-workspace .ant-btn { min-height: 36px; }
+  .arco-workspace .catalog-filters .ant-input,
+  .arco-workspace .catalog-filters select,
+  .arco-workspace .filter-actions > .ant-btn { height: 36px; min-height: 36px; }
+}
+
+@layer foundation {
+  .foundation-catalog-records { width: 100%; max-width: 100%; }
+  .foundation-catalog-records .ant-table-content { max-width: 100%; overflow-x: auto; }
+  .foundation-catalog-records .foundation-record-action { position: sticky; inset-inline-end: 0; background: var(--tome-surface); z-index: 2; }
+  .foundation-catalog-records th.foundation-record-action { z-index: 3; background: var(--tome-canvas); }
+  .foundation-field > span { color: var(--tome-text); }
+  .foundation-field > span em { color: var(--tome-errorText); font-style: normal; }
+}
+
+@layer foundation {
+  .foundation-command-popup { position: fixed; z-index: 90; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; }
+}
+
+@layer foundation {
+  .arco-workspace .catalog-row-menu { width: 32px; min-width: 32px; padding-inline: 0; }
+}
+
+@layer foundation {
+  /* Portalled Select surfaces need a global contract outside the App wrapper.
+     Cloud inspection found vendor popup selectors did not supply positioning. */
+  .ant-select-dropdown {
+    position: absolute;
+    top: -9999px;
+    left: 0;
+    z-index: 1050;
+    padding: 4px;
+    color: var(--tome-text);
+    background: var(--tome-surface);
+    border: 1px solid var(--tome-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(var(--tome-text-rgb), 0.12);
+  }
+  .ant-select-dropdown-hidden { display: none; }
+  .ant-select-dropdown .ant-select-item {
+    min-height: 32px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: var(--tome-text);
+    cursor: pointer;
+  }
+  .ant-select-dropdown .ant-select-item-option-active { background: var(--tome-canvas); }
+  .ant-select-dropdown .ant-select-item-option-selected { background: var(--tome-selected); font-weight: 600; }
+  .ant-select-dropdown .ant-select-item-option-disabled { color: var(--tome-textSecondary); cursor: not-allowed; }
+}
+
+@layer foundation {
+  .foundation-shell :is(button, input, select, textarea):disabled,
+  dialog :is(button, input, select, textarea):disabled {
+    opacity: 1;
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+    border-color: var(--tome-border);
+    cursor: not-allowed;
+  }
+  .foundation-shell :is(input, textarea)[readonly],
+  dialog :is(input, textarea)[readonly] {
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+    border-style: dashed;
+  }
+  .foundation-shell :is(.status-pill, .notice),
+  dialog :is(.status-pill, .note, .notice) {
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+  }
+  :is(.foundation-shell, dialog) .status-pill.good { color: var(--tome-successText); background: var(--tome-successBg); }
+  :is(.foundation-shell, dialog) .status-pill.attention { color: var(--tome-warningText); background: var(--tome-warningBg); }
+  :is(.foundation-shell, dialog) .status-pill.test { color: var(--tome-infoText); background: var(--tome-infoBg); }
+  .foundation-command-popup :is(button, a):focus-visible,
+  dialog :is(button, input, select, textarea, summary, a):focus-visible {
+    outline: 2px solid var(--tome-primary);
+    outline-offset: 2px;
   }
 }

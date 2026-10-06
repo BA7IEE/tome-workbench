@@ -16,7 +16,7 @@
 
 待办、采购、复核和资源等原有入口仍可从「更多」中的「其他业务记录与维护工具」进入，权限和业务约束不变。未批准 TM 在工作台以全局待审核队列显示；渠道资料缺项由选定的交易经营目标动态计算，不创建跨渠道的持久 PREPARE 任务。操作说明见 [OPERATIONS](docs/OPERATIONS.md)，MVP 范围见 [MVP-RC15](docs/MVP-RC15.md)，本版界面迁移见 [ARCO-RC16](docs/ARCO-RC16.md)，来源 Agent 接入见 [协议](docs/AGENT-INGEST-PROTOCOL.md)，分发 Agent 只按[标准交付合同](docs/DISTRIBUTION-HANDOFF-CONTRACT.md)取得冻结资料并回填结果。
 
-商品库、完整编辑及快速录货/修改字段已采用 React + Arco Design。批量低频动作收在「批量操作」，商品页提供保存与保存并下载资料。其他业务页面保留现有实现，资料和权限规则不变。
+本轮 Draft 的真实入口采用 React + Ant Design 6 和 ProComponents Foundation，统一 Shell、导航、页面容器、记录表、文本字段、只读详情、反馈及语义 token；ProComponents 使用明确标注风险的固定测试版。既有领域控制器继续负责 API、权限、幂等提交和恢复，原生文件/日期/数字/字典选择契约保留。后续模块须遵守 [Admin Foundation](docs/TOME-ADMIN-FOUNDATION.md)、[Design System](docs/TOME-DESIGN-SYSTEM.md) 和 [接入准入检查](docs/TOME-MODULE-ADMISSION.md)，不能逐页另建布局。验收以 PR 中对应源码指纹的云端记录为准，不代表生产已部署。
 
 来源资料核对支持 PC 图文对照和手机全屏看图；单件处理显示商品身份，可从来源资料返回处理，关闭恢复原入口焦点。人工确认、重复与缺项约束不变，见 [来源资料核对交互](docs/SOURCE-REVIEW-UX.md)。
 

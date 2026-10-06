@@ -5,7 +5,13 @@ import { procurementPage } from "./procurement-page";
 import { dictionariesPage } from "./dictionaries-page";
 import { recycleBinPage } from "./recycle-bin";
 declare const __APP_VERSION__: string;
-import { navigation, pageNames, extraNavigation } from "./admin-navigation";
+import { pageNames, extraNavigation } from "./admin-navigation";
+import {
+  disposeAppShell,
+  mountAppShell,
+  pageReadError,
+} from "./foundation/app-shell";
+import { applyDesignTokens } from "./foundation/tokens";
 import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
 import { distributionCenter } from "./distribution-center";
@@ -21,9 +27,7 @@ import {
   setRefresh,
   request,
   can,
-  esc,
   toast,
-  button,
 } from "./core";
 import type { SessionResponse } from "./types";
 import { detailPage } from "./items";
@@ -71,6 +75,7 @@ async function login() {
 async function render() {
   const g = ++generation;
   disposePage();
+  disposeAppShell();
   actions.clear();
   if (location.pathname === "/showroom") {
     app.innerHTML = await showroomPage();
@@ -91,21 +96,15 @@ async function render() {
   const path = location.hash.replace(/^#\/?/, "").split("?")[0],
     parts = path.split("/"),
     page = parts[0] || "dashboard";
-  app.innerHTML = `<div class="shell"><aside class="admin-sidebar"><a href="#/dashboard" class="wordmark">ToMeBoutique<span>兔泥巴 · 经营工作台</span></a><nav aria-label="主导航">${navigation(page)}</nav><div class="sidebar-bottom"><strong>${esc(me?.name)}</strong><small>${esc(({ ADMIN: "管理员", REVIEWER: "复核人员", OPERATOR: "运营人员", FINANCE: "经营财务", VIEWER: "只读账户" } as Record<string, string>)[me?.role || ""] || "内部账户")}</small>${button(
-    "退出登录",
-    async () => {
+  mountAppShell(app, {
+    page,
+    user: me!,
+    version: __APP_VERSION__,
+    onLogout: async () => {
       await request("/auth/logout", "POST", {});
       location.reload();
     },
-    "subtle",
-  )}</div></aside><div class="workspace"><header class="topbar"><span>经营工作台</span><div>${button(
-    "退出登录",
-    async () => {
-      await request("/auth/logout", "POST", {});
-      location.reload();
-    },
-    "subtle mobile-logout",
-  )}<a href="/showroom" target="_blank" rel="noopener">查看展厅 ↗</a><span class="environment">${__APP_VERSION__}</span></div></header><main id="content"><div class="loading">正在读取数据…</div></main><footer class="app-footer">ToMeBoutique / 事实只维护一次，使用各有记录。</footer></div></div>`;
+  });
   let html = "";
   try {
     if (page === "trash") html = await recycleBinPage();
@@ -147,7 +146,7 @@ async function render() {
     else if (page === "audit" && can("audit")) html = await auditPage();
     else html = await dailyWork();
   } catch (error) {
-    html = `<section class="panel"><h2>没有完成读取</h2><p class="form-error">${esc((error as Error).message)}</p>${button("重新读取", () => render())}</section>`;
+    html = pageReadError((error as Error).message, () => render());
   }
   if (g === generation) {
     document.querySelector("#content")!.innerHTML = html;
@@ -179,6 +178,7 @@ window.addEventListener("hashchange", () => {
   previousHash = location.hash;
   render().catch((e) => toast(e.message, true));
 });
+applyDesignTokens();
 render().catch((e) => {
   app.textContent = "启动失败：" + e.message;
 });

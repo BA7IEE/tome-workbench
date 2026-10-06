@@ -1,7 +1,9 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const currentVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+const currentVersion = JSON.parse(
+  fs.readFileSync("package.json", "utf8"),
+).version;
 async function run(p, transform) {
   const { checks } = await import("../scripts/harness.mjs");
   return checks((f) => {
@@ -46,6 +48,18 @@ test("harness permits outstanding production and business acceptance", async () 
 });
 for (const [name, p, fn, id] of [
   [
+    "ranged Foundation dependency",
+    "package.json",
+    (s) => s.replace('"antd": "6.6.5"', '"antd": "^6.6.5"'),
+    "fixed-dependencies",
+  ],
+  [
+    "unapproved ProComponents prerelease",
+    "package.json",
+    (s) => s.replace('"3.1.15-5"', '"3.1.15-6"'),
+    "fixed-dependencies",
+  ],
+  [
     "stale current version",
     "docs/CURRENT-RELEASE.md",
     (s) => s.replace(/"version": "[^"]+"/, '\"version\": \"0.0.0\"'),
@@ -78,7 +92,11 @@ for (const [name, p, fn, id] of [
   [
     "stale validation report source",
     "docs/VALIDATION.md",
-    (s) => s.replace(/验证源码指纹为\s*\n`[a-f0-9]{64}`/m, "验证源码指纹为\n`stale`"),
+    (s) =>
+      s.replace(
+        /验证源码指纹为\s*\n`[a-f0-9]{64}`/m,
+        "验证源码指纹为\n`stale`",
+      ),
     "current-validation-report-source",
   ],
   [

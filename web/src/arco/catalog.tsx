@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { CommandMenu } from "../foundation/command-menu";
+import { useState, useRef, useMemo } from "react";
 import {
   Button,
   Card,
-  Dropdown,
   Empty,
   Input,
   Select,
-  Table,
   Tag,
-} from "@arco-design/web-react";
+} from "../foundation/components";
+import { RecordTable as Table } from "../foundation/records";
 import { can, money, reload, toast, when } from "../core";
 import {
   catalogContext,
@@ -37,7 +37,7 @@ function Action({ action }: { action: CatalogAction }) {
   return (
     <Button
       type={action.primary ? "primary" : "default"}
-      status={action.danger ? "danger" : "default"}
+      danger={action.danger}
       loading={pending}
       onClick={async () => {
         if (pending) return;
@@ -57,82 +57,54 @@ function Action({ action }: { action: CatalogAction }) {
 }
 function RowMenu({ item }: { item: Item }) {
   const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setOpen(false);
-        trigger.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
-  }, [open]);
   const run = (action: () => unknown) => {
     setOpen(false);
     return action();
   };
   return (
-    <Dropdown
-      trigger="click"
-      position="br"
-      popupVisible={open}
-      onVisibleChange={setOpen}
-      getPopupContainer={() => document.body}
-      triggerProps={{ autoAlignPopupWidth: false }}
-      droplist={
-        <div
-          className="catalog-dropdown-actions arco-workspace"
-          aria-label={`${item.code} 操作菜单`}
-        >
+    <CommandMenu
+      label={`${item.code} 更多操作`}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <div
+        className="catalog-dropdown-actions arco-workspace"
+        aria-label={`${item.code} 操作菜单`}
+      >
+        <Action
+          action={{
+            label: "下载商品资料",
+            run: () => run(() => exportMaterials([item])),
+          }}
+        />
+        {can("edit") && (
           <Action
             action={{
-              label: "下载商品资料",
-              run: () => run(() => exportMaterials([item])),
+              label: "快速修改",
+              run: () => run(() => quickEdit(item, reload)),
             }}
           />
-          {can("edit") && (
-            <Action
-              action={{
-                label: "快速修改",
-                run: () => run(() => quickEdit(item, reload)),
-              }}
-            />
-          )}
-          {can("publish") && (
-            <Button
-              type="text"
-              href={`#/items/${item.id}/edit?publish=1`}
-              onClick={() => setOpen(false)}
-            >
-              准备发布
-            </Button>
-          )}
-          {can("delete") && (
-            <Action
-              action={{
-                label: "删除商品",
-                danger: true,
-                run: () => run(() => deleteProduct(item)),
-              }}
-            />
-          )}
-        </div>
-      }
-    >
-      <Button
-        ref={trigger}
-        className="catalog-row-menu"
-        type="text"
-        aria-label={`${item.code} 更多操作`}
-        aria-haspopup="true"
-        aria-expanded={open}
-      >
-        •••
-      </Button>
-    </Dropdown>
+        )}
+        {can("publish") && (
+          <Button
+            type="text"
+            href={`#/items/${item.id}/edit?publish=1`}
+            onClick={() => setOpen(false)}
+          >
+            准备发布
+          </Button>
+        )}
+        {can("delete") && (
+          <Action
+            action={{
+              label: "删除商品",
+              danger: true,
+              run: () => run(() => deleteProduct(item)),
+            }}
+          />
+        )}
+      </div>
+    </CommandMenu>
   );
 }
 const itemLink = (i: Item) => `#/items/${i.id}`;
@@ -529,7 +501,7 @@ export function Catalog({
           </div>
           <Button.Group className="view-switch">
             <Button
-              type={view === "table" ? "secondary" : "default"}
+              type="default"
               aria-pressed={view === "table"}
               onClick={() =>
                 applyFilters({ view: "table", page: String(page) })
@@ -538,7 +510,7 @@ export function Catalog({
               列表
             </Button>
             <Button
-              type={view === "grid" ? "secondary" : "default"}
+              type="default"
               aria-pressed={view === "grid"}
               onClick={() => applyFilters({ view: "grid", page: String(page) })}
             >

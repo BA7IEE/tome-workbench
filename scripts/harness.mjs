@@ -249,8 +249,11 @@ export function checks(
   );
   check("fixed-dependencies", () => {
     const p = JSON.parse(read("package.json"));
-    return Object.values({ ...p.dependencies, ...p.devDependencies }).every(
-      (v) => /^\d+\.\d+\.\d+$/.test(v),
+    // The documented AntD6 migration candidate is pinned exactly, not a range.
+    // No other prerelease (including the next beta) is implicitly approved.
+    return Object.entries({ ...p.dependencies, ...p.devDependencies }).every(
+      ([name, v]) => /^\d+\.\d+\.\d+$/.test(v) ||
+        (name === "@ant-design/pro-components" && v === "3.1.15-5"),
     );
   });
   for (const row of currentDocsChecks(read)) check(row.id, () => row.pass);

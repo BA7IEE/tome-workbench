@@ -1,4 +1,5 @@
 const { submitLogin, fillLogin } = require("./login.cjs");
+// AntD adds an aria-hidden measure row; count records while retaining every exact assertion.
 const { test, expect } = require("@playwright/test");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
@@ -74,8 +75,12 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
   await expect(page.getByLabel("筛选品类", { exact: true })).toHaveValue("BAG");
   await clearDictionary(page, "品牌");
   await page.getByLabel("搜索商品", { exact: true }).press("Enter");
-  await expect(page.locator("tbody tr")).toHaveCount(1);
-  await expect(page.locator("tbody tr")).toContainText(a.code);
+  await expect(
+    page.locator("tbody tr:not(.ant-table-measure-row)"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator("tbody tr:not(.ant-table-measure-row)"),
+  ).toContainText(a.code);
   await expect(page.locator("#bulk-toolbar")).toBeHidden();
 });
 
@@ -134,10 +139,12 @@ for (const width of [1440, 390]) {
         }),
       );
     await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-    await expect(page.locator("tbody tr")).toHaveCount(30);
-    await expect(page.locator("tbody tr").first()).toContainText(
-      items[30].code,
-    );
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(30);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[30].code);
     if (width > 1000) {
       const alignment = await page
         .locator("#catalog-search")
@@ -158,25 +165,61 @@ for (const width of [1440, 390]) {
     }
     await page.getByLabel("选择 " + items[30].code, { exact: true }).check();
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
+    const sortOption = page.getByRole("option", {
+      name: "最早录入",
+      exact: true,
+    });
+    await expect(sortOption).toBeVisible();
+    const popup = page
+      .locator(".ant-select-dropdown")
+      .filter({ has: sortOption });
+    await expect(popup).toHaveCSS("position", "absolute");
+    await expect
+      .poll(() =>
+        sortOption.evaluate((option) => {
+          const rect = option.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2,
+          );
+          return (
+            rect.left >= 0 &&
+            rect.right <= innerWidth &&
+            rect.top >= 0 &&
+            rect.bottom <= innerHeight &&
+            option.contains(hit)
+          );
+        }),
+      )
+      .toBe(true);
     await page.getByRole("option", { name: "最早录入", exact: true }).click();
-    await expect(page.locator("tbody tr").first()).toContainText(items[0].code);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[0].code);
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByLabel("下一页", { exact: true }).click();
-    await expect(page.locator("tbody tr")).toHaveCount(1);
-    await expect(page.locator("tbody tr")).toContainText(items[30].code);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(1);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toContainText(items[30].code);
     await page.getByRole("combobox", { name: "每页数量", exact: true }).click();
     await page.getByRole("option", { name: "60 件/页", exact: true }).click();
-    await expect(page.locator("tbody tr")).toHaveCount(31);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(31);
     await expect(page.locator(".catalog-count")).toContainText("第 1 / 1 页");
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
     await page.getByRole("option", { name: "最新录入", exact: true }).click();
-    await expect(page.locator("tbody tr").first()).toContainText(
-      items[30].code,
-    );
     await expect(
-      page.getByRole("combobox", { name: "每页数量", exact: true }),
-    ).toContainText("60 件/页");
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[30].code);
+    // AntD exposes its search input as combobox; the selected label is a sibling.
+    await expect(page.locator(".catalog-pagination .ant-select")).toContainText(
+      "60 件/页",
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 2,
@@ -307,8 +350,10 @@ for (const width of [1440, 390]) {
           .trim(),
       }));
       expect(layout.overflow, route).toBeLessThanOrEqual(2);
-      expect(layout.background, route).toBe("rgb(242, 243, 245)");
-      expect(layout.primary, route).toMatch(/rgb\(\s*22,\s*93,\s*255\s*\)/);
+      // Foundation intentionally replaces the former Arco gray/blue palette.
+      // Keep every route and geometry assertion; assert the approved brand colors.
+      expect(layout.background, route).toBe("rgb(246, 243, 237)");
+      expect(layout.primary, route).toBe("#765844");
       expect(layout.border, route).toBeTruthy();
       if (route === "imports") {
         const positions = await content
@@ -367,7 +412,7 @@ for (const width of [1440, 390]) {
         const columns = await content
           .locator(".record-table")
           .first()
-          .locator("tbody tr")
+          .locator("tbody tr:not(.ant-table-measure-row)")
           .first()
           .locator("td")
           .evaluateAll((cells) =>
@@ -384,7 +429,7 @@ for (const width of [1440, 390]) {
         );
         await expect(page.locator(".procurement-line")).toHaveCSS(
           "background-color",
-          "rgb(255, 255, 255)",
+          "rgb(255, 253, 250)",
         );
         await expect(page.locator(".procurement-page")).toHaveCSS(
           "row-gap",
@@ -405,18 +450,21 @@ for (const width of [1440, 390]) {
         });
       }
     }
+    // Approved Foundation surface, selection and focus tokens replace the legacy blue palette.
     await page.goto("/#/items?q=" + encodeURIComponent("系统样式 " + key));
-    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(1);
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
-    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    ).toHaveCSS("background-color", "rgb(237, 227, 215)");
     await page.getByRole("button", { name: "图片", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "图片", exact: true }),
-    ).toHaveCSS("background-color", "rgb(232, 243, 255)");
+    ).toHaveCSS("background-color", "rgb(237, 227, 215)");
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
-    ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    ).toHaveCSS("background-color", "rgb(255, 253, 250)");
     await page.getByRole("button", { name: "更多筛选", exact: true }).click();
     await page.getByLabel("品牌", { exact: true }).fill("没有选中的合成品牌");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
@@ -430,11 +478,11 @@ for (const width of [1440, 390]) {
     await page.getByLabel("登录邮箱").click();
     await expect(page.getByLabel("登录邮箱")).toHaveCSS(
       "border-top-color",
-      "rgb(22, 93, 255)",
+      "rgb(118, 88, 68)",
     );
     await expect(page.getByRole("button", { name: "进入工作台" })).toHaveCSS(
       "background-color",
-      "rgb(22, 93, 255)",
+      "rgb(118, 88, 68)",
     );
     await page.screenshot({
       path: `reports/screenshots/system-ui-${width}-login.png`,
