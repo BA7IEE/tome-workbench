@@ -1,6 +1,6 @@
 # ToMe Admin Foundation
 
-Status: framework migration source in progress, runtime validation pending. The dependency lock was generated on a disposable runner and committed; npm ci, typecheck, lint, build and unit tests passed at 273dd15. Harness requires a narrowly documented exact prerelease exception; browser acceptance remains pending. Do not treat earlier Shell acceptance as framework runtime acceptance.
+Status: framework migration source in progress, runtime validation pending. The dependency lock was generated on a disposable runner and committed; npm ci, typecheck, lint, build and unit tests passed at 273dd15. The exact prerelease exception is now guarded. First framework Chromium run: 174 passed / 14 failed; fixes are in progress for hidden measurement-row selection, legacy label ancestry, pagination accessibility and contextual menu geometry. Browser acceptance of the current source remains pending. Do not treat earlier Shell acceptance as framework runtime acceptance.
 
 ## Current boundary
 
@@ -23,7 +23,9 @@ Semantic tokens live in `foundation/tokens.ts`; `ui08.css` remains the only styl
 | Administration      | dictionaries, settings, operations, jobs, audit                                       |
 | Public read-only    | /showroom                                                                             |
 
-Future modules must use Foundation shell/container, navigation, feedback and component adapters rather than invent page layouts. Current source routes the real catalog through `foundation/records.tsx` ProTable, native submission-owned product/quick forms through Foundation AntD fields and ProForm.Item, and the product overview through lifecycle-owned ProDescriptions. Catalog read/filter/sort/paging/selection remain with the existing controller: the adapter has no request function or second search bar. Native selects retain dictionary/category behavior. These are source changes pending actual runtime acceptance; legacy DOM modules listed below remain.
+Future modules must use Foundation shell/container, navigation, feedback and component adapters rather than invent page layouts. Current source routes the real catalog through `foundation/records.tsx` ProTable, native submission-owned product/quick forms through Foundation AntD fields and ProForm.Item, and the product overview through lifecycle-owned ProDescriptions. Catalog read/filter/sort/paging/selection remain with the existing controller: the adapter has no request function or second search bar. Native selects retain dictionary/category behavior. The lifecycle also mounts marked legacy record tables through a ProTable bridge before domain listeners bind; dialog mounts use the existing dialog abort scope. Source-row data/aria/id/class attributes and escaped cell HTML are retained. Candidate/source/bulk-price tables explicitly opt into this shared boundary. Read-only `dl.details` use ProDescriptions. Common text fields use AntD + ProForm.Item before native form validation/listeners bind. Text fields preserve ancestor labels required by the existing dimensions/help controller. Unknown amounts, currencies and all rendered content are unchanged.
+
+These source changes await runtime acceptance. This is a presentation bridge for existing controllers, not an API or domain-model migration. New modules should use the typed adapters rather than copy the legacy HTML bridge.
 
 ## Invariants
 
@@ -41,7 +43,7 @@ The one-off `foundation-lock.yml` resolved metadata only on a disposable runner 
 
 ## Module admission
 
-Run `node scripts/check-admin-foundation.mjs` in the approved validation environment. It checks shell ownership, real-entry integration, new Arco imports and direct AntD/ProComponents imports outside Foundation. The historical `arco/` path remains to avoid unrelated controller/import churn, but runtime vendor imports are now Foundation-only. Remaining Arco stylesheet scaffolding is retained until cloud visual checks allow its removal. New Arco runtime imports are rejected. The gate is not proof that all legacy pages have migrated, and is not a replacement for type/build/browser checks.
+Run `node scripts/check-admin-foundation.mjs` in the approved validation environment. It checks shell ownership, real-entry integration, new Arco imports and direct AntD/ProComponents imports outside Foundation. The gate also rejects new raw table/form markup outside the enumerated legacy controllers, extra CSS entries, direct vendor defaults and network calls from Foundation. It checks every Foundation CSS layer for literal colors. The historical `arco/` path remains to avoid unrelated controller/import churn, but runtime vendor imports are now Foundation-only. Remaining Arco stylesheet scaffolding is retained until cloud visual checks allow its removal. New Arco runtime imports are rejected. The gate is not proof that all legacy pages have migrated, and is not a replacement for type/build/browser checks.
 
 Review every module for one shell, one stylesheet entry, semantic tokens, consistent table/form/detail adapters, accessible empty/error/read-only/disabled/selected/focus states, existing query/context restoration and unchanged request recovery. No direct module ConfigProvider, second sidebar/topbar or ad hoc feedback provider. The admission script is wired into CI; runtime outcomes remain pending until Actions completes.
 
@@ -54,8 +56,8 @@ CI has one sequential verification job, a 45-minute timeout, cancellation of sup
 Remaining admission sequence:
 
 1. Validate the committed catalog/editor/overview vertical slice in both browsers; keep every original domain recovery test.
-2. Migrate daily work/tasks, imports/candidates/intake/recycle, distribution/listings/collections, sales/inquiries/settlements, procurement/sources, dictionaries/settings/operations/jobs/audit through reusable Foundation record/form/detail adapters. All currently share the branded shell/tokens but retain domain-owned DOM controls.
-3. Consolidate dialog/feedback adapters while preserving native submission, same-key request snapshots, version/session conflict and upload completion. Validate empty/error/read-only/disabled/selected/focus states.
+2. Validate the shared record/form/detail bridge across daily work/tasks, imports/candidates/intake/recycle, distribution/listings/collections, sales/inquiries/settlements, procurement/sources, dictionaries/settings/operations/jobs/audit. These routes share Foundation shell/tokens and lifecycle-mounted display adapters; original domain controllers and native file/date/number/checkbox/dictionary-select contracts remain. Dynamic editing-conflict tables stay native to protect active recovery DOM.
+3. Validate Foundation Alert feedback and command popovers while preserving native dialog/submission, same-key request snapshots, version/session conflict and upload completion. Toast timing is unchanged; errors use assertive feedback and success uses polite status. Command popovers clamp to the viewport, close on outside/Escape and restore a connected trigger before opening native dialogs. Validate empty/error/read-only/disabled/selected/focus states.
 4. Remove retired stylesheet/vendor dependency scaffolding after full contrast/geometry/interaction regression.
 
 This Draft does not claim that target architecture is complete. No local preview has been started; do not present a hypothetical URL as a verified preview.

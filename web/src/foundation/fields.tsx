@@ -27,18 +27,19 @@ export function TextField({
     placeholder,
   };
   return (
-    <ProForm.Item
-      className="field foundation-field"
-      label={label}
-      htmlFor={id}
-      required={required}
-    >
-      {multiline ? (
-        <Input.TextArea {...attrs} rows={multiline} />
-      ) : (
-        <Input {...attrs} inputMode={decimal ? "decimal" : undefined} />
-      )}
-    </ProForm.Item>
+    <label className="field foundation-field" htmlFor={id}>
+      <span>
+        {label}
+        {required && <em aria-hidden="true"> *</em>}
+      </span>
+      <ProForm.Item noStyle>
+        {multiline ? (
+          <Input.TextArea {...attrs} rows={multiline} />
+        ) : (
+          <Input {...attrs} inputMode={decimal ? "decimal" : undefined} />
+        )}
+      </ProForm.Item>
+    </label>
   );
 }
 // These controls deliberately retain native select semantics, including the

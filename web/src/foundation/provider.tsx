@@ -9,7 +9,11 @@ export function ToMeProvider({ children }: { children: ReactNode }) {
   return (
     <StyleProvider layer>
       <ConfigProvider
-        locale={zhCN}
+        locale={{
+          ...zhCN,
+          Pagination: { ...zhCN.Pagination, items_per_page: "件/页" },
+        }}
+        virtual={false}
         button={{ autoInsertSpace: false }}
         theme={{
           token: {

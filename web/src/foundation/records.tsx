@@ -29,6 +29,7 @@ export function RecordTable<T extends { id: string }>({
 }) {
   return (
     <ProTable<T>
+      className="foundation-catalog-records"
       rowKey="id"
       dataSource={data}
       columns={
@@ -36,6 +37,14 @@ export function RecordTable<T extends { id: string }>({
           ...column,
           key: `record-${index}`,
           search: false,
+          onCell: () =>
+            column.fixed === "right"
+              ? { className: "foundation-record-action" }
+              : {},
+          onHeaderCell: () =>
+            column.fixed === "right"
+              ? { className: "foundation-record-action" }
+              : {},
           render: (_value: ReactNode, row: T) => column.render(undefined, row),
         })) as ProColumns<T>[]
       }
@@ -77,4 +86,108 @@ export function mountDescriptions(
     ),
   );
   signal.addEventListener("abort", () => root.unmount(), { once: true });
+}
+
+/** Bridge existing presentation-only cells; never read or infer domain facts. */
+export function mountRecordTables(container: HTMLElement, signal: AbortSignal) {
+  if (signal.aborted) return;
+  for (const table of container.querySelectorAll<HTMLTableElement>(
+    "table[data-foundation-records]",
+  )) {
+    const heads = [...table.querySelectorAll("thead th")].map(
+      (head) => head.textContent || "",
+    );
+    const rows = [...table.querySelectorAll("tbody tr")].map((row, index) => ({
+      key: `display-${index}`,
+      attributes: Object.fromEntries(
+        [...row.attributes]
+          .filter(
+            ({ name }) =>
+              name.startsWith("data-") ||
+              name.startsWith("aria-") ||
+              name === "id" ||
+              name === "class",
+          )
+          .map(({ name, value }) => [
+            name === "class" ? "className" : name,
+            value,
+          ]),
+      ),
+      cells: [...row.querySelectorAll("td")].map((cell) => cell.innerHTML),
+    }));
+    // Irregular/custom tables remain native instead of silently losing cells.
+    if (!heads.length || rows.some((row) => row.cells.length !== heads.length))
+      continue;
+    const host = document.createElement("div");
+    host.className = "record-table foundation-records";
+    table.replaceWith(host);
+    const root = createRoot(host);
+    flushSync(() =>
+      root.render(
+        <ToMeProvider>
+          <ProTable<(typeof rows)[number]>
+            rowKey="key"
+            dataSource={rows}
+            columns={heads.map((title, column) => ({
+              title,
+              key: `display-column-${column}`,
+              search: false,
+              render: (_value, row) => (
+                <div
+                  className="foundation-record-cell"
+                  dangerouslySetInnerHTML={{ __html: row.cells[column] }}
+                />
+              ),
+            }))}
+            pagination={false}
+            search={false}
+            options={false}
+            toolBarRender={false}
+            cardProps={false}
+            size="small"
+          />
+        </ToMeProvider>,
+      ),
+    );
+    signal.addEventListener("abort", () => root.unmount(), { once: true });
+  }
+}
+
+/** Read-only definition lists already escaped by the existing domain renderer. */
+export function mountReadOnlyDetails(
+  container: HTMLElement,
+  signal: AbortSignal,
+) {
+  if (signal.aborted) return;
+  for (const list of container.querySelectorAll<HTMLDListElement>(
+    "dl.details",
+  )) {
+    if (list.querySelector("input, select, textarea, button")) continue;
+    const rows = [...list.querySelectorAll(":scope > div")].map((row) => ({
+      title: row.querySelector("dt")?.textContent || "",
+      html: row.querySelector("dd")?.innerHTML || "",
+    }));
+    if (!rows.length || rows.some((row) => !row.title)) continue;
+    const host = document.createElement("div");
+    host.className = "details foundation-descriptions";
+    list.replaceWith(host);
+    const root = createRoot(host);
+    flushSync(() =>
+      root.render(
+        <ToMeProvider>
+          <ProDescriptions
+            column={{ xs: 1, sm: 2, md: 2 }}
+            size="small"
+            dataSource={{}}
+            columns={rows.map(({ title, html }, index) => ({
+              title,
+              key: `description-${index}`,
+              render: () => <div dangerouslySetInnerHTML={{ __html: html }} />,
+            }))}
+          />
+        </ToMeProvider>,
+      ),
+    );
+    signal.addEventListener("abort", () => root.unmount(), { once: true });
+  }
 }

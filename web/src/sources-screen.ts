@@ -122,7 +122,7 @@ export async function sourcesScreen() {
       "货源池",
       `<form class="filters" id="source-search-form"><input name="q" id="source-search" aria-label="搜索全部货源" placeholder="搜索名称、原货号、供货方" value="${esc(q)}"><select name="stage" aria-label="货源阶段"><option value="">全部阶段</option><option value="pending" ${stage === "pending" ? "selected" : ""}>待选品</option><option value="adopted" ${stage === "adopted" ? "selected" : ""}>已接手</option></select><button class="btn primary">搜索</button><span>共 ${result.total} 条 · 第 ${page} 页</span></form><div class="button-row">${can("edit") ? '<button class="btn" id="adopt-selection">为勾选货源建档</button>' : ""}</div>` +
         (sources.length
-          ? `<div class="table-wrap"><table><thead><tr><th>选择</th><th>商品 / 原编号</th><th>供货方</th><th>阶段</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>`
+          ? `<div class="table-wrap"><table data-foundation-records><thead><tr><th>选择</th><th>商品 / 原编号</th><th>供货方</th><th>阶段</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>`
           : '<div class="empty"><h3>先记录一件货源，或导入已有表格</h3><p>品牌、原货号、报价、备注直接填写，不需要准备技术格式。</p></div>'),
     ) +
     `<div class="pagination"><span>每页50条</span>${page > 1 ? button("上一页", () => go({ page: String(page - 1) })) : ""}${page * 50 < result.total ? button("下一页", () => go({ page: String(page + 1) })) : ""}</div>` +

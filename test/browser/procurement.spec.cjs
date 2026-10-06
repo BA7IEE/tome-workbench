@@ -250,7 +250,7 @@ test("采购来源默认币种可经正式后台入口更正", async ({ page }) 
   await dialog.getByRole("button", { name: "保存来源", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
-  const row = page.locator(".procurement-sources tbody tr").filter({
+  const row = page.locator(".procurement-sources tbody tr:not(.ant-table-measure-row)").filter({
     hasText: sourceName,
   });
   await expect(row).toContainText("CNY");

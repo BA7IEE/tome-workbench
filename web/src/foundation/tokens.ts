@@ -36,5 +36,12 @@ export const antDesignTokenSeed = {
 export function applyDesignTokens() {
   for (const [name, value] of Object.entries(designTokens)) {
     document.documentElement.style.setProperty(`--tome-${name}`, value);
+    // Older native controls consume RGB triplets; derive them from the same seed.
+    const rgb = value
+      .slice(1)
+      .match(/.{2}/g)!
+      .map((part) => parseInt(part, 16))
+      .join(", ");
+    document.documentElement.style.setProperty(`--tome-${name}-rgb`, rgb);
   }
 }

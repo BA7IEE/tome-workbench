@@ -386,7 +386,7 @@ async function agentAccess(sources: Source[]) {
     "Agent接入",
     `<div class="button-row">${button("＋ 创建导入会话", () => createAgentSession(sources), "primary")}</div>
      <p>Codex、WorkBuddy或其他桌面Agent都使用同一协议。Token不等于后台账号。</p>
-     ${rows ? `<div class="table-wrap"><table><thead><tr><th>会话</th><th>到期</th><th>最近使用</th><th>批次</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty"><p>当前没有有效Agent导入会话</p></div>'}`,
+     ${rows ? `<div class="table-wrap"><table data-foundation-records><thead><tr><th>会话</th><th>到期</th><th>最近使用</th><th>批次</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty"><p>当前没有有效Agent导入会话</p></div>'}`,
   );
 }
 type BulkResult = {
@@ -810,7 +810,7 @@ function candidateCard(candidate: Candidate, after: () => Promise<void>) {
   </article>`;
 }
 function candidateTable(candidates: Candidate[], after: () => Promise<void>) {
-  return `<div class="table-wrap candidate-table"><table><thead><tr><th>选择</th><th>商品</th><th>来源事实</th><th>价格</th><th>系统提示</th><th></th></tr></thead><tbody>${candidates
+  return `<div class="table-wrap candidate-table"><table data-foundation-records><thead><tr><th>选择</th><th>商品</th><th>来源事实</th><th>价格</th><th>系统提示</th><th></th></tr></thead><tbody>${candidates
     .map((candidate) => {
       const proposal = proposalOf(candidate),
         title = String(proposal.title || candidate.titleRaw),

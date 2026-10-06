@@ -1,4 +1,5 @@
 const { submitLogin, fillLogin } = require("./login.cjs");
+// AntD adds an aria-hidden measure row; count records while retaining every exact assertion.
 const { test, expect } = require("@playwright/test");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
@@ -74,8 +75,8 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
   await expect(page.getByLabel("筛选品类", { exact: true })).toHaveValue("BAG");
   await clearDictionary(page, "品牌");
   await page.getByLabel("搜索商品", { exact: true }).press("Enter");
-  await expect(page.locator("tbody tr")).toHaveCount(1);
-  await expect(page.locator("tbody tr")).toContainText(a.code);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(a.code);
   await expect(page.locator("#bulk-toolbar")).toBeHidden();
 });
 
@@ -134,8 +135,8 @@ for (const width of [1440, 390]) {
         }),
       );
     await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-    await expect(page.locator("tbody tr")).toHaveCount(30);
-    await expect(page.locator("tbody tr").first()).toContainText(
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(30);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(
       items[30].code,
     );
     if (width > 1000) {
@@ -159,19 +160,19 @@ for (const width of [1440, 390]) {
     await page.getByLabel("选择 " + items[30].code, { exact: true }).check();
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
     await page.getByRole("option", { name: "最早录入", exact: true }).click();
-    await expect(page.locator("tbody tr").first()).toContainText(items[0].code);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(items[0].code);
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByLabel("下一页", { exact: true }).click();
-    await expect(page.locator("tbody tr")).toHaveCount(1);
-    await expect(page.locator("tbody tr")).toContainText(items[30].code);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(items[30].code);
     await page.getByRole("combobox", { name: "每页数量", exact: true }).click();
     await page.getByRole("option", { name: "60 件/页", exact: true }).click();
-    await expect(page.locator("tbody tr")).toHaveCount(31);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(31);
     await expect(page.locator(".catalog-count")).toContainText("第 1 / 1 页");
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
     await page.getByRole("option", { name: "最新录入", exact: true }).click();
-    await expect(page.locator("tbody tr").first()).toContainText(
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(
       items[30].code,
     );
     await expect(
@@ -369,7 +370,7 @@ for (const width of [1440, 390]) {
         const columns = await content
           .locator(".record-table")
           .first()
-          .locator("tbody tr")
+          .locator("tbody tr:not(.ant-table-measure-row)")
           .first()
           .locator("td")
           .evaluateAll((cells) =>
@@ -409,7 +410,7 @@ for (const width of [1440, 390]) {
     }
     // Approved Foundation surface, selection and focus tokens replace the legacy blue palette.
     await page.goto("/#/items?q=" + encodeURIComponent("系统样式 " + key));
-    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
     ).toHaveCSS("background-color", "rgb(237, 227, 215)");

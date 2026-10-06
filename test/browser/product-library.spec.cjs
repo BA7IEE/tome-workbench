@@ -262,9 +262,9 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
   await page.getByLabel("来源名称", { exact: true }).fill("线下");
   await page.getByLabel("待补资料", { exact: true }).selectOption("price");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
-  await expect(page.locator("tbody tr")).toHaveCount(1);
-  await expect(page.locator("tbody tr")).toContainText(title);
-  await expect(page.locator("tbody tr")).not.toContainText("已定价");
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(title);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).not.toContainText("已定价");
   await page.setViewportSize({ width: 390, height: 844 });
   for (const label of ["工作台", "商品库", "导入记录", "销售", "更多"])
     await expect(

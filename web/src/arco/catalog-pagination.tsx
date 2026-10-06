@@ -37,6 +37,20 @@ export function CatalogPagination({
             ? `显示 ${range[0]}–${Math.min(range[1], count)} 件`
             : "暂无商品"
         }
+        itemRender={(_page, type, original) => {
+          if (type !== "prev" && type !== "next") return original;
+          const previous = type === "prev";
+          return (
+            <button
+              type="button"
+              className="ant-pagination-item-link"
+              aria-label={previous ? "上一页" : "下一页"}
+              disabled={previous ? page <= 1 : page >= Math.ceil(total / size)}
+            >
+              <span aria-hidden="true">{previous ? "←" : "→"}</span>
+            </button>
+          );
+        }}
         onChange={onChange}
       />
     </nav>

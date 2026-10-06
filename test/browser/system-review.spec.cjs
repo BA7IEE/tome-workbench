@@ -225,7 +225,7 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   await page.getByRole("link", { name: "经营待办", exact: true }).click();
   await expect(page.getByLabel("查看范围", { exact: true })).toBeVisible();
   await page.goto("/#/sales?id=" + second.id + "&from=tasks");
-  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("客户二");
   await expect(page.locator("tbody")).not.toContainText("客户一");
   await page
@@ -550,7 +550,7 @@ test("采购第二页往返TM保留关键词来源页码和列表位置", async 
   await expect(
     page.getByRole("link", { name: "上一页", exact: true }),
   ).toBeVisible();
-  const row = page.locator("tbody tr").first();
+  const row = page.locator("tbody tr:not(.ant-table-measure-row)").first();
   await row.getByRole("link", { name: "核对订单", exact: true }).click();
   const orderHash = new URL(page.url()).hash;
   await expect(
@@ -572,7 +572,7 @@ test("采购第二页往返TM保留关键词来源页码和列表位置", async 
     });
     await page.getByRole("link", { name: "← 采购订单", exact: true }).click();
     await page
-      .locator("tbody tr")
+      .locator("tbody tr:not(.ant-table-measure-row)")
       .first()
       .getByRole("link", { name: "核对订单", exact: true })
       .click();

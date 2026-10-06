@@ -1,8 +1,8 @@
+import { CommandMenu } from "../foundation/command-menu";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Button,
   Card,
-  Dropdown,
   Empty,
   Input,
   Select,
@@ -57,83 +57,54 @@ function Action({ action }: { action: CatalogAction }) {
 }
 function RowMenu({ item }: { item: Item }) {
   const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setOpen(false);
-        trigger.current?.querySelector("button")?.focus();
-      }
-    };
-    document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
-  }, [open]);
   const run = (action: () => unknown) => {
     setOpen(false);
     return action();
   };
   return (
-    <span ref={trigger}>
-      <Dropdown
-        trigger={["click"]}
-        menu={{ items: [] }}
-        placement="bottomRight"
-        open={open}
-        onOpenChange={setOpen}
-        getPopupContainer={() => document.body}
-        popupRender={() => (
-          <div
-            className="catalog-dropdown-actions arco-workspace"
-            aria-label={`${item.code} 操作菜单`}
-          >
-            <Action
-              action={{
-                label: "下载商品资料",
-                run: () => run(() => exportMaterials([item])),
-              }}
-            />
-            {can("edit") && (
-              <Action
-                action={{
-                  label: "快速修改",
-                  run: () => run(() => quickEdit(item, reload)),
-                }}
-              />
-            )}
-            {can("publish") && (
-              <Button
-                type="text"
-                href={`#/items/${item.id}/edit?publish=1`}
-                onClick={() => setOpen(false)}
-              >
-                准备发布
-              </Button>
-            )}
-            {can("delete") && (
-              <Action
-                action={{
-                  label: "删除商品",
-                  danger: true,
-                  run: () => run(() => deleteProduct(item)),
-                }}
-              />
-            )}
-          </div>
-        )}
+    <CommandMenu
+      label={`${item.code} 更多操作`}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <div
+        className="catalog-dropdown-actions arco-workspace"
+        aria-label={`${item.code} 操作菜单`}
       >
-        <Button
-          className="catalog-row-menu"
-          type="text"
-          aria-label={`${item.code} 更多操作`}
-          aria-haspopup="true"
-          aria-expanded={open}
-        >
-          •••
-        </Button>
-      </Dropdown>
-    </span>
+        <Action
+          action={{
+            label: "下载商品资料",
+            run: () => run(() => exportMaterials([item])),
+          }}
+        />
+        {can("edit") && (
+          <Action
+            action={{
+              label: "快速修改",
+              run: () => run(() => quickEdit(item, reload)),
+            }}
+          />
+        )}
+        {can("publish") && (
+          <Button
+            type="text"
+            href={`#/items/${item.id}/edit?publish=1`}
+            onClick={() => setOpen(false)}
+          >
+            准备发布
+          </Button>
+        )}
+        {can("delete") && (
+          <Action
+            action={{
+              label: "删除商品",
+              danger: true,
+              run: () => run(() => deleteProduct(item)),
+            }}
+          />
+        )}
+      </div>
+    </CommandMenu>
   );
 }
 const itemLink = (i: Item) => `#/items/${i.id}`;

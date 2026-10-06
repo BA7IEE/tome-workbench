@@ -1,3 +1,6 @@
+import { mountFormControls } from "./foundation/forms";
+import { renderFeedback } from "./foundation/feedback";
+import { mountReadOnlyDetails, mountRecordTables } from "./foundation/records";
 import { bindFormValidation, lockControls } from "./form-support";
 import type { User, Obj, SessionResponse } from "./types";
 export let me: User | null = null;
@@ -95,7 +98,7 @@ export function iso(s: FormDataEntryValue | null) {
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function toast(text: string, error = false) {
   const el = document.querySelector<HTMLElement>("#toast")!;
-  el.textContent = text;
+  renderFeedback(el, text, error);
   el.className = error ? "visible error" : "visible";
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.className = ""), 4500);
@@ -238,6 +241,9 @@ export function form(
     lastBody = "",
     uncertain = false;
   dialog.innerHTML = `<form><header><h2 id="dialog-title">${esc(title)}</h2><button type="button" class="close" aria-label="关闭">×</button></header><div class="form-grid">${html}</div><div class="form-feedback"><p class="form-error" role="alert" tabindex="-1"></p><button type="button" class="btn reauthenticate" hidden>重新登录并保留输入</button></div><footer><button type="button" class="btn close">取消</button><button class="btn primary" type="submit">${esc(label)}</button></footer></form>`;
+  mountRecordTables(dialog, scope.signal);
+  mountReadOnlyDetails(dialog, scope.signal);
+  mountFormControls(dialog, scope.signal);
   const el = dialog.querySelector("form")!,
     err = el.querySelector<HTMLElement>(".form-error")!;
   const loginButton = el.querySelector<HTMLButtonElement>(".reauthenticate")!;
@@ -383,9 +389,11 @@ export function viewDialog(
   options: ViewDialogOptions = {},
 ) {
   const returnFocus = options.returnFocus ?? dialogReturnTarget();
-  newDialogScope();
+  const scope = newDialogScope();
   dialog.oncancel = null;
   dialog.innerHTML = `<header>${options.onBack ? button(options.backLabel || "返回", options.onBack, "dialog-back") : ""}<h2 id="dialog-title">${esc(title)}</h2><button class="btn close" type="button">关闭</button></header><div class="dialog-content">${html}</div>`;
+  mountRecordTables(dialog, scope.signal);
+  mountReadOnlyDetails(dialog, scope.signal);
   dialog
     .querySelector(".close")!
     .addEventListener("click", () => dialog.close());
@@ -403,7 +411,7 @@ export const empty = (message = "暂无记录") =>
 export const note = (s: string) => `<p class="note">${esc(s)}</p>`;
 export function table(heads: string[], rows: string[][]) {
   return rows.length
-    ? `<div class="table-wrap"><table class="record-table"><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+    ? `<div class="table-wrap"><table class="record-table" data-foundation-records><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
     : empty();
 }
 export function section(title: string, body: string, controls = "") {

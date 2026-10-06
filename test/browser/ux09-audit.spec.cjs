@@ -24,7 +24,7 @@ test('低频经营页面使用统一后台语言和布局',async({page})=>{
 test('设置页角色使用业务中文，技术入口默认收起',async({page})=>{
   await login(page);await page.goto('/#/settings');
   await expect(page.getByText('用户与权限',{exact:true})).toBeVisible();
-  const roleCells=await page.locator('.panel').filter({hasText:'用户与权限'}).locator('tbody tr td:nth-child(3)').allTextContents();
+  const roleCells=await page.locator('.panel').filter({hasText:'用户与权限'}).locator('tbody tr:not(.ant-table-measure-row) td:nth-child(3)').allTextContents();
   expect(roleCells.join(' ')).not.toMatch(/\b(?:ADMIN|OPERATOR|VIEWER|REVIEWER|FINANCE)\b/);
   await expect(page.getByText('管理员',{exact:true}).first()).toBeVisible();
   await expect(page.getByText('日常运营',{exact:true}).first()).toBeVisible();
@@ -35,7 +35,7 @@ test('设置页角色使用业务中文，技术入口默认收起',async({page}
 test('成交记录每行只突出补收支，其余危险动作收进更多',async({page})=>{
   await login(page);await page.goto('/#/sales');
   await expect(page.getByRole('heading',{name:'经营账',exact:true})).toBeVisible();
-  const first=page.locator('tbody tr').first();if(await first.count()){
+  const first=page.locator('tbody tr:not(.ant-table-measure-row)').first();if(await first.count()){
     await expect(first.getByRole('button',{name:'补收支',exact:true})).toBeVisible();
     await expect(first.getByText('更多',{exact:true})).toBeVisible();
     await expect(first.getByRole('button',{name:'记录退款',exact:true})).not.toBeVisible();

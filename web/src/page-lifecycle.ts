@@ -1,3 +1,5 @@
+import { mountFormControls } from "./foundation/forms";
+import { mountReadOnlyDetails, mountRecordTables } from "./foundation/records";
 type Hook = (element: HTMLElement, signal: AbortSignal) => void;
 const hooks = new Map<string, Hook>();
 let active: AbortController | null = null;
@@ -15,6 +17,12 @@ export function runPageHooks() {
   active?.abort();
   active = new AbortController();
   guard = null;
+  const content = document.getElementById("content");
+  if (content) {
+    mountRecordTables(content, active.signal);
+    mountFormControls(content, active.signal);
+    mountReadOnlyDetails(content, active.signal);
+  }
   for (const [id, hook] of hooks) {
     const el = document.getElementById(id);
     if (el) hook(el, active.signal);
