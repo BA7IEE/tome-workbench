@@ -3,7 +3,6 @@ export {
   Button,
   Card,
   Checkbox,
-  Dropdown,
   Empty,
   Input,
   Pagination,
