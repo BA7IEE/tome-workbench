@@ -44,7 +44,16 @@ jobs:
         env:
           TOME_BOOTSTRAP_TEST_APPROVED: "YES"
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run verify:release
+      - name: Run full isolated release verification
+        run: |
+          if ! npm run verify:release; then
+            # The verifier writes detailed output to a synthetic-only local log.
+            # Show the failure cause; do not upload screenshots or data fixtures.
+            if [ -f reports/release-verification.log ]; then
+              tail -n 200 reports/release-verification.log
+            fi
+            exit 1
+          fi
         env:
           TOME_PG_CONTAINER: ${{ job.services.postgres.id }}
       - run: npm audit --audit-level=high
