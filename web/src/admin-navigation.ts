@@ -68,7 +68,7 @@ export const pageNames = Object.fromEntries([
   ["imports", "导入记录"],
 ]);
 
-export function navigation(page: string) {
+export function primaryNavigation(page: string) {
   const rows: [string, string, boolean][] = [
     ["dashboard", "工作台", page === "dashboard"],
     [
@@ -110,5 +110,5 @@ export function navigation(page: string) {
       ].includes(page),
     ],
   ];
-  return `<div class="library-navigation">${rows.map(([path, label, active]) => `<a href="#/${path}" class="${active ? "active" : ""}" ${active ? 'aria-current="page"' : ""}>${label}</a>`).join("")}</div>`;
+  return rows.map(([path, label, active]) => ({ path, label, active }));
 }

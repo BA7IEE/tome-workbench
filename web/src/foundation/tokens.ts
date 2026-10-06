@@ -1,0 +1,40 @@
+/** One source for the transitional DOM theme and the future AntD provider. */
+export const designTokens = {
+  canvas: "#F6F3ED",
+  surface: "#FFFDFA",
+  text: "#292622",
+  textSecondary: "#625A51",
+  primary: "#765844",
+  border: "#CFC7BD",
+  selected: "#EDE3D7",
+  successText: "#24543B",
+  successBg: "#ECF4EE",
+  warningText: "#704917",
+  warningBg: "#FBF0D9",
+  errorText: "#922F2B",
+  errorBg: "#FCEDEA",
+  infoText: "#31546A",
+  infoBg: "#EDF3F6",
+} as const;
+
+/** Dependency-free mapping; not yet wired to an installed AntD provider. */
+export const antDesignTokenSeed = {
+  colorPrimary: designTokens.primary,
+  colorBgLayout: designTokens.canvas,
+  colorBgContainer: designTokens.surface,
+  colorText: designTokens.text,
+  colorTextSecondary: designTokens.textSecondary,
+  colorBorder: designTokens.border,
+  colorSuccess: designTokens.successText,
+  colorWarning: designTokens.warningText,
+  colorError: designTokens.errorText,
+  colorInfo: designTokens.infoText,
+  borderRadius: 6,
+  fontSize: 14,
+} as const;
+
+export function applyDesignTokens() {
+  for (const [name, value] of Object.entries(designTokens)) {
+    document.documentElement.style.setProperty(`--tome-${name}`, value);
+  }
+}

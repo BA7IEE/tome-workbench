@@ -5754,3 +5754,111 @@
     padding: 8px 12px;
   }
 }
+
+/* Foundation adapter: shared tokens, one stylesheet entry, no controller styles. */
+@layer foundation {
+  body {
+    --ui-bg: var(--tome-canvas);
+    --ui-surface: var(--tome-surface);
+    --ui-surface-2: var(--tome-canvas);
+    --ui-border: var(--tome-border);
+    --ui-border-strong: var(--tome-textSecondary);
+    --ui-text: var(--tome-text);
+    --ui-muted: var(--tome-textSecondary);
+    --ui-subtle: var(--tome-textSecondary);
+    --ui-primary: var(--tome-primary);
+    --ui-primary-hover: var(--tome-text);
+    --ui-primary-soft: var(--tome-selected);
+    --ui-danger: var(--tome-errorText);
+    --ui-warning: var(--tome-warningText);
+    --ui-warning-soft: var(--tome-warningBg);
+    --ui-success: var(--tome-successText);
+    --ui-success-soft: var(--tome-successBg);
+    line-height: 1.55;
+  }
+  .foundation-shell {
+    --foundation-sidebar-width: 232px;
+    grid-template-columns: var(--foundation-sidebar-width) minmax(0, 1fr);
+  }
+  .foundation-shell[data-collapsed="true"] { --foundation-sidebar-width: 64px; }
+  .foundation-shell .admin-sidebar {
+    width: var(--foundation-sidebar-width);
+    padding: 24px 12px 16px;
+    background: var(--tome-surface);
+  }
+  .foundation-shell .wordmark {
+    color: var(--tome-text);
+    min-height: 64px;
+    padding: 0 4px 24px !important;
+    white-space: nowrap;
+  }
+  .foundation-shell .foundation-brand-full {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    margin: 0;
+  }
+  .foundation-brand-full small {
+    display: block;
+    color: var(--tome-textSecondary);
+    font: 12px/1.5 sans-serif;
+    letter-spacing: 0.06em;
+    margin-top: 8px;
+  }
+  .foundation-brand-short { display: none; font: 18px/1.5 Georgia, serif; }
+  .foundation-shell .library-navigation { display: grid; gap: 6px; }
+  .foundation-shell .library-navigation a {
+    gap: 12px;
+    min-height: 42px;
+    color: var(--tome-textSecondary);
+    padding: 10px;
+  }
+  .foundation-shell .library-navigation a:hover { background: var(--tome-canvas); color: var(--tome-text); }
+  .foundation-shell .library-navigation a.active { background: var(--tome-selected); color: var(--tome-text); box-shadow: inset 3px 0 var(--tome-primary); }
+  .foundation-nav-icon { display: block; width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  .foundation-shell .workspace { grid-column: 2; margin-left: 0; }
+  .foundation-shell .topbar { height: 56px; padding: 0 24px; background: var(--tome-surface); gap: 16px; }
+  .foundation-shell .foundation-location { color: var(--tome-text); gap: 12px; min-width: 0; }
+  .foundation-location > span { font-weight: 600; }
+  .foundation-shell .foundation-collapse { width: 36px; min-width: 36px; height: 36px; padding: 8px; }
+  .foundation-shell[data-collapsed="true"] .foundation-collapse svg { transform: rotate(180deg); }
+  .foundation-shell .foundation-account { gap: 12px; }
+  .foundation-shell .environment { color: var(--tome-textSecondary); background: var(--tome-canvas); font-size: 12px; }
+  .foundation-shell .sidebar-bottom { padding: 16px 4px 0; color: var(--tome-text); }
+  .foundation-shell .sidebar-bottom strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .foundation-shell .sidebar-bottom small { color: var(--tome-textSecondary); font-size: 12px; }
+  .foundation-shell[data-collapsed="true"] .foundation-brand-full,
+  .foundation-shell[data-collapsed="true"] .foundation-nav-label,
+  .foundation-shell[data-collapsed="true"] .sidebar-bottom { display: none; }
+  .foundation-shell[data-collapsed="true"] .foundation-brand-short { display: block; }
+  .foundation-shell[data-collapsed="true"] .library-navigation a { padding: 10px; justify-content: center; }
+  .foundation-shell .foundation-page-container { max-width: 1680px; padding: 24px 24px 56px; }
+  .foundation-skip { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); z-index: 100; padding: 10px 16px; background: var(--tome-surface); color: var(--tome-text); border: 1px solid var(--tome-primary); }
+  .foundation-skip:focus { transform: none; }
+  .foundation-shell :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--tome-primary); outline-offset: 2px; }
+  .foundation-shell .foundation-page-container:focus { outline: none; }
+  .foundation-shell .foundation-page-container:focus-visible { outline: 2px solid var(--tome-primary); outline-offset: -2px; }
+  .foundation-shell :is(.badge, .arco-tag) { color: var(--tome-textSecondary); background: var(--tome-canvas); }
+  .foundation-shell .badge.good { color: var(--tome-successText); background: var(--tome-successBg); }
+  .foundation-shell .badge.warn { color: var(--tome-warningText); background: var(--tome-warningBg); }
+  .foundation-shell :is(.note, .muted, .hint, .form-help) { color: var(--tome-textSecondary); }
+  .foundation-shell .foundation-page-error { border-left: 3px solid var(--tome-errorText); }
+  .foundation-shell .form-error { color: var(--tome-errorText); }
+  @media (max-width: 1280px) {
+    .foundation-shell .topbar { padding: 0 16px; }
+    .foundation-shell .foundation-page-container { padding-left: 16px; padding-right: 16px; }
+  }
+  /* Preserve the current mobile bottom navigation; desktop collapse never hides it. */
+  @media (max-width: 760px) {
+    .foundation-shell { display: block; }
+    .foundation-shell .admin-sidebar { position: fixed; inset: auto 0 0; width: 100%; padding: 0; display: block; }
+    .foundation-shell .admin-sidebar :is(.wordmark, .sidebar-bottom) { display: none; }
+    .foundation-shell .library-navigation { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; height: 64px; }
+    .foundation-shell .library-navigation a { padding: 6px 2px; gap: 4px; flex-direction: column; font-size: 11px; }
+    .foundation-shell[data-collapsed="true"] .foundation-nav-label { display: block; }
+    .foundation-shell .workspace { padding-bottom: 80px; }
+    .foundation-shell .foundation-collapse, .foundation-shell .foundation-role { display: none; }
+    .foundation-shell .topbar .foundation-logout { display: inline-flex; }
+    .foundation-shell .foundation-account { gap: 4px; }
+  }
+}
