@@ -170,9 +170,9 @@ for (const width of [1440, 390]) {
       exact: true,
     });
     await expect(sortOption).toBeVisible();
-    const popup = sortOption.locator(
-      "xpath=ancestor::div[contains(@class, 'ant-select-dropdown')]",
-    );
+    const popup = page
+      .locator(".ant-select-dropdown")
+      .filter({ has: sortOption });
     await expect(popup).toHaveCSS("position", "absolute");
     await expect
       .poll(() =>
