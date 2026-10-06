@@ -58,6 +58,12 @@ jobs:
           TOME_PG_CONTAINER: ${{ job.services.postgres.id }}
       - run: npm audit --audit-level=high
       - run: npm run pack
+      - name: Save verified frontend for an isolated local preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-preview-web
+          retention-days: 1
+          path: dist/web/
       - uses: actions/upload-artifact@v4
         if: always()
         with:
