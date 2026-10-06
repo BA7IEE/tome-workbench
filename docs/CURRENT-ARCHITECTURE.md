@@ -1,6 +1,6 @@
 # 当前架构
 
-单工作空间模块化单体：NestJS API、独立 PostgreSQL Worker、PostgreSQL 16、文件系统原图与派生预览，同源 Vite/TypeScript + React/Arco 前端。AppModule 目前集中注册控制器与服务；尚未拆成完整 Nest 领域模块，不宣称已完成模块化改造。
+单工作空间模块化单体：NestJS API、独立 PostgreSQL Worker、PostgreSQL 16、文件系统原图与派生预览，同源 Vite/TypeScript + React 前端。本轮 Draft 的前端表示层采用 Ant Design 6 / ProComponents Foundation；该源码状态不代表生产已部署。AppModule 目前集中注册控制器与服务；尚未拆成完整 Nest 领域模块，不宣称已完成模块化改造。
 
 | 模块 | 当前事实归属 | 约束 |
 |---|---|---|
@@ -21,9 +21,9 @@
 
 来源成色降噪只改变 ingest 的新候选提示生成与待确认页面表示：`conditionRaw` 原文留在候选与来源证据，历史 `warnings`/修订不迁移；表示层过滤旧来源成色警告的当前行动计数，并以普通文本显示原文及本地等级待实物检查。`conditionGrade`、TM 和字典写入路径不变。
 
-React/Arco 负责商品库和商品字段表示层，现有领域控制器继续负责写入、权限、版本和断线恢复。其余页面仍有原生 DOM，未做全量重写。根组件与页面生命周期绑定，ControllerSlot 保持 DOM 归属清晰。
+React Foundation 负责真实 App Shell 和 AntD Provider；商品库使用受约束的 ProTable，文本字段使用 AntD + ProForm.Item，只读事实使用 ProDescriptions。管理记录及常见文本字段在原监听器绑定前通过共享生命周期适配，行属性、标签和转义内容保留。现有领域控制器继续负责写入、权限、版本和断线恢复；原生文件/日期/数字/字典选择及动态冲突 DOM 保留契约。根组件与页面生命周期绑定，ControllerSlot 保持 DOM 归属清晰。新模块按 [Foundation](TOME-ADMIN-FOUNDATION.md) 与 [接入检查](TOME-MODULE-ADMISSION.md) 开发，不复制旧桥接标记。
 
-main.ts 仅导入 ui08.css，层顺序 arco-base/workbench/arco/product。六份旧样式和 legacy 层已移除。品牌为搜索组合框，成色/颜色/材质为原生 select；选择更新不能擦除正在输入的筛选。
+main.ts 仅导入 ui08.css，新增 antd/Foundation 层控制暖白、炭灰和低饱和棕 token。Arco 样式导入和直接依赖已退役；旧层名及历史 arco/ 路径只是 Harness/控制器兼容钩子。六份旧样式和 legacy 层仍不恢复。品牌为搜索组合框，成色/颜色/材质为原生 select；选择更新不能擦除正在输入的筛选。准入脚本阻止重复 Shell、独立 CSS 入口、模块直接导入 vendor 和 Foundation 自行发请求。
 
 浏览入口只读，明确编辑后保存/取消返回同商品及原目录/批次上下文。IndexedDB 保存同账号、同浏览器的原文件和未完成命令键；不是跨设备同步。原图查看使用鉴权端点，不写元数据。
 

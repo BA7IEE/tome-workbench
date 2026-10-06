@@ -1,6 +1,6 @@
 # ToMe Admin Foundation
 
-Status: shared framework migration implemented; current-head runtime acceptance pending. Dependency locks are cloud-generated and committed, with the exact prerelease exception guarded. The latest completed candidate at 2612b20 passed install/type/lint/build/unit checks and 186/188 Chromium journeys, including Foundation collapse/contrast coverage and preserved business recovery. The two failures measured Select portals falling back to static positioning. A global Foundation portal presentation contract and stronger actionability assertions address that defect in the next candidate. Do not treat earlier Shell acceptance as current framework runtime acceptance.
+The shared framework migration uses the real application entry. Runtime acceptance is recorded in [PR #56](https://github.com/BA7IEE/tome-workbench/pull/56) and isolated verification summaries for the matching source fingerprint; this architecture document is not a rolling CI verdict. Dependency locks are cloud-generated and committed, with the exact prerelease exception guarded. Earlier candidate 2612b20 passed 186/188 Chromium journeys and exposed two statically positioned Select portals. The global Foundation portal contract and normal-click geometry assertions address that measured defect. Earlier Shell-only evidence does not validate the current framework.
 
 ## Current boundary
 
@@ -25,7 +25,7 @@ Semantic tokens live in `foundation/tokens.ts`; `ui08.css` remains the only styl
 
 Future modules must use Foundation shell/container, navigation, feedback and component adapters rather than invent page layouts. Current source routes the real catalog through `foundation/records.tsx` ProTable, native submission-owned product/quick forms through Foundation AntD fields and ProForm.Item, and the product overview through lifecycle-owned ProDescriptions. Catalog read/filter/sort/paging/selection remain with the existing controller: the adapter has no request function or second search bar. Native selects retain dictionary/category behavior. The lifecycle also mounts marked legacy record tables through a ProTable bridge before domain listeners bind; dialog mounts use the existing dialog abort scope. Source-row data/aria/id/class attributes and escaped cell HTML are retained. Candidate/source/bulk-price tables explicitly opt into this shared boundary. Read-only `dl.details` use ProDescriptions. Common text fields use AntD + ProForm.Item before native form validation/listeners bind. Text fields preserve ancestor labels required by the existing dimensions/help controller. Unknown amounts, currencies and all rendered content are unchanged.
 
-These source changes await runtime acceptance. This is a presentation bridge for existing controllers, not an API or domain-model migration. New modules should use the typed adapters rather than copy the legacy HTML bridge.
+Runtime acceptance must cover these source changes, not only the Shell. This is a presentation bridge for existing controllers, not an API or domain-model migration. New modules should use the typed adapters rather than copy the legacy HTML bridge.
 
 ## Invariants
 
@@ -37,7 +37,7 @@ Permission presentation uses existing capability checks; server authorization re
 
 The verified official registry publishes AntD 6.6.5 with React >=18 support. ProComponents stable 2.8.10 declares AntD 4/5 peers; beta 3.1.15-5 declares AntD ^6.0.0 and React >=18. This draft pins AntD 6.6.5, ProComponents 3.1.15-5 and CSS-in-JS 2.1.2 (the shared declared dependency for both) and explicitly accepts a prerelease **validation candidate**, not a compatibility guarantee. No peer bypass or AntD downgrade.
 
-Official metadata: [AntD 6.6.5](https://registry.npmjs.org/antd/6.6.5), [ProComponents stable](https://registry.npmjs.org/@ant-design%2fpro-components/2.8.10), [ProComponents beta](https://registry.npmjs.org/@ant-design%2fpro-components/3.1.15-5). The beta published tarball's ProForm declaration was inspected and exposes Item. Initial cloud type/build checks passed; full runtime acceptance of the current source remains pending.
+Official metadata: [AntD 6.6.5](https://registry.npmjs.org/antd/6.6.5), [ProComponents stable](https://registry.npmjs.org/@ant-design%2fpro-components/2.8.10), [ProComponents beta](https://registry.npmjs.org/@ant-design%2fpro-components/3.1.15-5). The beta published tarball's ProForm declaration was inspected and exposes Item. Initial cloud type/build checks passed; full runtime acceptance must match the current source fingerprint and PR evidence.
 
 The one-off `foundation-lock.yml` resolved metadata only on a disposable runner (no package scripts/DB/service) and has been removed after its result was reviewed and committed. package.json and lock root match; existing locked package versions were unchanged. Every subsequent verification uses npm ci against the committed lock. The fixed-dependency Harness admits only the specifically documented ProComponents 3.1.15-5 prerelease; ranges and other betas remain rejected.
 
@@ -47,7 +47,7 @@ Run `node scripts/check-admin-foundation.mjs` in the approved validation environ
 
 Use the [module admission checklist](TOME-MODULE-ADMISSION.md) for presentation, business invariants and required evidence. Portalled Select surfaces have a global positioning/semantic-state contract; native dialogs own their popup container. The contract changes presentation only and leaves the existing query callbacks intact.
 
-Review every module for one shell, one stylesheet entry, semantic tokens, consistent table/form/detail adapters, accessible empty/error/read-only/disabled/selected/focus states, existing query/context restoration and unchanged request recovery. No direct module ConfigProvider, second sidebar/topbar or ad hoc feedback provider. The admission script is wired into CI; runtime outcomes remain pending until Actions completes.
+Review every module for one shell, one stylesheet entry, semantic tokens, consistent table/form/detail adapters, accessible empty/error/read-only/disabled/selected/focus states, existing query/context restoration and unchanged request recovery. No direct module ConfigProvider, second sidebar/topbar or ad hoc feedback provider. The admission script is wired into CI; runtime outcomes are recorded separately in the matching Actions evidence.
 
 ## Validation and deployment
 
@@ -55,11 +55,11 @@ Local heavy execution remains prohibited by the project resource gate. All local
 
 CI has one sequential verification job, a 45-minute timeout, cancellation of superseded PR runs and three-day retention for selected JSON summaries. Screenshots, source archives, business media and database dumps are not uploaded. No production credentials or data are required. Push/PR authorization does not authorize merging or deployment.
 
-Remaining admission sequence:
+Runtime admission requirements:
 
 1. Validate the committed catalog/editor/overview vertical slice in both browsers; keep every original domain recovery test.
 2. Validate the shared record/form/detail bridge across daily work/tasks, imports/candidates/intake/recycle, distribution/listings/collections, sales/inquiries/settlements, procurement/sources, dictionaries/settings/operations/jobs/audit. These routes share Foundation shell/tokens and lifecycle-mounted display adapters; original domain controllers and native file/date/number/checkbox/dictionary-select contracts remain. Dynamic editing-conflict tables stay native to protect active recovery DOM.
 3. Validate Foundation Alert feedback and command popovers while preserving native dialog/submission, same-key request snapshots, version/session conflict and upload completion. Toast timing is unchanged; errors use assertive feedback and success uses polite status. Command popovers clamp to the viewport, close on outside/Escape and restore a connected trigger before opening native dialogs. Validate empty/error/read-only/disabled/selected/focus states.
 4. Validate removal of retired stylesheet/vendor dependency scaffolding against full contrast/geometry/interaction regression. The one-off cloud metadata resolver must produce the matching committed lock before acceptance.
 
-This Draft does not claim that target architecture is complete. No local preview has been started; do not present a hypothetical URL as a verified preview.
+A local visual preview may use the success-only compiled frontend artifact with clearly labelled fictional read-only fixtures and all writes rejected. It is not evidence of authentication, saving, uploads or inventory behavior. Record an actually served URL separately; never present a hypothetical URL as verified.

@@ -1,6 +1,6 @@
 # ToMe Design System
 
-The real application entry uses the React Foundation shell, branded AntD provider, ProTable records, ProForm.Item text fields, ProDescriptions facts and shared feedback. Full runtime acceptance of the current migration candidate remains pending in Actions.
+The real application entry uses the React Foundation shell, branded AntD provider, ProTable records, ProForm.Item text fields, ProDescriptions facts and shared feedback. Runtime acceptance is recorded in PR #56 and the isolated verification summary for the matching source fingerprint; this file defines the design contract.
 
 ## Direction
 
@@ -36,6 +36,6 @@ Portalled Select surfaces have a global Foundation positioning/contrast contract
 
 Use the [module admission checklist](TOME-MODULE-ADMISSION.md). New modules must pass the [Foundation admission gate](TOME-ADMIN-FOUNDATION.md#module-admission), document route/capability/state coverage and demonstrate normal and recovery journeys in both browsers. An attractive standalone mock is not admission evidence.
 
-## Pending evidence
+## Runtime acceptance requirements
 
-Actions must verify 1280/1440/1920 desktop and mobile shell behavior, full icon bounds, brand collapse, single logout, focus and route-state preservation, alongside existing filter/sort/page, form validation/submission and detail-return suites. Colors, disabled/read-only/error/empty states and the final AntD adapter still need targeted runtime verification. Screenshots remain local and are not CI artifacts or Library uploads.
+Actions must verify 1280/1440/1920 desktop and mobile shell behavior, full icon bounds, brand collapse, single logout, focus and route-state preservation, alongside existing filter/sort/page, form validation/submission and detail-return suites. Colors and disabled/read-only/error/empty states require targeted runtime verification for every admitted module. Screenshots remain local and are not CI artifacts or Library uploads.
