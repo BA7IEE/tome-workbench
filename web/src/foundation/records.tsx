@@ -36,7 +36,7 @@ export function RecordTable<T extends { id: string }>({
           ...column,
           key: `record-${index}`,
           search: false,
-          render: (_, row) => column.render(undefined, row),
+          render: (_value: ReactNode, row: T) => column.render(undefined, row),
         })) as ProColumns<T>[]
       }
       rowClassName={rowClassName}

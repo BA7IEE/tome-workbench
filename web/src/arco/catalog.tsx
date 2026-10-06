@@ -78,6 +78,7 @@ function RowMenu({ item }: { item: Item }) {
     <span ref={trigger}>
       <Dropdown
         trigger={["click"]}
+        menu={{ items: [] }}
         placement="bottomRight"
         open={open}
         onOpenChange={setOpen}
