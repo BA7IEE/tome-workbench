@@ -5969,6 +5969,8 @@
      Cloud inspection found vendor popup selectors did not supply positioning. */
   .ant-select-dropdown {
     position: absolute;
+    top: -9999px;
+    left: 0;
     z-index: 1050;
     padding: 4px;
     color: var(--tome-text);
