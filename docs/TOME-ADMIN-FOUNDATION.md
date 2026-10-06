@@ -1,6 +1,6 @@
 # ToMe Admin Foundation
 
-Status: framework migration source in progress, dependency installation and runtime validation pending. The previous Shell adapter has Chromium evidence; the current AntD/ProComponents source has NOT_RUN type/build/browser status and no generated lockfile yet. Do not treat it as a runnable or accepted release.
+Status: framework migration source in progress, runtime validation pending. The dependency lock was generated on a disposable runner and committed; npm ci, typecheck, lint, build and unit tests passed at 273dd15. Harness requires a narrowly documented exact prerelease exception; browser acceptance remains pending. Do not treat earlier Shell acceptance as framework runtime acceptance.
 
 ## Current boundary
 
@@ -37,7 +37,7 @@ The verified official registry publishes AntD 6.6.5 with React >=18 support. Pro
 
 Official metadata: [AntD 6.6.5](https://registry.npmjs.org/antd/6.6.5), [ProComponents stable](https://registry.npmjs.org/@ant-design%2fpro-components/2.8.10), [ProComponents beta](https://registry.npmjs.org/@ant-design%2fpro-components/3.1.15-5). The beta published tarball's ProForm declaration was inspected and exposes Item. Type checking and runtime behavior remain NOT_RUN.
 
-`foundation-lock.yml` resolves metadata only on a disposable runner (no package scripts/DB/service). Review and commit its package-lock artifact before rerunning the unchanged full release CI against the exact committed head. A generated but uncommitted lock is not final verification evidence. Until then `npm ci` is expected to reject the package/lock mismatch.
+The one-off `foundation-lock.yml` resolved metadata only on a disposable runner (no package scripts/DB/service) and has been removed after its result was reviewed and committed. package.json and lock root match; existing locked package versions were unchanged. Every subsequent verification uses npm ci against the committed lock. The fixed-dependency Harness admits only the specifically documented ProComponents 3.1.15-5 prerelease; ranges and other betas remain rejected.
 
 ## Module admission
 
@@ -53,7 +53,7 @@ CI has one sequential verification job, a 45-minute timeout, cancellation of sup
 
 Remaining admission sequence:
 
-1. Generate/review/commit the dependency lock and validate this catalog/editor/overview vertical slice in both browsers; keep every original domain recovery test.
+1. Validate the committed catalog/editor/overview vertical slice in both browsers; keep every original domain recovery test.
 2. Migrate daily work/tasks, imports/candidates/intake/recycle, distribution/listings/collections, sales/inquiries/settlements, procurement/sources, dictionaries/settings/operations/jobs/audit through reusable Foundation record/form/detail adapters. All currently share the branded shell/tokens but retain domain-owned DOM controls.
 3. Consolidate dialog/feedback adapters while preserving native submission, same-key request snapshots, version/session conflict and upload completion. Validate empty/error/read-only/disabled/selected/focus states.
 4. Remove retired stylesheet/vendor dependency scaffolding after full contrast/geometry/interaction regression.

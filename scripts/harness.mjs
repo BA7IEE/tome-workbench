@@ -249,8 +249,12 @@ export function checks(
   );
   check("fixed-dependencies", () => {
     const p = JSON.parse(read("package.json"));
-    return Object.values({ ...p.dependencies, ...p.devDependencies }).every(
-      (v) => /^\d+\.\d+\.\d+$/.test(v),
+    // The documented AntD6 migration candidate is pinned exactly, not a range.
+    // No other prerelease (including the next beta) is implicitly approved.
+    return Object.entries({ ...p.dependencies, ...p.devDependencies }).every(
+      ([name, v]) =>
+        /^\d+\.\d+\.\d+$/.test(v) ||
+        (name === "@ant-design/pro-components" && v === "3.1.15-5"),
     );
   });
   for (const row of currentDocsChecks(read)) check(row.id, () => row.pass);
@@ -371,9 +375,9 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "FAKE_REMOTE_ID_DENIED",
       ) &&
-      read("prisma/migrations/202609170012_distribution_foundation/migration.sql").includes(
-        "remoteId\" = '' OR \"remoteId\" !~* '^MANUAL:'",
-      ) &&
+      read(
+        "prisma/migrations/202609170012_distribution_foundation/migration.sql",
+      ).includes("remoteId\" = '' OR \"remoteId\" !~* '^MANUAL:'") &&
       !read("web/src/publishing-workspace.ts").includes("MANUAL:") &&
       read("web/src/distribution-center.ts").includes("handoffStates") &&
       !read("web/src/distribution-center.ts").includes("attemptCount") &&
@@ -403,9 +407,7 @@ export function checks(
       read("web/src/publishing-workspace.ts").includes(
         "activate-distribution-target",
       ) &&
-      read("web/src/studio-publisher.ts").includes(
-        "studio-activate-target",
-      ) &&
+      read("web/src/studio-publisher.ts").includes("studio-activate-target") &&
       read("web/src/studio-publisher.ts").includes(
         'channel.businessPurpose === "TRADE"',
       ) &&
@@ -433,9 +435,7 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "handoffScope",
       ) &&
-      read("src/common/domain.ts").includes(
-        "补充大于零的当前对外报价",
-      ) &&
+      read("src/common/domain.ts").includes("补充大于零的当前对外报价") &&
       read("web/src/distribution-center.ts").includes("row.health") &&
       read("test/integration.test.cjs").includes("Publication Health：") &&
       read("test/integration.test.cjs").includes("Publication stop scope：") &&
@@ -444,95 +444,83 @@ export function checks(
       ) &&
       read("docs/DISTRIBUTION-FOUNDATION.md").includes("PublicationHealth"),
   );
-  check(
-    "v11-distribution-standard-handoff",
-    () => {
-      const mcp = read("src/distribution/distribution-mcp.controller.ts");
-      return (
-        read("src/app.ts").includes("DistributionMcpController") &&
-        read("src/distribution/distribution-agent.controller.ts").includes(
-          'Post("handoffs/:id/package")',
-        ) &&
-        read("src/distribution/distribution.service.ts").includes(
-          "machineHandoffRun",
-        ) &&
-        read("src/distribution/distribution.service.ts").includes(
-          "DISTRIBUTION_HANDOFF_DELIVERED",
-        ) &&
-        [
-          "tome_distribution_list_handoffs",
-          "tome_distribution_get_package",
-          "tome_distribution_report_published",
-          "tome_distribution_report_attention",
-        ].every((name) => mcp.includes(name)) &&
-        !/tome_distribution_(?:claim|heartbeat|renew_lease|retry_scheduler|browser_step)/.test(
-          mcp,
-        ) &&
-        read("agent/skills/tome-distribution/SKILL.md").includes(
-          "不执行闲鱼",
-        ) &&
-        read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
-          "tome_distribution_get_package",
-        ) &&
-        read("test/integration.test.cjs").includes(
-          "标准分发交付合同",
-        )
-      );
-    },
-  );
-  check(
-    "v11-distribution-handoff-closure",
-    () => {
-      const agent = read("src/distribution/distribution-agent.controller.ts");
-      const service = read("src/distribution/distribution.service.ts");
-      const mcp = read("src/distribution/distribution-mcp.controller.ts");
-      return (
-        read(".env.example").includes(
-          "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
-        ) &&
-        read("src/common/config.ts").includes(
-          "DISTRIBUTION_HANDOFF_STALE_HOURS",
-        ) &&
-        read("src/auth/auth.ts").includes("X-Distribution-Token") &&
-        read("src/auth/auth.ts").includes('req.get("Authorization")') &&
-        read("src/distribution/distribution-standard.ts").includes(
-          "DISTRIBUTION_SKILL_ID",
-        ) &&
-        agent.includes('Get("skill")') &&
-        agent.includes('Get("profile")') &&
-        agent.includes("COMPAT_DISTRIBUTION_RUNTIME_DISABLED") &&
-        service.includes("platformDataForHandoff") &&
-        service.includes("ANQICMS_ARCHIVE_ID_REQUIRED") &&
-        service.includes("HANDOFF_STALE") &&
-        service.includes("HANDOFF_SESSION_DEAD") &&
-        mcp.includes("handoff.skill") &&
-        mcp.includes("Read and verify the advertised Skill") &&
-        read("agent/skills/tome-distribution/SKILL.md").includes(
-          "SHA-256",
-        ) &&
-        read("agent/skills/tome-distribution/profiles/ANQICMS.md").includes(
-          "archive_id",
-        ) &&
-        read("test/integration.test.cjs").includes(
-          "Distribution Handoff Closure",
-        ) &&
-        read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
-          "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
-        )
-      );
-    },
-  );
+  check("v11-distribution-standard-handoff", () => {
+    const mcp = read("src/distribution/distribution-mcp.controller.ts");
+    return (
+      read("src/app.ts").includes("DistributionMcpController") &&
+      read("src/distribution/distribution-agent.controller.ts").includes(
+        'Post("handoffs/:id/package")',
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "machineHandoffRun",
+      ) &&
+      read("src/distribution/distribution.service.ts").includes(
+        "DISTRIBUTION_HANDOFF_DELIVERED",
+      ) &&
+      [
+        "tome_distribution_list_handoffs",
+        "tome_distribution_get_package",
+        "tome_distribution_report_published",
+        "tome_distribution_report_attention",
+      ].every((name) => mcp.includes(name)) &&
+      !/tome_distribution_(?:claim|heartbeat|renew_lease|retry_scheduler|browser_step)/.test(
+        mcp,
+      ) &&
+      read("agent/skills/tome-distribution/SKILL.md").includes("不执行闲鱼") &&
+      read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
+        "tome_distribution_get_package",
+      ) &&
+      read("test/integration.test.cjs").includes("标准分发交付合同")
+    );
+  });
+  check("v11-distribution-handoff-closure", () => {
+    const agent = read("src/distribution/distribution-agent.controller.ts");
+    const service = read("src/distribution/distribution.service.ts");
+    const mcp = read("src/distribution/distribution-mcp.controller.ts");
+    return (
+      read(".env.example").includes(
+        "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
+      ) &&
+      read("src/common/config.ts").includes(
+        "DISTRIBUTION_HANDOFF_STALE_HOURS",
+      ) &&
+      read("src/auth/auth.ts").includes("X-Distribution-Token") &&
+      read("src/auth/auth.ts").includes('req.get("Authorization")') &&
+      read("src/distribution/distribution-standard.ts").includes(
+        "DISTRIBUTION_SKILL_ID",
+      ) &&
+      agent.includes('Get("skill")') &&
+      agent.includes('Get("profile")') &&
+      agent.includes("COMPAT_DISTRIBUTION_RUNTIME_DISABLED") &&
+      service.includes("platformDataForHandoff") &&
+      service.includes("ANQICMS_ARCHIVE_ID_REQUIRED") &&
+      service.includes("HANDOFF_STALE") &&
+      service.includes("HANDOFF_SESSION_DEAD") &&
+      mcp.includes("handoff.skill") &&
+      mcp.includes("Read and verify the advertised Skill") &&
+      read("agent/skills/tome-distribution/SKILL.md").includes("SHA-256") &&
+      read("agent/skills/tome-distribution/profiles/ANQICMS.md").includes(
+        "archive_id",
+      ) &&
+      read("test/integration.test.cjs").includes(
+        "Distribution Handoff Closure",
+      ) &&
+      read("docs/DISTRIBUTION-HANDOFF-CONTRACT.md").includes(
+        "DISTRIBUTION_COMPAT_RUNTIME_ENABLED=false",
+      )
+    );
+  });
   check(
     "v11-real-operations",
     () =>
       read("prisma/schema.prisma").includes("basisPriceSource") &&
       read("prisma/schema.prisma").includes("active    Boolean") &&
-      read("prisma/migrations/202609170013_real_operations_price_basis/migration.sql").includes(
-        "PublishingDraft_price_basis_check",
-      ) &&
-      read("prisma/migrations/202609170014_channel_price_revision_continuity/migration.sql").includes(
-        'ADD COLUMN "active" BOOLEAN',
-      ) &&
+      read(
+        "prisma/migrations/202609170013_real_operations_price_basis/migration.sql",
+      ).includes("PublishingDraft_price_basis_check") &&
+      read(
+        "prisma/migrations/202609170014_channel_price_revision_continuity/migration.sql",
+      ).includes('ADD COLUMN "active" BOOLEAN') &&
       read("src/publishing/publishing.service.ts").includes(
         "resolveChannelPrice",
       ) &&
@@ -541,14 +529,16 @@ export function checks(
         "planStopDistribution",
       ) &&
       read("prisma/schema.prisma").includes("sourceAttemptId") &&
-      read("prisma/migrations/202609170015_distribution_source_attempt/migration.sql").includes(
-        'ADD COLUMN "sourceAttemptId" UUID',
-      ) &&
+      read(
+        "prisma/migrations/202609170015_distribution_source_attempt/migration.sql",
+      ).includes('ADD COLUMN "sourceAttemptId" UUID') &&
       read("src/jobs/work-queue.ts").includes(
         "商品已不宜继续出售，渠道仍待停售",
       ) &&
       read("test/integration.test.cjs").includes("Real Operations：") &&
-      read("test/integration.test.cjs").includes("Distribution stop records：") &&
+      read("test/integration.test.cjs").includes(
+        "Distribution stop records：",
+      ) &&
       read("test/browser/operations.spec.cjs").includes(
         "询盘确认成交通过原子动作停售",
       ) &&
@@ -567,7 +557,8 @@ export function checks(
         "this.db.listing.findMany",
       ) &&
       ["READY", "BLOCKED", "NEEDS_UPDATE", "ATTENTION", "NEEDS_STOP"].every(
-        (state) => read("src/distribution/distribution.service.ts").includes(state),
+        (state) =>
+          read("src/distribution/distribution.service.ts").includes(state),
       ) &&
       read("src/distribution/distribution.service.ts").includes(
         "server-side filter and sort",
@@ -584,9 +575,7 @@ export function checks(
         '"/api/distribution/operations"',
       ) &&
       read("test/integration.test.cjs").includes("Distribution 经营投影：") &&
-      read("test/browser/operations.spec.cjs").includes(
-        "分发异常",
-      ),
+      read("test/browser/operations.spec.cjs").includes("分发异常"),
   );
   check(
     "v11-launch-closure-scale-workflows",
@@ -594,30 +583,32 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "activeTargetKeys",
       ) &&
-      read("src/distribution/distribution.service.ts").includes("historyKeys") &&
+      read("src/distribution/distribution.service.ts").includes(
+        "historyKeys",
+      ) &&
       read("src/distribution/publication-health.service.ts").includes(
         "evaluateLoadedPublicationHealth",
       ) &&
       read("src/jobs/work-queue.ts").includes("ITEM_REVIEW") &&
       read("src/jobs/work-queue.ts").includes("t.kind <> 'PREPARE'") &&
       read("web/src/quick-intake.ts").includes('ownership: "OWN"') &&
-      read("src/costing/costing.controller.ts").includes('Post("orders/previews")') &&
-      read("scripts/benchmark-launch-scale.mjs").includes("const itemCount = 1000") &&
+      read("src/costing/costing.controller.ts").includes(
+        'Post("orders/previews")',
+      ) &&
+      read("scripts/benchmark-launch-scale.mjs").includes(
+        "const itemCount = 1000",
+      ) &&
       read("scripts/benchmark-launch-scale.mjs").includes("guardDatabase") &&
-      read("test/integration.test.cjs").includes("Launch Closure workflow scale："),
+      read("test/integration.test.cjs").includes(
+        "Launch Closure workflow scale：",
+      ),
   );
   check(
     "v11-operations-truth-cleanup",
     () =>
-      read("src/jobs/work-queue.ts").includes(
-        "已交付分发记录超时，需要核对",
-      ) &&
-      read("src/jobs/work-queue.ts").includes(
-        "已交付分发会话失效，需要核对",
-      ) &&
-      read("src/jobs/work-queue.ts").includes(
-        "外币成交待确认结算依据",
-      ) &&
+      read("src/jobs/work-queue.ts").includes("已交付分发记录超时，需要核对") &&
+      read("src/jobs/work-queue.ts").includes("已交付分发会话失效，需要核对") &&
+      read("src/jobs/work-queue.ts").includes("外币成交待确认结算依据") &&
       read("scripts/check-current-docs.mjs").includes(
         "current-validation-artifact-version",
       ) &&
@@ -626,9 +617,7 @@ export function checks(
       ) &&
       read("scripts/verify-release.mjs").includes("GITHUB_RUN_ID") &&
       read("scripts/verify-release.mjs").includes("GITHUB_SHA") &&
-      read("test/integration.test.cjs").includes(
-        "超时Handoff进入统一待办",
-      ),
+      read("test/integration.test.cjs").includes("超时Handoff进入统一待办"),
   );
   check(
     "v11-channel-price-currency-interactions",
@@ -678,12 +667,8 @@ export function checks(
       read("test/integration.test.cjs").includes(
         "成交币种保留询盘和渠道事实，外币不自动写人民币成本",
       ) &&
-      read("test/integration.test.cjs").includes(
-        "询盘下次跟进时间驱动待办",
-      ) &&
-      read("test/browser/system-review.spec.cjs").includes(
-        "下次跟进时间",
-      ) &&
+      read("test/integration.test.cjs").includes("询盘下次跟进时间驱动待办") &&
+      read("test/browser/system-review.spec.cjs").includes("下次跟进时间") &&
       read("docs/REAL-OPERATIONS.md").includes(
         "FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED",
       ),
@@ -713,12 +698,18 @@ export function checks(
     "v11-ingest-credential-security",
     () =>
       read("src/ingest/ingest.service.ts").includes("TOKEN_ALREADY_ISSUED") &&
-      read("src/ingest/ingest.service.ts").includes("assertLiveMachineSession") &&
-      read("src/ingest/ingest.service.ts").includes("assertNoSensitiveIngestData") &&
+      read("src/ingest/ingest.service.ts").includes(
+        "assertLiveMachineSession",
+      ) &&
+      read("src/ingest/ingest.service.ts").includes(
+        "assertNoSensitiveIngestData",
+      ) &&
       read("src/auth/auth.ts").includes("INGEST_CREATOR_REVOKED") &&
       read("src/auth/auth.ts").includes("session.procurementSource.active") &&
       read("src/ingest/ingest.controller.ts").includes("tokenHash") === false &&
-      read("src/ingest/ingest-security.ts").includes("INGEST_SENSITIVE_DATA_DENIED") &&
+      read("src/ingest/ingest-security.ts").includes(
+        "INGEST_SENSITIVE_DATA_DENIED",
+      ) &&
       read(
         "prisma/migrations/202609180018_ingest_credential_redaction/migration.sql",
       ).includes("tokenIssued") &&
@@ -746,9 +737,7 @@ export function checks(
         read("src/distribution/anqicms-spike.ts"),
       ) &&
       read("test/unit.test.cjs").includes("20件脱敏商品冻结") &&
-      read("test/integration.test.cjs").includes(
-        "受限会话以脱敏本地资料",
-      ) &&
+      read("test/integration.test.cjs").includes("受限会话以脱敏本地资料") &&
       read("docs/integrations/ANQICMS-CONTRACT.md").includes(
         "ToMe 不连接真实 AnQiCMS API",
       ),
@@ -759,9 +748,7 @@ export function checks(
       read("src/distribution/anqicms-spike.ts").includes(
         "buildAnqicmsTakedownProjection",
       ) &&
-      read("src/distribution/anqicms-spike.ts").includes(
-        "condition_grade",
-      ) &&
+      read("src/distribution/anqicms-spike.ts").includes("condition_grade") &&
       read("src/distribution/anqicms-spike.ts").includes(
         "condition_description",
       ) &&
@@ -772,9 +759,7 @@ export function checks(
       read("test/integration.test.cjs").includes(
         "former image authorization can expire",
       ) &&
-      read("docs/integrations/ANQICMS-CONTRACT.md").includes(
-        "identity-only",
-      ),
+      read("docs/integrations/ANQICMS-CONTRACT.md").includes("identity-only"),
   );
   check("v1-item-center-webkit", () =>
     read("playwright.webkit.config.cjs").includes("v1-item-center.spec.cjs"),

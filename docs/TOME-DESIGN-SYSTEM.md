@@ -1,4 +1,4 @@
-> Framework source update: real React Shell, AntD Provider, ProTable, ProForm.Item and ProDescriptions adapters are being wired. Dependency lock/install and the current source runtime checks are NOT_RUN. Earlier Shell acceptance does not validate these changes.
+> Framework source update: real React Shell, AntD Provider, ProTable, ProForm.Item and ProDescriptions adapters are being wired. The dependency lock is committed and cloud install/type/build passed for the first framework candidate; browser acceptance remains pending. Earlier Shell acceptance does not validate these changes.
 
 # ToMe Design System
 
