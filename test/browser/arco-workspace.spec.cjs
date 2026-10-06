@@ -165,34 +165,33 @@ for (const width of [1440, 390]) {
     }
     await page.getByLabel("选择 " + items[30].code, { exact: true }).check();
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
-    // Cloud-only diagnostic for the real popup; retain normal click actionability.
-    console.log(
-      "Foundation select popup geometry",
-      await page.evaluate(() => {
-        const option = document.querySelector(
-          '[role="option"][title="最早录入"]',
-        );
-        const popup = option?.closest(".ant-select-dropdown");
-        if (!option || !popup) return { missing: true };
-        const rect = option.getBoundingClientRect();
-        const style = getComputedStyle(popup);
-        const intercept = document.elementFromPoint(
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2,
-        );
-        return {
-          option: rect.toJSON(),
-          popup: popup.getBoundingClientRect().toJSON(),
-          inline: popup.getAttribute("style"),
-          position: style.position,
-          top: style.top,
-          left: style.left,
-          right: style.right,
-          zIndex: style.zIndex,
-          intercept: intercept?.outerHTML.slice(0, 250),
-        };
-      }),
+    const sortOption = page.getByRole("option", {
+      name: "最早录入",
+      exact: true,
+    });
+    await expect(sortOption).toBeVisible();
+    const popup = sortOption.locator(
+      "xpath=ancestor::div[contains(@class, 'ant-select-dropdown')]",
     );
+    await expect(popup).toHaveCSS("position", "absolute");
+    await expect
+      .poll(() =>
+        sortOption.evaluate((option) => {
+          const rect = option.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2,
+          );
+          return (
+            rect.left >= 0 &&
+            rect.right <= innerWidth &&
+            rect.top >= 0 &&
+            rect.bottom <= innerHeight &&
+            option.contains(hit)
+          );
+        }),
+      )
+      .toBe(true);
     await page.getByRole("option", { name: "最早录入", exact: true }).click();
     await expect(
       page.locator("tbody tr:not(.ant-table-measure-row)").first(),

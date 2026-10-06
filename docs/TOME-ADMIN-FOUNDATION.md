@@ -1,6 +1,6 @@
 # ToMe Admin Foundation
 
-Status: framework migration source in progress, runtime validation pending. The dependency lock was generated on a disposable runner and committed; npm ci, typecheck, lint, build and unit tests passed at 273dd15. The exact prerelease exception is now guarded. First framework Chromium run: 174 passed / 14 failed; fixes are in progress for hidden measurement-row selection, legacy label ancestry, pagination accessibility and contextual menu geometry. Browser acceptance of the current source remains pending. Do not treat earlier Shell acceptance as framework runtime acceptance.
+Status: shared framework migration implemented; current-head runtime acceptance pending. Dependency locks are cloud-generated and committed, with the exact prerelease exception guarded. The latest completed candidate at 2612b20 passed install/type/lint/build/unit checks and 186/188 Chromium journeys, including Foundation collapse/contrast coverage and preserved business recovery. The two failures measured Select portals falling back to static positioning. A global Foundation portal presentation contract and stronger actionability assertions address that defect in the next candidate. Do not treat earlier Shell acceptance as current framework runtime acceptance.
 
 ## Current boundary
 
@@ -44,6 +44,8 @@ The one-off `foundation-lock.yml` resolved metadata only on a disposable runner 
 ## Module admission
 
 Run `node scripts/check-admin-foundation.mjs` in the approved validation environment. It checks shell ownership, real-entry integration, new Arco imports and direct AntD/ProComponents imports outside Foundation. The gate also rejects new raw table/form markup outside the enumerated legacy controllers, extra CSS entries, direct vendor defaults and network calls from Foundation. It checks every Foundation CSS layer for literal colors. The historical `arco/` path remains to avoid unrelated controller/import churn, but runtime vendor imports are now Foundation-only. Retired Arco stylesheet imports and the direct dependency are removed in the current candidate. The gate rejects their return as well as new Arco runtime imports. Historical CSS class names remain only as controller compatibility hooks; empty old layer names retain the original Harness contract. The gate is not proof that all legacy pages have migrated, and is not a replacement for type/build/browser checks.
+
+Use the [module admission checklist](TOME-MODULE-ADMISSION.md) for presentation, business invariants and required evidence. Portalled Select surfaces have a global positioning/semantic-state contract; native dialogs own their popup container. The contract changes presentation only and leaves the existing query callbacks intact.
 
 Review every module for one shell, one stylesheet entry, semantic tokens, consistent table/form/detail adapters, accessible empty/error/read-only/disabled/selected/focus states, existing query/context restoration and unchanged request recovery. No direct module ConfigProvider, second sidebar/topbar or ad hoc feedback provider. The admission script is wired into CI; runtime outcomes remain pending until Actions completes.
 

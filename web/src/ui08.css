@@ -5963,3 +5963,59 @@
 @layer foundation {
   .arco-workspace .catalog-row-menu { width: 32px; min-width: 32px; padding-inline: 0; }
 }
+
+@layer foundation {
+  /* Portalled Select surfaces need a global contract outside the App wrapper.
+     Cloud inspection found vendor popup selectors did not supply positioning. */
+  .ant-select-dropdown {
+    position: absolute;
+    z-index: 1050;
+    padding: 4px;
+    color: var(--tome-text);
+    background: var(--tome-surface);
+    border: 1px solid var(--tome-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(var(--tome-text-rgb), 0.12);
+  }
+  .ant-select-dropdown-hidden { display: none; }
+  .ant-select-dropdown .ant-select-item {
+    min-height: 32px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: var(--tome-text);
+    cursor: pointer;
+  }
+  .ant-select-dropdown .ant-select-item-option-active { background: var(--tome-canvas); }
+  .ant-select-dropdown .ant-select-item-option-selected { background: var(--tome-selected); font-weight: 600; }
+  .ant-select-dropdown .ant-select-item-option-disabled { color: var(--tome-textSecondary); cursor: not-allowed; }
+}
+
+@layer foundation {
+  .foundation-shell :is(button, input, select, textarea):disabled,
+  dialog :is(button, input, select, textarea):disabled {
+    opacity: 1;
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+    border-color: var(--tome-border);
+    cursor: not-allowed;
+  }
+  .foundation-shell :is(input, textarea)[readonly],
+  dialog :is(input, textarea)[readonly] {
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+    border-style: dashed;
+  }
+  .foundation-shell :is(.status-pill, .notice),
+  dialog :is(.status-pill, .note, .notice) {
+    color: var(--tome-textSecondary);
+    background: var(--tome-canvas);
+  }
+  :is(.foundation-shell, dialog) .status-pill.good { color: var(--tome-successText); background: var(--tome-successBg); }
+  :is(.foundation-shell, dialog) .status-pill.attention { color: var(--tome-warningText); background: var(--tome-warningBg); }
+  :is(.foundation-shell, dialog) .status-pill.test { color: var(--tome-infoText); background: var(--tome-infoBg); }
+  .foundation-command-popup :is(button, a):focus-visible,
+  dialog :is(button, input, select, textarea, summary, a):focus-visible {
+    outline: 2px solid var(--tome-primary);
+    outline-offset: 2px;
+  }
+}

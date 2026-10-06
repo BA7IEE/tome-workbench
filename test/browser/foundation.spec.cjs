@@ -63,6 +63,17 @@ for (const width of [1280, 1440, 1920]) {
     });
     for (const [foreground, background] of pairs)
       expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+    const previousPage = page.getByRole("button", {
+      name: "上一页",
+      exact: true,
+    });
+    await expect(previousPage).toBeDisabled();
+    await expect(previousPage).toHaveCSS("opacity", "1");
+    const disabledColors = await previousPage.evaluate((button) => {
+      const style = getComputedStyle(button);
+      return [style.color, style.backgroundColor];
+    });
+    expect(contrast(...disabledColors)).toBeGreaterThanOrEqual(4.5);
     await expect(
       page.getByRole("button", { name: "退出登录", exact: true }),
     ).toHaveCount(1);

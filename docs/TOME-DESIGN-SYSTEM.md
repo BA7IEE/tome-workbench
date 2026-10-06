@@ -18,7 +18,7 @@ Warm white canvas, charcoal text and muted brown actions. Professional, restrain
 | errorText / errorBg         | #922F2B / #FCEDEA           |
 | infoText / infoBg           | #31546A / #EDF3F6           |
 
-Text/Tag/remarks need measured WCAG AA contrast (4.5:1). Foundation Tags use dark semantic text on pale surfaces; status words remain visible. Body, active navigation and role annotations have browser contrast assertions. This does not prove every business state or future module meets AA.
+Text/Tag/remarks need measured WCAG AA contrast (4.5:1). Foundation Tags use dark semantic text on pale surfaces; status words remain visible. Body, active navigation, role annotations, rendered Tags and disabled pagination have browser contrast assertions. Static token pair ratios are 14.83 (body/surface), 6.12 (secondary/canvas), 11.88 (text/selection), 7.79 (success), 7.00 (warning), 6.92 (error) and 7.19 (info); rendered-state assertions remain required. This does not prove every business state or future module meets AA.
 
 ## Shared behavior
 
@@ -32,9 +32,9 @@ Records use the Foundation ProTable adapter with domain-owned filter/sort/page s
 
 Text inputs use Foundation AntD controls inside ProForm.Item, with native labels, names and original form ownership. Native file, date, number, checkbox and dictionary selects retain their existing contracts. Validation, locks, request snapshots and retry stay with the shared domain submission controller. Read-only facts use ProDescriptions and preserve original escaped content.
 
-Context actions use the shared viewport-clamped command popover. Keyboard activation focuses the first action; Escape returns focus to the connected trigger. Shared feedback retains original text and timing, using assertive error and polite saved status. A read failure must never look like a successful empty list.
+Portalled Select surfaces have a global Foundation positioning/contrast contract outside the App wrapper; native dialogs own their popup container. This fixes the measured static-position fallback without changing query callbacks. Context actions use the shared viewport-clamped command popover. Keyboard activation focuses the first action; Escape returns focus to the connected trigger. Shared feedback retains original text and timing, using assertive error and polite saved status. A read failure must never look like a successful empty list.
 
-New modules must pass the [Foundation admission gate](TOME-ADMIN-FOUNDATION.md#module-admission), document route/capability/state coverage and demonstrate normal and recovery journeys in both browsers. An attractive standalone mock is not admission evidence.
+Use the [module admission checklist](TOME-MODULE-ADMISSION.md). New modules must pass the [Foundation admission gate](TOME-ADMIN-FOUNDATION.md#module-admission), document route/capability/state coverage and demonstrate normal and recovery journeys in both browsers. An attractive standalone mock is not admission evidence.
 
 ## Pending evidence
 

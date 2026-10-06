@@ -14,6 +14,9 @@ export function ToMeProvider({ children }: { children: ReactNode }) {
           Pagination: { ...zhCN.Pagination, items_per_page: "件/页" },
         }}
         virtual={false}
+        getPopupContainer={(trigger) =>
+          trigger?.closest<HTMLDialogElement>("dialog") || document.body
+        }
         button={{ autoInsertSpace: false }}
         theme={{
           token: {
