@@ -5778,6 +5778,7 @@
   }
   .foundation-shell {
     --foundation-sidebar-width: 232px;
+    --foundation-page-padding: 24px;
     grid-template-columns: var(--foundation-sidebar-width) minmax(0, 1fr);
   }
   .foundation-shell[data-collapsed="true"] { --foundation-sidebar-width: 64px; }
@@ -5832,7 +5833,7 @@
   .foundation-shell[data-collapsed="true"] .sidebar-bottom { display: none; }
   .foundation-shell[data-collapsed="true"] .foundation-brand-short { display: block; }
   .foundation-shell[data-collapsed="true"] .library-navigation a { padding: 10px; justify-content: center; }
-  .foundation-shell .foundation-page-container { max-width: 1680px; padding: 24px 24px 56px; }
+  .foundation-shell .foundation-page-container { max-width: 1680px; padding: 24px var(--foundation-page-padding) 56px; }
   .foundation-skip { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); z-index: 100; padding: 10px 16px; background: var(--tome-surface); color: var(--tome-text); border: 1px solid var(--tome-primary); }
   .foundation-skip:focus { transform: none; }
   .foundation-shell :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--tome-primary); outline-offset: 2px; }
@@ -5844,9 +5845,17 @@
   .foundation-shell :is(.note, .muted, .hint, .form-help) { color: var(--tome-textSecondary); }
   .foundation-shell .foundation-page-error { border-left: 3px solid var(--tome-errorText); }
   .foundation-shell .form-error { color: var(--tome-errorText); }
+  @media (min-width: 761px) {
+    .foundation-shell .studio-commandbar { top: 56px; }
+    /* Legacy 28px negative margins cannot exceed the new page gutter. */
+    .foundation-shell .studio-workspace:not(.studio-publish-open) .studio-commandbar {
+      margin-inline: calc(-1 * var(--foundation-page-padding));
+      padding-inline: var(--foundation-page-padding);
+    }
+  }
   @media (max-width: 1280px) {
+    .foundation-shell { --foundation-page-padding: 16px; }
     .foundation-shell .topbar { padding: 0 16px; }
-    .foundation-shell .foundation-page-container { padding-left: 16px; padding-right: 16px; }
   }
   /* Preserve the current mobile bottom navigation; desktop collapse never hides it. */
   @media (max-width: 760px) {

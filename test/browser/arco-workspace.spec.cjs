@@ -307,8 +307,10 @@ for (const width of [1440, 390]) {
           .trim(),
       }));
       expect(layout.overflow, route).toBeLessThanOrEqual(2);
-      expect(layout.background, route).toBe("rgb(242, 243, 245)");
-      expect(layout.primary, route).toMatch(/rgb\(\s*22,\s*93,\s*255\s*\)/);
+      // Foundation intentionally replaces the former Arco gray/blue palette.
+      // Keep every route and geometry assertion; assert the approved brand colors.
+      expect(layout.background, route).toBe("rgb(246, 243, 237)");
+      expect(layout.primary, route).toBe("#765844");
       expect(layout.border, route).toBeTruthy();
       if (route === "imports") {
         const positions = await content

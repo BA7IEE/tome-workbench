@@ -13,12 +13,47 @@ async function login(page) {
   await expect(page.locator("#content .loading")).toHaveCount(0);
 }
 
+function luminance(color) {
+  const rgb = color
+    .match(/[\d.]+/g)
+    .slice(0, 3)
+    .map(Number);
+  const linear = rgb.map((component) => {
+    const value = component / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+}
+function contrast(foreground, background) {
+  const a = luminance(foreground),
+    b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
 for (const width of [1280, 1440, 1920]) {
   test(`Foundation desktop ${width}: collapse, navigate, focus and logout`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     await login(page);
+    // Test rendered body, selected navigation and role annotations against AA.
+    const pairs = await page.evaluate(() => {
+      const body = getComputedStyle(document.body);
+      const nav = getComputedStyle(
+        document.querySelector('.library-navigation [aria-current="page"]'),
+      );
+      const role = getComputedStyle(
+        document.querySelector(".sidebar-bottom small"),
+      );
+      const aside = getComputedStyle(document.querySelector(".admin-sidebar"));
+      return [
+        [body.color, body.backgroundColor],
+        [nav.color, nav.backgroundColor],
+        [role.color, aside.backgroundColor],
+      ];
+    });
+    for (const [foreground, background] of pairs)
+      expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
     await expect(
       page.getByRole("button", { name: "退出登录", exact: true }),
     ).toHaveCount(1);
