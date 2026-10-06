@@ -1,4 +1,5 @@
 @layer arco-base, workbench, arco, product;
+@layer antd, foundation;
 @import "@arco-design/web-react/es/style/index.css" layer(arco-base);
 @import "@arco-design/web-react/es/Button/style/index.css" layer(arco);
 @import "@arco-design/web-react/es/Spin/style/index.css" layer(arco);
@@ -5869,5 +5870,42 @@
     .foundation-shell .foundation-collapse, .foundation-shell .foundation-role { display: none; }
     .foundation-shell .topbar .foundation-logout { display: inline-flex; }
     .foundation-shell .foundation-account { gap: 4px; }
+  }
+}
+
+@layer foundation {
+  /* Root providers must not change controller-owned grid/flex geometry. */
+  .tome-ant-root { display: contents; }
+  .foundation-field .ant-form-item-label { padding-bottom: 6px; text-align: start; }
+  .foundation-field .ant-form-item-label > label { height: auto; color: var(--tome-text); }
+  .foundation-field .ant-input { width: 100%; font: inherit; }
+  .foundation-field .ant-form-item-row { display: block; }
+  .foundation-field { margin-bottom: 0; }
+  .foundation-selection { display: inline-flex; align-items: center; }
+}
+
+@layer foundation {
+  .foundation-shell .ant-btn { min-height: 36px; }
+  .arco-workspace .ant-card { box-shadow: none; border-color: var(--tome-border); background: var(--tome-surface); }
+  .arco-workspace .ant-card-head { min-height: 44px; padding-inline: 20px; border-color: var(--tome-border); }
+  .arco-workspace .ant-card-body { padding: 20px; }
+  .arco-workspace .studio-inspector .ant-card-body { display: grid; gap: 16px; }
+  .catalog-order > .ant-select { width: 156px; }
+  .arco-workspace .view-switch .ant-btn { height: 36px; min-width: 54px; }
+  .arco-workspace .view-switch .ant-btn[aria-pressed="true"] { color: var(--tome-primary); background: var(--tome-selected); }
+  .arco-workspace .view-switch .ant-btn[aria-pressed="false"] { color: var(--tome-textSecondary); background: var(--tome-surface); }
+  .arco-workspace .ant-table-cell { padding: 12px; vertical-align: middle; }
+  .arco-workspace tr.is-selected > .ant-table-cell { background: var(--tome-selected); }
+  .arco-workspace .ant-table-wrapper { min-width: 0; }
+  .catalog-pagination .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .catalog-pagination .ant-pagination-total-text { margin-right: auto; color: var(--tome-textSecondary); }
+  .catalog-dropdown-actions { background: var(--tome-surface); border-color: var(--tome-border); }
+  .catalog-dropdown-actions .ant-btn { text-align: start; justify-content: flex-start; }
+  .product-overview-facts .ant-descriptions-item-label { color: var(--tome-textSecondary); }
+  .product-overview-facts .ant-descriptions-item-content { color: var(--tome-text); overflow-wrap: anywhere; }
+  @media (max-width: 760px) {
+    .arco-workspace .ant-card-body { padding: 16px; }
+    .catalog-display-controls { width: 100%; margin-left: 0; justify-content: space-between; }
+    .catalog-order > .ant-select { width: 140px; }
   }
 }

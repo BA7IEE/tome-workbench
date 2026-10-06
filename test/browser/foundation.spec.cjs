@@ -58,6 +58,8 @@ for (const width of [1280, 1440, 1920]) {
       page.getByRole("button", { name: "退出登录", exact: true }),
     ).toHaveCount(1);
     const toggle = page.getByRole("button", { name: "折叠导航", exact: true });
+    // Guard the real framework entry, not a detached component demo.
+    await expect(toggle).toHaveClass(/ant-btn/);
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await toggle.click();
     await expect(

@@ -6,7 +6,11 @@ import { dictionariesPage } from "./dictionaries-page";
 import { recycleBinPage } from "./recycle-bin";
 declare const __APP_VERSION__: string;
 import { pageNames, extraNavigation } from "./admin-navigation";
-import { mountAppShell, pageReadError } from "./foundation/app-shell";
+import {
+  disposeAppShell,
+  mountAppShell,
+  pageReadError,
+} from "./foundation/app-shell";
 import { applyDesignTokens } from "./foundation/tokens";
 import { productEntry } from "./product-entry";
 import { catalogScreen } from "./catalog-screen";
@@ -71,6 +75,7 @@ async function login() {
 async function render() {
   const g = ++generation;
   disposePage();
+  disposeAppShell();
   actions.clear();
   if (location.pathname === "/showroom") {
     app.innerHTML = await showroomPage();

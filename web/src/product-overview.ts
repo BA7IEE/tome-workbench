@@ -1,3 +1,4 @@
+import { mountDescriptions } from "./foundation/records";
 import { button, can, esc, money, section } from "./core";
 import { categories, states, type Item } from "./types";
 import {
@@ -22,8 +23,11 @@ export function productOverview(item: Item) {
   const back = productReturn(item);
   const self = productHref(item.id, back.href);
   const edit = `#/items/${item.id}/edit?returnTo=${encodeURIComponent(self)}`;
-  const details = (rows: [string, unknown][]) =>
-    `<dl class="product-overview-facts">${rows.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value || "未填写")}</dd></div>`).join("")}</dl>`;
+  const factGroups: [string, unknown][][] = [];
+  const details = (rows: [string, unknown][]) => {
+    const group = factGroups.push(rows) - 1;
+    return `<div class="product-overview-facts" data-foundation-facts="${group}"></div>`;
+  };
   const link = (tab: string, label: string) =>
     `<a class="btn" href="${esc(productHref(item.id, self, tab))}">${label}</a>`;
   const browsing =
@@ -41,7 +45,16 @@ export function productOverview(item: Item) {
     !f.sizeLabel && "尺码",
     !f.descriptionZh && !f.descriptionEn && "介绍",
   ].filter(Boolean);
-  onPageReady(root, (el) => {
+  onPageReady(root, (el, signal) => {
+    el.querySelectorAll<HTMLElement>("[data-foundation-facts]").forEach(
+      (host) => {
+        mountDescriptions(
+          host,
+          factGroups[Number(host.dataset.foundationFacts)],
+          signal,
+        );
+      },
+    );
     studioStock(
       el,
       () => item,

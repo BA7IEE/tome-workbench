@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
-import { Button } from "@arco-design/web-react";
+import { Button } from "../foundation/components";
 import { can } from "../core";
 import type { Item } from "../types";
 export type HeaderHandle = {

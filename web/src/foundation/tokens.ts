@@ -1,4 +1,4 @@
-/** One source for the transitional DOM theme and the future AntD provider. */
+/** One source for the transitional DOM theme and the AntD provider. */
 export const designTokens = {
   canvas: "#F6F3ED",
   surface: "#FFFDFA",
@@ -17,7 +17,7 @@ export const designTokens = {
   infoBg: "#EDF3F6",
 } as const;
 
-/** Dependency-free mapping; not yet wired to an installed AntD provider. */
+/** Shared seed used by every Foundation React root. */
 export const antDesignTokenSeed = {
   colorPrimary: designTokens.primary,
   colorBgLayout: designTokens.canvas,

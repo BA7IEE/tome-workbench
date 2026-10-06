@@ -62,7 +62,10 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "sharp": "0.35.4",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "antd": "6.6.5",
+    "@ant-design/pro-components": "3.1.15-5",
+    "@ant-design/cssinjs": "2.1.2"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

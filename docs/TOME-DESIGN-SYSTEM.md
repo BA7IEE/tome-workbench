@@ -1,3 +1,5 @@
+> Framework source update: real React Shell, AntD Provider, ProTable, ProForm.Item and ProDescriptions adapters are being wired. Dependency lock/install and the current source runtime checks are NOT_RUN. Earlier Shell acceptance does not validate these changes.
+
 # ToMe Design System
 
 Stage-one tokens and CSS are wired to the real entry. Visual/browser verification is pending; AntD provider and ProComponents migration remain outstanding.

@@ -11,15 +11,6 @@ function walk(dir) {
     return entry.isDirectory() ? walk(file) : [file];
   });
 }
-const legacyArco = new Set([
-  "arco/runtime.tsx",
-  "arco/catalog.tsx",
-  "arco/fields.tsx",
-  "arco/product-header.tsx",
-  "arco/product-fields.tsx",
-  "arco/catalog-pagination.tsx",
-  "arco/quick-fields.tsx",
-]);
 for (const file of walk(sourceRoot).filter((file) => /\.tsx?$/.test(file))) {
   const relative = path.relative(sourceRoot, file);
   const text = fs.readFileSync(file, "utf8");
@@ -32,8 +23,10 @@ for (const file of walk(sourceRoot).filter((file) => /\.tsx?$/.test(file))) {
     )
   )
     errors.push(`${relative}: use Foundation adapters for AntD/ProComponents`);
-  if (text.includes("@arco-design/") && !legacyArco.has(relative))
-    errors.push(`${relative}: new Arco dependency outside migration baseline`);
+  if (text.includes("@arco-design/"))
+    errors.push(
+      `${relative}: Arco runtime dependency is retired; use Foundation adapters`,
+    );
 }
 const main = fs.readFileSync(path.join(sourceRoot, "main.ts"), "utf8");
 if (

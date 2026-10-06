@@ -1,14 +1,14 @@
 # ToMe Admin Foundation
 
-Status: stage-one source implementation, validation pending. This is a Draft migration; AntD6 and ProComponents are not installed or wired yet.
+Status: framework migration source in progress, dependency installation and runtime validation pending. The previous Shell adapter has Chromium evidence; the current AntD/ProComponents source has NOT_RUN type/build/browser status and no generated lockfile yet. Do not treat it as a runnable or accepted release.
 
 ## Current boundary
 
-The real `web/src/main.ts` entry uses `foundation/app-shell.ts`. This transitional DOM adapter owns the application shell, permission-filtered main navigation, page container, loading/read-error feedback, a single logout entry and desktop collapse state. It leaves domain-owned DOM outside React reconciliation. No standalone mock entry is introduced.
+The real `web/src/main.ts` entry uses `foundation/app-shell.tsx`. This React Foundation shell owns the application shell, permission-filtered main navigation, page container, loading/read-error feedback, a single logout entry and desktop collapse state. A memoized content boundary leaves domain-owned DOM outside React reconciliation even during collapse. The entry disposes domain roots before the shell root. AntD buttons use the same logout request and disabled/error semantics. No standalone mock entry is introduced.
 
 `admin-navigation.ts` returns the existing primary navigation model. Original permission checks, route parameters and active-group rules are unchanged. `main.ts` keeps real authentication, generation protection, route dispatch, lifecycle hooks, leave guards and scroll restoration. Logout and retry use the existing core action/request path. The public showroom retains its independent entry.
 
-Semantic tokens live in `foundation/tokens.ts`; `ui08.css` remains the only stylesheet entry. A final Foundation layer consumes those variables. An AntD token seed is provided for the next provider migration, without claiming installed-component compatibility.
+Semantic tokens live in `foundation/tokens.ts`; `ui08.css` remains the only stylesheet entry. A final Foundation layer consumes those variables. `foundation/provider.tsx` consumes the AntD token seed, locale and component overrides. StyleProvider enables the named `antd` CSS layer below `foundation`, so vendor injection cannot silently override brand selection/focus rules. All lifecycle-owned React roots use this provider.
 
 ## Route inventory
 
@@ -23,7 +23,7 @@ Semantic tokens live in `foundation/tokens.ts`; `ui08.css` remains the only styl
 | Administration      | dictionaries, settings, operations, jobs, audit                                       |
 | Public read-only    | /showroom                                                                             |
 
-Future modules must use Foundation shell/container, navigation, feedback and component adapters rather than invent page layouts. The AntD/ProComponents stage will provide ProTable, ProForm and ProDescriptions adapters; this stage has not migrated those views.
+Future modules must use Foundation shell/container, navigation, feedback and component adapters rather than invent page layouts. Current source routes the real catalog through `foundation/records.tsx` ProTable, native submission-owned product/quick forms through Foundation AntD fields and ProForm.Item, and the product overview through lifecycle-owned ProDescriptions. Catalog read/filter/sort/paging/selection remain with the existing controller: the adapter has no request function or second search bar. Native selects retain dictionary/category behavior. These are source changes pending actual runtime acceptance; legacy DOM modules listed below remain.
 
 ## Invariants
 
@@ -33,11 +33,15 @@ Permission presentation uses existing capability checks; server authorization re
 
 ## Dependency decision
 
-React 18 meets the [official AntD6 requirement](https://ant.design/docs/react/migration-v6/). The [official ProComponents source package](https://raw.githubusercontent.com/ant-design/pro-components/master/package.json) inspected for this draft declares antd ^6.0.0 and React >=18, with a prerelease version. Source compatibility is not proof of published-package compatibility. Verify stable registry tags, peer dependencies and exports before installation; prerelease use requires explicit risk reporting and runtime validation. Do not downgrade AntD6 or bypass peer checks.
+The verified official registry publishes AntD 6.6.5 with React >=18 support. ProComponents stable 2.8.10 declares AntD 4/5 peers; beta 3.1.15-5 declares AntD ^6.0.0 and React >=18. This draft pins AntD 6.6.5, ProComponents 3.1.15-5 and CSS-in-JS 2.1.2 (the shared declared dependency for both) and explicitly accepts a prerelease **validation candidate**, not a compatibility guarantee. No peer bypass or AntD downgrade.
+
+Official metadata: [AntD 6.6.5](https://registry.npmjs.org/antd/6.6.5), [ProComponents stable](https://registry.npmjs.org/@ant-design%2fpro-components/2.8.10), [ProComponents beta](https://registry.npmjs.org/@ant-design%2fpro-components/3.1.15-5). The beta published tarball's ProForm declaration was inspected and exposes Item. Type checking and runtime behavior remain NOT_RUN.
+
+`foundation-lock.yml` resolves metadata only on a disposable runner (no package scripts/DB/service). Review and commit its package-lock artifact before rerunning the unchanged full release CI against the exact committed head. A generated but uncommitted lock is not final verification evidence. Until then `npm ci` is expected to reject the package/lock mismatch.
 
 ## Module admission
 
-Run `node scripts/check-admin-foundation.mjs` in the approved validation environment. It checks shell ownership, real-entry integration, new Arco imports and direct AntD/ProComponents imports outside Foundation. Existing Arco adapters are grandfathered until migrated. The gate is not proof that all legacy pages have migrated, and is not a replacement for type/build/browser checks.
+Run `node scripts/check-admin-foundation.mjs` in the approved validation environment. It checks shell ownership, real-entry integration, new Arco imports and direct AntD/ProComponents imports outside Foundation. The historical `arco/` path remains to avoid unrelated controller/import churn, but runtime vendor imports are now Foundation-only. Remaining Arco stylesheet scaffolding is retained until cloud visual checks allow its removal. New Arco runtime imports are rejected. The gate is not proof that all legacy pages have migrated, and is not a replacement for type/build/browser checks.
 
 Review every module for one shell, one stylesheet entry, semantic tokens, consistent table/form/detail adapters, accessible empty/error/read-only/disabled/selected/focus states, existing query/context restoration and unchanged request recovery. No direct module ConfigProvider, second sidebar/topbar or ad hoc feedback provider. The admission script is wired into CI; runtime outcomes remain pending until Actions completes.
 
@@ -47,4 +51,11 @@ Local heavy execution remains prohibited by the project resource gate. All local
 
 CI has one sequential verification job, a 45-minute timeout, cancellation of superseded PR runs and three-day retention for selected JSON summaries. Screenshots, source archives, business media and database dumps are not uploaded. No production credentials or data are required. Push/PR authorization does not authorize merging or deployment.
 
-Remaining migration: install a verified AntD6/ProComponents combination, replace the transitional Shell adapter, migrate legacy Arco views and domain-backed tables/forms/details, then perform full interaction/status/contrast regression. This Draft does not claim that target architecture is complete.
+Remaining admission sequence:
+
+1. Generate/review/commit the dependency lock and validate this catalog/editor/overview vertical slice in both browsers; keep every original domain recovery test.
+2. Migrate daily work/tasks, imports/candidates/intake/recycle, distribution/listings/collections, sales/inquiries/settlements, procurement/sources, dictionaries/settings/operations/jobs/audit through reusable Foundation record/form/detail adapters. All currently share the branded shell/tokens but retain domain-owned DOM controls.
+3. Consolidate dialog/feedback adapters while preserving native submission, same-key request snapshots, version/session conflict and upload completion. Validate empty/error/read-only/disabled/selected/focus states.
+4. Remove retired stylesheet/vendor dependency scaffolding after full contrast/geometry/interaction regression.
+
+This Draft does not claim that target architecture is complete. No local preview has been started; do not present a hypothetical URL as a verified preview.
