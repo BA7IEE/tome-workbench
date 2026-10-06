@@ -216,9 +216,10 @@ for (const width of [1440, 390]) {
     await expect(
       page.locator("tbody tr:not(.ant-table-measure-row)").first(),
     ).toContainText(items[30].code);
-    await expect(
-      page.getByRole("combobox", { name: "每页数量", exact: true }),
-    ).toContainText("60 件/页");
+    // AntD exposes its search input as combobox; the selected label is a sibling.
+    await expect(page.locator(".catalog-pagination .ant-select")).toContainText(
+      "60 件/页",
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 2,
