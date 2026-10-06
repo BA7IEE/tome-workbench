@@ -75,8 +75,12 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
   await expect(page.getByLabel("筛选品类", { exact: true })).toHaveValue("BAG");
   await clearDictionary(page, "品牌");
   await page.getByLabel("搜索商品", { exact: true }).press("Enter");
-  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
-  await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(a.code);
+  await expect(
+    page.locator("tbody tr:not(.ant-table-measure-row)"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator("tbody tr:not(.ant-table-measure-row)"),
+  ).toContainText(a.code);
   await expect(page.locator("#bulk-toolbar")).toBeHidden();
 });
 
@@ -135,10 +139,12 @@ for (const width of [1440, 390]) {
         }),
       );
     await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(30);
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(
-      items[30].code,
-    );
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(30);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[30].code);
     if (width > 1000) {
       const alignment = await page
         .locator("#catalog-search")
@@ -159,22 +165,58 @@ for (const width of [1440, 390]) {
     }
     await page.getByLabel("选择 " + items[30].code, { exact: true }).check();
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
+    // Cloud-only diagnostic for the real popup; retain normal click actionability.
+    console.log(
+      "Foundation select popup geometry",
+      await page.evaluate(() => {
+        const option = document.querySelector(
+          '[role="option"][title="最早录入"]',
+        );
+        const popup = option?.closest(".ant-select-dropdown");
+        if (!option || !popup) return { missing: true };
+        const rect = option.getBoundingClientRect();
+        const style = getComputedStyle(popup);
+        const intercept = document.elementFromPoint(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2,
+        );
+        return {
+          option: rect.toJSON(),
+          popup: popup.getBoundingClientRect().toJSON(),
+          inline: popup.getAttribute("style"),
+          position: style.position,
+          top: style.top,
+          left: style.left,
+          right: style.right,
+          zIndex: style.zIndex,
+          intercept: intercept?.outerHTML.slice(0, 250),
+        };
+      }),
+    );
     await page.getByRole("option", { name: "最早录入", exact: true }).click();
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(items[0].code);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[0].code);
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByLabel("下一页", { exact: true }).click();
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(items[30].code);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(1);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toContainText(items[30].code);
     await page.getByRole("combobox", { name: "每页数量", exact: true }).click();
     await page.getByRole("option", { name: "60 件/页", exact: true }).click();
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(31);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(31);
     await expect(page.locator(".catalog-count")).toContainText("第 1 / 1 页");
     await expect(page.locator("#bulk-toolbar")).toContainText("已选 1 件");
     await page.getByRole("combobox", { name: "排序", exact: true }).click();
     await page.getByRole("option", { name: "最新录入", exact: true }).click();
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)").first()).toContainText(
-      items[30].code,
-    );
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)").first(),
+    ).toContainText(items[30].code);
     await expect(
       page.getByRole("combobox", { name: "每页数量", exact: true }),
     ).toContainText("60 件/页");
@@ -410,7 +452,9 @@ for (const width of [1440, 390]) {
     }
     // Approved Foundation surface, selection and focus tokens replace the legacy blue palette.
     await page.goto("/#/items?q=" + encodeURIComponent("系统样式 " + key));
-    await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
+    await expect(
+      page.locator("tbody tr:not(.ant-table-measure-row)"),
+    ).toHaveCount(1);
     await expect(
       page.getByRole("button", { name: "列表", exact: true }),
     ).toHaveCSS("background-color", "rgb(237, 227, 215)");
