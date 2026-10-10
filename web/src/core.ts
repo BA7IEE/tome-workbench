@@ -140,15 +140,19 @@ export async function request<T>(
     signal: AbortSignal.timeout(45000),
   }).catch(() => {
     throw new ApiError(
-      "网络中断，提交结果可能未确认。请保留当前内容重试。",
-      "NETWORK_UNCERTAIN",
+      method === "GET"
+        ? "网络中断，未能读取数据。请重新读取页面。"
+        : "网络中断，提交结果可能未确认。请保留当前内容重试。",
+      method === "GET" ? "READ_FAILED" : "NETWORK_UNCERTAIN",
       0,
     );
   });
   const json = await r.json().catch(() => {
     throw new ApiError(
-      "响应未完整收到，请核对结果后使用原请求重试。",
-      "RESPONSE_UNCERTAIN",
+      method === "GET"
+        ? "数据未完整收到，请重新读取页面。"
+        : "响应未完整收到，请核对结果后使用原请求重试。",
+      method === "GET" ? "READ_RESPONSE_INVALID" : "RESPONSE_UNCERTAIN",
       0,
     );
   });

@@ -155,3 +155,22 @@ test("Foundation mobile keeps named navigation and a single logout", async ({
     page.getByRole("button", { name: "退出登录", exact: true }),
   ).toBeVisible();
 });
+
+test("Foundation read failure explains retry without implying a submitted write", async ({
+  page,
+}) => {
+  await login(page);
+  const catalogUrl = page.url();
+  const failRead = (route) => route.abort("failed");
+  await page.route("**/api/items?*", failRead);
+  await page.reload();
+  const error = page.locator(".foundation-page-error");
+  await expect(error).toContainText("未能读取数据");
+  await expect(error).not.toContainText("提交结果");
+  await expect(error.getByRole("button", { name: "重新读取" })).toBeVisible();
+  await page.unroute("**/api/items?*", failRead);
+  await error.getByRole("button", { name: "重新读取" }).click();
+  await expect(page.locator(".catalog-page")).toBeVisible();
+  await expect(page.locator(".foundation-page-error")).toHaveCount(0);
+  expect(page.url()).toBe(catalogUrl);
+});
