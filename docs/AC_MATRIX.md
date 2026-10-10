@@ -1,5 +1,7 @@
 # 蓝图 v1.1.1 · 当前实现覆盖矩阵
 
+批量菜单滚动修复补充 AC17/24 的选择连续性：`arco-workspace.spec.cjs`、`ui08.spec.cjs` 扩展桌面/手机菜单内部真实 wheel 滚动、选择保持和 Escape 回焦断言。新增断言尚未执行，完整验收 NOT_RUN；不改变长期蓝图覆盖状态，见 [BULK-MENU-SCROLL](BULK-MENU-SCROLL.md)。
+
 **状态不是测试通过数。**“内部覆盖”表示本版有对应核心路径；“部分”明确限制；“后续”不作为交付完成。具体测试日志以docs/VALIDATION.md和reports为准。正式业务UAT尚未由经营者完成。
 
 | AC | 本版边界 | 蓝图场景 | 说明 |

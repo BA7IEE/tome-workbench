@@ -370,6 +370,23 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
       return r.top >= 0 && r.bottom < innerHeight;
     }),
   ).toBe(true);
+  const more = toolbar.locator(".bulk-more > summary");
+  await more.click();
+  const menu = toolbar.locator(".bulk-more > div");
+  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  const box = await menu.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + 30);
+  await page.mouse.wheel(0, 40);
+  await expect
+    .poll(() => menu.evaluate((el) => el.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(toolbar.locator(".bulk-more")).toHaveAttribute("open", "");
+  await expect(toolbar).toContainText("已选 5 件");
+  await page.keyboard.press("Escape");
+  await expect(more).toBeFocused();
+  await expect(toolbar.locator(".bulk-more")).not.toHaveAttribute("open", "");
   await toolbar.getByRole("button", { name: "取消选择", exact: true }).click();
   await expect(toolbar).toBeHidden();
   await page.locator(".catalog-row-menu").last().click();

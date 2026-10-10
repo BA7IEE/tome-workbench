@@ -63,6 +63,20 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
   await expect(
     page.getByRole("button", { name: "批量定价", exact: true }),
   ).toBeVisible();
+  const menu = page.locator(".bulk-more > div");
+  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  const box = await menu.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + 30);
+  await page.mouse.wheel(0, 40);
+  await expect
+    .poll(() => menu.evaluate((el) => el.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(page.locator(".bulk-more")).toHaveAttribute("open", "");
+  await expect(
+    page.getByLabel("选择 " + a.code, { exact: true }),
+  ).toBeChecked();
   await page.keyboard.press("Escape");
   await expect(more).toBeFocused();
   await expect(

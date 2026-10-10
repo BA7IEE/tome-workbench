@@ -5348,6 +5348,7 @@
     min-width: 180px;
     max-height: 50vh;
     overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--ui-border);
     background: #fff;
     border-radius: 4px;
