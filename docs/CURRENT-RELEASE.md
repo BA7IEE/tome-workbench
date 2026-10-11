@@ -1,5 +1,7 @@
 # 当前发布事实
 
+本轮已批准实施 CSP nonce 修复：实际 HTTP 和定向检查通过，真实 AntD 框架浏览器验收因 Browser Use 授权调用异常而未完成。方案、现状及云端 gate 见 [STYLE-CSP](STYLE-CSP.md)。不是生产发布或完整验证证明。
+
 本轮普通 UX 候选基于已合并 AntD 6 + ProComponents Foundation 的 `main@cf7565a`：迁移保留批量菜单内部滚动修复，GET 失败提示明确重新读取，不再暗示提交未确认；写入恢复规则不变。详见 [UX 读取反馈](UX-READ-FEEDBACK.md)。完整回归与部署 NOT_RUN，CSP nonce 草稿未提交、不属于该普通 UX 候选。
 
 商品库批量菜单滚动修复候选：菜单内部滚动保持打开，边缘滚动不传给页面；选择、外部点击与 Escape 规则保持。仅轻量检查通过，新增双浏览器断言尚未运行，完整 release gate/打包/上线 NOT_RUN；详见 [批量菜单滚动](BULK-MENU-SCROLL.md)。

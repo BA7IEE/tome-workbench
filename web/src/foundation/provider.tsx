@@ -6,9 +6,17 @@ import { antDesignTokenSeed, designTokens } from "./tokens";
 
 /** One brand provider for every real page root, including lifecycle-owned islands. */
 export function ToMeProvider({ children }: { children: ReactNode }) {
+  const styleNonce = document.querySelector<HTMLMetaElement>(
+    'meta[name="tome-style-nonce"]',
+  )?.content;
+  const csp =
+    styleNonce && /^[A-Za-z0-9_-]{32}$/.test(styleNonce)
+      ? { nonce: styleNonce }
+      : undefined;
   return (
     <StyleProvider layer>
       <ConfigProvider
+        csp={csp}
         locale={{
           ...zhCN,
           Pagination: { ...zhCN.Pagination, items_per_page: "件/页" },

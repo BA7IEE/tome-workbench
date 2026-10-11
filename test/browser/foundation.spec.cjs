@@ -174,3 +174,68 @@ test("Foundation read failure explains retry without implying a submitted write"
   await expect(page.locator(".foundation-page-error")).toHaveCount(0);
   expect(page.url()).toBe(catalogUrl);
 });
+
+for (const width of [1440, 390]) {
+  test(`Foundation ${width}px: real CSP authorizes AntD styles and blocks an untrusted style`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/#/items");
+    const nonce = await page
+      .locator('meta[name="tome-style-nonce"]')
+      .getAttribute("content");
+    expect(nonce).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    const policy = response.headers()["content-security-policy"];
+    expect(policy).toContain(`style-src 'self' 'nonce-${nonce}`);
+    expect(policy).toContain("script-src 'self';");
+    expect(policy).not.toContain("unsafe-inline");
+    await fillLogin(page, fixture.email, fixture.password);
+    await submitLogin(page);
+    await expect(page.locator(".catalog-page")).toBeVisible();
+    const styles = await page.evaluate(() => {
+      const nonce = document.querySelector(
+        'meta[name="tome-style-nonce"]',
+      ).content;
+      const generated = [...document.querySelectorAll("style[data-css-hash]")];
+      return {
+        count: generated.length,
+        valid: generated.every((style) => style.sheet && style.nonce === nonce),
+      };
+    });
+    expect(styles.count).toBeGreaterThan(0);
+    expect(styles.valid).toBe(true);
+    await expect(page.locator(".catalog-pagination .ant-pagination")).toHaveCSS(
+      "list-style-type",
+      "none",
+    );
+    const sort = page.getByRole("combobox", { name: "排序", exact: true });
+    await sort.click();
+    await expect(page.locator(".ant-select-dropdown").last()).toBeVisible();
+    await sort.press("Escape");
+    const denied = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const style = document.createElement("style");
+          style.textContent = ".tome-denied-csp-probe{outline-width:17px}";
+          const violation = (event) => {
+            if (!event.effectiveDirective.startsWith("style-src")) return;
+            document.removeEventListener("securitypolicyviolation", violation);
+            resolve({
+              blocked: style.sheet === null,
+              directive: event.effectiveDirective,
+            });
+            style.remove();
+          };
+          document.addEventListener("securitypolicyviolation", violation);
+          document.head.append(style);
+        }),
+    );
+    expect(denied.blocked).toBe(true);
+    expect(denied.directive).toMatch(/^style-src/);
+    const next = await page.request.get("/");
+    expect(next.headers()["content-security-policy"]).not.toContain(
+      `'nonce-${nonce}'`,
+    );
+    expect(next.headers()["cache-control"]).toBe("no-store");
+  });
+}

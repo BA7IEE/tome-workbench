@@ -1,6 +1,6 @@
 import { APP_VERSION } from "./version";
 import { authorizationContext } from "./auth/request-context";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { RequestMonitor } from "./operations/request-monitor";
 import { NestFactory } from "@nestjs/core";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
@@ -11,6 +11,12 @@ import { join } from "node:path";
 import { AppModule } from "./app";
 import { config } from "./common/config";
 import { ErrorFilter } from "./common/errors";
+import {
+  contentSecurityPolicy,
+  createStyleNonce,
+  renderStyleNonce,
+  styleNonceForResponse,
+} from "./common/style-csp";
 import { setOpenApi } from "./system.controller";
 export async function createApp() {
   const cfg = config();
@@ -29,18 +35,7 @@ export async function createApp() {
   app.use(app.get(RequestMonitor).middleware);
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'"],
-          imgSrc: ["'self'", "blob:", "data:"],
-          connectSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-          upgradeInsecureRequests: cfg.secure ? [] : null,
-        },
-      },
+      contentSecurityPolicy: contentSecurityPolicy(cfg.secure),
     }),
   );
   app.use(express.json({ limit: "1mb" }));
@@ -67,15 +62,15 @@ export async function createApp() {
     }),
   );
   const indexFile = join(__dirname, "web/index.html");
-  // sendFile otherwise treats a hidden parent directory (for example a
-  // managed .codex worktree) as a dotfile and rejects this fixed entrypoint.
-  // The path is not derived from request input and does not expose a directory.
-  server.get("/", (_req, res) =>
-    res.sendFile(indexFile, { dotfiles: "allow" }),
-  );
-  server.get("/showroom", (_req, res) =>
-    res.sendFile(indexFile, { dotfiles: "allow" }),
-  );
+  const indexHtml = await readFile(indexFile, "utf8");
+  // Fail startup on mismatched API/frontend artifacts; never serve a cached nonce.
+  renderStyleNonce(indexHtml, createStyleNonce());
+  server.get(["/", "/showroom"], (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res
+      .type("html")
+      .send(renderStyleNonce(indexHtml, styleNonceForResponse(res)));
+  });
   setOpenApi(
     SwaggerModule.createDocument(
       app,

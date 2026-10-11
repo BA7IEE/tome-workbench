@@ -1,5 +1,7 @@
 # 蓝图 v1.1.1 · 当前实现覆盖矩阵
 
+CSP 动态样式映射见 [STYLE-CSP](STYLE-CSP.md)、`test/style-csp.test.cjs` 与 Foundation 1440/390px 断言；前者实际 HTTP 检查通过，后者尚未运行。领域覆盖状态保持不变。
+
 普通 UX 读取失败/恢复及批量菜单滚动映射见 [UX-READ-FEEDBACK](UX-READ-FEEDBACK.md)；浏览器回归位于 `foundation.spec.cjs`、`arco-workspace.spec.cjs`、`ui08.spec.cjs`，新增用例未运行。领域覆盖状态不因轻量验证改变。
 
 批量菜单滚动修复补充 AC17/24 的选择连续性：`arco-workspace.spec.cjs`、`ui08.spec.cjs` 扩展桌面/手机菜单内部真实 wheel 滚动、选择保持和 Escape 回焦断言。新增断言尚未执行，完整验收 NOT_RUN；不改变长期蓝图覆盖状态，见 [BULK-MENU-SCROLL](BULK-MENU-SCROLL.md)。
