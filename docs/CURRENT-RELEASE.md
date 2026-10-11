@@ -1,5 +1,7 @@
 # 当前发布事实
 
+PR #57 的安全 gate 发现原 sharp 0.35.4 高危漏洞，现增加独立兼容补丁 0.35.5 及匹配平台锁项；AntD 版本与经营规则不变，见 [Sharp 安全补丁](SHARP-SECURITY-PATCH.md)。完整回归以新固定 head 的 CI 为准。
+
 本轮已批准实施 CSP nonce 修复：实际 HTTP 和定向检查通过，真实 AntD 框架浏览器验收因 Browser Use 授权调用异常而未完成。方案、现状及云端 gate 见 [STYLE-CSP](STYLE-CSP.md)。不是生产发布或完整验证证明。
 
 本轮普通 UX 候选基于已合并 AntD 6 + ProComponents Foundation 的 `main@cf7565a`：迁移保留批量菜单内部滚动修复，GET 失败提示明确重新读取，不再暗示提交未确认；写入恢复规则不变。详见 [UX 读取反馈](UX-READ-FEEDBACK.md)。其后已另行批准实施 CSP nonce 修复，见上方说明；完整回归与部署仍 NOT_RUN。

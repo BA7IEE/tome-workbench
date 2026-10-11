@@ -60,7 +60,7 @@
     "react-dom": "18.3.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "zod": "3.25.76",
     "antd": "6.6.5",
     "@ant-design/pro-components": "3.1.15-5",
