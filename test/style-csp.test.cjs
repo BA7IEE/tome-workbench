@@ -2,6 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { createServer } = require("node:http");
+const vm = require("node:vm");
 const helmet = require("helmet");
 const {
   contentSecurityPolicy,
@@ -10,6 +11,33 @@ const {
   styleNonceForResponse,
 } = require("../dist/common/style-csp");
 const template = readFileSync("web/index.html", "utf8");
+
+test("pinned Pro token registration forwards scoped nonce and fails closed on upstream changes", async () => {
+  const { patchProTokenNonce } = await import("../scripts/pro-csp-compat.mjs");
+  const source = `useCacheToken(theme, tokens, {
+        override: finalToken,
+        cssVar: { key: 'pro' }
+  });`;
+  for (const csp of [{ nonce: createStyleNonce() }, undefined]) {
+    let registered;
+    vm.runInNewContext(patchProTokenNonce(source, "3.1.15-5"), {
+      theme: {},
+      tokens: [],
+      finalToken: {},
+      restConfig: { csp },
+      useCacheToken: (_theme, _tokens, options) => {
+        registered = options;
+      },
+    });
+    assert.equal(registered.nonce, csp?.nonce);
+    assert.equal(registered.cssVar.key, "pro");
+  }
+  assert.throws(() => patchProTokenNonce(source, "future-version"));
+  assert.throws(() =>
+    patchProTokenNonce("changed upstream source", "3.1.15-5"),
+  );
+  assert.throws(() => patchProTokenNonce(source + source, "3.1.15-5"));
+});
 
 test("style nonce is random per response, shared with its header, and template fails closed", () => {
   const first = {},

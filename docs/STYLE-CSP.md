@@ -1,5 +1,7 @@
 # AntD 动态样式 CSP nonce 修复
 
+云端 PR #57 已获运行授权。`7d60b54` 的 run 38185296901 有 189 项 Chromium 通过、两项 CSP 检查失败，均为 Pro token 变量样式（hash `ev58n5`、token `pro`）缺 nonce；手机每页数量与菜单滚动已通过。固定 ProComponents 3.1.15-5 的已发布源码在普通样式注册中传 nonce，但 `provider/index.js` 的 `useCacheToken` 漏传。现以受版本与唯一源码位置校验的 Vite build 兼容处理，给该既有注册传入 `restConfig.csp?.nonce`；源位置或版本变化即拒绝构建，不给任意 DOM style 补授权，也不改框架版本或 CSP。三项定向 HTTP/compat 单测通过，完整两浏览器结果以最终固定 head 的 CI 为准。
+
 基线为已合并 Foundation 的 `main@cf7565a`，Ant Design 6.6.5、ProComponents 3.1.15-5、CSS-in-JS 2.1.2；保留批量菜单修复 `691f494` 和读取反馈 `89ad371`。用户已明确批准实施和隔离测试，未授权生产部署。
 
 ## 问题与变更
@@ -16,8 +18,8 @@ bootstrap 缓存固定前端模板，每份 `/` 和 `/showroom` HTML 单独替�
 - PASS：实际 provider.tsx 的合法/占位/非法/缺失 nonce 参数转发检查；这是 stub JSX/component 检查，不代表 AntD 已实际渲染。
 - PASS：定向 helper + Helmet 类型兼容检查，改动源码/测试 ESLint、Prettier、脚本语法、Foundation admission 和 diff 空白检查。
 - PASS：实际 core.request 七项无网络读取/写入/同键检查和实际 catalog-menu 九项监听器检查。此前单个 Chrome 合成 DOM 在桌面与 390px 验证了菜单内部滚动、选择保持、Escape 回焦、末项点击、页面滚动关闭与取消；不代表新的 CSP 框架回归。
-- NOT_RUN：本轮真实 AntD 排序/筛选/分页、无 nonce style 被浏览器阻止及完整多选回归。一次 Browser Use CDP 调用从生产 origin 切至本机 `http://127.0.0.1:4328` 后卡在 full Chrome DevTools 授权，最终报 kernel signal 9；未循环重试，无法确认批准是否保存。恢复 turn 中该 Browser Use/CDP 工具已不可调用，没有改用其他路径控制用户 Chrome 来绕过权限。
-- NOT_RUN：完整 dependency install、typecheck/build、PostgreSQL、Chromium/WebKit、audit、release/pack、新云端 CI、push/merge/deploy。Mac 不执行重负载测试，也不复用基线 CI 的指纹。
+- 本机 Browser Use：一次 CDP 调用从生产 origin 切至本机 `http://127.0.0.1:4328` 后卡在 full Chrome DevTools 授权，最终报 kernel signal 9；未循环重试，无法确认批准是否保存。恢复 turn 中该工具不可调用，没有改用其他路径控制用户 Chrome 绕过权限。后续验证改由已授权且隔离的 GitHub Chromium/WebKit 流程执行。
+- 本机 NOT_RUN：完整 dependency install/typecheck/build、数据库、全量浏览器与 release/pack；Mac 不执行重负载。云端实际结果记录在 PR #57 的对应 run，不复用基线指纹。merge/deploy 仍未执行。
 
 4328 合成测试服务在恢复核查时已无监听，未再次启动；没有生产记录写入。
 
@@ -25,4 +27,4 @@ bootstrap 缓存固定前端模板，每份 `/` 和 `/showroom` HTML 单独替�
 
 `test/style-csp.test.cjs` 已接入 test:unit。Foundation suite 在 1440/390px 下通过真实 bootstrap/header 验证 AntD 生成 style 的 nonce/sheet、Pagination 无圆点、Select 正常打开/Escape，以及无 nonce style 被拒绝和重新请求 nonce 不同。原商品排序/每页数量/跨页选择/筛选保留场景与批量滚动断言继续在既有 browser suites 中，两种浏览器范围一致。
 
-这些浏览器断言已经准备，尚未执行，不能写成通过。推荐下一步将固定修复 head 推送至 `BA7IEE/tome-workbench` 的独立修复分支并创建 draft PR，复用现有 ci.yml 的单 worker、独立合成 PostgreSQL、Chromium/WebKit 完整 gate；不增加权限、工作流、secret、生产访问或部署。云端运行需要先获得该 push/PR 范围的明确批准。只读浏览器工具恢复也可继续现有授权测试，不应反复重开同一权限窗。
+浏览器断言保留，包括生成 style 的 nonce/sheet、无 nonce style 的实际拒绝、排序几何和菜单滚动。已获准推送独立分支并创建 draft PR #57，复用现有 ci.yml 的单 worker、独立合成数据库、两浏览器完整 gate；不增加权限、工作流、secret、生产访问或部署。通过状态只按最终固定 head 的结果记录；本机不反复重开同一权限窗。
