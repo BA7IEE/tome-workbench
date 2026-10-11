@@ -64,6 +64,11 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
     page.getByRole("button", { name: "批量定价", exact: true }),
   ).toBeVisible();
   const menu = page.locator(".bulk-more > div");
+  // With vendor styles restored a short action list can fit. Constrain only this
+  // panel to exercise the internal-scroll regression without changing actions.
+  await menu.evaluate((el) => {
+    el.style.maxHeight = "120px";
+  });
   expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
     true,
   );

@@ -203,11 +203,18 @@ for (const width of [1440, 390]) {
       const generated = [...document.querySelectorAll("style[data-css-hash]")];
       return {
         count: generated.length,
-        valid: generated.every((style) => style.sheet && style.nonce === nonce),
+        invalid: generated
+          .filter((style) => !style.sheet || style.nonce !== nonce)
+          .map((style) => ({
+            hash: style.getAttribute("data-css-hash"),
+            token: style.getAttribute("data-token-hash"),
+            hasSheet: !!style.sheet,
+            nonceMatches: style.nonce === nonce,
+          })),
       };
     });
     expect(styles.count).toBeGreaterThan(0);
-    expect(styles.valid).toBe(true);
+    expect(styles.invalid).toEqual([]);
     await expect(page.locator(".catalog-pagination .ant-pagination")).toHaveCSS(
       "list-style-type",
       "none",

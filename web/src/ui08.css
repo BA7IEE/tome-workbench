@@ -5889,6 +5889,9 @@
     .arco-workspace .ant-card-body { padding: 16px; }
     .catalog-display-controls { width: 100%; margin-left: 0; justify-content: space-between; }
     .catalog-order > .ant-select { width: 140px; }
+    /* AntD hides this below 576px; catalog users still need the page-size control. */
+    .catalog-pagination .ant-pagination-options { display: inline-flex; align-items: center; margin-inline-start: 0; }
+    .catalog-pagination .ant-pagination-total-text { flex-basis: 100%; }
   }
 }
 
