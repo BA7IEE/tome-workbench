@@ -2,7 +2,7 @@
 
 本轮 CSP 候选已获实施授权，实际 HTTP/模板/定向检查及未运行范围见 [STYLE-CSP](STYLE-CSP.md)。新 Chromium/WebKit 回归未运行；以下历史完整指纹不能验证本轮候选。
 
-本轮普通 UX 增量的定向本机检查与 NOT_RUN 边界见 [UX-READ-FEEDBACK](UX-READ-FEEDBACK.md)。其来源为 AntD Foundation `cf7565a`；本文件以下历史完整结果不能验证本轮改动。CSP 草稿尚未提交且未验证。
+本轮普通 UX 增量的定向本机检查与 NOT_RUN 边界见 [UX-READ-FEEDBACK](UX-READ-FEEDBACK.md)。其来源为 AntD Foundation `cf7565a`；本文件以下历史完整结果不能验证本轮改动。CSP 后续修复的实际状态以 [STYLE-CSP](STYLE-CSP.md) 为准。
 
 2026-10-10 商品库批量菜单滚动修复候选只通过轻量检查，完整发布验证和新增双浏览器断言 NOT_RUN，未部署。下方历史指纹不证明本次改动通过。当前范围及待验收步骤见 [BULK-MENU-SCROLL](BULK-MENU-SCROLL.md)。
 

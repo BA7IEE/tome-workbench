@@ -161,14 +161,18 @@ test("Foundation read failure explains retry without implying a submitted write"
 }) => {
   await login(page);
   const catalogUrl = page.url();
-  const failRead = (route) => route.abort("failed");
-  await page.route("**/api/items?*", failRead);
+  const catalogRead = /\/api\/items(?:\?.*)?$/;
+  const failRead = (route) =>
+    route.request().method() === "GET"
+      ? route.abort("failed")
+      : route.continue();
+  await page.route(catalogRead, failRead);
   await page.reload();
   const error = page.locator(".foundation-page-error");
   await expect(error).toContainText("未能读取数据");
   await expect(error).not.toContainText("提交结果");
   await expect(error.getByRole("button", { name: "重新读取" })).toBeVisible();
-  await page.unroute("**/api/items?*", failRead);
+  await page.unroute(catalogRead, failRead);
   await error.getByRole("button", { name: "重新读取" }).click();
   await expect(page.locator(".catalog-page")).toBeVisible();
   await expect(page.locator(".foundation-page-error")).toHaveCount(0);
@@ -208,6 +212,27 @@ for (const width of [1440, 390]) {
       "list-style-type",
       "none",
     );
+    const sortLayout = await page
+      .locator(".catalog-order > .ant-select")
+      .evaluate((select) => {
+        const bounds = select.getBoundingClientRect();
+        const arrow = select
+          .querySelector(".ant-select-suffix")
+          .getBoundingClientRect();
+        const value = select
+          .querySelector(".ant-select-content")
+          .getBoundingClientRect();
+        return {
+          height: bounds.height,
+          arrowInside:
+            arrow.top >= bounds.top - 1 && arrow.bottom <= bounds.bottom + 1,
+          valueInside:
+            value.top >= bounds.top - 1 && value.bottom <= bounds.bottom + 1,
+        };
+      });
+    expect(sortLayout.height).toBeLessThanOrEqual(48);
+    expect(sortLayout.arrowInside).toBe(true);
+    expect(sortLayout.valueInside).toBe(true);
     const sort = page.getByRole("combobox", { name: "排序", exact: true });
     await sort.click();
     await expect(page.locator(".ant-select-dropdown").last()).toBeVisible();
