@@ -349,6 +349,8 @@ test("快速录货首次建档回执丢失，关闭再开核对原请求仍只�
   await expect(dialog.getByRole("alert")).toContainText("提交结果可能未确认");
   page.once("dialog", (d) => d.accept());
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("#catalog-search")).toBeVisible();
   await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);
@@ -360,4 +362,53 @@ test("快速录货首次建档回执丢失，关闭再开核对原请求仍只�
   expect(result.total).toBe(1);
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
+});
+
+test("快速录货图片真实保存丢回执后登录失效，保留未知尝试并原键核对", async ({ page }) => {
+  const title = "图片回执与登录核对 " + randomUUID();
+  let lost = false;
+  const keys = [];
+  await page.route("**/api/assets/upload", async route => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (!lost) {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      lost = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.goto("/#/items");
+  await page.getByRole("button", {name:"＋ 快速录入我方现货",exact:true}).click();
+  const d=page.getByRole("dialog",{name:"快速录入我方现货"});
+  await d.getByLabel("商品名称",{exact:true}).fill(title);
+  await d.getByLabel("商品图片",{exact:true}).setInputFiles(await quickIntakeImage("lost-image.png"));
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d.getByRole("alert")).toContainText("结果待确认");
+  const auth=await (await page.request.get("/api/auth/me")).json();
+  const items=await (await page.request.get("/api/items?q="+encodeURIComponent(title))).json();
+  expect(items.total).toBe(1);
+  const itemId=items.rows[0].id;
+  await api(page,"/auth/logout",{});
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d.getByRole("button",{name:"重新登录并保留输入",exact:true})).toBeVisible();
+  const queue=await page.evaluate(async key => {
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open("tome-work-recovery",1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic recovery read failed"));});
+    const value=await new Promise((resolve,reject)=>{const r=db.transaction("work","readonly").objectStore("work").get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic recovery read failed"));});db.close();
+    return value.map(job=>({uncertain:job.uncertain,state:job.state}));
+  },`images:${auth.user.id}:${itemId}`);
+  expect(queue).toEqual([{uncertain:true,state:"结果待确认"}]);
+  await d.getByRole("button",{name:"重新登录并保留输入",exact:true}).click();
+  const loginDialog=page.getByRole("dialog",{name:"恢复登录"});
+  await loginDialog.getByLabel("密码",{exact:true}).fill(fixture.password);
+  const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/auth/login"&&r.request().method()==="POST");
+  await loginDialog.getByRole("button",{name:"恢复登录",exact:true}).click();
+  expect((await receipt).ok()).toBe(true);
+  await expect(loginDialog).not.toBeVisible();
+  await expect(d.getByRole("alert")).toContainText("登录已恢复");
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d).not.toBeVisible();
+  expect(keys).toHaveLength(3);expect(new Set(keys).size).toBe(1);
+  const saved=await (await page.request.get(`/api/items/${itemId}`)).json();
+  expect(saved.assets).toHaveLength(1);expect(saved.assets[0].originalName).toBe("lost-image.png");
+  expect((await (await page.request.get("/api/items?q="+encodeURIComponent(title))).json()).total).toBe(1);
 });

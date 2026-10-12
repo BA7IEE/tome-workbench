@@ -248,12 +248,10 @@ export async function quickIntake(
             },
           );
         } catch (error) {
-          job.state =
+          job.uncertain = job.uncertain ||
             error instanceof ApiError &&
-            (error.status === 0 || error.status >= 500)
-              ? "结果待确认"
-              : "未保存";
-          job.uncertain = job.state === "结果待确认";
+            (error.status === 0 || error.status >= 500);
+          job.state = job.uncertain ? "结果待确认" : "未保存";
           job.error = (error as Error).message;
           await saveWork(storage, pending);
           if (statusEl)

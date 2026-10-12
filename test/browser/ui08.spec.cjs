@@ -802,7 +802,7 @@ test("转交未选品牌的草稿保留原输入，完整页仍要求人工选�
   const rawBrand = "未选中的品牌 " + randomUUID();
   await dialog.getByLabel("品牌", { exact: true }).fill(rawBrand);
   await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
-  await expect(page.getByLabel("品牌", { exact: true })).toHaveValue(rawBrand);
+  await expect(page.locator("#product-entry-form").getByLabel("品牌", { exact: true })).toHaveValue(rawBrand);
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".studio-save-feedback .form-error")).toContainText("输入文字不会直接保存");
   const saved = await (await page.request.get("/api/items/" + item.id)).json();
