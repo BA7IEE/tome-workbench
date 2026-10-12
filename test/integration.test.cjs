@@ -7388,7 +7388,7 @@ test('误确认只读核对使用真实新建回执，保留所有记录并拒�
   const preview=await ok(path);assert.equal(preview.mode,'REVIEW_ONLY');assert.equal(preview.executionAvailable,false);assert.equal(preview.originalConfirmationReceiptId,receipt.id);assert.equal(preview.target.itemId,confirmed.itemId);
   assert.deepEqual(await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}}),before);assert.equal((await item(confirmed.itemId)).version,oldItem.version);assert.deepEqual((await db.receipt.findUniqueOrThrow({where:{id:receipt.id}})).response,receipt.response);
   assert.equal((await api(path,'GET',undefined,operator)).status,403);assert.equal((await api(path,'GET',undefined,viewer)).status,403);
-  await db.purchaseOrderCostBasis.create({data:{orderId:x.order.id,mode:'CASH_CNY',cashPaidCny:1000,overheadCny:0,note:'合成整单依据',updatedBy:admin.id}});
+  await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:1000,overheadCny:0,note:'合成整单依据',confirmed:true});
   const blocked=await ok(path);assert.equal(blocked.candidateEligible,false);assert.equal(blocked.proposedTransition,null);assert.ok(blocked.blockers.some(b=>b.code==='HAS_ORDERCOSTBASIS'));assert.notEqual(blocked.digest,preview.digest);
   const c2=x.imported.rows[1];await ok(`/ingest/candidates/${c2.id}/link-item`,'POST',{version:c2.version,itemRef:confirmed.code,possession:'IN_HAND',note:'合成共享 TM 核对'});
   const linked=await ok(`/ingest/candidates/${c2.id}/confirmation-correction-preview`);assert.equal(linked.candidateEligible,false);assert.equal(linked.originalConfirmationReceiptId,null);assert.ok(linked.blockers.some(b=>b.code==='CREATION_PROOF_MISSING'));

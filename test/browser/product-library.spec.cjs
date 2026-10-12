@@ -1080,6 +1080,7 @@ test("误确认核对只读取证据并显示阻断说明，取消不改来源�
   await card.getByRole('button',{name:'核对误确认条件',exact:true}).click();
   const d=page.getByRole('dialog',{name:'误确认核对 · '+confirmed.code});
   await expect(d).toContainText('这里只核对证据和依赖，不执行撤销');
+  await expect(d).toContainText('当前证据符合单件新建、单一归属且无经营依赖');
   await expect(d.getByRole('button',{name:/确认撤销/})).toHaveCount(0);
   await d.getByRole('button',{name:'关闭',exact:true}).click();
   expect(writes).toEqual([]);
