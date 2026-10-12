@@ -154,6 +154,7 @@ export function Catalog({
 }) {
   const [, update] = useState(0);
   const searchForm = useRef<HTMLFormElement>(null);
+  const [filterPending, setFilterPending] = useState(false);
   const selected = catalogContext().selected;
   const { page, size } = data;
   const view = qs.get("view") || "table";
@@ -236,6 +237,8 @@ export function Catalog({
       };
       const changed =
         catalogFilterScope(new URLSearchParams(filters)) !== scope;
+      if (changed && selected.size)
+        toast("筛选范围已改变，原范围的选择已清除。请在新结果中重新选择。");
       go({
         ...filters,
         ...presentation,
@@ -346,6 +349,8 @@ export function Catalog({
           ref={searchForm}
           id="catalog-search"
           className="catalog-filters admin-filter-form"
+          onInputCapture={() => setFilterPending(true)}
+          onChangeCapture={() => setFilterPending(true)}
           onSubmit={(event) => {
             event.preventDefault();
             applyFilters();
@@ -467,6 +472,19 @@ export function Catalog({
             </div>
           </div>
         </form>
+        <p className="note" role="status" data-filter-scope>
+          当前结果：{qs.get("dataMode") === "TEST" ? "测试商品" : "正式商品"}
+          · {qs.get("status") ? states[qs.get("status")!] : "全部库存状态"}
+          {qs.get("q") ? ` · 搜索“${qs.get("q")}”` : ""}
+          {qs.get("category") ? ` · ${categories[qs.get("category")!]}` : ""}
+          {hasMore ? " · 已应用更多筛选" : ""}。
+          {filterPending
+            ? "筛选输入已改动。搜索、排序、切换视图或翻页会应用当前输入；范围改变会清除原选择。"
+            : "同一筛选范围内排序、切换视图和翻页保留选择。"}
+          <a href={`#/items?dataMode=${qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS"}`}>
+            查看全部库存状态
+          </a>
+        </p>
       </Card>
       <div className="catalog-results-toolbar">
         <div className="catalog-count">

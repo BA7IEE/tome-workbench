@@ -377,6 +377,9 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
     .getByRole("button", { name: "继续处理", exact: true })
     .click();
   await expect(resumed.getByRole("dialog")).not.toBeVisible();
+  const resultPanel = resumed.getByRole("region", { name: "本次批量结果" });
+  await expect(resultPanel).toContainText("3 件成功 · 0 件需核对");
+  await expect(resultPanel.getByRole("link", { name: "继续整理" })).toHaveCount(3);
   const after = await api(
     resumed,
     `/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,

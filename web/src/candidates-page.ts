@@ -27,7 +27,7 @@ import {
   dialogReturnTarget,
 } from "./core";
 import { onPageReady } from "./page-lifecycle";
-import { categories } from "./types";
+import { categories, states } from "./types";
 
 type Source = { id: string; code: string; name: string; active: boolean };
 type Session = {
@@ -67,7 +67,7 @@ type Candidate = {
   sourceItemKey: string;
   procurementSource: Source;
   batch: { id: string; agentName: string; externalBatchKey: string };
-  item?: { id: string; serial: number; title: string } | null;
+  item?: { id: string; serial: number; title: string; status?: string; approvedValid?: boolean } | null;
   assets: CandidateAsset[];
   possibleDuplicateCount: number;
   integrity: CaptureIntegrity;
@@ -392,8 +392,15 @@ async function agentAccess(sources: Source[]) {
 type BulkResult = {
   ok: number;
   failed: number;
-  rows: { id: string; ok: boolean; error?: string; code?: string }[];
+  rows: { id: string; ok: boolean; error?: string; code?: string; itemId?: string }[];
 };
+let lastBulkResult: { owner: string; route: string; plan: PendingBulk; rows: BulkResult["rows"] } | undefined;
+function bulkResultPanel() {
+  if (!lastBulkResult || lastBulkResult.owner !== me?.id || lastBulkResult.route !== location.hash) return "";
+  const { plan, rows } = lastBulkResult;
+  const failed = rows.filter(r => !r.ok);
+  return `<section class="panel" aria-label="本次批量结果"><h2>本次批量结果</h2><p>${rows.length - failed.length} 件成功 · ${failed.length} 件需核对 · 仍选中 ${candidateSelection.size} 件。${plan.exclude ? "排除只影响未建档来源，不撤销已经生成的 TM。" : "建档与资料审核、库存状态分别处理；暂停商品可以通过下列 TM 继续整理。"}</p><details ${rows.length <= 10 ? "open" : ""}><summary>逐件结果与下一步（${rows.length} 件）</summary><ul>${rows.map(r => `<li>${esc(plan.selected.find(c => c.id === r.id)?.titleRaw || "来源候选")} · ${r.ok ? r.itemId ? `<a href="#/items/${esc(r.itemId)}">查看 ${esc(r.code || "TM")}</a> · <a href="#/items/${esc(r.itemId)}/edit">继续整理</a>` : "已排除，原来源记录保留" : `${esc(r.error)} ${button("核对该件", () => showSourceEvidence(r.id))}`}</li>`).join("")}</ul></details></section>`;
+}
 type PendingBulk = {
   key: string;
   exclude: boolean;
@@ -454,6 +461,7 @@ async function finishBulk(
   const rows = Object.values(plan.completed).flatMap((r) => r.rows),
     failed = rows.filter((r) => !r.ok);
   await saveWork(storage, undefined);
+  lastBulkResult = { owner: me!.id, route: location.hash, plan, rows };
   await after();
   if (failed.length)
     viewDialog(
@@ -763,7 +771,7 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>, retu
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {
   if (candidate.item)
-    return `<a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
+    return `<small>库存 ${esc(states[candidate.item.status || ""] || "请查看 TM 核对")} · 资料 ${candidate.item.approvedValid === true ? "已审核" : "待审核"}</small><a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
   if (candidate.decision === "EXCLUDED")
     return button("恢复为待确认", () => candidateRestore(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
@@ -897,12 +905,13 @@ export async function candidatesPage() {
   const pending = await readWork<PendingBulk>(recoveryKey);
   const html = `<div id="${root}" class="candidate-page">
     <a class="btn subtle" href="${esc(importReturn)}">← 返回导入记录</a>
+    ${bulkResultPanel()}
     ${pending ? `<div class="panel recovery-notice"><strong>上次批量处理尚未核对完成 · ${pending.selected.length} 件</strong>${button("继续上次处理", () => resumeBulk(pending, recoveryKey, refresh), "primary")}</div>` : ""}
     <div class="page-title"><div><h1>${decision === "PENDING" ? "待确认商品" : batchId ? "本批商品" : "导入商品记录"}</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
     <div class="candidate-metrics"><div><span>当前结果</span><strong>${data.total}</strong><small>${esc(decisionNames[decision] || "全部")}</small></div><div><span>本页</span><strong>${data.rows.length}</strong><small>${start}—${end}</small></div><div><span>处理方式</span><strong>批量优先</strong><small>异常件再单独调整</small></div></div>
     <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="${scopedHref()}">重置</a></form>
     <div class="candidate-viewbar"><label ${decision === "PENDING" && can("edit") ? "" : "hidden"}><input type="checkbox" id="select-candidate-page"> 选择本页</label><div><a class="btn ${view === "cards" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "cards" })}">图片模式</a><a class="btn ${view === "table" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "table" })}">表格模式</a></div></div>
-    ${decision === "CONFIRMED" ? '<p class="note">这些商品已归入TM。后续文案、成色和库存请进入对应商品维护，下方保留导入时的来源记录。</p>' : ""}<div id="candidate-bulk" class="bulk-toolbar" hidden></div>${body}
+    ${decision === "CONFIRMED" ? '<p class="note">这些来源已归入TM，建档不等于资料已审核。库存暂停表示暂不销售；后续文案、成色和库存请进入对应商品维护，下方保留导入时的来源记录。</p>' : ""}<div id="candidate-bulk" class="bulk-toolbar" hidden></div>${body}
     ${candidatePagination(qs, data, lastPage, root)}
   </div>`;
   onPageReady(root, (el, signal) => {
