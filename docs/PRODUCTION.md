@@ -2,6 +2,8 @@
 
 rc.13 → rc.14 新增 `202610120021_confirmation_compensation` 和 `202610120022_correction_candidate_anchor`。使用原版本停写并生成一致性备份，在固定新源码下带备份清单迁移后统一启动 API/Worker，不能滚动跳过 schema 升级；迁移不撤销任何已有经营记录。合并和生产执行仍需在新 PR 完整验证后另获最终确认。
 
+Docker 构建阶段在运行 `npm run build` 前必须带入 `scripts/pro-csp-compat.mjs`，因为 Vite 配置直接导入该模块。维护窗口前须从完整 CI 通过的固定源码实际构建 runtime 与 migration 两个生产 target，并核对镜像版本与源码身份；普通目录构建成功不代替生产镜像构建成功。
+
 ## 1. 本版可部署边界
 
 目标是单工作空间的内部经营工作台。使用 Docker 运行两个 API、两个 Worker 和独立 PostgreSQL。公网入口正式支持两种模式：`INTERNAL_CADDY` 由本项目 Caddy 提供 HTTPS；`EXTERNAL_REVERSE_PROXY` 由同机外部反向代理提供 HTTPS，1Panel/OpenResty 是当前明确支持的外部入口。Compose 只提供单主机部署，不是跨机房容灾方案。公网启用之前，需要真实域名、独立服务器、访问防护、备份目的地及业务验收负责人。

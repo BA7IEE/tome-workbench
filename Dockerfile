@@ -12,6 +12,7 @@ COPY prisma ./prisma
 COPY src ./src
 COPY web ./web
 COPY agent ./agent
+COPY scripts/pro-csp-compat.mjs ./scripts/pro-csp-compat.mjs
 RUN DATABASE_URL=postgresql://unused:unused@127.0.0.1/tome_build npm run db:generate && npm run build
 FROM build AS migration
 COPY scripts ./scripts
