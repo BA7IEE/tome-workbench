@@ -7395,9 +7395,10 @@ test('误确认只读核对使用真实新建回执，保留所有记录并拒�
   const shared=await ok(path);assert.ok(shared.blockers.some(b=>b.code==='SHARED_OWNERSHIP'));
 });
 
-async function correctionFixture(label) {
+async function correctionFixture(label,withOriginal=false) {
   const x=await setupAgentTrr(label);await sealAgentBatch(x);
   const c=x.imported.rows[0], confirmed=await ok(`/ingest/candidates/${c.id}/confirm`,'POST',{version:c.version,possession:'IN_HAND',status:'PAUSED',acceptIncomplete:true,note:'隔离单条纠错测试'});
+  if(withOriginal) await upload(confirmed.itemId);
   const preview=await ok(`/ingest/candidates/${c.id}/confirmation-compensation-preview`);
   assert.equal(preview.candidateEligible,true,JSON.stringify(preview.blockers));
   const body={candidateVersion:preview.target.candidateVersion,itemVersion:preview.target.itemVersion,purchaseLineVersion:preview.target.purchaseLine?.version||null,digest:preview.digest,code:preview.target.code,reason:'合成误确认撤销',confirmed:true};
@@ -7407,15 +7408,18 @@ function restoreBody(p) {
   return {candidateVersion:p.target.candidateVersion,itemVersion:p.target.itemVersion,purchaseLineVersion:p.target.purchaseLine?.version||null,digest:p.digest,code:p.target.code,reason:'合成组合恢复核对',confirmed:true};
 }
 test('单件误确认与组合恢复原子保留TM、在手事实、原图和原回执，普通恢复拒绝拆开状态',async()=>{
-  const x=await correctionFixture('SYNTHETIC-COMPENSATION-JOINT'), key=randomUUID();
+  const x=await correctionFixture('SYNTHETIC-COMPENSATION-JOINT',true), key=randomUUID();
   const oldCandidate=await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}),oldItem=await db.item.findUniqueOrThrow({where:{id:x.confirmed.itemId}}),oldReceipt=await db.receipt.findFirstOrThrow({where:{operation:'ingest.candidate.confirm',response:{path:['id'],equals:x.c.id}}});
-  const assets=await db.asset.findMany({where:{itemId:oldItem.id},orderBy:{id:'asc'}});
+  const assets=await db.asset.findMany({where:{itemId:oldItem.id},orderBy:{id:'asc'}});assert.equal(assets.length,1);
+  const {assetPath}=require('../dist/media/storage');
+  const originalHashes=assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')}));assert.deepEqual(originalHashes,assets.map(a=>({id:a.id,sha256:a.sha256})));
   const result=await ok(x.path,'POST',x.body,admin,key);
   assert.deepEqual(await ok(x.path,'POST',x.body,admin,key),result);
   assert.equal((await api(x.path,'POST',{...x.body,reason:'不同载荷不得复用'},admin,key)).data.error.code,'IDEMPOTENCY_CONFLICT');
   const c=await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}), i=await db.item.findUniqueOrThrow({where:{id:oldItem.id}}),line=await db.purchaseLine.findUniqueOrThrow({where:{id:c.purchaseLineId}});
   assert.equal(c.decision,'EXCLUDED');assert.equal(c.itemId,i.id);assert.equal(c.sourceId,oldCandidate.sourceId);assert.equal(c.purchaseLineId,oldCandidate.purchaseLineId);assert.equal(c.possession,oldCandidate.possession);assert.equal(i.serial,oldItem.serial);assert.equal(i.status,'PAUSED');assert.equal(i.approvedValid,false);assert.ok(i.deletedAt);assert.equal(line.businessDecision,'EXCLUDE');assert.equal(c.version,oldCandidate.version+1);assert.equal(i.version,oldItem.version+1);
   assert.deepEqual(await db.asset.findMany({where:{itemId:i.id},orderBy:{id:'asc'}}),assets);
+  assert.deepEqual(assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')})),originalHashes);
   assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
   assert.equal((await api(`/items/${i.id}/restore`,'POST',{version:i.version,reason:'禁止拆开恢复',confirmed:true})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
   assert.equal((await api(`/ingest/candidates/${c.id}/review`,'POST',{version:c.version,possession:c.possession,decision:'PENDING',note:'禁止单独候选恢复'})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
@@ -7424,6 +7428,8 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   const rb=restoreBody(p),rk=randomUUID(),rp=`/ingest/confirmation-corrections/${result.correctionId}/restore`;
   const restored=await ok(rp,'POST',rb,admin,rk);assert.deepEqual(await ok(rp,'POST',rb,admin,rk),restored);
   const current=await db.item.findUniqueOrThrow({where:{id:i.id}});assert.equal(current.deletedAt,null);assert.equal(current.serial,oldItem.serial);assert.equal(current.sourceId,oldItem.sourceId);assert.equal(current.status,'PAUSED');assert.equal(current.approvedValid,false);assert.equal(current.version,i.version+1);
+  assert.deepEqual(await db.asset.findMany({where:{itemId:i.id},orderBy:{id:'asc'}}),assets);
+  assert.deepEqual(assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')})),originalHashes);
   assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}})).decision,'CONFIRMED');assert.equal((await db.purchaseLine.findUniqueOrThrow({where:{id:line.id}})).businessDecision,'INCLUDE');
   const history=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:result.correctionId}});assert.ok(history.restoredAt);assert.equal(history.originalReceiptId,oldReceipt.id);assert.equal(await db.audit.count({where:{resourceId:c.id,action:{in:['INGEST_CONFIRMATION_REVOKED','INGEST_CONFIRMATION_RESTORED']}}}),2);
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:c.id}}),1);
