@@ -1,5 +1,5 @@
 @layer arco-base, workbench, arco, product;
-@layer antd, foundation;
+@layer antd, antd-pro, foundation;
 
 
 @layer product {
