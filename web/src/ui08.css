@@ -6028,6 +6028,7 @@
 
 @layer foundation {
   .studio-save-identity { display: none; }
+  .studio-mobile-extra { display: none; }
   .studio-image-outcome { padding: 8px 12px; color: var(--tome-successText); background: var(--tome-successBg); border-radius: var(--ui-radius); }
 }
 
@@ -6049,6 +6050,7 @@
     .foundation-shell .studio-command-actions > .ant-btn:not(.studio-main-save) { display: none; }
     .foundation-shell .studio-command-actions > .studio-more { grid-area: more; position: relative; }
     .foundation-shell .studio-more > summary { min-height: 44px; align-content: center; }
+    .foundation-shell .studio-mobile-extra { display: block; }
     .foundation-shell .studio-more-menu { position: absolute; inset: auto 0 calc(100% + 8px) auto; max-height: 55vh; overflow: auto; overscroll-behavior: contain; min-width: min(240px, calc(100vw - 48px)); }
   }
 }

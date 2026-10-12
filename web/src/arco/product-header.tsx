@@ -90,6 +90,9 @@ export const ProductHeader = forwardRef<
         <details className="studio-more">
           <summary className="btn subtle">更多</summary>
           <div className="studio-more-menu">
+            <div className="studio-mobile-extra">
+              {save("materials", "保存并下载资料", "保存并下载资料")}
+            </div>
             {can("publish") && save("publish", "准备发布", "保存并准备发布")}
             {save("return", "保存并返回")}
             {nextId
