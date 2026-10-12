@@ -31,6 +31,7 @@ import { safeText, uuid } from "../common/domain";
 import { assetPath, prepareImage } from "../media/storage";
 import { UploadBudget } from "../media/upload-budget";
 import { IngestService } from "./ingest.service";
+import { confirmationCorrectionPreview } from "./confirmation-correction";
 import {
   candidateBulkInput,
   candidateBulkExcludeInput,
@@ -60,6 +61,13 @@ export class IngestAdminController {
     private db: PrismaService,
     private service: IngestService,
   ) {}
+  @Access("users") @Get("candidates/:id/confirmation-correction-preview") correctionPreview(
+    @Param("id") id: string,
+  ) {
+    return this.db.$transaction(tx => confirmationCorrectionPreview(tx, uuid.parse(id)), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+  }
   @Access("dictionary") @Get("brand-governance/preview") brandPreview() {
     return this.service.brandGovernancePreview();
   }

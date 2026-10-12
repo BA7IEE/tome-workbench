@@ -1066,3 +1066,21 @@ for (const width of [1440, 390]) {
     );
   });
 }
+
+test("误确认核对只读取证据并显示阻断说明，取消不改来源或商品", async ({page}) => {
+  const x=await makeBatch(page,1), c=x.rows[0];
+  const confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成只读核对'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  const card=page.locator(`[data-candidate="${c.id}"]`);
+  await expect(card).toContainText('库存 已暂停 · 资料 待审核');
+  const writes=[];page.on('request',r=>{if(r.url().includes('/api/')&&['POST','PATCH','DELETE'].includes(r.method()))writes.push(r.url())});
+  await card.getByRole('button',{name:'核对误确认条件',exact:true}).click();
+  const d=page.getByRole('dialog',{name:'误确认核对 · '+confirmed.code});
+  await expect(d).toContainText('这里只核对证据和依赖，不执行撤销');
+  await expect(d.getByRole('button',{name:/确认撤销/})).toHaveCount(0);
+  await d.getByRole('button',{name:'关闭',exact:true}).click();
+  expect(writes).toEqual([]);
+  const state=await api(page,`/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,undefined,'GET');
+  expect(state.total).toBe(1);expect(state.rows[0].item.id).toBe(confirmed.itemId);
+  expect((await api(page,`/items/${confirmed.itemId}`,undefined,'GET')).status).toBe('PAUSED');
+});

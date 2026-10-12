@@ -771,7 +771,7 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>, retu
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {
   if (candidate.item)
-    return `<small>库存 ${esc(states[candidate.item.status || ""] || "请查看 TM 核对")} · 资料 ${candidate.item.approvedValid === true ? "已审核" : "待审核"}</small><a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>`;
+    return `<small>库存 ${esc(states[candidate.item.status || ""] || "请查看 TM 核对")} · 资料 ${candidate.item.approvedValid === true ? "已审核" : "待审核"}</small><a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>${can("users") ? button("核对误确认条件", () => correctionReview(candidate)) : ""}`;
   if (candidate.decision === "EXCLUDED")
     return button("恢复为待确认", () => candidateRestore(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
@@ -779,6 +779,13 @@ function candidateActions(candidate: Candidate, after: () => Promise<void>) {
     duplicate ? "核对重复" : "单件处理",
     () => candidateProcess(candidate, after),
     duplicate ? "primary" : "subtle",
+  );
+}
+async function correctionReview(candidate: Candidate) {
+  const preview = await request<{ candidateEligible: boolean; target: { code: string | null }; blockers: { code: string; message: string }[] }>(`/ingest/candidates/${candidate.id}/confirmation-correction-preview`);
+  viewDialog("误确认核对 · " + (preview.target.code || "来源候选"),
+    note("这里只核对证据和依赖，不执行撤销。普通回收站不会改变已确认来源；关联已有或共享 TM 不能自动删除或换号。") +
+    `<p>${preview.candidateEligible ? "当前证据符合单件新建、单一归属且无经营依赖的保守边界。组合撤销与恢复尚未开放，不能用本核对结果替代提交时重验。" : "当前不符合自动撤销条件，请保留记录并核对下列原因。"}</p><ul>${preview.blockers.map(b => `<li>${esc(b.message)}</li>`).join("")}</ul>${button("查看来源事实", () => showSourceEvidence(candidate.id))}`,
   );
 }
 function selectableCandidate(candidate: Candidate) {
