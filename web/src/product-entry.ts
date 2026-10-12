@@ -619,7 +619,7 @@ export async function productEntry(id?: string) {
           gallery.uncertain()
         ) ||
         window.confirm(
-          "还有未保存内容或未完成图片。确认离开？已保存的商品不会被删除。",
+          "还有未保存资料或未完成图片。离开只放弃这些未保存内容；已生效的图片和经营记录保留，商品不会删除。确认离开？",
         )
       );
     });

@@ -6025,3 +6025,8 @@
     outline-offset: 2px;
   }
 }
+
+@layer foundation {
+  .studio-save-identity { display: none; }
+  .studio-image-outcome { padding: 8px 12px; color: var(--tome-successText); background: var(--tome-successBg); border-radius: var(--ui-radius); }
+}

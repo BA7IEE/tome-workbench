@@ -2,10 +2,10 @@ import { request, esc, can, toast } from "./core";
 import { isAiImage, showProductImages } from "./product-images";
 import { WriteAttempt } from "./write-attempt";
 import type { Item, Asset } from "./types";
-export function studioGallery(assets: Asset[], itemId = "") {
+export function studioGallery(assets: Asset[], itemId = "", outcome = "") {
   const list = assets.filter((a) => !a.archived && a.role !== "DOCUMENT");
   const cover = list.find((a) => !isAiImage(a));
-  return `<h2>已保存图片 · ${list.length} 张</h2>${can("edit") ? '<p class="note">设封面、标瑕疵和移除会立即保存；取消文字编辑不会撤销这些图片操作。新上传图片随商品保存。</p>' : ""}<div class="studio-gallery">${list.map((a) => `<article class="studio-photo" data-asset="${a.id}"><button type="button" class="studio-zoom" data-photo-view="${a.id}" aria-label="查看图片 ${esc(a.originalName)}"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button><span>${a.id === cover?.id ? "封面 · " : ""}${isAiImage(a) ? "AI素材" : ({ PRODUCT: "实拍", DETAIL: "细节", DEFECT: "瑕疵", REFERENCE: "参考", AI_MARKETING: "AI素材" } as Record<string, string>)[a.role] || "图片"}</span>${can("edit") ? `<div class="studio-photo-tools">${!isAiImage(a) ? `<button type="button" data-photo-first="${a.id}" ${a.id === cover?.id ? "disabled" : ""}>设封面</button><button type="button" data-photo-defect="${a.id}" ${a.role === "DEFECT" ? "disabled" : ""}>标瑕疵</button>` : ""}<button type="button" data-photo-remove="${a.id}">移除</button></div>` : ""}</article>`).join("")}</div>${itemId ? `<a class="studio-media-records" href="#/items/${itemId}?tab=assets">更多素材操作</a>` : ""}<p class="studio-media-error form-error" role="alert"></p><button type="button" class="btn" data-photo-retry hidden>核对图片操作</button>`;
+  return `<h2>已保存图片 · ${list.length} 张</h2>${can("edit") ? '<p class="note">设封面、标瑕疵和移除会立即保存；取消文字编辑不会撤销这些图片操作。新上传图片随商品保存。</p>' : ""}${outcome ? `<p class="studio-image-outcome" role="status">${esc(outcome)}；未保存文字仍需点击保存</p>` : ""}<div class="studio-gallery">${list.map((a) => `<article class="studio-photo" data-asset="${a.id}"><button type="button" class="studio-zoom" data-photo-view="${a.id}" aria-label="查看图片 ${esc(a.originalName)}"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button><span>${a.id === cover?.id ? "封面 · " : ""}${isAiImage(a) ? "AI素材" : ({ PRODUCT: "实拍", DETAIL: "细节", DEFECT: "瑕疵", REFERENCE: "参考", AI_MARKETING: "AI素材" } as Record<string, string>)[a.role] || "图片"}</span>${can("edit") ? `<div class="studio-photo-tools">${!isAiImage(a) ? `<button type="button" data-photo-first="${a.id}" ${a.id === cover?.id ? "disabled" : ""}>设封面</button><button type="button" data-photo-defect="${a.id}" ${a.role === "DEFECT" ? "disabled" : ""}>标瑕疵</button>` : ""}<button type="button" data-photo-remove="${a.id}">移除</button></div>` : ""}</article>`).join("")}</div>${itemId ? `<a class="studio-media-records" href="#/items/${itemId}?tab=assets">更多素材操作</a>` : ""}<p class="studio-media-error form-error" role="alert"></p><button type="button" class="btn" data-photo-retry hidden>核对图片操作</button>`;
 }
 export function bindStudioMedia(
   root: HTMLElement,
@@ -16,13 +16,18 @@ export function bindStudioMedia(
   const attempt = new WriteAttempt(request);
   let busy = false,
     lastError = "",
+    outcome = "",
     refreshPending = false;
   const paint = () => {
     const el = root.querySelector<HTMLElement>(".entry-existing-media");
     if (el) {
       const drop = root.querySelector<HTMLElement>(".entry-drop");
       drop?.remove();
-      el.innerHTML = studioGallery(get().assets, get().id);
+      el.innerHTML = studioGallery(
+        get().assets,
+        get().id,
+        refreshPending ? "图片保存回执已确认，显示仍待重新读取" : outcome,
+      );
       const empty =
         get().assets.filter((a) => !a.archived && a.role !== "DOCUMENT")
           .length === 0;
@@ -83,6 +88,7 @@ export function bindStudioMedia(
       try {
         if (attempt.uncertain) {
           await attempt.retry();
+          outcome = "图片操作已核对并保存";
           refreshPending = true;
           await refresh();
           return;
@@ -118,6 +124,11 @@ export function bindStudioMedia(
             assetIds: [id, ...all.filter((a) => a !== id)],
           });
         }
+        outcome = btn.dataset.photoRemove
+          ? "图片已移出展示，原件保留"
+          : btn.dataset.photoDefect
+            ? "瑕疵标记已保存"
+            : "封面顺序已保存";
         refreshPending = true;
         await refresh();
         toast("图片已更新，原件保留");

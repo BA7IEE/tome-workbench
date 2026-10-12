@@ -37,6 +37,8 @@ export const ProductHeader = forwardRef<
       type={primary ? "primary" : "default"}
       disabled={busy}
       aria-label={label}
+      aria-describedby={primary ? "entry-save-destination" : undefined}
+      className={primary ? "studio-main-save" : undefined}
     >
       {title}
     </Button>
@@ -57,12 +59,30 @@ export const ProductHeader = forwardRef<
         </div>
       </div>
       <div className="studio-command-actions">
+        <small className="studio-save-identity">{identity.code}</small>
         <span className="entry-save-state" role="status">
           {item.id ? "已保存" : "未保存"}
         </span>
-        {save(finishOnSave ? "return" : "stay", "保存", "保存商品", true)}
+        <span id="entry-save-destination" className="visually-hidden">
+          {finishOnSave
+            ? "保存后返回本件商品详情"
+            : "保存后留在当前件，可继续编辑"}
+        </span>
+        <span id="entry-cancel-scope" className="visually-hidden">
+          只放弃未保存资料和待上传图片；已生效的图片及经营操作保留
+        </span>
+        {save(
+          finishOnSave ? "return" : "stay",
+          finishOnSave ? "保存并返回详情" : "保存当前件",
+          "保存商品",
+          true,
+        )}
         {identity.id && (
-          <a className="btn" href={returnTarget}>
+          <a
+            className="btn studio-cancel"
+            href={returnTarget}
+            aria-describedby="entry-cancel-scope"
+          >
             取消编辑
           </a>
         )}

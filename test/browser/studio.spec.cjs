@@ -308,6 +308,8 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
     "这段还没保存，不能丢。",
   );
+  await expect(page.locator(".studio-image-outcome")).toContainText("瑕疵标记已保存");
+  await expect(page.locator(".entry-save-state")).toContainText("未保存");
   expect(page.url()).toBe(url);
   page.once("dialog", (d) => d.accept());
   await page
@@ -319,6 +321,18 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
     "这段还没保存，不能丢。",
   );
+  await expect(page.locator(".studio-image-outcome")).toContainText("原件保留");
+  page.once("dialog", (d) => {
+    expect(d.message()).toContainText("已生效的图片和经营记录保留");
+    return d.accept();
+  });
+  await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+  await expect(page).not.toHaveURL(url);
+  const id = new URL(url).hash.match(/items\/([^/]+)/)[1];
+  const saved = await (await page.request.get("/api/items/" + id)).json();
+  expect(saved.facts.descriptionZh).not.toBe("这段还没保存，不能丢。");
+  expect(saved.assets.filter((asset) => !asset.archived)).toHaveLength(1);
+  expect(saved.assets.find((asset) => !asset.archived).role).toBe("DEFECT");
 });
 test("手机主流程可触摸使用，基础表单无横向溢出", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
