@@ -830,7 +830,7 @@ async function confirmationCompensation(candidate: Candidate, after: () => Promi
       }
       await saveWork(storage, undefined);
     }, pending ? "核对原提交回执" : restoring ? "确认组合恢复" : "确认组合撤销",
-    async () => { toast(restoring ? `${code} 已恢复，当前为已暂停、待审核` : `${code} 已撤销误确认，来源已排除，原记录保留`); await after(); },
+    async () => { await after(); toast(`${code} 的纠错回执已核对，列表已更新；请按当前记录状态继续。`); },
   );
 }
 function selectableCandidate(candidate: Candidate) {

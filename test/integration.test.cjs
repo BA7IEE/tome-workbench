@@ -7414,7 +7414,7 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   assert.deepEqual(await ok(x.path,'POST',x.body,admin,key),result);
   assert.equal((await api(x.path,'POST',{...x.body,reason:'不同载荷不得复用'},admin,key)).data.error.code,'IDEMPOTENCY_CONFLICT');
   const c=await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}), i=await db.item.findUniqueOrThrow({where:{id:oldItem.id}}),line=await db.purchaseLine.findUniqueOrThrow({where:{id:c.purchaseLineId}});
-  assert.equal(c.decision,'EXCLUDED');assert.equal(c.itemId,i.id);assert.equal(c.possession,oldCandidate.possession);assert.equal(i.serial,oldItem.serial);assert.equal(i.status,'PAUSED');assert.equal(i.approvedValid,false);assert.ok(i.deletedAt);assert.equal(line.businessDecision,'EXCLUDE');assert.equal(c.version,oldCandidate.version+1);assert.equal(i.version,oldItem.version+1);
+  assert.equal(c.decision,'EXCLUDED');assert.equal(c.itemId,i.id);assert.equal(c.sourceId,oldCandidate.sourceId);assert.equal(c.purchaseLineId,oldCandidate.purchaseLineId);assert.equal(c.possession,oldCandidate.possession);assert.equal(i.serial,oldItem.serial);assert.equal(i.status,'PAUSED');assert.equal(i.approvedValid,false);assert.ok(i.deletedAt);assert.equal(line.businessDecision,'EXCLUDE');assert.equal(c.version,oldCandidate.version+1);assert.equal(i.version,oldItem.version+1);
   assert.deepEqual(await db.asset.findMany({where:{itemId:i.id},orderBy:{id:'asc'}}),assets);
   assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
   assert.equal((await api(`/items/${i.id}/restore`,'POST',{version:i.version,reason:'禁止拆开恢复',confirmed:true})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
@@ -7423,7 +7423,7 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   const p=await ok(`/ingest/confirmation-corrections/${result.correctionId}/restore-preview`);assert.equal(p.candidateEligible,true,JSON.stringify(p.blockers));
   const rb=restoreBody(p),rk=randomUUID(),rp=`/ingest/confirmation-corrections/${result.correctionId}/restore`;
   const restored=await ok(rp,'POST',rb,admin,rk);assert.deepEqual(await ok(rp,'POST',rb,admin,rk),restored);
-  const current=await db.item.findUniqueOrThrow({where:{id:i.id}});assert.equal(current.deletedAt,null);assert.equal(current.serial,oldItem.serial);assert.equal(current.status,'PAUSED');assert.equal(current.approvedValid,false);assert.equal(current.version,i.version+1);
+  const current=await db.item.findUniqueOrThrow({where:{id:i.id}});assert.equal(current.deletedAt,null);assert.equal(current.serial,oldItem.serial);assert.equal(current.sourceId,oldItem.sourceId);assert.equal(current.status,'PAUSED');assert.equal(current.approvedValid,false);assert.equal(current.version,i.version+1);
   assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}})).decision,'CONFIRMED');assert.equal((await db.purchaseLine.findUniqueOrThrow({where:{id:line.id}})).businessDecision,'INCLUDE');
   const history=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:result.correctionId}});assert.ok(history.restoredAt);assert.equal(history.originalReceiptId,oldReceipt.id);assert.equal(await db.audit.count({where:{resourceId:c.id,action:{in:['INGEST_CONFIRMATION_REVOKED','INGEST_CONFIRMATION_RESTORED']}}}),2);
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:c.id}}),1);
@@ -7463,4 +7463,29 @@ test('组合恢复重新核对整单财务依据，不能因撤销时曾通过�
   const current=await ok(`/ingest/confirmation-corrections/${r.correctionId}/restore-preview`);assert.equal(current.candidateEligible,false);assert.ok(current.blockers.some(b=>b.code==='HAS_ORDERCOSTBASIS'));
   assert.equal((await api(`/ingest/confirmation-corrections/${r.correctionId}/restore`,'POST',restoreBody(first))).data.error.code,'CORRECTION_REVIEW_CHANGED');
   assert.deepEqual(await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}}),before);
+});
+
+test('组合纠错真实事务中途失败全部回滚，并发相同原键重放与不同键竞态只形成一条历史',async()=>{
+  const x=await correctionFixture('SYNTHETIC-COMPENSATION-ATOMIC'),key=randomUUID();
+  async function state(){return {
+    candidate:await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}),
+    item:await db.item.findUniqueOrThrow({where:{id:x.confirmed.itemId}}),
+    line:await db.purchaseLine.findUniqueOrThrow({where:{id:x.candidates[0].purchaseLineId}}),
+    corrections:await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),
+    itemRevisions:await db.itemRevision.count({where:{itemId:x.confirmed.itemId}}),
+    candidateRevisions:await db.ingestCandidateRevision.count({where:{candidateId:x.c.id}}),
+    lineRevisions:await db.purchaseLineRevision.count({where:{lineId:x.candidates[0].purchaseLineId}}),
+    audits:await db.audit.count({where:{resourceId:x.c.id,action:'INGEST_CONFIRMATION_REVOKED'}}),
+    outbox:await db.outbox.count({where:{itemId:x.confirmed.itemId}}),
+    receipt:await db.receipt.findUnique({where:{actorId_operation_key:{actorId:admin.id,operation:'ingest.candidate.revokeConfirmation',key}}})};}
+  const before=await state();assert.match(x.confirmed.itemId,/^[0-9a-f-]{36}$/);
+  // Real synthetic PostgreSQL failure after domain/history/revisions/audit
+  // writes, before Outbox/Receipt. Never inject an HTTP success response.
+  await db.$executeRawUnsafe(`CREATE FUNCTION synthetic_correction_rollback() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."itemId"='${x.confirmed.itemId}'::uuid AND NEW."payload" ? 'correctionId' THEN RAISE EXCEPTION 'synthetic correction rollback probe' USING ERRCODE='23514'; END IF; RETURN NEW; END $$`);
+  await db.$executeRawUnsafe('CREATE TRIGGER synthetic_correction_rollback BEFORE INSERT ON "Outbox" FOR EACH ROW EXECUTE FUNCTION synthetic_correction_rollback()');
+  try {assert.ok((await api(x.path,'POST',x.body,admin,key)).status>=400);assert.deepEqual(await state(),before);}
+  finally {await db.$executeRawUnsafe('DROP TRIGGER synthetic_correction_rollback ON "Outbox"');await db.$executeRawUnsafe('DROP FUNCTION synthetic_correction_rollback()');}
+  const same=await Promise.all([api(x.path,'POST',x.body,admin,key),api(x.path,'POST',x.body,admin,key)]);assert.ok(same.every(r=>r.status>=200&&r.status<300));assert.deepEqual(same[0].data,same[1].data);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),1);
+  const other=await correctionFixture('SYNTHETIC-COMPENSATION-RACE');
+  const race=await Promise.all([api(other.path,'POST',other.body,admin,randomUUID()),api(other.path,'POST',other.body,admin,randomUUID())]);assert.equal(race.filter(r=>r.status>=200&&r.status<300).length,1);assert.equal(race.filter(r=>r.status===409).length,1);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:other.c.id}}),1);
 });

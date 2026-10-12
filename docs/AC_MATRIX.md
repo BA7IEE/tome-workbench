@@ -456,4 +456,4 @@ AC19 仍为部分实现：现有 AI 素材可人工上传并在商品详情独�
 
 ## rc.14 单条误确认补偿
 
-AC17/24/审计与恢复：`confirmation-correction.test.cjs` 的纯核对合同保持 REVIEW_ONLY；`integration.test.cjs` 新增真实 HTTP + PostgreSQL 的组合撤销/恢复、版本/摘要/角色与重放、资源忙、历史不可覆盖、旧入口及数据库分拆防护、原号/原图/原回执和整单财务新事实阻断。`product-library.spec.cjs` 在 Chromium/WebKit 验证手机取消零写入、专用组合链路和真实写入后丢回执、跨窗口原内容/原请求号恢复。等待新固定 head CI，不能用 #58/#59 证明 rc.14，通过数仅由实际新日志填写。真机手指/键盘 UAT、生产 SHA、维护迁移和生产经营动作未完成。
+AC17/24/审计与恢复：`confirmation-correction.test.cjs` 的纯核对合同保持 REVIEW_ONLY；`integration.test.cjs` 新增真实 HTTP + PostgreSQL 的组合撤销/恢复、版本/摘要/角色与重放、真实事务中途故障全部回滚、并发同键与不同键竞态、资源忙、历史不可覆盖、旧入口及数据库分拆防护、原号/原图/原回执和整单财务新事实阻断。`product-library.spec.cjs` 在 Chromium/WebKit 验证手机取消零写入、专用组合链路和真实写入后丢回执、跨窗口原内容/原请求号恢复。等待新固定 head CI，不能用 #58/#59 证明 rc.14，通过数仅由实际新日志填写。真机手指/键盘 UAT、生产 SHA、维护迁移和生产经营动作未完成。
