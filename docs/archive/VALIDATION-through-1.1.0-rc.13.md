@@ -1,0 +1,155 @@
+# 当前验证记录 — 1.1.0-rc.13
+
+本轮 CSP/UX 的本机检查及云端运行身份见 [STYLE-CSP](STYLE-CSP.md)。当前完整结果由 verify:release 同步下方摘要和指纹；历史记录或中间失败的 run 不能替代最终固定 head 的通过证据。
+
+本轮普通 UX 增量的定向本机检查与 NOT_RUN 边界见 [UX-READ-FEEDBACK](UX-READ-FEEDBACK.md)。其来源为 AntD Foundation `cf7565a`；本文件以下历史完整结果不能验证本轮改动。CSP 后续修复的实际状态以 [STYLE-CSP](STYLE-CSP.md) 为准。
+
+2026-10-10 的商品库批量菜单滚动初始候选仅经过轻量检查，之后已迁移至 AntD 基线并接入 PR #57 云端回归，未部署。完整结果只按本页当前源码指纹及对应固定 head 的 CI 核对。范围见 [BULK-MENU-SCROLL](BULK-MENU-SCROLL.md)。
+
+本地完整验证完成：`2026-09-30T18:58:24.932Z`。验证源码指纹为
+`84799086b439211adfa56c0de241bfb58003cd70677f91df209e6ad68f8b8743`；
+`verify:release` 的完整 Harness 退出码为 `0`，运行前后源码指纹一致。
+后续仅提交本报告、审计记录和发布包不会改变该运行源码指纹；远端 PR head 的 CI
+仍须单独核验。
+
+`verify:release` 会先同步本页的版本与源码指纹；当前文档守卫会把它们同时与版本化
+`summary.json` 和当前源码复核，避免顶层验证页沿用旧版证据。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| syntax / typecheck / lint / build | `verify:release` 内全部通过 |
+| Node 测试组（unit / Harness selftest / integration / HA） | 32/32、31/31、169/169、8/8；失败均为 0 |
+| Chromium | 184 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| WebKit | 184 通过，unexpected/skipped/flaky 均为 0，retries=0 |
+| 1,000 Item 规模基准 | Operations 308.352ms、Dashboard 248.763ms、Work Queue 32.487ms，均小于 1 秒 |
+| 完整 Harness | exit 0，198 项静态守卫全部通过，sourceUnchanged=true |
+| HA | 8 项隔离真实进程故障检查通过；两 API 副本切换 761ms、Worker 恢复 1952ms，未执行外部动作 |
+| Recovery | 本地离线恢复演练通过：运行中进程阻止备份、所选表哈希一致、TM 序列推进、原图哈希一致 |
+| npm audit | `npm audit --audit-level=high --json` exit 0，0 vulnerabilities；已引入独立依赖修复 |
+| Docker runtime | 本次未重跑，不作为本次验证证据 |
+| 打包 | `npm run pack` 成功；已逐项核对 `release/tome-workbench-1.1.0-rc.13.zip` 未含实际 `.env`、`data/`、`node_modules/`、session、backup、reports 或私钥产物 |
+
+完整摘要、审计结果与门禁日志：[summary.json](validation/1.1.0-rc.13/summary.json)、
+[audit.json](validation/1.1.0-rc.13/audit.json)、[verification.log](validation/1.1.0-rc.13/verification.log)。
+
+## 本次界面增量：AI 上身效果
+
+商品详情独立展示 AI 素材，图册与大图明确标注 AI 生成；完整编辑页取消 AI 图设封面、标瑕疵和封面标签。复用上传、下载与存档，未改原文件、授权、资料导出或发布合同，未接入生成服务。新增合成浏览器场景覆盖 1440/390px 的真实上传、AI-only 空实物封面、实物封面保留、独立翻图与键盘操作、原文件字节、手机布局及移除后保留档案；两浏览器范围相同。截图为 `reports/screenshots/ai-fitting-*.png`。本次没有修改既有测试期望，没有 migration、依赖升级、生产数据操作、合并或部署。
+
+## 本次界面增量：来源资料与单件核对
+
+来源资料采用 PC 图文双栏、手机全屏单栏，原图前置，Agent 建议保留摘要并按需展开。单件处理显示商品身份，来源资料可返回同一候选；关闭或 Escape 恢复原入口焦点。普通候选入口改为“核对并归入商品库”，疑似重复分支仍明确确认另一件实物，确认表单和领域约束不变。
+
+两浏览器使用隔离合成资料，经真实 UI 登录覆盖 1440/1024/390/375px 首屏原图、布局及无横向溢出；新增完整往返用例核对版本、来源事实、原图关联和 TM 数量不变，以及选择、滚动和键盘焦点保留。既有原图字节、人工草稿、缺项确认、来源修订、批量回执恢复与部分失败用例继续执行。截图位于本地 `reports/screenshots/source-review-*.png`，只证明合成页面渲染，不代表真实手机或经营 UAT。
+
+当前 UI 分支已引入独立依赖修复 PR #54：multer 2.4.0，brace-expansion 1.1.21 / 2.1.7 / 5.0.12。审计为 0 vulnerabilities；本页报告记录组合源码的完整复验结果，未复用依赖分支或旧 UI 的验证指纹。依赖修复范围见 [DEPENDENCY-SECURITY](DEPENDENCY-SECURITY.md)。本次未做 main 合并、生产写入、部署或真实经营验收。
+
+## 1.1.0-rc.13 来源污染纠错与错图撤下
+
+本候选新增 forward migration `202609210020_ingest_candidate_asset_retirement`。`tome-ingest/1.3` 允许在明确白名单内清空受污染来源字段、按 SHA-256 撤下未关联 TM 的错误候选图片，并作废基于错误证据的旧 Agent 建议。撤下记录和原文件继续留存，当前图册、完整性、重复判断与候选确认不再使用错图；已关联 TM 的图片由服务端拒绝机器撤下。单元测试覆盖纠错结构和矛盾清单拒绝；真实 PostgreSQL 集成测试覆盖稀疏保值、多字段清空、原字节与 Audit 留存、重复上传拒绝、旧建议作废及已关联图片拒绝；Chromium/WebKit 均打开候选资料核对当前图册隐藏与撤下审计详情。本轮不连接真实 TRR，不补造受限商品页或原图，也不改生产 TM、库存、成本、售价、成交或发布。rc.12 → rc.13 部署必须走维护窗口、备份清单和 existing-production migration；本地验证不等于已部署。
+
+## 1.1.0-rc.13 待确认分页、批量位置与来源原始尺码
+
+本增量不新增 migration，也不修改候选来源事实或 TM 写入合同。待确认商品分页显示当前页/总页、相邻页码与指定页跳转；批量生成 TM、批量排除和单件处理刷新后保留当前页与滚动位置，处理到页码越界时回到最后可达页。卡片和表格分别显示来源 `foreignSize` 原始尺码及 `sizeLabel` 展示尺码，只有 `sizeEstimated=true` 时标记估算。`test/browser/v1-item-center.spec.cjs` 使用 132 条合成候选在 Chromium/WebKit 覆盖上述交互、末页回退和 390px 布局；不使用真实经营数据或外部平台。
+
+## 1.1.0-rc.13 已排除候选恢复
+
+本增量不新增 migration。已排除候选恢复必须填写不少于3个字的原因并明确勾选确认；服务端验证当前版本和 `Idempotency-Key`，成功后只将候选恢复为 `PENDING`、采购行恢复为 `UNDECIDED` 并记录前后状态与原因。集成测试覆盖空原因拒绝、版本冲突、同键重放、来源事实与 Item 数量不变；`ui08.spec.cjs` 在 Chromium/WebKit 通过真实页面排除后再恢复。原排除审计不会删除，本轮不创建 TM、库存或可售状态，也不连接生产数据。
+
+## 1.1.0-rc.12 TRR 结构化尺码与购买日期
+
+本候选不新增 migration。新建 TRR 批次采用 `TRR/1.4`，将 TRR 展示尺码、品牌/标签原始尺码、来源估算标记及无时分秒购买日期分为独立来源事实；`TRR/1.3` 历史批次保持原 Profile 与封存证据。集成测试覆盖 Profile 前向升级、旧批次读取/封存、DAY/MONTH/YEAR 日期精度、原始尺码缺项必须 `UNAVAILABLE + 原因`、Agent Proposal 越界拒绝和 PENDING 候选不生成 TM；Chromium/WebKit 打开候选资料并核对分栏显示。本轮不会连接 TRR、运行联网 AI、改生产候选/订单/图片、创建 TM、库存或成本，也不执行部署或生产回填。
+
+## 1.1.0-rc.11 采购来源默认币种正式更正
+
+本候选不新增 migration。采购来源默认币种更正使用受 `supply` 权限保护的命令，要求来源版本、`Idempotency-Key` 和原因；来源锁、更新、Audit、Receipt 和 Outbox 同事务。默认币种只在后续新候选省略币种时补值，既有候选及封存批次不被改写。隔离 PostgreSQL 集成测试以 3,422 条显式 USD 合成候选验证权限、重放、冲突、审计和历史 Item/成本事实不变；Chromium/WebKit 均通过采购来源后台入口完成真实保存和回执等待。没有连接真实 TRR、运行联网 AI、改真实 TM/库存/成本/售价/成交或执行生产部署。
+
+本候选保留 production bootstrap gate：在独立 PostgreSQL 空库中先确保 `tome_app` 不存在，再执行正式 `--production --initial-empty` migration；迁移脚本必须自行创建/同步运行角色、完成 19 个 migration、补齐最小权限并用运行账号实际连接验证。该 gate 覆盖 1Panel 首次部署曾暴露的“运行角色缺失但 migration 仍完成”问题。
+
+## v1.1-rc.5 发布安全
+
+本次完成发布安全切片。在既有 TM、来源证据、Candidate 人工确认、库存锁、Sale、
+成本、UsePackage、图片权利、Commands/Receipt、Audit/Outbox、ChannelPrice、
+Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 的边界上增量实现，不重写事实中心。
+
+- `PublicationHealthService` 把成功的 PUBLISH/UPDATE（包括 APP `remoteId` 为空）纳入
+  远端暴露判断；新 Handoff 的 7 天 UsePackage TTL 不会单独把已成功记录标成更新。
+- 库存、Target、Channel 用途、供应商 Offer、审批/鉴定、发布图片权利、交易价格与币种
+  不再满足条件时为 `MUST_STOP`；批准版本、渠道价、文案或图片变化为 `NEEDS_UPDATE`。
+- Worker/Sweep 只创建带来源关联的本地 DELIST，不执行平台操作；Channel 停用或不再是
+  TRADE 时仅允许未解决 DELIST 使用 stop-only 会话。
+- Trash 会本地取消未交付的 PENDING 发布 Attempt，并阻止仍可能在线的 Handoff、UNKNOWN、
+  SUCCEEDED 或未解决 DELIST 暴露；交易价必须大于零。
+- 未改写历史 migration；本轮的询盘日程使用独立 forward migration，未执行平台动作、生产部署或真实经营 UAT。
+
+## v1.1-rc.5 Handoff 合同闭环
+
+本次完成标准分发交付合同切片，不重写 TM、来源、Candidate、库存锁、成本、成交、
+UsePackage、图片权利、Commands/Receipt、Audit/Outbox、ChannelPrice、Inquiry→Sale、
+sourceAttemptId 或 Agent Ingest v1.2。
+
+- 标准协议可按当前 Channel 发现并校验 Skill/Profile SHA；同一分发 Token 支持 X 头和
+  Bearer，MCP 仍严格只有四个 Handoff 工具。
+- AnQiCMS 的标准取包返回现有本地 builder 的 `platformData`；任何 PUBLISH/UPDATE 成功
+  （包括人工或兼容回传）都必须写入有效 archive ID，APP 无远端 ID 成功不受影响。
+- 旧 claim/lease 兼容路径未删除，但生产示例默认关闭；标准 Handoff 与 MCP 不受影响。
+- 超时或已撤销/过期会话只在经营投影显示 `HANDOFF_STALE` 或
+  `HANDOFF_SESSION_DEAD`，没有自动重发、外部操作或 Attempt 改写。
+- 新增集成场景用隔离 `tome_test` 校验上述路径；无 migration、平台 Connector、真实账号、
+  凭据或业务 UAT。
+
+## v1.1-rc.5 询盘日程、成交币种与结算安全
+
+本次完成询盘与交易事实闭环切片，新增的
+`202609180017_inquiry_followup` 是唯一 forward migration；既有 TM、来源、Candidate
+人工确认、库存锁、Cost、Sale、UsePackage、图片权利、Commands/Receipt、Audit/Outbox、
+ChannelPrice、Inquiry→Sale、sourceAttemptId 与 Agent Ingest v1.2 均未重写。
+
+- `FOLLOWUP` 必须保存 `nextFollowUpAt`，工作队列按遗漏、逾期、当日和未来日程排序；OPEN、LOST
+  与确认成交都会清空日程，界面冲突恢复会读回最新日程。
+- 询盘转成交严格写入 `Inquiry.currency`；已配置渠道的直接成交采用有效渠道价币种或账号要求币种，
+  未配置渠道才采用 Item 币种。审计同时保留成交币种快照。
+- 仅人民币成交会冻结已确认的人民币成本；外币 Sale 的 `cost` 保持 NULL，不能把人民币成本混入外币账。
+- 没有 FX basis 的外币对账确认以 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED` 阻断并保持 DRAFT；
+  本版未实现 FX 引擎或自动折算。Chromium 与 WebKit 都实际验证了该错误、保留草稿和显式放弃表单的交互。
+- 本轮完整 gate 使用隔离 `tome_test`，未执行平台、支付、退款、消息、联网 AI、生产部署或真实经营 UAT。
+
+## v1.1-rc.6 分发代际与远端身份收口
+
+本候选在 rc.5 已成立的 Handoff / Publication Health 地基上继续收口，不增加任何平台执行器或真实第三方副作用。
+
+- 关闭经营 Target 会取消尚未交付的 PUBLISH/UPDATE，并为已确认发布代际生成 source-linked DELIST；存在未完成 DELIST 时阻止新发布，避免迟到停售击穿新代际。
+- UPDATE 不能静默切换到第二个稳定远端身份；已知稳定 remoteId 在执行方本次未重复返回时可继承，多个未停售远端身份则进入人工核对。
+- 同平台第二账号确认同时考虑 active Target、历史成功 Exposure、LIVE Listing 和尚未完成的 PUBLISH/UPDATE Handoff。
+- OTHER 交易渠道使用 `GENERIC_TRADE/1.0`；没有专用发布 Profile 的历史停用/内容渠道只允许通过 `GENERIC_STOP/1.0` 完成 DELIST 收口。
+- AnQiCMS 手工发布/更新登记在 UI 和服务端都要求真实 archive ID；APP 平台 remoteId 仍可为空。
+- 当前证据仍只证明隔离代码与浏览器/数据库行为；真实 AnQiCMS、闲鱼和海外平台 UAT 尚未执行。
+
+## v1.1-rc.7 外部反向代理生产模式
+
+本候选只扩展生产部署与验证拓扑，不改变商品、库存、成交、成本、分发或第三方执行语义。
+
+- `production-config.mjs` 明确区分 `INTERNAL_CADDY` 与 `EXTERNAL_REVERSE_PROXY`，并记录外部代理提供方；1Panel 使用 `1PANEL`。
+- 两个 API 只映射到 `127.0.0.1:14318/14319`；PostgreSQL 与 Worker 不发布宿主机端口。
+- 内置 Caddy 属于 `internal-proxy` profile；外部代理模式不运行它，避免与 1Panel/OpenResty 抢占 80/443。
+- preflight 在外部代理模式仍从正式 HTTPS 域名检查 readiness 与公开 API 版本，同时验证 API loopback 和内置 proxy 未运行。
+- 代码验证不能替代实际 1Panel 网站配置、证书签发、防火墙、异机备份、恢复演练或真实经营 UAT。
+
+## 生产与业务边界
+
+本轮未部署公网或生产环境，未连接真实第三方、账号、支付、退款、消息或 AI，
+也未使用真实经营资料；自动化仅使用隔离 `tome_test` 与本地恢复目标。上述通过证明
+当前源码在本地隔离环境的行为，不构成真实 AnQiCMS API、账号、archive ID、真实经营
+UAT、PR 合并或部署批准。真正的 REST Connector 与经授权的脱敏 UAT 仍需单独切片。
+
+## 本分支：来源成色提示降噪
+
+本分支仅调整新候选提示与待确认页面展示，未迁移历史提示、未映射本地成色。合成 PostgreSQL 测试覆盖新旧提示存储；Chromium/WebKit 真实页面测试覆盖卡片、表格、批量预检与其他行动提示保留。未访问生产数据，未做真实 UAT、部署或合并。
+
+本机在早期源码指纹 `a8cb6ba5fa0b824802aa2cc758fc909dce2c72b368780d4ac76e75a26728e400` 的两次全量运行分别有 3 项和 1 项 WebKit 页面导航在原有 45 秒限制内未完成；失败均发生在既有用例的登录前置 `page.goto`，页面截图空白，失败用例按原配置单独及所在文件顺序运行通过。把仅供新增用例造历史夹具的 Prisma 导入移到用例内部后，以当时指纹 `5d340028af96e356e33e04c6a293e6576d454a96a6cb50d1feac660776ea45da` 从头重跑并完整通过。此改动与先前导航超时的因果关系未被证明；未加重试、跳过或延长超时。前两次失败日志保存在本机工作区，不纳入通过报告。
+
+接入已合并的品牌治理后，当前源码指纹 `65c25ab7dc2f5b3bc0e08ce3d01dd2456dae92eb7fd1f4d00c74cdefeeced73f` 的完整验证覆盖两项新增集成测试，合计 169/169；Chromium 与 WebKit 各 181/181。首次组合运行在离线恢复阶段失败：隔离测试数据库使用新容器，但备份脚本默认找到了另一台本地开发容器；显式设置 `TOME_PG_CONTAINER=codex-tome-merge-pg` 后从头重跑，恢复演练及完整 Harness 均通过。没有修改测试断言、重试或超时，也没有连接生产数据库。
+
+## 已合并切片：品牌治理
+
+当前完整验证保留品牌治理的分组预览、权限、字典命中、候选与字典版本、逐件跳过、幂等回执、审计和重导保护测试。真实品牌归属仍须人工逐组审核；本次合成验证不构成生产字典维护或候选回填授权。
