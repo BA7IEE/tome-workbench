@@ -2,6 +2,7 @@ const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const { randomUUID } = require("node:crypto");
+const sharp = require("sharp");
 const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
@@ -246,3 +247,86 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
     } finally { await account.close(); }
   }
 });
+
+async function quickIntakeImage(name = "intake-valid.png") {
+  return {
+    name,
+    mimeType: "image/png",
+    buffer: await sharp({
+      create: { width: 24, height: 32, channels: 3, background: "#c8c2b8" },
+    }).png().toBuffer(),
+  };
+}
+
+test("快速录货跳转货源先检查草稿，拒绝离开保留名称和图片", async ({ page }) => {
+  await page.goto("/#/items");
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const title = "离开录货 " + randomUUID();
+  let creates = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/api/items") creates++;
+  });
+  await dialog.getByLabel("商品名称", { exact: true }).fill(title);
+  await dialog.getByLabel("商品图片", { exact: true }).setInputFiles(await quickIntakeImage());
+  page.once("dialog", (d) => d.dismiss());
+  await dialog.getByRole("link", { name: "货源与供应商", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/#\/items$/);
+  await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);
+  expect(await dialog.getByLabel("商品图片", { exact: true }).evaluate((el) => el.files.length)).toBe(1);
+  expect(creates).toBe(0);
+  page.once("dialog", (d) => d.accept());
+  await dialog.getByRole("link", { name: "货源与供应商", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(/#\/sources$/);
+  expect(creates).toBe(0);
+});
+
+for (const change of ["改字段", "换图片", "换保存意图"]) {
+  test(`快速录货图片真实拒绝后${change}，继续同一TM不再建档`, async ({ page }) => {
+    const prefix = "恢复录货 " + randomUUID();
+    let creates = 0;
+    page.on("request", (r) => {
+      if (r.method() === "POST" && new URL(r.url()).pathname === "/api/items") creates++;
+    });
+    await page.goto("/#/items");
+    await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("商品名称", { exact: true }).fill(prefix);
+    await dialog.getByLabel("商品图片", { exact: true }).setInputFiles({
+      name: "intake-corrupt.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("synthetic-corrupt-png"),
+    });
+    const uploaded = (r) => new URL(r.url()).pathname === "/api/assets/upload" && r.request().method() === "POST";
+    const [rejected] = await Promise.all([
+      page.waitForResponse(uploaded),
+      dialog.getByRole("button", { name: "保存并关闭", exact: true }).click(),
+    ]);
+    expect(rejected.status()).toBe(400);
+    expect((await rejected.json()).error.code).toBe("INVALID_IMAGE");
+    await expect(dialog.getByRole("alert")).toContainText("无法解码");
+    const before = await (await page.request.get("/api/items?q=" + encodeURIComponent(prefix))).json();
+    expect(before.total).toBe(1);
+    const id = before.rows[0].id;
+    if (change === "改字段") await dialog.getByLabel("商品名称", { exact: true }).fill(prefix + " 更正");
+    if (change === "换图片") await dialog.getByLabel("商品图片", { exact: true }).setInputFiles(await quickIntakeImage("replacement.png"));
+    const [retried] = await Promise.all([
+      page.waitForResponse(uploaded),
+      dialog.getByRole("button", { name: change === "换保存意图" ? "保存并完善" : "保存并关闭", exact: true }).click(),
+    ]);
+    expect(retried.status()).toBe(change === "换图片" ? 201 : 400);
+    const after = await (await page.request.get("/api/items?q=" + encodeURIComponent(prefix))).json();
+    expect(after.total).toBe(1);
+    expect(after.rows[0].id).toBe(id);
+    expect(creates).toBe(1);
+    if (change === "改字段") expect(after.rows[0].title).toBe(prefix + " 更正");
+    if (change === "换图片") {
+      await expect(dialog).not.toBeVisible();
+      const item = await (await page.request.get("/api/items/" + id)).json();
+      expect(item.assets).toHaveLength(1);
+      expect(item.assets[0].originalName).toBe("replacement.png");
+    }
+  });
+}
