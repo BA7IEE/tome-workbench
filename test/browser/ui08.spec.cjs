@@ -825,6 +825,9 @@ test("手机长编辑页保存随滚动可达，不遮底部导航并保留同�
     await expect(page.locator(".studio-save-identity")).toHaveText(item.code);
   }
   await page.setViewportSize({ width: 390, height: 360 });
+  await page.locator(".studio-more > summary").click();
+  await expect(page.getByRole("button", { name: "保存并下载资料", exact: true })).toBeVisible();
+  await page.locator(".studio-more > summary").click();
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的手机输入");
