@@ -1,6 +1,6 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
-已批准 UX 后续在 PR #58 分批实施，先处理快速录货退出与同一 TM 的恢复，见 [UX-INTAKE-RECOVERY](docs/UX-INTAKE-RECOVERY.md)。PR #57 的固定候选 `98df13d` 已通过云端两浏览器各191项；本片仍须自身固定提交的验证，未部署。
+已批准 UX 后续在 PR #58 分片实施：快速录货受保护退出、同件建档/图片恢复、跨窗口原请求核对、快速修改草稿转交、保存与取消说明、手机保存、范围与批量结果，以及图片任务说明。各片边界见 [UX 交互实施](docs/UX-IMPLEMENTATION.md)。第一片 `2b54f9e` 的 CI 38197506838 两浏览器各195通过；随后片仍须自身固定 head 的完整验证，未合并或部署。
 
 每次开工、独立切片和交接分别运行 `npm run dev:preflight`、`npm run dev:checkpoint`、`npm run dev:handoff`；只读、不代替完整发布门禁，流程见 [WORKING-STATE](docs/WORKING-STATE.md)。
 
