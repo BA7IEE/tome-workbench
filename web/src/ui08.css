@@ -6040,7 +6040,7 @@
       width: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
       grid-template-areas: "identity state state" "save cancel more";
       gap: 6px 8px; padding: 10px 12px; border: 1px solid var(--tome-border);
-      border-radius: var(--ui-radius); background: var(--tome-surface); box-shadow: 0 -2px 12px #29262212;
+      border-radius: var(--ui-radius); background: var(--tome-surface); box-shadow: 0 -2px 12px rgba(var(--tome-text-rgb), 0.08);
     }
     .foundation-shell .studio-save-identity { display: block; grid-area: identity; align-self: center; color: var(--tome-textSecondary); }
     .foundation-shell .studio-command-actions > .entry-save-state { display: block; grid-area: state; text-align: right; font-size: 12px; }

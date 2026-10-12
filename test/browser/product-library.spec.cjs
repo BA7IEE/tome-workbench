@@ -939,6 +939,8 @@ for (const width of [1440, 390]) {
       name: "AI 上身效果",
       exact: true,
     });
+    await expect(gallery.locator("details")).not.toHaveAttribute("open", "");
+    await gallery.locator("summary").click();
     await expect(gallery).toContainText("还没有 AI 效果图");
     await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
     await page
