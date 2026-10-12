@@ -56,7 +56,10 @@ export function correctionContract(evidence: Evidence) {
   return {
     mode: "REVIEW_ONLY" as const, executionAvailable: false as const,
     candidateEligible: blockers.length === 0,
-    digest: hash(evidence),
+    digest: hash({ ...evidence, dependencies: Object.fromEntries(Object.keys(dependencyNames).map(key => {
+      const count = evidence.dependencies[key];
+      return [key, Number.isSafeInteger(count) && count >= 0 ? count : null];
+    })) }),
     target: { candidateId: candidate.id, candidateVersion: candidate.version, itemId: item?.id || null, itemVersion: item?.version || null, code: item ? tm(item.serial) : null, purchaseLine: evidence.purchaseLine },
     originalConfirmationReceiptId: proofs.length === 1 ? proofs[0].id : null,
     blockers,
