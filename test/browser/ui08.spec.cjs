@@ -860,6 +860,8 @@ test("转交明确清空的品牌和成色，完整页不重新匹配旧选择�
   await expect(d.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
   await d.getByRole("button",{name:"清除品牌",exact:true}).click();
   await d.getByLabel("成色",{exact:true}).selectOption("");
+  await expect(d.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
+  await expect(d.getByLabel("品牌",{exact:true})).toHaveValue("");
   await d.getByRole("button",{name:"保留修改并进入完整编辑",exact:true}).click();
   const form=page.locator("#product-entry-form");
   await expect(form.locator('[data-dictionary][data-ready=true]')).toHaveCount(4);
