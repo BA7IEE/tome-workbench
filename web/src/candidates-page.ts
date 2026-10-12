@@ -68,6 +68,7 @@ type Candidate = {
   sourceItemKey: string;
   procurementSource: Source;
   batch: { id: string; agentName: string; externalBatchKey: string };
+  confirmationCorrections?: { id: string }[];
   item?: { id: string; serial: number; title: string; status?: string; approvedValid?: boolean } | null;
   assets: CandidateAsset[];
   possibleDuplicateCount: number;
@@ -771,8 +772,11 @@ function candidateProcess(candidate: Candidate, after: () => Promise<void>, retu
   );
 }
 function candidateActions(candidate: Candidate, after: () => Promise<void>) {
+  const active = candidate.confirmationCorrections?.[0];
+  if (active)
+    return `<small>误确认已撤销 · 已排除 · ${candidate.item ? esc(tm(candidate.item.serial)) : "原 TM"} 保留</small>${can("users") ? button("核对组合恢复", () => confirmationCompensation(candidate, after, active.id)) + button("核对撤销回执", () => confirmationCompensation(candidate, after)) : ""}${button("查看来源事实", () => showSourceEvidence(candidate.id))}`;
   if (candidate.item)
-    return `<small>库存 ${esc(states[candidate.item.status || ""] || "请查看 TM 核对")} · 资料 ${candidate.item.approvedValid === true ? "已审核" : "待审核"}</small><a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>${can("users") ? button("核对误确认条件", () => correctionReview(candidate)) : ""}`;
+    return `<small>库存 ${esc(states[candidate.item.status || ""] || "请查看 TM 核对")} · 资料 ${candidate.item.approvedValid === true ? "已审核" : "待审核"}</small><a class="btn" href="#/items/${candidate.item.id}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(tm(candidate.item.serial))}</a>${can("users") ? button("核对误确认条件", () => correctionReview(candidate)) + button("撤销误确认", () => confirmationCompensation(candidate, after)) : ""}`;
   if (candidate.decision === "EXCLUDED")
     return button("恢复为待确认", () => candidateRestore(candidate, after));
   const duplicate = candidate.possibleDuplicateCount > 0;
@@ -787,6 +791,46 @@ async function correctionReview(candidate: Candidate) {
   viewDialog("误确认核对 · " + (preview.target.code || "来源候选"),
     note("这里只核对证据和依赖，不执行撤销。普通回收站不会改变已确认来源；关联已有或共享 TM 不能自动删除或换号。") +
     `<p>${preview.candidateEligible ? "当前证据符合单件新建、单一归属且无经营依赖的保守边界。组合撤销与恢复尚未开放，不能用本核对结果替代提交时重验。" : "当前不符合自动撤销条件，请保留记录并核对下列原因。"}</p><ul>${preview.blockers.map(b => `<li>${esc(b.message)}</li>`).join("")}</ul>${button("查看来源事实", () => showSourceEvidence(candidate.id))}`,
+  );
+}
+type CompensationBody = { candidateVersion: number; itemVersion: number; purchaseLineVersion: number | null; digest: string; code: string; reason: string; confirmed: true };
+type CompensationWork = { path: string; key: string; body: CompensationBody } | { reason: string; requiresReview: true };
+async function confirmationCompensation(candidate: Candidate, after: () => Promise<void>, correctionId?: string) {
+  const storage = `confirmation-compensation:${me!.id}:${candidate.id}`;
+  const saved = await readWork<CompensationWork>(storage);
+  let pending = saved && "body" in saved ? saved : undefined;
+  const restoring = pending ? pending.path.includes("confirmation-corrections/") : !!correctionId;
+  const previewPath = pending ? pending.path.replace(/\/restore$/, "/restore-preview").replace(/\/revoke-confirmation$/, "/confirmation-compensation-preview") : correctionId ? `/ingest/confirmation-corrections/${correctionId}/restore-preview` : `/ingest/candidates/${candidate.id}/confirmation-compensation-preview`;
+  const path = correctionId ? `/ingest/confirmation-corrections/${correctionId}/restore` : `/ingest/candidates/${candidate.id}/revoke-confirmation`;
+  const preview = await request<{ candidateEligible: boolean; digest: string; target: { code: string | null; candidateVersion: number; itemVersion: number | null; purchaseLine: { version: number } | null }; blockers: { message: string }[] }>(previewPath);
+  if (!pending && !preview.candidateEligible) {
+    viewDialog("组合纠错条件不符", note("请保留原记录，先核对这些原因。") + `<ul>${preview.blockers.map(b => `<li>${esc(b.message)}</li>`).join("")}</ul>`);
+    return;
+  }
+  const code = pending?.body.code || preview.target.code!;
+  const reason = pending?.body.reason || (saved && "reason" in saved ? saved.reason : "");
+  form((restoring ? "组合恢复" : "单件误确认撤销") + " · " + code,
+    note(pending ? "本机保留了原提交。请恢复原内容核对回执，重试使用原请求号；当前状态不能证明上次未成功。" : restoring ? "恢复同一件原 TM 和来源确认、采购纳入决定。恢复后为已暂停、待审核，不会自动发布。" : "这会同时将原 TM 移入回收站、来源改为已排除、关联采购行改为排除。TM 号、原图、实物在手信息和原确认历史保留。") +
+    `<p>${esc(candidate.titleRaw)} · ${esc(candidate.procurementSource.name)}</p>` +
+    field("code", "输入完整 TM 编号", pending ? code : "", "text", true) +
+    area("reason", "纠错原因", reason, 3) + check("confirmed", "我已核对同一件实物及来源，确认上述组合变更"),
+    async (data, key) => {
+      const enteredReason = text(data, "reason").trim(), enteredCode = text(data, "code").trim();
+      if (!data.has("confirmed") || enteredReason.length < 3 || enteredCode !== code) throw new Error("请填写至少3个字的原因、完整 TM 编号并勾选确认");
+      if (pending && (pending.body.reason !== enteredReason || pending.body.code !== enteredCode)) throw new Error("原提交结果待核对，请恢复原提交内容后重试");
+      pending ??= { path, key, body: { candidateVersion: preview.target.candidateVersion, itemVersion: preview.target.itemVersion!, purchaseLineVersion: preview.target.purchaseLine?.version || null, digest: preview.digest, code, reason: enteredReason, confirmed: true } };
+      await saveWork(storage, pending);
+      try {
+        await request(pending.path, "POST", pending.body, pending.key);
+      } catch (error) {
+        const failure = error as Error & { status?: number; code?: string };
+        if ([400,409].includes(failure.status || 0) && failure.code !== "IDEMPOTENCY_CONFLICT")
+          await saveWork(storage, { reason: enteredReason, requiresReview: true });
+        throw error;
+      }
+      await saveWork(storage, undefined);
+    }, pending ? "核对原提交回执" : restoring ? "确认组合恢复" : "确认组合撤销",
+    async () => { toast(restoring ? `${code} 已恢复，当前为已暂停、待审核` : `${code} 已撤销误确认，来源已排除，原记录保留`); await after(); },
   );
 }
 function selectableCandidate(candidate: Candidate) {

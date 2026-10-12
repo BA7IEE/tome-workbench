@@ -8,6 +8,7 @@ import { Commands, audit, event, json } from "../common/transaction";
 import { expectedVersion, safeText, tm, uuid } from "../common/domain";
 import { Fault } from "../common/errors";
 import { itemLock, snapshot, versionMatch } from "./catalog.service";
+import { assertNoActiveCorrection } from "../ingest/correction-guards";
 import { PublicationHealthService } from "../distribution/publication-health.service";
 const mutation = z
   .object({
@@ -65,6 +66,7 @@ export class TrashController {
             version: true,
             deletedAt: true,
             deletionReason: true,
+            confirmationCorrections: { where: { restoredAt: null }, select: { id: true, candidateId: true }, take: 1 },
             dataMode: true,
           },
         });
@@ -207,6 +209,7 @@ export class TrashController {
       { id, ...b },
       async (tx) => {
         const item = await itemLock(tx, id, true);
+        await assertNoActiveCorrection(tx, "itemId", id);
         if (!item.deletedAt)
           throw new Fault("ITEM_NOT_DELETED", "商品不在回收站，无需恢复");
         versionMatch(item.version, b.version);

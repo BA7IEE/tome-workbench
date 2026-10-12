@@ -89,6 +89,7 @@ async function impact(tx: Tx, id: string) {
     },
   });
   const basis = {
+    confirmationCorrections: await tx.ingestConfirmationCorrection.findMany({ where: { itemId: id }, orderBy: { createdAt: "asc" }, select: { id: true, restoredAt: true } }),
     materialExports: await tx.materialExportEntry.findMany({
       where: { itemId: id },
       orderBy: { exportId: "asc" },
@@ -151,6 +152,7 @@ export class TestDataController {
       async (tx) => {
         const item = await itemLock(tx, id, true);
         versionMatch(item.version, b.version);
+        if (await tx.ingestConfirmationCorrection.count({ where: { itemId: id, restoredAt: null } })) throw new Fault("CONFIRMATION_CORRECTION_ACTIVE", "活动误确认必须先使用专用组合核对，不能按测试商品清理拆开状态", 409);
         if (b.typedCode !== tm(item.serial))
           throw new Fault(
             "TEST_CODE_MISMATCH",

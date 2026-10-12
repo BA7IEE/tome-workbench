@@ -1088,3 +1088,61 @@ test("误确认核对只读取证据并显示阻断说明，取消不改来源�
   expect(state.total).toBe(1);expect(state.rows[0].item.id).toBe(confirmed.itemId);
   expect((await api(page,`/items/${confirmed.itemId}`,undefined,'GET')).status).toBe('PAUSED');
 });
+
+test('手机单件误确认撤销、普通回收站引导和原TM组合恢复完整链路，取消不写入',async({page})=>{
+  await page.setViewportSize({width:390,height:760});
+  const x=await makeBatch(page,1),c=x.rows[0],confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成单件纠错'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  let card=page.locator(`[data-candidate="${c.id}"]`);
+  const writes=[];page.on('request',r=>{if(r.url().includes('revoke-confirmation')&&r.method()==='POST')writes.push(r.url())});
+  await card.getByRole('button',{name:'撤销误确认',exact:true}).click();
+  let d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await expect(d).toContainText('TM 号、原图、实物在手信息和原确认历史保留');
+  await d.getByRole('button',{name:'取消',exact:true}).click();expect(writes).toEqual([]);
+  await card.getByRole('button',{name:'撤销误确认',exact:true}).click();
+  d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);
+  await d.getByLabel('纠错原因',{exact:true}).fill('合成手机误确认纠错');
+  await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合撤销',exact:true}).click();await expect(d).toHaveCount(0);expect(writes).toHaveLength(1);
+  await page.goto(`/#/items/${confirmed.itemId}`);
+  await expect(page.getByRole('button',{name:'到来源核对组合恢复',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'恢复商品',exact:true})).toHaveCount(0);
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=EXCLUDED`);
+  card=page.locator(`[data-candidate="${c.id}"]`);await expect(card).toContainText('误确认已撤销 · 已排除 · '+confirmed.code+' 保留');
+  await expect(card.getByRole('button',{name:'恢复为待确认',exact:true})).toHaveCount(0);
+  await card.getByRole('button',{name:'核对组合恢复',exact:true}).click();
+  d=page.getByRole('dialog',{name:'组合恢复 · '+confirmed.code});
+  await expect(d).toContainText('恢复后为已暂停、待审核，不会自动发布');
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);await d.getByLabel('纠错原因',{exact:true}).fill('合成手机组合恢复');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合恢复',exact:true}).click();await expect(d).toHaveCount(0);
+  const item=await api(page,`/items/${confirmed.itemId}`,undefined,'GET');expect(item.deletedAt).toBeNull();expect(item.code).toBe(confirmed.code);expect(item.status).toBe('PAUSED');expect(item.approvedValid).toBe(false);
+  const candidates=await api(page,`/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,undefined,'GET');expect(candidates.rows[0].id).toBe(c.id);expect(candidates.rows[0].item.id).toBe(confirmed.itemId);
+});
+
+test('误确认真实写入后丢回执，跨窗口保留原内容原请求号并核对，改变内容不能重发',async({page,context})=>{
+  const x=await makeBatch(page,1),c=x.rows[0],confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成回执恢复'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  const auth=await (await page.request.get('/api/auth/me')).json();
+  const attempts=[];let written;
+  await page.route(`**/api/ingest/candidates/${c.id}/revoke-confirmation`,async route=>{
+    const req=route.request(),key=req.headers()['idempotency-key'],body=req.postDataJSON();attempts.push({key,body});
+    const response=await page.request.post(req.url(),{data:body,headers:{Origin:new URL(page.url()).origin,'X-CSRF-Token':auth.csrf,'Idempotency-Key':key}});
+    expect(response.ok()).toBe(true);written=await response.json();await route.abort('failed');
+  });
+  await page.locator(`[data-candidate="${c.id}"]`).getByRole('button',{name:'撤销误确认',exact:true}).click();
+  let d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);await d.getByLabel('纠错原因',{exact:true}).fill('合成保留原请求');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合撤销',exact:true}).click();await expect(d.locator('.form-error')).toContainText(/连接|请求|网络|结果/);expect(written.correctionId).toBeTruthy();
+  const other=await context.newPage();
+  try {
+    const replays=[];other.on('request',r=>{if(r.url().includes(`/candidates/${c.id}/revoke-confirmation`)&&r.method()==='POST')replays.push({key:r.headers()['idempotency-key'],body:r.postDataJSON()})});
+    await other.goto(`/#/candidates?batchId=${x.batch.id}&decision=EXCLUDED`);
+    await other.locator(`[data-candidate="${c.id}"]`).getByRole('button',{name:'核对撤销回执',exact:true}).click();
+    d=other.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});await expect(d.getByLabel('纠错原因',{exact:true})).toHaveValue('合成保留原请求');
+    await d.getByLabel('纠错原因',{exact:true}).fill('改变内容不得重发');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();await d.getByRole('button',{name:'核对原提交回执',exact:true}).click();await expect(d.locator('.form-error')).toContainText('恢复原提交内容');expect(replays).toEqual([]);
+    await d.getByLabel('纠错原因',{exact:true}).fill('合成保留原请求');await d.getByRole('button',{name:'核对原提交回执',exact:true}).click();await expect(d).toHaveCount(0);
+    expect(replays).toHaveLength(1);expect(replays[0]).toEqual(attempts[0]);
+    const state=await api(other,`/ingest/candidates/${c.id}`,undefined,'GET');expect(state.confirmationCorrections).toEqual([{id:written.correctionId}]);expect(state.decision).toBe('EXCLUDED');expect(state.version).toBe(c.version+2);
+  } finally {await other.close();}
+});

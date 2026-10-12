@@ -1,3 +1,4 @@
+import { assertNoActiveCorrection } from "../ingest/correction-guards";
 import { ProcurementService } from "./procurement.service";
 import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
@@ -260,6 +261,7 @@ export class ProcurementController {
       { id, ...b },
       async (tx) => {
         await lock(tx, "purchase-line:" + id);
+        await assertNoActiveCorrection(tx, "purchaseLineId", id);
         const line = await tx.purchaseLine.findUniqueOrThrow({ where: { id } });
         versionMatch(line.version, b.version);
         const updated = await tx.purchaseLine.update({
@@ -304,6 +306,7 @@ export class ProcurementController {
       { id },
       async (tx) => {
         await lock(tx, "purchase-line:" + id);
+        await assertNoActiveCorrection(tx, "purchaseLineId", id);
         const line = await tx.purchaseLine.findUniqueOrThrow({
           where: { id },
           include: {
@@ -369,6 +372,7 @@ export class ProcurementController {
       { id, ...b },
       async (tx) => {
         await lock(tx, "purchase-line:" + id);
+        await assertNoActiveCorrection(tx, "purchaseLineId", id);
         await itemLock(tx, b.itemId);
         const line = await tx.purchaseLine.findUniqueOrThrow({
           where: { id },
@@ -459,6 +463,7 @@ export class ProcurementController {
       async (tx) => {
         await lock(tx, "financial-journal");
         await lock(tx, "purchase-line:" + id);
+        await assertNoActiveCorrection(tx, "purchaseLineId", id);
         await tx.purchaseLine.findUniqueOrThrow({ where: { id } });
         const active = await tx.purchaseCostConfirmation.findFirst({
           where: { purchaseLineId: id, voidedAt: null },

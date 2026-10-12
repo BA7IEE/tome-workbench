@@ -45,6 +45,7 @@ import { factsSchema, tm } from "../common/domain";
 import { proposalFor } from "./ingest.logic";
 import type { z } from "zod";
 import { assertTrr14SourceFacts, candidateBrandBindInput, ingestCandidateInput } from "./ingest.schemas";
+import { assertNoActiveCorrection } from "./correction-guards";
 import { assertNoSensitiveIngestData } from "./ingest-security";
 
 type CandidateInput = z.infer<typeof ingestCandidateInput>;
@@ -1116,6 +1117,7 @@ export class IngestService {
       { id, ...input },
       async (tx) => {
         await lock(tx, "ingest-candidate:" + id);
+        await assertNoActiveCorrection(tx, "candidateId", id);
         const current = await tx.ingestCandidate.findUniqueOrThrow({
           where: { id },
           include: {
@@ -1330,6 +1332,7 @@ export class IngestService {
       { id, ...input },
       async (tx) => {
         await lock(tx, "ingest-candidate:" + id);
+        await assertNoActiveCorrection(tx, "candidateId", id);
         const c = await tx.ingestCandidate.findUniqueOrThrow({ where: { id } });
         if (c.decision === "CONFIRMED")
           throw new Fault(
@@ -1482,6 +1485,7 @@ export class IngestService {
       { id, ...input },
       async (tx) => {
         await lock(tx, "ingest-candidate:" + id);
+        await assertNoActiveCorrection(tx, "candidateId", id);
         const current = await tx.ingestCandidate.findUniqueOrThrow({
           where: { id },
           include: {

@@ -428,6 +428,7 @@ export class CatalogService {
     const item = await this.db.item.findUnique({
       where: { id },
       include: {
+        confirmationCorrections: { where: { restoredAt: null }, select: { id: true, candidateId: true }, take: 1 },
         dictionarySelections: true,
         aliases: true,
         waivers: { orderBy: { createdAt: "desc" } },

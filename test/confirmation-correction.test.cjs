@@ -23,6 +23,7 @@ const dependencyKeys = [
   "waivers",
   "channelPrices",
   "aliases",
+  "collectionEntries",
   "purchaseConfirmations",
   "orderCostBasis",
   "orderItemCosts",

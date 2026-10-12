@@ -3,7 +3,8 @@ import { hash } from "../common/transaction";
 import { Fault } from "../common/errors";
 import { tm } from "../common/domain";
 
-type Evidence = {
+export type Evidence = {
+  sourceVersion?: number | null;
   candidate: {
     id: string;
     version: number;
@@ -55,6 +56,7 @@ const dependencyNames: Record<string, string> = {
   waivers: "发布豁免",
   channelPrices: "渠道报价",
   aliases: "额外身份别名",
+  collectionEntries: "选品关联",
   purchaseConfirmations: "整单逐件成本确认历史",
   orderCostBasis: "整单成本分摊依据",
   orderItemCosts: "同订单其他商品成本",
@@ -196,7 +198,7 @@ export function correctionContract(evidence: Evidence) {
   };
 }
 
-export async function confirmationCorrectionPreview(tx: Tx, id: string) {
+export async function correctionEvidence(tx: Tx, id: string) {
   const candidate = await tx.ingestCandidate.findUnique({
     where: { id },
     include: { purchaseLine: { include: { order: true, returnLinks: true } } },
@@ -206,7 +208,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
     ? await tx.item.findUnique({
         where: { id: candidate.itemId },
         include: {
-          source: { select: { purchaseLineId: true } },
+          source: { select: { purchaseLineId: true, version: true } },
           sourceLinks: true,
           purchaseLinks: true,
           _count: true,
@@ -231,6 +233,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
   const [
     candidateCount,
     sourceLinkCount,
+    primaryItemCount,
     purchaseConfirmations,
     orderCostBasis,
     orderItemCosts,
@@ -248,6 +251,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
     candidate.sourceId
       ? tx.itemSourceLink.count({ where: { sourceId: candidate.sourceId } })
       : 0,
+    candidate.sourceId ? tx.item.count({ where: { sourceId: candidate.sourceId } }) : 0,
     line
       ? tx.purchaseCostConfirmation.count({
           where: { purchaseLine: { orderId: line.orderId } },
@@ -269,6 +273,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
       : 0,
   ]);
   const evidence: Evidence = {
+    sourceVersion: item?.source?.version || null,
     candidate: {
       id: candidate.id,
       version: candidate.version,
@@ -292,7 +297,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
     receipts,
     singleCandidate: candidateCount === 1,
     singleSource:
-      sourceLinkCount === 1 &&
+      sourceLinkCount === 1 && primaryItemCount === 1 &&
       item?.sourceLinks.length === 1 &&
       item.sourceLinks[0].sourceId === candidate.sourceId &&
       item.sourceLinks[0].kind === "ACQUISITION" &&
@@ -328,5 +333,9 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
       ]),
     ),
   };
-  return correctionContract(evidence);
+  return { evidence, candidate, item, line };
+}
+
+export async function confirmationCorrectionPreview(tx: Tx, id: string) {
+  return correctionContract((await correctionEvidence(tx, id)).evidence);
 }

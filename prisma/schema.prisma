@@ -16,6 +16,8 @@ model User {
   active       Boolean   @default(true)
   createdAt    DateTime  @default(now())
   sessions     Session[]
+  createdCorrections IngestConfirmationCorrection[] @relation("CorrectionCreator")
+  restoredCorrections IngestConfirmationCorrection[] @relation("CorrectionRestorer")
 }
 
 model Session {
@@ -62,6 +64,7 @@ model Source {
   purchaseLine     PurchaseLine?     @relation(fields: [purchaseLineId], references: [id])
   itemLinks        ItemSourceLink[]
   ingestCandidates IngestCandidate[]
+  confirmationCorrections IngestConfirmationCorrection[]
 }
 
 model SourceRevision {
@@ -191,6 +194,8 @@ model PurchaseLine {
   costConfirmations     PurchaseCostConfirmation[]
   purchaseLineRevisions PurchaseLineRevision[]
   ingestCandidates      IngestCandidate[]
+
+  confirmationCorrections IngestConfirmationCorrection[]
 
   @@unique([orderId, lineKey])
   @@index([sourceSku])
@@ -367,6 +372,8 @@ model Item {
   channelPrices        ChannelPrice[]
   distributionTargets  DistributionTarget[]
   distributionAttempts DistributionAttempt[]
+
+  confirmationCorrections IngestConfirmationCorrection[]
 
   @@index([deletedAt, serial])
 }
@@ -767,6 +774,8 @@ model Receipt {
   response    Json
   createdAt   DateTime @default(now())
 
+  confirmationCorrections IngestConfirmationCorrection[]
+
   @@unique([actorId, operation, key])
 }
 
@@ -1099,9 +1108,43 @@ model IngestCandidate {
   assets                IngestCandidateAsset[]
   memberships           IngestBatchMember[]
 
+  confirmationCorrections IngestConfirmationCorrection[]
+
   @@unique([procurementSourceId, externalKey])
   @@index([decision, createdAt])
   @@index([batchId, decision])
+}
+
+// Append-only compensation history; only the one-way joint restore fields
+// may be filled. PostgreSQL also enforces one active correction per item and
+// candidate, plus deferred invariants across their current domain states.
+model IngestConfirmationCorrection {
+  id                    String @id @default(uuid()) @db.Uuid
+  candidateId           String @db.Uuid
+  candidate             IngestCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  itemId                String @db.Uuid
+  item                  Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  sourceId              String @db.Uuid
+  source                Source @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  purchaseLineId        String? @db.Uuid
+  purchaseLine          PurchaseLine? @relation(fields: [purchaseLineId], references: [id], onDelete: Restrict)
+  originalReceiptId     String
+  originalReceipt       Receipt @relation(fields: [originalReceiptId], references: [id], onDelete: Restrict)
+  reason                String
+  createdBy             String @db.Uuid
+  creator               User @relation("CorrectionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt             DateTime @default(now())
+  beforeSnapshot        Json
+  correctedSnapshot     Json
+  restoredAt            DateTime?
+  restoredBy            String? @db.Uuid
+  restorer              User? @relation("CorrectionRestorer", fields: [restoredBy], references: [id], onDelete: Restrict)
+  restoreReason         String @default("")
+  restoredSnapshot      Json?
+
+  @@index([candidateId, createdAt])
+  @@index([itemId, restoredAt])
+  @@index([purchaseLineId, restoredAt])
 }
 
 model IngestBatchMember {

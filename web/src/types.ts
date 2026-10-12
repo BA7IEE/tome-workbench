@@ -119,6 +119,7 @@ export interface Item {
     labelEn: string;
     entryVersion: number;
   }[];
+  confirmationCorrections?: { id: string; candidateId: string }[];
   deletedAt?: string | null;
   deletionReason?: string;
   updatedAt?: string;

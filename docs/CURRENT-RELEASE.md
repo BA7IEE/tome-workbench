@@ -2,9 +2,9 @@
 
 PR #57 的固定候选 `98df13d` 已通过 CI 38188343411：两浏览器各191/191、Node 245项、198项静态守卫、HA/恢复/audit/pack。它未合并或部署，不能用该结果证明后续改动。CSP、菜单与 Sharp 修复来历见对应文档。
 
-用户已批准 UX 方案分批实施。PR #58 第一片 `2b54f9e` 已通过自身 CI 38197506838（Chromium/WebKit 各195）；随后实施草稿转交、跨窗口原请求核对、保存/图片反馈、手机主保存、筛选/库存范围、批量结果、回收站原因和图片入口说明。完整验收以本批实际固定 head 为准，详见 [UX-IMPLEMENTATION](UX-IMPLEMENTATION.md)。第一片绿色不验证后续代码。PR #59 独立新增仅管理员只读的误确认资格与转换合同，尚无组合撤销写接口或迁移，不改真实决定和历史。库存默认、编号、角色与发布限制不变，未合并/部署。
+用户已批准 UX 方案分批实施。PR #58 第一片 `2b54f9e` 已通过自身 CI 38197506838（Chromium/WebKit 各195）；随后实施草稿转交、跨窗口原请求核对、保存/图片反馈、手机主保存、筛选/库存范围、批量结果、回收站原因和图片入口说明。完整验收以本批实际固定 head 为准，详见 [UX-IMPLEMENTATION](UX-IMPLEMENTATION.md)。第一片绿色不验证后续代码。PR #59 保存仅管理员只读的误确认资格与转换合同；其固定候选通过 CI。rc.14 后续新增单条组合撤销与恢复、专用历史和 forward migration，验收须使用后续固定源码，不能复用 #59 结果。库存默认、编号、角色与发布限制不变，未合并/部署。
 
-当前源码版本：**1.1.0-rc.13**，新增可审计的来源污染纠错：受限来源字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、逐件折后金额成本分摊、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
+当前源码版本：**1.1.0-rc.14**，新增可审计的来源污染纠错：受限来源字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、逐件折后金额成本分摊、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 
 当前新增 AI 上身效果浏览切片：商品详情将未存档的 AI 营销图或 AI 来源图片单独展示，大图浏览保留 AI 提示；完整编辑页不再给 AI 图片提供设封面或标瑕疵操作，也不把它标为封面。复用既有人工上传、原图下载和存档命令；没有接入生成服务、修改公开授权或资料包合同，没有 migration 或依赖变更。当前源码验证见 [VALIDATION](VALIDATION.md)，不代表已部署。
 
@@ -60,6 +60,8 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。 主工作队列现在与分发经营投影保持一致：已交付超过时限或其分发会话失效的记录也进入 DISTRIBUTION 待办；外币 Sale 的空成本不再被描述为缺人民币成本，而明确显示为待确认外币结算依据。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
 
+rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一、归属单一且无任何经营/整单财务依赖时提交。商品移入回收站并保持 PAUSED/待审核，候选 EXCLUDED，关联采购行 EXCLUDE；保留永久 TM、原图、实物在手及原回执。专用组合恢复重新核对当前依赖，恢复同一 TM、CONFIRMED 和 INCLUDE，仍 PAUSED/待审核、不自动发布。普通商品/候选/采购恢复不能拆开活动纠错，历史仅允许追加一次恢复信息。新增迁移必须使用停写、备份清单和正式维护窗口；本源码工作未操作生产。详见 [误确认组合纠错](CONFIRMATION-COMPENSATION.md)。
+
 ## 自动维护约束
 
 以下清单由实际源码目录生成，`node scripts/check-current-docs.mjs` 核对版本、迁移、双浏览器文件范围，以及当前版本 validation 摘要的版本和源码指纹。目录新增文件时必须更新清单，不能只手填通过数。
@@ -68,7 +70,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 ```json
 {
-  "version": "1.1.0-rc.13",
+  "version": "1.1.0-rc.14",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",
@@ -89,7 +91,8 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
     "202609180017_inquiry_followup",
     "202609180018_ingest_credential_redaction",
     "202609200019_source_line_net_cost",
-    "202609210020_ingest_candidate_asset_retirement"
+    "202609210020_ingest_candidate_asset_retirement",
+    "202610120021_confirmation_compensation"
   ],
   "browserFiles": [
     "arco-workspace.spec.cjs",
