@@ -12,6 +12,9 @@
   },
   "packageManager": "npm@10.9.8",
   "scripts": {
+    "dev:preflight": "python3 scripts/dev-guard.py audit --repo . --phase preflight",
+    "dev:checkpoint": "python3 scripts/dev-guard.py audit --repo . --phase checkpoint",
+    "dev:handoff": "python3 scripts/dev-guard.py audit --repo . --phase handoff",
     "build:api": "tsc -p tsconfig.json",
     "build:web": "vite build",
     "build": "npm run build:api && npm run build:web",
