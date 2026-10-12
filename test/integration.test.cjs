@@ -7429,6 +7429,7 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:c.id}}),1);
   assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);assert.equal(await db.listing.count({where:{itemId:i.id}}),0);
   assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
+  await assert.rejects(db.ingestCandidate.update({where:{id:c.id},data:{decision:'EXCLUDED'}}));
   const latest=await db.itemRevision.findUniqueOrThrow({where:{itemId_version:{itemId:i.id,version:current.version}}});
   const {snapshot}=require('../dist/catalog/catalog.service');assert.deepEqual(latest.snapshot,JSON.parse(JSON.stringify(await snapshot(db,current))));
   await ok(`/items/${i.id}/approve`,'POST',{version:current.version});assert.equal((await db.item.findUniqueOrThrow({where:{id:i.id}})).approvedValid,true);assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);
@@ -7442,7 +7443,7 @@ test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，�
   const transaction=db.$transaction(async tx=>{await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))',`item:${x.confirmed.itemId}`);ready();await hold;},{timeout:10000});
   await acquired;try{assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_RESOURCE_BUSY');}finally{unlock();await transaction;}
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),0);
-  const alias='SYNTHETIC-BEFORE-'+randomUUID();
+  const alias='CORRPRE_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase();
   await db.itemAlias.create({data:{itemId:x.confirmed.itemId,code:alias,source:'合成并发依赖',createdBy:admin.id}});
   assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_REVIEW_CHANGED');
   await db.itemAlias.delete({where:{code:alias}});
@@ -7454,7 +7455,18 @@ test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，�
   await assert.rejects(db.ingestCandidate.update({where:{id:x.c.id},data:{decision:'PENDING'}}));
   await assert.rejects(db.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:{reason:'历史原因不得覆盖'}}));
   await assert.rejects(db.ingestConfirmationCorrection.delete({where:{id:r.correctionId}}));
-  await assert.rejects(db.itemAlias.create({data:{itemId:i.id,code:'SYNTHETIC-BLOCK-'+randomUUID(),source:'合成受保护别名',createdBy:admin.id}}));
+  const history=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}});
+  const fakeRestore={restoredAt:new Date(),restoredBy:admin.id,restoreReason:'不得只关闭历史',restoredSnapshot:history.correctedSnapshot};
+  await assert.rejects(db.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:fakeRestore}));
+  await assert.rejects(db.$transaction(async tx=>{
+    await tx.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:fakeRestore});
+    await tx.ingestCandidate.update({where:{id:x.c.id},data:{decision:'CONFIRMED'}});
+    await tx.item.update({where:{id:i.id},data:{deletedAt:null}});
+    // Purchase remains EXCLUDE: neither a fabricated snapshot nor closing
+    // history can unlock this incomplete restore at transaction commit.
+  }));
+  assert.equal((await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}})).restoredAt,null);
+  await assert.rejects(db.itemAlias.create({data:{itemId:i.id,code:'CORRBLK_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase(),source:'合成受保护别名',createdBy:admin.id}}));
   assert.ok((await db.item.findUniqueOrThrow({where:{id:i.id}})).deletedAt);
   assert.equal((await api(x.path,'POST',x.body,operator)).status,403);
 });

@@ -60,7 +60,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。 主工作队列现在与分发经营投影保持一致：已交付超过时限或其分发会话失效的记录也进入 DISTRIBUTION 待办；外币 Sale 的空成本不再被描述为缺人民币成本，而明确显示为待确认外币结算依据。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
 
-rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一、归属单一且无任何经营/整单财务依赖时提交。商品移入回收站并保持 PAUSED/待审核，候选 EXCLUDED，关联采购行 EXCLUDE；保留永久 TM、原图、实物在手及原回执。专用组合恢复重新核对当前依赖，恢复同一 TM、CONFIRMED 和 INCLUDE，仍 PAUSED/待审核、不自动发布。普通商品/候选/采购恢复不能拆开活动纠错，历史仅允许追加一次恢复信息。新增迁移必须使用停写、备份清单和正式维护窗口；本源码工作未操作生产。详见 [误确认组合纠错](CONFIRMATION-COMPENSATION.md)。
+rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一、归属单一且无任何经营/整单财务依赖时提交。商品移入回收站并保持 PAUSED/待审核，候选 EXCLUDED，关联采购行 EXCLUDE；保留永久 TM、原图、实物在手及原回执。专用组合恢复重新核对当前依赖，恢复同一 TM、CONFIRMED 和 INCLUDE，仍 PAUSED/待审核、不自动发布。普通商品/候选/采购恢复不能拆开活动纠错，历史仅允许追加一次恢复信息。补充 forward migration `202610120022_correction_candidate_anchor` 仅允许有活动历史的已排除候选保留 TM，并阻止只关闭历史或不完整恢复；已应用的迁移原样保留。新增迁移必须使用停写、备份清单和正式维护窗口；本源码工作未操作生产。详见 [误确认组合纠错](CONFIRMATION-COMPENSATION.md)。
 
 ## 自动维护约束
 
@@ -92,7 +92,8 @@ rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一�
     "202609180018_ingest_credential_redaction",
     "202609200019_source_line_net_cost",
     "202609210020_ingest_candidate_asset_retirement",
-    "202610120021_confirmation_compensation"
+    "202610120021_confirmation_compensation",
+    "202610120022_correction_candidate_anchor"
   ],
   "browserFiles": [
     "arco-workspace.spec.cjs",
