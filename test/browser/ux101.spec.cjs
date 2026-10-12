@@ -1,7 +1,7 @@
 const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHash } = require("node:crypto");
 const sharp = require("sharp");
 const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
@@ -367,13 +367,29 @@ test("快速录货首次建档回执丢失，关闭再开核对原请求仍只�
 
 test("快速录货图片真实保存丢回执后登录失效，保留未知尝试并原键核对", async ({ page }) => {
   const title = "图片回执与登录核对 " + randomUUID();
+  const photo = await quickIntakeImage("lost-image.png");
   let lost = false;
   const keys = [];
   await page.route("**/api/assets/upload", async route => {
     keys.push(route.request().headers()["idempotency-key"]);
     if (!lost) {
-      const response = await route.fetch();
-      expect(response.ok()).toBe(true);
+      // WebKit's intercepted multipart body need not contain reusable binary
+      // bytes. Reconstruct this exact persisted attempt, not a fake success.
+      const entries = await page.evaluate(async key => {
+        const db = await new Promise((resolve,reject) => {const r=indexedDB.open("tome-work-recovery",1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic attempt unavailable"));});
+        const records = await new Promise((resolve,reject) => {const r=db.transaction("work","readonly").objectStore("work").getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic attempt unavailable"));});db.close();
+        const job=records.flatMap(record=>Array.isArray(record)?record:[]).find(job=>job.key===key&&Array.isArray(job.input));
+        if(!job) throw new Error("The original persisted upload attempt is missing");
+        return job.input.map(([name,value])=>[name,value?.tomeRecoveryFile===true?{name:value.name,mimeType:value.type,bytes:Array.from(new Uint8Array(value.bytes))}:value]);
+      }, keys[0]);
+      const multipart=Object.fromEntries(entries.map(([name,value])=>[name,typeof value==='string'?value:{name:value.name,mimeType:value.mimeType,buffer:Buffer.from(value.bytes)}]));
+      expect(createHash('sha256').update(multipart.file.buffer).digest('hex')).toBe(createHash('sha256').update(photo.buffer).digest('hex'));
+      const response = await page.request.post(route.request().url(), {
+        multipart,
+        headers:{Origin:new URL(page.url()).origin,"X-CSRF-Token":route.request().headers()["x-csrf-token"],"Idempotency-Key":keys[0]},
+      });
+      const result=await response.json();
+      expect(response.status(), result.error?.code || "real image command").toBe(201);
       lost = true;
       await route.abort("failed");
     } else await route.continue();
@@ -382,7 +398,7 @@ test("快速录货图片真实保存丢回执后登录失效，保留未知尝�
   await page.getByRole("button", {name:"＋ 快速录入我方现货",exact:true}).click();
   const d=page.getByRole("dialog",{name:"快速录入我方现货"});
   await d.getByLabel("商品名称",{exact:true}).fill(title);
-  await d.getByLabel("商品图片",{exact:true}).setInputFiles(await quickIntakeImage("lost-image.png"));
+  await d.getByLabel("商品图片",{exact:true}).setInputFiles(photo);
   await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
   await expect(d.getByRole("alert")).toContainText("结果待确认");
   const auth=await (await page.request.get("/api/auth/me")).json();
@@ -411,5 +427,6 @@ test("快速录货图片真实保存丢回执后登录失效，保留未知尝�
   expect(keys).toHaveLength(3);expect(new Set(keys).size).toBe(1);
   const saved=await (await page.request.get(`/api/items/${itemId}`)).json();
   expect(saved.assets).toHaveLength(1);expect(saved.assets[0].originalName).toBe("lost-image.png");
+  expect(saved.assets[0].sha256).toBe(createHash('sha256').update(photo.buffer).digest('hex'));
   expect((await (await page.request.get("/api/items?q="+encodeURIComponent(title))).json()).total).toBe(1);
 });
