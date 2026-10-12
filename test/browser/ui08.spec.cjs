@@ -809,3 +809,31 @@ test("转交未选品牌的草稿保留原输入，完整页仍要求人工选�
   expect(saved.version).toBe(1);
   expect(saved.brand).toBe("");
 });
+
+test("手机长编辑页保存随滚动可达，不遮底部导航并保留同一件与取消保护", async ({ page }) => {
+  const title = "手机固定保存 " + randomUUID();
+  const item = await uiApi(page, "/items", { title });
+  await page.goto(`/#/items/${item.id}/edit`);
+  for (const width of [320, 390, 720, 721, 760]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    const box = await page.getByRole("button", { name: "保存商品", exact: true }).boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(780);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+    await expect(page.locator(".studio-save-identity")).toHaveText(item.code);
+  }
+  await page.setViewportSize({ width: 390, height: 360 });
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的手机输入");
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue("尚未保存的手机输入");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.facts.descriptionZh).not.toBe("尚未保存的手机输入");
+  await page.setViewportSize({ width: 761, height: 844 });
+  await expect(page.locator(".studio-save-identity")).toBeHidden();
+});
