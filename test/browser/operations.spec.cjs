@@ -284,16 +284,46 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
   await expect(page.locator("#bulk-toolbar")).toContainText("已选 2 件");
   await page.getByRole("button", { name: "逐件编辑", exact: true }).click();
   await expect(page.locator(".editing-queue")).toContainText("第 1 / 2 件");
+  await expect(page).toHaveURL(new RegExp(firstId + "/edit$"));
   await revealSection(page, "dimensions");
 
   await page
     .getByLabel("材质成分 / 细节", { exact: true })
     .fill("第一件的合成材质");
+  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue(
+    "第一件的合成材质",
+  );
   await productMore(page);
+  expect(
+    await page
+      .getByLabel("材质成分 / 细节", { exact: true })
+      .evaluate((input) => {
+        const form = document.querySelector("#product-entry-form");
+        return {
+          ownsInput: input.form === form,
+          enabled: !input.disabled,
+          serialized: new FormData(form).get("material") === "第一件的合成材质",
+        };
+      }),
+  ).toEqual({ ownsInput: true, enabled: true, serialized: true });
+  const patches = [];
+  const recordPatch = (request) => {
+    if (
+      request.method() === "PATCH" &&
+      new URL(request.url()).pathname === "/api/items/" + firstId
+    )
+      patches.push(
+        request.postDataJSON()?.facts?.material === "第一件的合成材质",
+      );
+  };
+  page.on("request", recordPatch);
   await page
     .getByRole("button", { name: "保存并编辑下一件", exact: true })
     .click();
   await expect(page.locator(".editing-queue")).toContainText("第 2 / 2 件");
+  page.off("request", recordPatch);
+  expect(patches, "第一件的真实 PATCH 保留材质输入").toEqual([true]);
+  await expect(page).toHaveURL(new RegExp(secondId + "/edit$"));
   await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue(
     "",
   );

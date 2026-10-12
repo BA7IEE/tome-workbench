@@ -7,7 +7,8 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  // Form focus and the real login response define readiness, rather than optional resources.
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(
