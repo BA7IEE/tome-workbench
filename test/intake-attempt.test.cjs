@@ -18,6 +18,7 @@ function loadFrontend(file, imports = {}) {
       exports,
       structuredClone,
       crypto,
+      URLSearchParams,
       require: (name) => {
         if (!(name in imports))
           throw new Error("Unexpected runtime import: " + name);
@@ -289,4 +290,13 @@ test("mobile save follows the visible bottom when keyboard and pan change only t
   assert.equal(viewportBottomInset(844, 844, 0), 0);
   assert.equal(viewportBottomInset(360, 360, 0), 0);
   assert.equal(viewportBottomInset(844, NaN, 0), 0);
+});
+
+test("batch results survive empty-page clamping and view changes but stay inside the original filter", () => {
+  const { candidateResultScope } = loadFrontend("web/src/candidate-result-scope.ts");
+  const scope=candidateResultScope("#/candidates?batchId=original&page=2&view=table");
+  assert.equal(candidateResultScope("#/candidates?view=cards&page=1&batchId=original&decision=PENDING"),scope);
+  assert.notEqual(candidateResultScope("#/candidates?batchId=other"),scope);
+  assert.notEqual(candidateResultScope("#/candidates?batchId=original&decision="),scope);
+  assert.notEqual(candidateResultScope("#/candidates?batchId=original&q=changed"),scope);
 });

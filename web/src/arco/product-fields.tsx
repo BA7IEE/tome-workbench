@@ -119,7 +119,7 @@ export function ProductFields({
                 "BRAND",
                 (initialDraft.dict_brand ?? i.dictionary?.brand) || undefined,
                 initialDraft.brandText ?? i.brand,
-                i.brand,
+                initialDraft.dict_brand !== undefined ? "" : i.brand,
               ) + sourceFieldNote(i, "brand")
             }
           />
@@ -165,7 +165,7 @@ export function ProductFields({
                 (initialDraft.dict_condition ?? i.dictionary?.condition) ||
                   undefined,
                 initialDraft.conditionText ?? (f.conditionGrade || ""),
-                f.conditionGrade || "",
+                initialDraft.dict_condition !== undefined ? "" : f.conditionGrade || "",
               ) + sourceFieldNote(i, "condition")
             }
           />
