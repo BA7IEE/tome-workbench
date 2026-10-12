@@ -155,6 +155,21 @@ export function Catalog({
   const [, update] = useState(0);
   const searchForm = useRef<HTMLFormElement>(null);
   const [filterPending, setFilterPending] = useState(false);
+  const markFilters = () => {
+    const form = searchForm.current;
+    if (!form) return;
+    try {
+      const query = new URLSearchParams();
+      for (const [key, value] of new FormData(form))
+        if (typeof value === "string" && !key.startsWith("dict_")) query.set(key, value);
+      const chosen = readDictionarySelections(form).dictionary;
+      for (const key of ["brand", "condition", "color", "material"] as const)
+        query.set(key + "Id", chosen[key] || "");
+      setFilterPending(catalogFilterScope(query) !== scope);
+    } catch {
+      setFilterPending(true); // Unresolved dictionary text is also unapplied input.
+    }
+  };
   const selected = catalogContext().selected;
   const { page, size } = data;
   const view = qs.get("view") || "table";
@@ -349,8 +364,8 @@ export function Catalog({
           ref={searchForm}
           id="catalog-search"
           className="catalog-filters admin-filter-form"
-          onInputCapture={() => setFilterPending(true)}
-          onChangeCapture={() => setFilterPending(true)}
+          onInputCapture={markFilters}
+          onChangeCapture={markFilters}
           onSubmit={(event) => {
             event.preventDefault();
             applyFilters();
