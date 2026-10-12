@@ -803,6 +803,7 @@ test("转交未选品牌的草稿保留原输入，完整页仍要求人工选�
   await page.getByRole("button", { name: "快速修改", exact: true }).click();
   const dialog = page.getByRole("dialog");
   const rawBrand = "未选中的品牌 " + randomUUID();
+  await expect(dialog.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
   await dialog.getByLabel("品牌", { exact: true }).fill(rawBrand);
   await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
   await expect(page.locator("#product-entry-form [data-dictionary][data-ready=true]")).toHaveCount(4);
