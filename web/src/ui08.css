@@ -6037,7 +6037,7 @@
     .foundation-shell .studio-commandbar { position: static; margin: 0 0 12px; padding: 0; background: transparent; border: 0; backdrop-filter: none; }
     .foundation-shell .studio-workspace { padding-bottom: 160px; }
     .foundation-shell .studio-command-actions {
-      position: fixed; inset-inline: 12px; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+      position: fixed; inset-inline: 12px; bottom: max(calc(64px + env(safe-area-inset-bottom, 0px)), var(--studio-viewport-inset, 0px)); z-index: 40;
       width: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
       grid-template-areas: "identity state state" "save cancel more";
       gap: 6px 8px; padding: 10px 12px; border: 1px solid var(--tome-border);

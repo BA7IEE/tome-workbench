@@ -281,3 +281,12 @@ test("a recovery snapshot cannot redirect the write to another endpoint", () => 
     /恢复记录无效/,
   );
 });
+
+test("mobile save follows the visible bottom when keyboard and pan change only the visual viewport", () => {
+  const { viewportBottomInset } = loadFrontend("web/src/studio-viewport.ts");
+  assert.equal(viewportBottomInset(844, 360, 0), 484);
+  assert.equal(viewportBottomInset(844, 360, 100), 384);
+  assert.equal(viewportBottomInset(844, 844, 0), 0);
+  assert.equal(viewportBottomInset(360, 360, 0), 0);
+  assert.equal(viewportBottomInset(844, NaN, 0), 0);
+});

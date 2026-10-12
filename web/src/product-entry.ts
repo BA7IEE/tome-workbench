@@ -4,6 +4,7 @@ import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
 import { placeStudioSections } from "./studio-fields";
 import { createElement, createRef } from "react";
+import { alignStudioViewport } from "./studio-viewport";
 import { flushSync } from "react-dom";
 import { mountView } from "./arco/runtime";
 import { ProductFields } from "./arco/product-fields";
@@ -190,6 +191,7 @@ export async function productEntry(id?: string) {
   ${can("review") ? `<section class="panel entry-review">${check("approveOnSave", "我已核对本次商品资料，保存时同时确认供后续发布使用")}<small>不勾选也能保存。图片授权、供货状态和渠道文案仍按实际情况检查。</small></section>` : ""}
   <div class="studio-save-feedback"><p class="form-error" role="alert" tabindex="-1"></p><button type="button" class="btn" id="entry-retry" hidden>核对上次提交</button><button type="button" class="btn" id="entry-login" hidden>重新登录并保留输入</button></div></form><aside class="studio-publisher" aria-label="本商品发布工作区" hidden></aside></div>`;
   onPageReady(root, (el, signal) => {
+    alignStudioViewport(el, signal);
     const header = createRef<HeaderHandle>();
     mountView(
       el.querySelector<HTMLElement>(".studio-commandbar")!,
