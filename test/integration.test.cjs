@@ -7429,6 +7429,9 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:c.id}}),1);
   assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);assert.equal(await db.listing.count({where:{itemId:i.id}}),0);
   assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
+  const latest=await db.itemRevision.findUniqueOrThrow({where:{itemId_version:{itemId:i.id,version:current.version}}});
+  const {snapshot}=require('../dist/catalog/catalog.service');assert.deepEqual(latest.snapshot,JSON.parse(JSON.stringify(await snapshot(db,current))));
+  await ok(`/items/${i.id}/approve`,'POST',{version:current.version});assert.equal((await db.item.findUniqueOrThrow({where:{id:i.id}})).approvedValid,true);assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);
 });
 test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，活动纠错历史和关联不能被数据库绕过',async()=>{
   const x=await correctionFixture('SYNTHETIC-COMPENSATION-GUARDS');

@@ -90,7 +90,7 @@ async function lockedPreview(tx: Tx, candidateId: string, input: Input, correcti
 
 export async function compensateConfirmation(tx: Tx, actorId: string, candidateId: string, input: Input, correctionId?: string) {
   const { candidate, item, line, preview } = await lockedPreview(tx, candidateId, input, correctionId);
-  const before = { candidate, item: { ...item!, dictionary: await snapshot(tx, item!) }, purchaseLine: line };
+  const before = { candidate, item: { ...item!, ...await snapshot(tx, item!) }, purchaseLine: line };
   const now = new Date(), restoring = !!correctionId;
   const updatedItem = await tx.item.update({ where: { id: item!.id }, data: {
     deletedAt: restoring ? null : now, deletedBy: restoring ? null : actorId,
@@ -102,7 +102,7 @@ export async function compensateConfirmation(tx: Tx, actorId: string, candidateI
   const updatedLine = line ? await tx.purchaseLine.update({ where: { id: line.id }, data: {
     businessDecision: restoring ? "INCLUDE" : "EXCLUDE", version: { increment: 1 },
   } }) : null;
-  const after = { candidate: updatedCandidate, item: { ...updatedItem, dictionary: await snapshot(tx, updatedItem) }, purchaseLine: updatedLine };
+  const after = { candidate: updatedCandidate, item: { ...updatedItem, ...await snapshot(tx, updatedItem) }, purchaseLine: updatedLine };
   const correction = restoring
     ? await tx.ingestConfirmationCorrection.update({ where: { id: correctionId! }, data: {
       restoredAt: now, restoredBy: actorId, restoreReason: input.reason, restoredSnapshot: json(after),
@@ -112,7 +112,7 @@ export async function compensateConfirmation(tx: Tx, actorId: string, candidateI
       originalReceiptId: preview.originalConfirmationReceiptId!, reason: input.reason, createdBy: actorId,
       beforeSnapshot: json(before), correctedSnapshot: json(after),
     } });
-  await tx.itemRevision.create({ data: { itemId: item!.id, version: updatedItem.version, snapshot: json(after.item) } });
+  await tx.itemRevision.create({ data: { itemId: item!.id, version: updatedItem.version, snapshot: json(await snapshot(tx, updatedItem)) } });
   await tx.ingestCandidateRevision.create({ data: { candidateId, version: updatedCandidate.version, snapshot: json(updatedCandidate) } });
   if (updatedLine) await tx.purchaseLineRevision.create({ data: { lineId: updatedLine.id, version: updatedLine.version, snapshot: json(updatedLine) } });
   await audit(tx, actorId, restoring ? "INGEST_CONFIRMATION_RESTORED" : "INGEST_CONFIRMATION_REVOKED", candidateId, {
