@@ -758,3 +758,54 @@ test("最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖", as
   expect(margins).toEqual({ head: "0px", foot: "0px" });
   await d.getByRole("button", { name: "取消", exact: true }).click();
 });
+
+test("快速修改冲突可以带草稿到完整页，未修改资料采用最新值且确认前不写入", async ({ page }) => {
+  const original = "转交草稿 " + randomUUID();
+  const item = await uiApi(page, "/items", { title: original, facts: { material: "旧材质" } });
+  await page.goto("/#/items?q=" + encodeURIComponent(original));
+  await page.getByRole("button", { name: `${item.code} 更多操作`, exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("商品名称", { exact: true }).fill(original + " 我的修改");
+  await uiApi(page, "/items/" + item.id, { version: 1, title: original + " 其他人修改", facts: { material: "服务器最新材质" } }, "PATCH");
+  let uiPatches = 0;
+  page.on("request", (r) => { if (r.method() === "PATCH" && new URL(r.url()).pathname === "/api/items/" + item.id) uiPatches++; });
+  await dialog.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("保留修改并进入完整编辑");
+  expect(uiPatches).toBe(1);
+  await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
+  await expect(page.getByLabel("商品名称", { exact: true })).toHaveValue(original + " 我的修改");
+  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue("服务器最新材质");
+  await expect(page.locator("[data-dictionary][data-ready=true]")).toHaveCount(4);
+  await page.getByRole("button", { name: "核对差异", exact: true }).click();
+  await expect(page.locator(".entry-conflicts")).toContainText(original + " 其他人修改");
+  expect(uiPatches).toBe(1);
+  await page.getByRole("button", { name: "合并后继续编辑", exact: true }).click();
+  await expect(page.locator(".studio-save-feedback .form-error")).toContainText("请先核对");
+  await page.getByLabel("我已核对差异，保留下面输入的改动", { exact: true }).check();
+  await page.getByRole("button", { name: "合并后继续编辑", exact: true }).click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.title).toBe(original + " 我的修改");
+  expect(saved.facts.material).toBe("服务器最新材质");
+  expect(uiPatches).toBe(2);
+});
+
+test("转交未选品牌的草稿保留原输入，完整页仍要求人工选择", async ({ page }) => {
+  const title = "待选品牌草稿 " + randomUUID();
+  const item = await uiApi(page, "/items", { title });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByRole("button", { name: `${item.code} 更多操作`, exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const rawBrand = "未选中的品牌 " + randomUUID();
+  await dialog.getByLabel("品牌", { exact: true }).fill(rawBrand);
+  await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
+  await expect(page.getByLabel("品牌", { exact: true })).toHaveValue(rawBrand);
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".studio-save-feedback .form-error")).toContainText("输入文字不会直接保存");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.version).toBe(1);
+  expect(saved.brand).toBe("");
+});

@@ -128,3 +128,84 @@ test("concurrent modification does not adopt a newer version or create a replace
   assert.equal(calls[2].body.version, 1);
   assert.equal(attempt.identity.id, "synthetic-item");
 });
+
+const { applyQuickDraft } = loadFrontend("web/src/quick-draft-transfer.ts");
+test("draft transfer keeps untouched server facts and compares only operator changes against the old version", () => {
+  const latest = {
+    id: "synthetic-item",
+    version: 2,
+    title: "Server title",
+    brand: "",
+    category: "BAG",
+    currency: "CNY",
+    currentPrice: 60000,
+    dictionary: {},
+    facts: { conditionGrade: "", material: "New server material" },
+  };
+  const draft = {
+    owner: "synthetic-owner",
+    itemId: latest.id,
+    base: {
+      ...latest,
+      version: 1,
+      title: "Original title",
+      currentPrice: 50000,
+      conditionGrade: "",
+    },
+    fields: {
+      title: "My title",
+      category: "BAG",
+      currency: "CNY",
+      price: "500",
+      dict_brand: "",
+      dict_condition: "",
+      brandText: "",
+      conditionText: "",
+    },
+  };
+  const result = applyQuickDraft(latest, draft);
+  assert.equal(result.base.version, 1);
+  assert.equal(result.base.title, "Original title");
+  assert.equal(result.fields.title, "My title");
+  assert.equal(result.base.currentPrice, 60000);
+  assert.equal(result.base.facts.material, "New server material");
+  assert.equal(result.fields.price, undefined);
+});
+test("unselected brand text transfers as text, never as a dictionary identity", () => {
+  const latest = {
+    id: "synthetic-item",
+    version: 2,
+    title: "Title",
+    brand: "Server brand",
+    category: "BAG",
+    currency: "CNY",
+    currentPrice: null,
+    dictionary: { brand: "server-brand" },
+    facts: { conditionGrade: "" },
+  };
+  const draft = {
+    owner: "synthetic-owner",
+    itemId: latest.id,
+    base: {
+      ...latest,
+      version: 1,
+      brand: "Original brand",
+      dictionary: { brand: "original-brand" },
+      conditionGrade: "",
+    },
+    fields: {
+      title: "Title",
+      category: "BAG",
+      currency: "CNY",
+      price: "",
+      dict_brand: "",
+      dict_condition: "",
+      brandText: "Unselected input",
+      conditionText: "",
+    },
+  };
+  const result = applyQuickDraft(latest, draft);
+  assert.equal(result.fields.dict_brand, "");
+  assert.equal(result.fields.brandText, "Unselected input");
+  assert.equal(result.base.dictionary.brand, "original-brand");
+});

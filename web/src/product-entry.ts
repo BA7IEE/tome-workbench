@@ -23,7 +23,13 @@ import {
   ApiError,
   reauthenticate,
   reload,
+  me,
 } from "./core";
+import {
+  applyQuickDraft,
+  peekQuickDraft,
+  clearQuickDraft,
+} from "./quick-draft-transfer";
 import type { Item, Source } from "./types";
 import { sourceValues } from "./source-fields";
 import { readProduct, changedProduct, bindProductRows } from "./product-fields";
@@ -109,6 +115,11 @@ export async function productEntry(id?: string) {
     return '<section class="panel"><h2>需要商品编辑权限</h2><p>请使用有权限的账号。</p></section>';
   let base = id ? await request<Item>(`/items/${id}`) : blank();
   if (base.deletedAt) return deletedNotice(base);
+  const transferred = id ? peekQuickDraft(me!.id, id) : undefined;
+  const readVersion = base.version;
+  let initialDraft: Record<string, string> = {};
+  if (transferred)
+    ({ base, fields: initialDraft } = applyQuickDraft(base, transferred));
   const qs = new URLSearchParams(location.hash.split("?")[1] || ""),
     sourceId = qs.get("source");
   let source: Source | null = null;
@@ -201,9 +212,14 @@ export async function productEntry(id?: string) {
     let fieldsRevision = 0;
     const displayFields = (item: Item) =>
       renderFields(
-        createElement(ProductFields, { item, key: fieldsRevision++ }),
+        createElement(ProductFields, {
+          item,
+          key: fieldsRevision++,
+          initialDraft,
+        }),
       );
     displayFields(base);
+    initialDraft = {};
     const f = el.querySelector<HTMLFormElement>("#product-entry-form")!,
       err = f.querySelector<HTMLElement>(".studio-save-feedback .form-error")!,
       status = el.querySelector<HTMLElement>(".entry-save-state")!;
@@ -567,6 +583,27 @@ export async function productEntry(id?: string) {
       },
       { signal },
     );
+    if (transferred) {
+      dirty = true;
+      status.textContent = "本次修改未保存";
+      f.querySelector(".studio-save-feedback")!.insertAdjacentHTML(
+        "beforebegin",
+        `<div class="panel draft-transfer-notice"><p>已带入快速修改，尚未写入商品。${readVersion !== transferred.base.version ? "服务器资料已变化，请核对差异后再保存。" : "检查后可继续保存。"}</p>${
+          readVersion !== transferred.base.version
+            ? button("核对差异", async () => {
+                try {
+                  sent = readProduct(f, new FormData(f), base);
+                  initialDraft = {};
+                  await conflict();
+                } catch (e) {
+                  displayError(e);
+                }
+              })
+            : ""
+        }</div>`,
+      );
+      clearQuickDraft(me!.id, id!);
+    }
     setLeaveGuard(() => {
       if (busy || publisher.isBusy() || gallery.busy()) {
         toast("正在保存，请稍候");

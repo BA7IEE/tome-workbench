@@ -231,7 +231,10 @@ export const currencies = {
 export const text = (d: FormData, k: string) => String(d.get(k) || "");
 export const itemLink = (id: string, title: string) =>
   `<a class="itemlink" href="#/items/${esc(id)}">${esc(title)}</a>`;
-export type FormExit = { close(): boolean };
+export type FormExit = {
+  close(): boolean;
+  transferDraft(preserve: () => void): boolean;
+};
 function openForm(
   title: string,
   html: string,
@@ -396,6 +399,22 @@ function openForm(
         return false;
       }
       if (!mayClose()) return false;
+      dialog.close();
+      return true;
+    },
+    transferDraft(preserve) {
+      if (scope.signal.aborted || !dialog.open || !dialog.contains(el))
+        return false;
+      if (busy || uncertain) {
+        toast(
+          busy
+            ? "正在保存，请稍候"
+            : "请先在原窗口核对上次提交，再转入完整编辑",
+          true,
+        );
+        return false;
+      }
+      preserve();
       dialog.close();
       return true;
     },
