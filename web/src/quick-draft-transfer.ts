@@ -55,7 +55,7 @@ export function saveQuickDraft(
     currentPrice: item.currentPrice,
     currency: item.currency,
     dictionary: structuredClone(item.dictionary),
-    conditionGrade: item.facts.conditionGrade,
+    conditionGrade: item.facts.conditionGrade || "",
   };
   drafts.set(item.id, { owner, itemId: item.id, base, fields });
   if (drafts.size > 20) drafts.delete(drafts.keys().next().value!);
