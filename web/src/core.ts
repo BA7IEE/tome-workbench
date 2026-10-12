@@ -234,6 +234,7 @@ export const itemLink = (id: string, title: string) =>
 export type FormExit = {
   close(): boolean;
   transferDraft(preserve: () => void): boolean;
+  outcomeKnown(): void;
 };
 function openForm(
   title: string,
@@ -391,6 +392,9 @@ function openForm(
   );
   if (!dialog.open) dialog.showModal();
   return {
+    outcomeKnown() {
+      uncertain = false;
+    },
     close() {
       if (scope.signal.aborted || !dialog.open || !dialog.contains(el))
         return false;

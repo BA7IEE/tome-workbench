@@ -330,3 +330,34 @@ for (const change of ["改字段", "换图片", "换保存意图"]) {
     }
   });
 }
+
+test("快速录货首次建档回执丢失，关闭再开核对原请求仍只有同一TM", async ({ page }) => {
+  const title = "跨窗口建档恢复 " + randomUUID();
+  const keys = [];
+  let lost = false;
+  await page.route("**/api/items", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (!lost) { lost = true; await route.fetch(); await route.abort("failed"); }
+    else await route.continue();
+  });
+  await page.goto("/#/items");
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("商品名称", { exact: true }).fill(title);
+  await dialog.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("提交结果可能未确认");
+  page.once("dialog", (d) => d.accept());
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);
+  await dialog.getByRole("button", { name: "核对本次提交", exact: true }).click();
+  await expect(dialog.locator(".quick-intake-upload-status")).toContainText("原提交已核对");
+  await dialog.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const result = await (await page.request.get("/api/items?q=" + encodeURIComponent(title))).json();
+  expect(result.total).toBe(1);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+});

@@ -6,7 +6,7 @@ type Send = <T>(
   body: unknown,
   key: string,
 ) => Promise<T>;
-type Attempt = {
+export type WriteSnapshot = {
   method: string;
   path: string;
   body: unknown;
@@ -14,9 +14,26 @@ type Attempt = {
   key: string;
 };
 export class WriteAttempt {
-  private attempt: Attempt | null = null;
+  private attempt: WriteSnapshot | null = null;
   uncertain = false;
-  constructor(private send: Send) {}
+  constructor(
+    private send: Send,
+    private beforeSend?: (snapshot: WriteSnapshot) => Promise<void>,
+  ) {}
+  get snapshot() {
+    return this.attempt ? structuredClone(this.attempt) : null;
+  }
+  restore(snapshot: WriteSnapshot, uncertain = true) {
+    if (
+      this.attempt ||
+      !/^[A-Za-z0-9_.:-]{12,128}$/.test(snapshot.key) ||
+      snapshot.signature !==
+        snapshot.method + snapshot.path + this.signature(snapshot.body)
+    )
+      throw new Error("恢复提交身份不一致，请先核对原记录");
+    this.attempt = structuredClone(snapshot);
+    this.uncertain = uncertain;
+  }
   private signature(value: unknown): string {
     if (Array.isArray(value))
       return "[" + value.map((v) => this.signature(v)).join(",") + "]";
@@ -53,6 +70,9 @@ export class WriteAttempt {
   }
   private async execute<T>(): Promise<T> {
     const attempt = this.attempt!;
+    // A recovery-storage failure happens before the network write, rather than
+    // being mislabeled as a lost server receipt.
+    await this.beforeSend?.(structuredClone(attempt));
     try {
       const result = await this.send<T>(
         attempt.path,

@@ -209,3 +209,75 @@ test("unselected brand text transfers as text, never as a dictionary identity", 
   assert.equal(result.fields.brandText, "Unselected input");
   assert.equal(result.base.dictionary.brand, "original-brand");
 });
+
+test("creation identity is persisted before POST and restores the exact lost receipt across instances", async () => {
+  let record;
+  const requests = [];
+  const id = "00000000-0000-4000-8000-000000000001";
+  const send = async (path, method, body, key) => {
+    assert.ok(record.createAttempt, "original request stored before send");
+    requests.push({ path, method, body, key });
+    if (requests.length === 1) throw fault(0);
+    return { id, code: "TM000005" };
+  };
+  const persist = async (value) => {
+    record = structuredClone(value);
+  };
+  const first = new QuickIntakeAttempt(send, persist);
+  await assert.rejects(first.save(input()));
+  const reopened = new QuickIntakeAttempt(send, persist, record);
+  await reopened.reconcile();
+  assert.equal(requests[0].key, requests[1].key);
+  assert.equal(
+    JSON.stringify(requests[0].body),
+    JSON.stringify(requests[1].body),
+  );
+  assert.equal(reopened.identity.id, id);
+  await reopened.save(input());
+  assert.equal(requests.length, 2);
+  assert.equal(record.createAttempt, null);
+});
+test("storage failure blocks creation before any network write", async () => {
+  let requests = 0;
+  const attempt = new QuickIntakeAttempt(
+    async () => {
+      requests++;
+      return { id: "unused", code: "unused" };
+    },
+    async () => {
+      throw new Error("storage full");
+    },
+  );
+  await assert.rejects(attempt.save(input()), /storage full/);
+  assert.equal(requests, 0);
+  assert.equal(attempt.uncertain, false);
+});
+test("a recovery snapshot cannot redirect the write to another endpoint", () => {
+  const invalid = {
+    schema: 1,
+    identity: null,
+    version: 1,
+    confirmed: null,
+    sentCreate: input(),
+    sentUpdate: null,
+    updateAttempt: null,
+    createAttempt: {
+      method: "POST",
+      path: "/items/other/trash",
+      body: input(),
+      key: "synthetic-recovery-key",
+      signature: "forged",
+    },
+  };
+  assert.throws(
+    () =>
+      new QuickIntakeAttempt(
+        async () => {
+          throw new Error("must not send");
+        },
+        undefined,
+        invalid,
+      ),
+    /恢复记录无效/,
+  );
+});

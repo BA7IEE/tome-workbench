@@ -15,12 +15,18 @@ import {
   uploadWithProgress,
   me,
   toast,
+  button,
+  check,
 } from "./core";
 import {
   bindDictionaryFields,
   readDictionarySelections,
 } from "./dictionary-picker";
-import { QuickIntakeAttempt, type IntakeInput } from "./quick-intake-attempt";
+import {
+  QuickIntakeAttempt,
+  type IntakeInput,
+  type IntakeRecovery,
+} from "./quick-intake-attempt";
 
 type Created = { id: string; code: string; existing?: boolean };
 const fingerprint = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
@@ -28,12 +34,25 @@ const validImage = (file: File) =>
   ["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
   /\.(jpe?g|png|webp)$/i.test(file.name);
 
-export function quickIntake(
+export async function quickIntake(
   afterSaved?: () => Promise<void> | void,
   lastSaved?: { id: string; code: string; title: string },
 ) {
   if (!can("edit")) return;
   const owner = me!.id;
+  const recoveryStorage = `quick-intake:${owner}`;
+  const recovered = await readWork<{
+    owner: string;
+    write: IntakeRecovery;
+    photos: string[];
+    origin: string;
+  }>(recoveryStorage);
+  if (
+    me?.id !== owner ||
+    !can("edit") ||
+    (recovered && recovered.owner !== owner)
+  )
+    throw new Error("账户或录货恢复身份已变化，请重新核对");
   let formEl: HTMLFormElement | null = null;
   let statusEl: HTMLElement | null = null;
   let lastItem: Created | null = null;
@@ -41,20 +60,80 @@ export function quickIntake(
     savedTitle = "";
   const uploadKeys = new Map<string, string>();
   const completedFiles = new Set<string>();
-  const itemWrite = new QuickIntakeAttempt(request);
+  let photoNames = recovered?.photos || [];
+  const itemWrite = new QuickIntakeAttempt(
+    request,
+    async (write) => {
+      const files = (
+        formEl?.elements.namedItem("photos") as HTMLInputElement | null
+      )?.files;
+      if (files?.length) photoNames = [...files].map((file) => file.name);
+      const origin =
+        (formEl?.elements.namedItem("origin") as HTMLSelectElement | null)
+          ?.value ||
+        recovered?.origin ||
+        "OWN";
+      await saveWork(recoveryStorage, {
+        owner,
+        write,
+        photos: photoNames,
+        origin,
+      });
+    },
+    recovered?.write,
+  );
+  lastItem = itemWrite.identity;
+  const pendingPhotos = itemWrite.identity
+    ? await readWork<{ file: File }[]>(
+        `images:${owner}:${itemWrite.identity.id}`,
+      )
+    : undefined;
+  const recovery = `${recovered ? '<p class="quick-recovery">已恢复此浏览器上次录货。先核对原提交，继续同一件商品；未恢复的图片需重新选择或稍后补图。</p>' : ""}<div data-intake-reconcile ${itemWrite.uncertain ? "" : "hidden"}>${button(
+    "核对本次提交",
+    async () => {
+      const saved = await itemWrite.reconcile();
+      if (!saved) throw new Error("尚未取得原建档身份，请继续核对原请求");
+      lastItem = saved;
+      const queued = await readWork<{ uncertain?: boolean; state: string }[]>(
+        `images:${owner}:${saved.id}`,
+      );
+      if (
+        !queued?.some(
+          (job) =>
+            job.uncertain ||
+            job.state === "上传中" ||
+            job.state === "结果待确认",
+        )
+      )
+        windowExit.outcomeKnown();
+      formEl!.querySelector<HTMLElement>("[data-intake-reconcile]")!.hidden =
+        true;
+      statusEl!.textContent = `${saved.code} 原提交已核对；图片仍需继续完成`;
+    },
+  )}</div>${recovered && photoNames.length && !pendingPhotos?.length ? check("deferRecoveredPhotos", `上次选过${photoNames.length}张图片；我已核对，允许稍后到同一TM补图`) : ""}`;
   const fields =
     '<input type="hidden" name="after" value="close"><section class="quick-intake-core"></section>';
-  const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
+  const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, recovered?.origin || "OWN")}</div>
     <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>最多100张；单张20MB以内；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div><p class="quick-intake-upload-status" role="status" aria-live="polite"></p></section>`;
   const windowExit = formWithExit(
     "快速录入我方现货",
-    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">这里只录入已经实际在手的我方现货。尺寸、材质、鉴定、英文和发布资料以后再补。</p><p class="quick-intake-boundary">供应商持有、寄售或远端货源请到 <a href="#/sources" data-quick-source>货源与供应商</a> 处理；“图片来源＝供应商提供”只说明图片出处，不会把商品变成供应商持有。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
+    `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">这里只录入已经实际在手的我方现货。尺寸、材质、鉴定、英文和发布资料以后再补。</p><p class="quick-intake-boundary">供应商持有、寄售或远端货源请到 <a href="#/sources" data-quick-source>货源与供应商</a> 处理；“图片来源＝供应商提供”只说明图片出处，不会把商品变成供应商持有。</p>${recovery}${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
     async (d) => {
       if (!formEl) throw new Error("录货窗口尚未准备完成");
       const files = d
         .getAll("photos")
         .filter((x): x is File => x instanceof File && x.size > 0);
       if (files.length > 100) throw new Error("每件商品最多上传100张图片");
+      if (
+        recovered &&
+        photoNames.length &&
+        !files.length &&
+        !pendingPhotos?.length &&
+        !d.has("deferRecoveredPhotos")
+      )
+        throw new Error(
+          "上次选图尚需核对，请重新选择原图或明确稍后补图；不要重新建档",
+        );
       const invalid = files.filter(
         (file) => !validImage(file) || file.size > 20 * 1024 * 1024,
       );
@@ -84,7 +163,11 @@ export function quickIntake(
         statusEl.textContent = lastItem
           ? `${lastItem.code} 已保存，正在继续原提交…`
           : "正在创建商品档案…";
-      const item = await itemWrite.save(body);
+      const item = await itemWrite.save(body).catch((error) => {
+        formEl!.querySelector<HTMLElement>("[data-intake-reconcile]")!.hidden =
+          !itemWrite.uncertain;
+        throw error;
+      });
       lastItem = item;
       const origin = text(d, "origin") || "OWN";
       type PendingImage = {
@@ -191,6 +274,7 @@ export function quickIntake(
         pending = pending.filter((j) => j.key !== job.key);
         await saveWork(storage, pending.length ? pending : undefined);
       }
+      await saveWork(recoveryStorage, undefined);
       return item;
     },
     "保存并关闭",
@@ -212,7 +296,7 @@ export function quickIntake(
             id: saved.id,
             code: saved.code,
             title: savedTitle,
-          }),
+          }).catch((error) => toast(error.message, true)),
         0,
       );
     },
@@ -225,7 +309,11 @@ export function quickIntake(
   mountView(
     formEl.querySelector<HTMLElement>(".quick-intake-core")!,
     scope.signal,
-  )(createElement(QuickFields));
+  )(
+    createElement(QuickFields, {
+      input: itemWrite.recoveredInput || undefined,
+    }),
+  );
   bindDictionaryFields(formEl, scope.signal);
   const editButton = formEl.querySelector<HTMLButtonElement>(
     '[data-after="edit"]',
@@ -358,6 +446,7 @@ export function quickIntake(
     },
     { signal: scope.signal },
   );
+  if (pendingPhotos?.length) replaceFiles(pendingPhotos.map((job) => job.file));
   scope.signal.addEventListener(
     "abort",
     () => {
