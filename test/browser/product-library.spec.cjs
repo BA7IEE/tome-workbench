@@ -256,11 +256,13 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
     facts: { sizeLabel: "XL", attributes: { sourcePlatform: "线下门店" } },
   });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await expect(page.locator("[data-filter-scope]")).toContainText("全部库存状态");
   await page.getByText("更多筛选", { exact: true }).click();
   await page.getByLabel("尺码", { exact: true }).fill("xl");
   await page.getByLabel("实物位置", { exact: true }).fill("MVP-5");
   await page.getByLabel("来源名称", { exact: true }).fill("线下");
   await page.getByLabel("待补资料", { exact: true }).selectOption("price");
+  await expect(page.locator("[data-filter-scope]")).toContainText("筛选输入已改动");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(title);
@@ -282,6 +284,7 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
     ),
   ).toBeLessThanOrEqual(2);
   await page.getByRole("link", { name: "商品库", exact: true }).click();
+  await expect(page.locator("[data-filter-scope]")).toContainText(/当前结果：正式商品\s*·\s*可售/);
   await expect(page.locator(".product-grid")).toBeVisible();
   await page.screenshot({
     path: "reports/screenshots/mvp-library-mobile.png",
@@ -377,6 +380,9 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
     .getByRole("button", { name: "继续处理", exact: true })
     .click();
   await expect(resumed.getByRole("dialog")).not.toBeVisible();
+  const resultPanel = resumed.getByRole("region", { name: "本次批量结果" });
+  await expect(resultPanel).toContainText("3 件成功 · 0 件需核对");
+  await expect(resultPanel.getByRole("link", { name: "继续整理" })).toHaveCount(3);
   const after = await api(
     resumed,
     `/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,
@@ -936,6 +942,8 @@ for (const width of [1440, 390]) {
       name: "AI 上身效果",
       exact: true,
     });
+    await expect(gallery.locator("details")).not.toHaveAttribute("open", "");
+    await gallery.locator("summary").click();
     await expect(gallery).toContainText("还没有 AI 效果图");
     await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
     await page
@@ -1061,3 +1069,80 @@ for (const width of [1440, 390]) {
     );
   });
 }
+
+test("误确认核对只读取证据并显示阻断说明，取消不改来源或商品", async ({page}) => {
+  const x=await makeBatch(page,1), c=x.rows[0];
+  const confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成只读核对'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  const card=page.locator(`[data-candidate="${c.id}"]`);
+  await expect(card).toContainText('库存 已暂停 · 资料 待审核');
+  const writes=[];page.on('request',r=>{if(r.url().includes('/api/')&&['POST','PATCH','DELETE'].includes(r.method()))writes.push(r.url())});
+  await card.getByRole('button',{name:'核对误确认条件',exact:true}).click();
+  const d=page.getByRole('dialog',{name:'误确认核对 · '+confirmed.code});
+  await expect(d).toContainText('这里只核对证据和依赖，不执行撤销');
+  await expect(d).toContainText('当前证据符合单件新建、单一归属且无经营依赖');
+  await expect(d.getByRole('button',{name:/确认撤销/})).toHaveCount(0);
+  await d.getByRole('button',{name:'关闭',exact:true}).click();
+  expect(writes).toEqual([]);
+  const state=await api(page,`/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,undefined,'GET');
+  expect(state.total).toBe(1);expect(state.rows[0].item.id).toBe(confirmed.itemId);
+  expect((await api(page,`/items/${confirmed.itemId}`,undefined,'GET')).status).toBe('PAUSED');
+});
+
+test('手机单件误确认撤销、普通回收站引导和原TM组合恢复完整链路，取消不写入',async({page})=>{
+  await page.setViewportSize({width:390,height:760});
+  const x=await makeBatch(page,1),c=x.rows[0],confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成单件纠错'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  let card=page.locator(`[data-candidate="${c.id}"]`);
+  const writes=[];page.on('request',r=>{if(r.url().includes('revoke-confirmation')&&r.method()==='POST')writes.push(r.url())});
+  await card.getByRole('button',{name:'撤销误确认',exact:true}).click();
+  let d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await expect(d).toContainText('TM 号、原图、实物在手信息和原确认历史保留');
+  await d.getByRole('button',{name:'取消',exact:true}).click();expect(writes).toEqual([]);
+  await card.getByRole('button',{name:'撤销误确认',exact:true}).click();
+  d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);
+  await d.getByLabel('纠错原因',{exact:true}).fill('合成手机误确认纠错');
+  await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合撤销',exact:true}).click();await expect(d).toHaveCount(0);expect(writes).toHaveLength(1);
+  await page.goto(`/#/items/${confirmed.itemId}`);
+  await expect(page.getByRole('button',{name:'到来源核对组合恢复',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'恢复商品',exact:true})).toHaveCount(0);
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=EXCLUDED`);
+  card=page.locator(`[data-candidate="${c.id}"]`);await expect(card).toContainText('误确认已撤销 · 已排除 · '+confirmed.code+' 保留');
+  await expect(card.getByRole('button',{name:'恢复为待确认',exact:true})).toHaveCount(0);
+  await card.getByRole('button',{name:'核对组合恢复',exact:true}).click();
+  d=page.getByRole('dialog',{name:'组合恢复 · '+confirmed.code});
+  await expect(d).toContainText('恢复后为已暂停、待审核，不会自动发布');
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);await d.getByLabel('纠错原因',{exact:true}).fill('合成手机组合恢复');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合恢复',exact:true}).click();await expect(d).toHaveCount(0);
+  const item=await api(page,`/items/${confirmed.itemId}`,undefined,'GET');expect(item.deletedAt).toBeNull();expect(item.code).toBe(confirmed.code);expect(item.status).toBe('PAUSED');expect(item.approvedValid).toBe(false);
+  const candidates=await api(page,`/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,undefined,'GET');expect(candidates.rows[0].id).toBe(c.id);expect(candidates.rows[0].item.id).toBe(confirmed.itemId);
+});
+
+test('误确认真实写入后丢回执，跨窗口保留原内容原请求号并核对，改变内容不能重发',async({page,context})=>{
+  const x=await makeBatch(page,1),c=x.rows[0],confirmed=await api(page,`/ingest/candidates/${c.id}/confirm`,{version:c.version,possession:'IN_HAND',status:'PAUSED',note:'合成回执恢复'});
+  await page.goto(`/#/candidates?batchId=${x.batch.id}&decision=CONFIRMED`);
+  const auth=await (await page.request.get('/api/auth/me')).json();
+  const attempts=[];let written;
+  await page.route(`**/api/ingest/candidates/${c.id}/revoke-confirmation`,async route=>{
+    const req=route.request(),key=req.headers()['idempotency-key'],body=req.postDataJSON();attempts.push({key,body});
+    const response=await page.request.post(req.url(),{data:body,headers:{Origin:new URL(page.url()).origin,'X-CSRF-Token':auth.csrf,'Idempotency-Key':key}});
+    expect(response.ok()).toBe(true);written=await response.json();await route.abort('failed');
+  });
+  await page.locator(`[data-candidate="${c.id}"]`).getByRole('button',{name:'撤销误确认',exact:true}).click();
+  let d=page.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});
+  await d.getByLabel('输入完整 TM 编号',{exact:true}).fill(confirmed.code);await d.getByLabel('纠错原因',{exact:true}).fill('合成保留原请求');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();
+  await d.getByRole('button',{name:'确认组合撤销',exact:true}).click();await expect(d.locator('.form-error')).toContainText(/连接|请求|网络|结果/);expect(written.correctionId).toBeTruthy();
+  const other=await context.newPage();
+  try {
+    const replays=[];other.on('request',r=>{if(r.url().includes(`/candidates/${c.id}/revoke-confirmation`)&&r.method()==='POST')replays.push({key:r.headers()['idempotency-key'],body:r.postDataJSON()})});
+    await other.goto(`/#/candidates?batchId=${x.batch.id}&decision=EXCLUDED`);
+    await other.locator(`[data-candidate="${c.id}"]`).getByRole('button',{name:'核对撤销回执',exact:true}).click();
+    d=other.getByRole('dialog',{name:'单件误确认撤销 · '+confirmed.code});await expect(d.getByLabel('纠错原因',{exact:true})).toHaveValue('合成保留原请求');
+    await d.getByLabel('纠错原因',{exact:true}).fill('改变内容不得重发');await d.getByLabel('我已核对同一件实物及来源，确认上述组合变更',{exact:true}).check();await d.getByRole('button',{name:'核对原提交回执',exact:true}).click();await expect(d.locator('.form-error')).toContainText('恢复原提交内容');expect(replays).toEqual([]);
+    await d.getByLabel('纠错原因',{exact:true}).fill('合成保留原请求');await d.getByRole('button',{name:'核对原提交回执',exact:true}).click();await expect(d).toHaveCount(0);
+    expect(replays).toHaveLength(1);expect(replays[0]).toEqual(attempts[0]);
+    const state=await api(other,`/ingest/candidates/${c.id}`,undefined,'GET');expect(state.confirmationCorrections).toEqual([{id:written.correctionId}]);expect(state.decision).toBe('EXCLUDED');expect(state.version).toBe(c.version+2);
+  } finally {await other.close();}
+});

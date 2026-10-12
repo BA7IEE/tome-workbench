@@ -1,5 +1,7 @@
 # ToMeBoutique 开发契约
 
+开工、切片 checkpoint 与交接执行只读版本检查，固定 SHA/产物/线上身份分别登记；入口与原门禁兼容规则见 [WORKING-STATE](docs/WORKING-STATE.md)。
+
 修改前阅读 README.md、docs/CURRENT-RELEASE.md、docs/CURRENT-ARCHITECTURE.md、docs/CURRENT-BUSINESS-RULES.md、docs/ARCHITECTURE.md、docs/AC_MATRIX.md 及相关模块。部署工具修改另读 docs/PRODUCTION.md。历史仅查 docs/releases/ 和 docs/archive/，不把历史阶段状态当当前指令。
 
 ## 不可违反的边界

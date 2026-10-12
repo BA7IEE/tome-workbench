@@ -41,5 +41,13 @@ export function bindCatalogMenus(root: HTMLElement, signal: AbortSignal) {
     { signal },
   );
   window.addEventListener("resize", () => close(), { signal });
-  document.addEventListener("scroll", () => close(), { capture: true, signal });
+  document.addEventListener(
+    "scroll",
+    (event) => {
+      // The menu is scrollable; only scrolling outside it should dismiss it.
+      if (menus.some((menu) => menu.contains(event.target as Node))) return;
+      close();
+    },
+    { capture: true, signal },
+  );
 }

@@ -39,6 +39,7 @@ function Action({ action }: { action: CatalogAction }) {
       type={action.primary ? "primary" : "default"}
       danger={action.danger}
       loading={pending}
+      aria-label={action.label}
       onClick={async () => {
         if (pending) return;
         setPending(true);
@@ -154,6 +155,27 @@ export function Catalog({
 }) {
   const [, update] = useState(0);
   const searchForm = useRef<HTMLFormElement>(null);
+  const filterHint = useRef<HTMLSpanElement>(null);
+  const setFilterPending = (pending: boolean) => {
+    if (filterHint.current) filterHint.current.textContent = pending
+      ? "筛选输入已改动。搜索、排序、切换视图或翻页会应用当前输入；范围改变会清除原选择。"
+      : "同一筛选范围内排序、切换视图和翻页保留选择。";
+  };
+  const markFilters = () => {
+    const form = searchForm.current;
+    if (!form) return;
+    try {
+      const query = new URLSearchParams();
+      for (const [key, value] of new FormData(form))
+        if (typeof value === "string" && !key.startsWith("dict_")) query.set(key, value);
+      const chosen = readDictionarySelections(form).dictionary;
+      for (const key of ["brand", "condition", "color", "material"] as const)
+        query.set(key + "Id", chosen[key] || "");
+      setFilterPending(catalogFilterScope(query) !== scope);
+    } catch {
+      setFilterPending(true); // Unresolved dictionary text is also unapplied input.
+    }
+  };
   const selected = catalogContext().selected;
   const { page, size } = data;
   const view = qs.get("view") || "table";
@@ -236,6 +258,8 @@ export function Catalog({
       };
       const changed =
         catalogFilterScope(new URLSearchParams(filters)) !== scope;
+      if (changed && selected.size)
+        toast("筛选范围已改变，原范围的选择已清除。请在新结果中重新选择。");
       go({
         ...filters,
         ...presentation,
@@ -346,6 +370,8 @@ export function Catalog({
           ref={searchForm}
           id="catalog-search"
           className="catalog-filters admin-filter-form"
+          onInputCapture={markFilters}
+          onChangeCapture={markFilters}
           onSubmit={(event) => {
             event.preventDefault();
             applyFilters();
@@ -467,6 +493,17 @@ export function Catalog({
             </div>
           </div>
         </form>
+        <p className="note" role="status" data-filter-scope>
+          当前结果：{qs.get("dataMode") === "TEST" ? "测试商品" : "正式商品"}
+          · {qs.get("status") ? states[qs.get("status")!] : "全部库存状态"}
+          {qs.get("q") ? ` · 搜索“${qs.get("q")}”` : ""}
+          {qs.get("category") ? ` · ${categories[qs.get("category")!]}` : ""}
+          {hasMore ? " · 已应用更多筛选" : ""}。
+          <span ref={filterHint}>同一筛选范围内排序、切换视图和翻页保留选择。</span>
+          <a href={`#/items?dataMode=${qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS"}`}>
+            查看全部库存状态
+          </a>
+        </p>
       </Card>
       <div className="catalog-results-toolbar">
         <div className="catalog-count">

@@ -1,3 +1,5 @@
+import { assertNoActiveCorrection } from "../ingest/correction-guards";
+import { getItem } from "../catalog/catalog.service";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import {
@@ -228,7 +230,7 @@ export class CostingService {
             itemLink: {
               include: {
                 item: {
-                  select: { id: true, serial: true, title: true, cycle: true },
+                  select: { id: true, serial: true, title: true, cycle: true, deletedAt: true },
                 },
               },
             },
@@ -249,6 +251,7 @@ export class CostingService {
       .filter((l) => l.businessDecision === "INCLUDE" && l.itemLink)
       .map((l) => ({ ...l, itemLink: l.itemLink! }));
     if (!retained.length) blockers.push("当前没有已确认保留并关联TM的商品");
+    if (retained.some(line => !!line.itemLink.item.deletedAt)) blockers.push("已纳入采购行关联了回收站商品，请先核对组合撤销或恢复");
     const allocationMethod = order.procurementSource.costAllocationMethod;
     const supportedMethod = [
       "PROPORTIONAL_LINE_AMOUNT",
@@ -513,9 +516,8 @@ export class CostingService {
         }[];
         for (const row of calc.rows) {
           await lock(tx, "item:" + row.itemId);
-          const item = await tx.item.findUniqueOrThrow({
-              where: { id: row.itemId },
-            }),
+          await assertNoActiveCorrection(tx, "itemId", row.itemId);
+          const item = await getItem(tx, row.itemId),
             sourceRef = `${orderId}:${row.lineId}`;
           const active = await tx.costEntry.findFirst({
             where: {

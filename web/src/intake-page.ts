@@ -1,4 +1,5 @@
 import {
+  can,
   request,
   button,
   form,
@@ -14,6 +15,7 @@ import {
   itemLink,
   dialog,
 } from "./core";
+import { quickIntake } from "./quick-intake";
 interface IntakeFile {
   id: string;
   originalName: string;
@@ -47,6 +49,8 @@ export async function intakePage(id?: string): Promise<string> {
       note(
         "先按批次上传，再确认属于哪件商品；文件名里的TM号只作建议，不自动绑定，也不自动通过授权复核。",
       ) +
+        note("这里用于给已有商品补图。新录现货需要先建档；核对外部导入需要先看来源与实物，三个任务分别处理。") +
+        `<div class="button-row">${can("edit") ? button("新录现货", () => quickIntake()) : ""}<a class="btn" href="#/items">查找已有商品补图</a><a class="btn" href="#/imports">核对外部导入</a></div>` +
         table(
           ["批次", "文件数", "状态", "创建时间"],
           rows.map((r) => [
@@ -202,7 +206,7 @@ export async function intakePage(id?: string): Promise<string> {
           b.files.map((f) => [
             `<a href="/api/intake/files/${f.id}/original" target="_blank" rel="noopener" aria-label="查看原图 ${esc(f.originalName)}"><img width="70" height="70" class="intake-preview" src="/api/intake/files/${f.id}/preview" alt="待归档素材"></a>`,
             esc(f.originalName) +
-              `<small>${esc(f.hint || "未识别编号")}</small>`,
+              `<small>${esc(f.hint || "文件名未匹配 TM 编号，请人工查找商品")}</small>`,
             esc(
               (
                 {

@@ -1,7 +1,8 @@
 const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHash } = require("node:crypto");
+const sharp = require("sharp");
 const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
@@ -245,4 +246,187 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
       expect(users.status()).toBe(permission(role, "users") ? 200 : 403);
     } finally { await account.close(); }
   }
+});
+
+async function quickIntakeImage(name = "intake-valid.png") {
+  return {
+    name,
+    mimeType: "image/png",
+    buffer: await sharp({
+      create: { width: 24, height: 32, channels: 3, background: "#c8c2b8" },
+    }).png().toBuffer(),
+  };
+}
+
+test("快速录货跳转货源先检查草稿，拒绝离开保留名称和图片", async ({ page }) => {
+  await page.goto("/#/items");
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const title = "离开录货 " + randomUUID();
+  let creates = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/api/items") creates++;
+  });
+  await dialog.getByLabel("商品名称", { exact: true }).fill(title);
+  await dialog.getByLabel("商品图片", { exact: true }).setInputFiles(await quickIntakeImage());
+  page.once("dialog", (d) => d.dismiss());
+  await dialog.getByRole("link", { name: "货源与供应商", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/#\/items$/);
+  await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);
+  expect(await dialog.getByLabel("商品图片", { exact: true }).evaluate((el) => el.files.length)).toBe(1);
+  expect(creates).toBe(0);
+  page.once("dialog", (d) => d.accept());
+  await dialog.getByRole("link", { name: "货源与供应商", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(/#\/sources$/);
+  expect(creates).toBe(0);
+});
+
+for (const change of ["改字段", "换图片", "换保存意图"]) {
+  test(`快速录货图片真实拒绝后${change}，继续同一TM不再建档`, async ({ page }) => {
+    const prefix = "恢复录货 " + randomUUID();
+    let creates = 0;
+    page.on("request", (r) => {
+      if (r.method() === "POST" && new URL(r.url()).pathname === "/api/items") creates++;
+    });
+    await page.goto("/#/items");
+    await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("商品名称", { exact: true }).fill(prefix);
+    await dialog.getByLabel("商品图片", { exact: true }).setInputFiles({
+      name: "intake-corrupt.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("synthetic-corrupt-png"),
+    });
+    const uploaded = (r) => new URL(r.url()).pathname === "/api/assets/upload" && r.request().method() === "POST";
+    const [rejected] = await Promise.all([
+      page.waitForResponse(uploaded),
+      dialog.getByRole("button", { name: "保存并关闭", exact: true }).click(),
+    ]);
+    expect(rejected.status()).toBe(400);
+    expect((await rejected.json()).error.code).toBe("INVALID_IMAGE");
+    await expect(dialog.getByRole("alert")).toContainText("无法解码");
+    const before = await (await page.request.get("/api/items?q=" + encodeURIComponent(prefix))).json();
+    expect(before.total).toBe(1);
+    const id = before.rows[0].id;
+    if (change === "改字段") await dialog.getByLabel("商品名称", { exact: true }).fill(prefix + " 更正");
+    if (change === "换图片") await dialog.getByLabel("商品图片", { exact: true }).setInputFiles(await quickIntakeImage("replacement.png"));
+    const [retried] = await Promise.all([
+      page.waitForResponse(uploaded),
+      dialog.getByRole("button", { name: change === "换保存意图" ? "保存并完善" : "保存并关闭", exact: true }).click(),
+    ]);
+    expect(retried.status()).toBe(change === "换图片" ? 201 : 400);
+    const after = await (await page.request.get("/api/items?q=" + encodeURIComponent(prefix))).json();
+    expect(after.total).toBe(1);
+    expect(after.rows[0].id).toBe(id);
+    expect(creates).toBe(1);
+    if (change === "改字段") expect(after.rows[0].title).toBe(prefix + " 更正");
+    if (change === "换图片") {
+      await expect(dialog).not.toBeVisible();
+      const item = await (await page.request.get("/api/items/" + id)).json();
+      expect(item.assets).toHaveLength(1);
+      expect(item.assets[0].originalName).toBe("replacement.png");
+    }
+  });
+}
+
+test("快速录货首次建档回执丢失，关闭再开核对原请求仍只有同一TM", async ({ page }) => {
+  const title = "跨窗口建档恢复 " + randomUUID();
+  const keys = [];
+  let lost = false;
+  await page.route("**/api/items", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (!lost) { lost = true; await route.fetch(); await route.abort("failed"); }
+    else await route.continue();
+  });
+  await page.goto("/#/items");
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("商品名称", { exact: true }).fill(title);
+  await dialog.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("提交结果可能未确认");
+  page.once("dialog", (d) => d.accept());
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("#catalog-search")).toBeVisible();
+  await expect(page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true })).toHaveAttribute("aria-label", "＋ 快速录入我方现货");
+  await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);
+  await dialog.getByRole("button", { name: "核对本次提交", exact: true }).click();
+  await expect(dialog.locator(".quick-intake-upload-status")).toContainText("原提交已核对");
+  await dialog.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const result = await (await page.request.get("/api/items?q=" + encodeURIComponent(title))).json();
+  expect(result.total).toBe(1);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+});
+
+test("快速录货图片真实保存丢回执后登录失效，保留未知尝试并原键核对", async ({ page }) => {
+  const title = "图片回执与登录核对 " + randomUUID();
+  const photo = await quickIntakeImage("lost-image.png");
+  let lost = false;
+  const keys = [];
+  await page.route("**/api/assets/upload", async route => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (!lost) {
+      // WebKit's intercepted multipart body need not contain reusable binary
+      // bytes. Reconstruct this exact persisted attempt, not a fake success.
+      const entries = await page.evaluate(async key => {
+        const db = await new Promise((resolve,reject) => {const r=indexedDB.open("tome-work-recovery",1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic attempt unavailable"));});
+        const records = await new Promise((resolve,reject) => {const r=db.transaction("work","readonly").objectStore("work").getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic attempt unavailable"));});db.close();
+        const job=records.flatMap(record=>Array.isArray(record)?record:[]).find(job=>job.key===key&&Array.isArray(job.input));
+        if(!job) throw new Error("The original persisted upload attempt is missing");
+        return job.input.map(([name,value])=>[name,value?.tomeRecoveryFile===true?{name:value.name,mimeType:value.type,bytes:Array.from(new Uint8Array(value.bytes))}:value]);
+      }, keys[0]);
+      const multipart=Object.fromEntries(entries.map(([name,value])=>[name,typeof value==='string'?value:{name:value.name,mimeType:value.mimeType,buffer:Buffer.from(value.bytes)}]));
+      expect(createHash('sha256').update(multipart.file.buffer).digest('hex')).toBe(createHash('sha256').update(photo.buffer).digest('hex'));
+      const response = await page.request.post(route.request().url(), {
+        multipart,
+        headers:{Origin:new URL(page.url()).origin,"X-CSRF-Token":route.request().headers()["x-csrf-token"],"Idempotency-Key":keys[0]},
+      });
+      const result=await response.json();
+      expect(response.status(), result.error?.code || "real image command").toBe(201);
+      lost = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.goto("/#/items");
+  await page.getByRole("button", {name:"＋ 快速录入我方现货",exact:true}).click();
+  const d=page.getByRole("dialog",{name:"快速录入我方现货"});
+  await d.getByLabel("商品名称",{exact:true}).fill(title);
+  await d.getByLabel("商品图片",{exact:true}).setInputFiles(photo);
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d.getByRole("alert")).toContainText("结果待确认");
+  const auth=await (await page.request.get("/api/auth/me")).json();
+  const items=await (await page.request.get("/api/items?q="+encodeURIComponent(title))).json();
+  expect(items.total).toBe(1);
+  const itemId=items.rows[0].id;
+  await api(page,"/auth/logout",{});
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d.getByRole("button",{name:"重新登录并保留输入",exact:true})).toBeVisible();
+  const queue=await page.evaluate(async key => {
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open("tome-work-recovery",1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic recovery read failed"));});
+    const value=await new Promise((resolve,reject)=>{const r=db.transaction("work","readonly").objectStore("work").get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error("synthetic recovery read failed"));});db.close();
+    return value.map(job=>({uncertain:job.uncertain,state:job.state}));
+  },`images:${auth.user.id}:${itemId}`);
+  expect(queue).toEqual([{uncertain:true,state:"结果待确认"}]);
+  await d.getByRole("button",{name:"重新登录并保留输入",exact:true}).click();
+  const loginDialog=page.getByRole("dialog",{name:"恢复登录"});
+  await loginDialog.getByLabel("密码",{exact:true}).fill(fixture.password);
+  const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/auth/login"&&r.request().method()==="POST");
+  await loginDialog.getByRole("button",{name:"恢复登录",exact:true}).click();
+  expect((await receipt).ok()).toBe(true);
+  await expect(loginDialog).not.toBeVisible();
+  await expect(d.getByRole("alert")).toContainText("登录已恢复");
+  await d.getByRole("button",{name:"保存并关闭",exact:true}).click();
+  await expect(d).not.toBeVisible();
+  expect(keys).toHaveLength(3);expect(new Set(keys).size).toBe(1);
+  const saved=await (await page.request.get(`/api/items/${itemId}`)).json();
+  expect(saved.assets).toHaveLength(1);expect(saved.assets[0].originalName).toBe("lost-image.png");
+  expect(saved.assets[0].sha256).toBe(createHash('sha256').update(photo.buffer).digest('hex'));
+  expect((await (await page.request.get("/api/items?q="+encodeURIComponent(title))).json()).total).toBe(1);
 });

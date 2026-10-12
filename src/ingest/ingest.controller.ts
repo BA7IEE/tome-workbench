@@ -31,6 +31,9 @@ import { safeText, uuid } from "../common/domain";
 import { assetPath, prepareImage } from "../media/storage";
 import { UploadBudget } from "../media/upload-budget";
 import { IngestService } from "./ingest.service";
+import { Commands } from "../common/transaction";
+import { compensationInput, compensationPreview, compensateConfirmation } from "./confirmation-compensation";
+import { confirmationCorrectionPreview } from "./confirmation-correction";
 import {
   candidateBulkInput,
   candidateBulkExcludeInput,
@@ -59,7 +62,36 @@ export class IngestAdminController {
   constructor(
     private db: PrismaService,
     private service: IngestService,
+    private commands: Commands,
   ) {}
+  @Access("users") @Get("candidates/:id/confirmation-correction-preview") correctionPreview(
+    @Param("id") id: string,
+  ) {
+    return this.db.$transaction(tx => confirmationCorrectionPreview(tx, uuid.parse(id)), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+  }
+  @Access("users") @Get("candidates/:id/confirmation-compensation-preview") compensationPreview(@Param("id") rawId: string) {
+    return this.db.$transaction(tx => compensationPreview(tx, uuid.parse(rawId)), { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+  @Access("users") @Post("candidates/:id/revoke-confirmation") revokeConfirmation(@Param("id") rawId: string, @Body() raw: unknown, @Req() r: AuthRequest) {
+    const id = uuid.parse(rawId), input = compensationInput.parse(raw);
+    return this.commands.run(r.actor.id, "ingest.candidate.revokeConfirmation", r.get("Idempotency-Key"), { id, ...input }, tx => compensateConfirmation(tx, r.actor.id, id, input));
+  }
+  @Access("users") @Get("confirmation-corrections/:id/restore-preview") async restorePreview(@Param("id") rawId: string) {
+    const id = uuid.parse(rawId);
+    return this.db.$transaction(async tx => {
+      const correction = await tx.ingestConfirmationCorrection.findUniqueOrThrow({ where: { id } });
+      return compensationPreview(tx, correction.candidateId, id);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+  @Access("users") @Post("confirmation-corrections/:id/restore") async restoreConfirmation(@Param("id") rawId: string, @Body() raw: unknown, @Req() r: AuthRequest) {
+    const id = uuid.parse(rawId), input = compensationInput.parse(raw);
+    return this.commands.run(r.actor.id, "ingest.candidate.restoreConfirmation", r.get("Idempotency-Key"), { id, ...input }, async tx => {
+      const correction = await tx.ingestConfirmationCorrection.findUniqueOrThrow({ where: { id } });
+      return compensateConfirmation(tx, r.actor.id, correction.candidateId, input, id);
+    });
+  }
   @Access("dictionary") @Get("brand-governance/preview") brandPreview() {
     return this.service.brandGovernancePreview();
   }
@@ -255,9 +287,10 @@ export class IngestAdminController {
         take: b.size,
         skip: (b.page - 1) * b.size,
         include: {
+          confirmationCorrections: { where: { restoredAt: null }, select: { id: true }, take: 1 },
           procurementSource: true,
           batch: true,
-          item: { select: { id: true, serial: true, title: true } },
+          item: { select: { id: true, serial: true, title: true, status: true, approvedValid: true } },
           assets: {
             where: { retiredAt: null },
             orderBy: { createdAt: "asc" },
@@ -322,6 +355,7 @@ export class IngestAdminController {
     const row = await this.db.ingestCandidate.findUniqueOrThrow({
       where: { id: uuid.parse(id) },
       include: {
+        confirmationCorrections: { where: { restoredAt: null }, select: { id: true }, take: 1 },
         procurementSource: true,
         batch: true,
         item: { select: { id: true, serial: true, title: true, status: true } },

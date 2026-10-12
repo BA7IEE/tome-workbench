@@ -18,30 +18,34 @@ import { onPageReady } from "./page-lifecycle";
 import type { Item } from "./types";
 type Target = Pick<Item, "id" | "code" | "title" | "version"> & {
   dataMode?: string;
+  confirmationCorrections?: { id: string; candidateId: string }[];
 };
 const reasons = {
+  "": "请选择删除原因",
   测试商品: "测试商品",
   误录或重复建档: "误录或重复建档",
   不再经营此商品: "不再经营此商品",
 };
 export function deleteProduct(item: Target) {
   form(
-    "删除商品 · " + item.code,
+    "移入回收站 · " + item.code,
     `<p><strong>${esc(item.title)}</strong></p>` +
       note(
-        "删除后移入回收站，可恢复；不会回收TM号或删除原图。已成交、有成本或预留，以及尚未下架的商品会被拦截。",
+        "移入回收站可恢复，编号、原图和来源确认历史保留；这不会撤销来源建档或排除已确认候选。已成交、有成本或预留，以及尚未下架的商品会被拦截。",
       ) +
-      select("reason", "删除原因", reasons, "测试商品") +
+      select("reason", "删除原因", reasons) +
       (can("users")
         ? button("有模拟成交？清理测试数据", () => cleanupTestData(item))
         : ""),
     async (d, key) => {
+      const reason = String(d.get("reason") || "");
+      if (!reason || !(reason in reasons)) throw new Error("请明确选择删除原因");
       const result = await request(
         `/items/${item.id}/trash`,
         "POST",
         {
           version: item.version,
-          reason: String(d.get("reason")),
+          reason,
           confirmed: true,
         },
         key,
@@ -64,9 +68,10 @@ export function deleteProducts(items: Target[]) {
       "仅处理下列勾选商品；有成交、成本、预留或未下架渠道的项目不会删除。每件的结果分别显示。",
     ) +
       `<div class="batch-results">${items.map((i) => `<p>${esc(i.code)} · ${esc(i.title)}</p>`).join("")}</div>` +
-      select("reason", "删除原因", reasons, "测试商品"),
+      select("reason", "删除原因", reasons),
     async (d) => {
       const reason = String(d.get("reason"));
+      if (!reason || !(reason in reasons)) throw new Error("请明确选择删除原因");
       setTimeout(
         () =>
           batchActions(
@@ -94,6 +99,10 @@ export function deleteProducts(items: Target[]) {
   );
 }
 export function restoreProduct(item: Target) {
+  if (item.confirmationCorrections?.length) {
+    location.hash = "/candidates?decision=EXCLUDED";
+    return;
+  }
   form(
     "恢复商品 · " + item.code,
     `<p>${esc(item.title)}</p>` +
@@ -119,12 +128,12 @@ export function deletedNotice(item: Item) {
     "该商品已移入回收站",
     `<p><strong>${esc(item.code)} · ${esc(item.title)}</strong></p><p>删除时间：${when(item.deletedAt)}；原因：${esc(item.deletionReason || "")}</p>` +
       note(
-        "资料、原图和编号仍保留。需要继续使用时，请先恢复商品；旧编辑页面不能直接写入。",
+        item.confirmationCorrections?.length ? "这是组合撤销的误确认。资料、原图和编号保留，请从已排除来源核对组合恢复；不能单独恢复商品。" : "资料、原图和编号仍保留。需要继续使用时，请先恢复商品；旧编辑页面不能直接写入。",
       ) +
       '<div class="button-row"><a class="btn" href="#/items">返回商品列表</a>' +
       (can("delete")
         ? '<a class="btn" href="#/trash">查看回收站</a>' +
-          button("恢复商品", () => restoreProduct(item), "primary")
+          button(item.confirmationCorrections?.length ? "到来源核对组合恢复" : "恢复商品", () => restoreProduct(item), "primary")
         : "") +
       "</div>",
   );
@@ -174,7 +183,7 @@ export async function recycleBinPage() {
             `${esc(i.title)}<small>${esc(i.code)}${i.dataMode === "TEST" ? " · 测试数据" : ""}</small>`,
             when(i.deletedAt),
             esc(i.deletionReason),
-            button("恢复商品", () => restoreProduct(i)) +
+            button(i.confirmationCorrections?.length ? "核对组合恢复" : "恢复商品", () => restoreProduct(i)) +
               (i.dataMode === "TEST" && can("finance")
                 ? `<a class="btn" href="#/sales?dataMode=TEST&q=${encodeURIComponent(i.code)}">查看保留的模拟成交</a>`
                 : ""),

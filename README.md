@@ -1,5 +1,11 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
+已批准 UX 后续在 PR #58 分片实施：快速录货受保护退出、同件建档/图片恢复、跨窗口原请求核对、快速修改草稿转交、保存与取消说明、手机保存、范围与批量结果，以及图片任务说明。各片边界见 [UX 交互实施](docs/UX-IMPLEMENTATION.md)。第一片 `2b54f9e` 的 CI 38197506838 两浏览器各195通过；随后片仍须自身固定 head 的完整验证，未合并或部署。
+
+每次开工、独立切片和交接分别运行 `npm run dev:preflight`、`npm run dev:checkpoint`、`npm run dev:handoff`；只读、不代替完整发布门禁，流程见 [WORKING-STATE](docs/WORKING-STATE.md)。
+
+当前 UI 开发基线为已合并 PR #56 的 `main@cf7565a`：Ant Design 6.6.5 + ProComponents 3.1.15-5。历史 `arco/` 路径是领域控制器兼容名，不代表仍使用 Arco。开发前核对 origin=`BA7IEE/tome-workbench`、固定 HEAD 和 package/lock；仅有 rc.13 版本号不足以判断框架。本轮候选见 [UX-READ-FEEDBACK](docs/UX-READ-FEEDBACK.md) 与 [STYLE-CSP](docs/STYLE-CSP.md)；真实框架结果按 PR #57 的最终固定 head 与 CI 核对，未部署。
+
 **版本：1.1.0-rc.13，新增可审计的来源污染纠错：受限字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、标准资料交付、轻量分发记录与经营投影、交易经营意图、发布安全检查、询盘日程、成交币种安全、规模化运营工作流、本地 AnQiCMS 标准交付合同，以及 INTERNAL_CADDY / EXTERNAL_REVERSE_PROXY（含 1Panel/OpenResty）生产部署模式。当前事实见 [CURRENT-RELEASE](docs/CURRENT-RELEASE.md)，不等于业务验收或正式部署完成。**
 
 围绕永久 TM 统一管理商品、原图、来源和日常库存动作。采集、平台发布和 AnQiCMS 建站由外部工具完成。保留原有业务模块供需要时使用。真实验证入口为 `docs/VALIDATION.md`；长期74项要求与当前实现的区别见 `docs/AC_MATRIX.md`。

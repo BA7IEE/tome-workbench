@@ -140,15 +140,19 @@ export async function request<T>(
     signal: AbortSignal.timeout(45000),
   }).catch(() => {
     throw new ApiError(
-      "网络中断，提交结果可能未确认。请保留当前内容重试。",
-      "NETWORK_UNCERTAIN",
+      method === "GET"
+        ? "网络中断，未能读取数据。请重新读取页面。"
+        : "网络中断，提交结果可能未确认。请保留当前内容重试。",
+      method === "GET" ? "READ_FAILED" : "NETWORK_UNCERTAIN",
       0,
     );
   });
   const json = await r.json().catch(() => {
     throw new ApiError(
-      "响应未完整收到，请核对结果后使用原请求重试。",
-      "RESPONSE_UNCERTAIN",
+      method === "GET"
+        ? "数据未完整收到，请重新读取页面。"
+        : "响应未完整收到，请核对结果后使用原请求重试。",
+      method === "GET" ? "READ_RESPONSE_INVALID" : "RESPONSE_UNCERTAIN",
       0,
     );
   });
@@ -227,13 +231,18 @@ export const currencies = {
 export const text = (d: FormData, k: string) => String(d.get(k) || "");
 export const itemLink = (id: string, title: string) =>
   `<a class="itemlink" href="#/items/${esc(id)}">${esc(title)}</a>`;
-export function form(
+export type FormExit = {
+  close(): boolean;
+  transferDraft(preserve: () => void): boolean;
+  outcomeKnown(): void;
+};
+function openForm(
   title: string,
   html: string,
   save: (d: FormData, key: string) => Promise<unknown>,
   label = "保存",
   after?: () => Promise<void>,
-) {
+): FormExit {
   const scope = newDialogScope();
   let key = crypto.randomUUID(),
     dirty = false,
@@ -382,6 +391,46 @@ export function form(
     { signal: scope.signal },
   );
   if (!dialog.open) dialog.showModal();
+  return {
+    outcomeKnown() {
+      uncertain = false;
+    },
+    close() {
+      if (scope.signal.aborted || !dialog.open || !dialog.contains(el))
+        return false;
+      if (busy) {
+        toast("正在保存，请稍候");
+        return false;
+      }
+      if (!mayClose()) return false;
+      dialog.close();
+      return true;
+    },
+    transferDraft(preserve) {
+      if (scope.signal.aborted || !dialog.open || !dialog.contains(el))
+        return false;
+      if (busy || uncertain) {
+        toast(
+          busy
+            ? "正在保存，请稍候"
+            : "请先在原窗口核对上次提交，再转入完整编辑",
+          true,
+        );
+        return false;
+      }
+      preserve();
+      dialog.close();
+      return true;
+    },
+  };
+}
+// Existing action callbacks retain their void contract. Navigation-capable
+// forms explicitly opt into the same dirty/busy/uncertain exit check.
+export function form(...args: Parameters<typeof openForm>): void {
+  openForm(...args);
+}
+export function formWithExit(...args: Parameters<typeof openForm>): FormExit {
+  return openForm(...args);
 }
 export function viewDialog(
   title: string,

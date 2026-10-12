@@ -20,6 +20,8 @@
     "prisma/migrations/202609180017_inquiry_followup/migration.sql": "e572567aa1feccfec2e99f2d2cc415caedb3677e8bda09b47b32fee699b7ce11",
     "prisma/migrations/202609180018_ingest_credential_redaction/migration.sql": "d07021b75ace73db6ae3ef6b8865e75d539032d31157cd3997260e8a85655c52",
     "prisma/migrations/202609200019_source_line_net_cost/migration.sql": "cd8cfc08780b752ce196dfd1b618bb72a7b4cf97852b57e78cb6aa563106d407",
-    "prisma/migrations/202609210020_ingest_candidate_asset_retirement/migration.sql": "8bc1e95b31a288e3c0757b4ebb9ac50c5d91d0b723fd6a075436ad6dfc60bbf8"
+    "prisma/migrations/202609210020_ingest_candidate_asset_retirement/migration.sql": "8bc1e95b31a288e3c0757b4ebb9ac50c5d91d0b723fd6a075436ad6dfc60bbf8",
+    "prisma/migrations/202610120021_confirmation_compensation/migration.sql": "79e8761b8b6cbcd1be27faf67772d7c48ca180b3d9650bc10060ac2ef4054b1d",
+    "prisma/migrations/202610120022_correction_candidate_anchor/migration.sql": "e5a0dfdcc41a3224f4a750954672c21d9c985a972ab226f74f2f7f0ecdc54e72"
   }
 }

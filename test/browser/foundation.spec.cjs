@@ -155,3 +155,119 @@ test("Foundation mobile keeps named navigation and a single logout", async ({
     page.getByRole("button", { name: "退出登录", exact: true }),
   ).toBeVisible();
 });
+
+test("Foundation read failure explains retry without implying a submitted write", async ({
+  page,
+}) => {
+  await login(page);
+  const catalogUrl = page.url();
+  const catalogRead = /\/api\/items(?:\?.*)?$/;
+  const failRead = (route) =>
+    route.request().method() === "GET"
+      ? route.abort("failed")
+      : route.continue();
+  await page.route(catalogRead, failRead);
+  await page.reload();
+  const error = page.locator(".foundation-page-error");
+  await expect(error).toContainText("未能读取数据");
+  await expect(error).not.toContainText("提交结果");
+  await expect(error.getByRole("button", { name: "重新读取" })).toBeVisible();
+  await page.unroute(catalogRead, failRead);
+  await error.getByRole("button", { name: "重新读取" }).click();
+  await expect(page.locator(".catalog-page")).toBeVisible();
+  await expect(page.locator(".foundation-page-error")).toHaveCount(0);
+  expect(page.url()).toBe(catalogUrl);
+});
+
+for (const width of [1440, 390]) {
+  test(`Foundation ${width}px: real CSP authorizes AntD styles and blocks an untrusted style`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/#/items");
+    const nonce = await page
+      .locator('meta[name="tome-style-nonce"]')
+      .getAttribute("content");
+    expect(nonce).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    const policy = response.headers()["content-security-policy"];
+    expect(policy).toContain(`style-src 'self' 'nonce-${nonce}`);
+    expect(policy).toContain("script-src 'self';");
+    expect(policy).not.toContain("unsafe-inline");
+    await fillLogin(page, fixture.email, fixture.password);
+    await submitLogin(page);
+    await expect(page.locator(".catalog-page")).toBeVisible();
+    const styles = await page.evaluate(() => {
+      const nonce = document.querySelector(
+        'meta[name="tome-style-nonce"]',
+      ).content;
+      const generated = [...document.querySelectorAll("style[data-css-hash]")];
+      return {
+        count: generated.length,
+        invalid: generated
+          .filter((style) => !style.sheet || style.nonce !== nonce)
+          .map((style) => ({
+            hash: style.getAttribute("data-css-hash"),
+            token: style.getAttribute("data-token-hash"),
+            hasSheet: !!style.sheet,
+            nonceMatches: style.nonce === nonce,
+          })),
+      };
+    });
+    expect(styles.count).toBeGreaterThan(0);
+    expect(styles.invalid).toEqual([]);
+    await expect(page.locator(".catalog-pagination .ant-pagination")).toHaveCSS(
+      "list-style-type",
+      "none",
+    );
+    const sortLayout = await page
+      .locator(".catalog-order > .ant-select")
+      .evaluate((select) => {
+        const bounds = select.getBoundingClientRect();
+        const arrow = select
+          .querySelector(".ant-select-suffix")
+          .getBoundingClientRect();
+        const value = select
+          .querySelector(".ant-select-content")
+          .getBoundingClientRect();
+        return {
+          height: bounds.height,
+          arrowInside:
+            arrow.top >= bounds.top - 1 && arrow.bottom <= bounds.bottom + 1,
+          valueInside:
+            value.top >= bounds.top - 1 && value.bottom <= bounds.bottom + 1,
+        };
+      });
+    expect(sortLayout.height).toBeLessThanOrEqual(48);
+    expect(sortLayout.arrowInside).toBe(true);
+    expect(sortLayout.valueInside).toBe(true);
+    const sort = page.getByRole("combobox", { name: "排序", exact: true });
+    await sort.click();
+    await expect(page.locator(".ant-select-dropdown").last()).toBeVisible();
+    await sort.press("Escape");
+    const denied = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const style = document.createElement("style");
+          style.textContent = ".tome-denied-csp-probe{outline-width:17px}";
+          const violation = (event) => {
+            if (!event.effectiveDirective.startsWith("style-src")) return;
+            document.removeEventListener("securitypolicyviolation", violation);
+            resolve({
+              blocked: style.sheet === null,
+              directive: event.effectiveDirective,
+            });
+            style.remove();
+          };
+          document.addEventListener("securitypolicyviolation", violation);
+          document.head.append(style);
+        }),
+    );
+    expect(denied.blocked).toBe(true);
+    expect(denied.directive).toMatch(/^style-src/);
+    const next = await page.request.get("/");
+    expect(next.headers()["content-security-policy"]).not.toContain(
+      `'nonce-${nonce}'`,
+    );
+    expect(next.headers()["cache-control"]).toBe("no-store");
+  });
+}

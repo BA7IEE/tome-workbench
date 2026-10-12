@@ -543,6 +543,11 @@ test("商品列表可删除、取消删除并在回收站恢复原编号", async
   )
     await row.locator(".catalog-row-menu").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
+  await expect(page.getByLabel("删除原因", { exact: true })).toHaveValue("");
+  await page.getByRole("button", { name: "确认删除", exact: true }).click();
+  await expect(page.locator(".form-error")).toContainText("请明确选择删除原因");
+  await expect((await page.request.get(`/api/items/${i.id}`)).ok()).toBe(true);
+  await page.getByLabel("删除原因", { exact: true }).selectOption("测试商品");
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
   await expect(page.locator("#dialog")).not.toBeVisible();
   await expect(row).toHaveCount(0);
@@ -575,6 +580,7 @@ test("批量清理仅影响本测试创建并勾选的两件样本", async ({ pa
   }
   await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "批量删除", exact: true }).click();
+  await page.getByLabel("删除原因", { exact: true }).selectOption("测试商品");
   await page.getByRole("button", { name: "确认删除所选商品", exact: true }).click();
   await expect(page.locator("#batch-summary")).toContainText("完成2 / 2");
   await page
@@ -592,6 +598,7 @@ test("手机商品详情提供删除，旧编辑页提示先恢复", async ({ pa
   await page.goto(`/#/items/${sample.id}`);
   await page.locator(".overview-more summary").click();
   await page.getByRole("button", { name: "删除商品", exact: true }).click();
+  await page.getByLabel("删除原因", { exact: true }).selectOption("误录或重复建档");
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
   await expect(page.locator("#content")).toContainText("已移入回收站");
   await page.goto(`/#/items/${sample.id}/edit`);

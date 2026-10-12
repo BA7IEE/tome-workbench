@@ -370,6 +370,23 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
       return r.top >= 0 && r.bottom < innerHeight;
     }),
   ).toBe(true);
+  const more = toolbar.locator(".bulk-more > summary");
+  await more.click();
+  const menu = toolbar.locator(".bulk-more > div");
+  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  const box = await menu.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + 30);
+  await page.mouse.wheel(0, 40);
+  await expect
+    .poll(() => menu.evaluate((el) => el.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(toolbar.locator(".bulk-more")).toHaveAttribute("open", "");
+  await expect(toolbar).toContainText("已选 5 件");
+  await page.keyboard.press("Escape");
+  await expect(more).toBeFocused();
+  await expect(toolbar.locator(".bulk-more")).not.toHaveAttribute("open", "");
   await toolbar.getByRole("button", { name: "取消选择", exact: true }).click();
   await expect(toolbar).toBeHidden();
   await page.locator(".catalog-row-menu").last().click();
@@ -740,4 +757,120 @@ test("最终样式负责侧栏宽度与弹窗间距，不被旧样式覆盖", as
   }));
   expect(margins).toEqual({ head: "0px", foot: "0px" });
   await d.getByRole("button", { name: "取消", exact: true }).click();
+});
+
+test("快速修改冲突可以带草稿到完整页，未修改资料采用最新值且确认前不写入", async ({ page }) => {
+  const original = "转交草稿 " + randomUUID();
+  const item = await uiApi(page, "/items", { title: original, facts: { material: "旧材质" } });
+  await page.goto("/#/items?q=" + encodeURIComponent(original));
+  await page.getByRole("button", { name: `${item.code} 更多操作`, exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("商品名称", { exact: true }).fill(original + " 我的修改");
+  await uiApi(page, "/items/" + item.id, { version: 1, title: original + " 其他人修改", facts: { material: "服务器最新材质" } }, "PATCH");
+  let uiPatches = 0;
+  page.on("request", (r) => { if (r.method() === "PATCH" && new URL(r.url()).pathname === "/api/items/" + item.id) uiPatches++; });
+  await dialog.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("保留修改并进入完整编辑");
+  expect(uiPatches).toBe(1);
+  await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
+  await expect(page.getByLabel("商品名称", { exact: true })).toHaveValue(original + " 我的修改");
+  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue("服务器最新材质");
+  await expect(page.locator("[data-dictionary][data-ready=true]")).toHaveCount(4);
+  await page.getByRole("button", { name: "核对差异", exact: true }).click();
+  await expect(page.locator(".entry-conflicts")).toContainText(original + " 其他人修改");
+  expect(uiPatches).toBe(1);
+  await page.getByRole("button", { name: "合并后继续编辑", exact: true }).click();
+  await expect(page.locator(".studio-save-feedback .form-error")).toContainText("请先核对");
+  await page.getByLabel("我已核对差异，保留下面输入的改动", { exact: true }).check();
+  await page.getByRole("button", { name: "合并后继续编辑", exact: true }).click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.title).toBe(original + " 我的修改");
+  expect(saved.facts.material).toBe("服务器最新材质");
+  expect(uiPatches).toBe(2);
+});
+
+test("转交未选品牌的草稿保留原输入，完整页仍要求人工选择", async ({ page }) => {
+  const title = "待选品牌草稿 " + randomUUID();
+  const brands = await uiApi(page, "/dictionaries?kind=BRAND&q=Dior&exact=1", undefined, "GET");
+  expect(brands.rows.length).toBeGreaterThan(0);
+  const brand = brands.rows[0];
+  const item = await uiApi(page, "/items", { title, brand: brand.label, dictionary: { brand: brand.id } });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByRole("button", { name: `${item.code} 更多操作`, exact: true }).click();
+  await page.getByRole("button", { name: "快速修改", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const rawBrand = "未选中的品牌 " + randomUUID();
+  await expect(dialog.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
+  await dialog.getByLabel("品牌", { exact: true }).fill(rawBrand);
+  await dialog.getByRole("button", { name: "保留修改并进入完整编辑", exact: true }).click();
+  await expect(page.locator("#product-entry-form [data-dictionary][data-ready=true]")).toHaveCount(4);
+  await expect(page.locator("#product-entry-form").getByLabel("品牌", { exact: true })).toHaveValue(rawBrand);
+  await expect(page.locator('#product-entry-form [name="dict_brand"]')).toHaveValue("");
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".studio-save-feedback .form-error")).toContainText("输入文字不会直接保存");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.version).toBe(1);
+  expect(saved.brand).toBe(brand.label);
+});
+
+test("手机长编辑页保存随滚动可达，不遮底部导航并保留同一件与取消保护", async ({ page }) => {
+  const title = "手机固定保存 " + randomUUID();
+  const item = await uiApi(page, "/items", { title });
+  await page.goto(`/#/items/${item.id}/edit`);
+  for (const width of [320, 390, 720, 721, 760]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    const box = await page.getByRole("button", { name: "保存商品", exact: true }).boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(780);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+    await expect(page.locator(".studio-save-identity")).toHaveText(item.code);
+  }
+  await page.setViewportSize({ width: 390, height: 360 });
+  await page.locator(".studio-more > summary").click();
+  await expect(page.getByRole("button", { name: "保存并下载资料", exact: true })).toBeVisible();
+  await page.locator(".studio-more > summary").click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的手机输入");
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue("尚未保存的手机输入");
+  const saved = await (await page.request.get("/api/items/" + item.id)).json();
+  expect(saved.facts.descriptionZh).not.toBe("尚未保存的手机输入");
+  await page.setViewportSize({ width: 761, height: 844 });
+  await expect(page.locator(".studio-save-identity")).toBeHidden();
+});
+
+test("转交明确清空的品牌和成色，完整页不重新匹配旧选择且保存清空值", async ({page}) => {
+  const brands=await uiApi(page,"/dictionaries?kind=BRAND&q=Dior&exact=1",undefined,"GET");
+  const conditions=await uiApi(page,"/dictionaries?kind=CONDITION&category=CLOTHING",undefined,"GET");
+  expect(brands.rows.length).toBeGreaterThan(0);expect(conditions.rows.length).toBeGreaterThan(0);
+  const brand=brands.rows[0],condition=conditions.rows[0],title="清空字典草稿 "+randomUUID();
+  const item=await uiApi(page,"/items",{title,brand:brand.label,dictionary:{brand:brand.id,condition:condition.id},facts:{conditionGrade:condition.label}});
+  await page.goto("/#/items?q="+encodeURIComponent(title));
+  await page.getByRole("button",{name:`${item.code} 更多操作`,exact:true}).click();
+  await page.getByRole("button",{name:"快速修改",exact:true}).click();
+  const d=page.getByRole("dialog");
+  await expect(d.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
+  await d.getByRole("button",{name:"清除品牌",exact:true}).click();
+  await d.getByLabel("成色",{exact:true}).selectOption("");
+  await expect(d.locator('[data-dictionary][data-ready=true]')).toHaveCount(2);
+  await expect(d.getByLabel("品牌",{exact:true})).toHaveValue("");
+  await d.getByRole("button",{name:"保留修改并进入完整编辑",exact:true}).click();
+  const form=page.locator("#product-entry-form");
+  await expect(form.locator('[data-dictionary][data-ready=true]')).toHaveCount(4);
+  await expect(form.getByLabel("品牌",{exact:true})).toHaveValue("");
+  await expect(form.locator('[name="dict_brand"]')).toHaveValue("");
+  await expect(form.getByLabel("成色",{exact:true})).toHaveValue("");
+  await page.getByRole("button",{name:"保存商品",exact:true}).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  const saved=await (await page.request.get("/api/items/"+item.id)).json();
+  expect(saved.brand).toBe("");expect(saved.facts.conditionGrade).toBe("");
+  expect(saved.dictionary?.brand??null).toBeNull();expect(saved.dictionary?.condition??null).toBeNull();
 });

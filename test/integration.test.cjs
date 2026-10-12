@@ -7379,3 +7379,136 @@ test('采购来源默认币种更正只影响后续缺省候选，3,422件TRR-1�
   const imported=await machineOk(`/agent-ingest/batches/${followup.id}/candidates`,session.token,'POST',{candidates:[followupCandidate]});
   assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:imported.rows[0].id}})).currency,'USD');
 });
+
+test('误确认只读核对使用真实新建回执，保留所有记录并拒绝复用、缺证据和整单成本依赖',async()=>{
+  const x=await setupAgentTrr('SYNTHETIC-CORRECTION-REVIEW');await sealAgentBatch(x);
+  const c=x.imported.rows[0],confirmed=await ok(`/ingest/candidates/${c.id}/confirm`,'POST',{version:c.version,possession:'IN_HAND',status:'PAUSED',acceptIncomplete:true,note:'合成误确认核对'});
+  const before=await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}}),oldItem=await item(confirmed.itemId),receipt=await db.receipt.findFirstOrThrow({where:{operation:'ingest.candidate.confirm',response:{path:['id'],equals:c.id}}});
+  const path=`/ingest/candidates/${c.id}/confirmation-correction-preview`;
+  const preview=await ok(path);assert.equal(preview.mode,'REVIEW_ONLY');assert.equal(preview.executionAvailable,false);assert.equal(preview.originalConfirmationReceiptId,receipt.id);assert.equal(preview.target.itemId,confirmed.itemId);
+  assert.deepEqual(await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}}),before);assert.equal((await item(confirmed.itemId)).version,oldItem.version);assert.deepEqual((await db.receipt.findUniqueOrThrow({where:{id:receipt.id}})).response,receipt.response);
+  assert.equal((await api(path,'GET',undefined,operator)).status,403);assert.equal((await api(path,'GET',undefined,viewer)).status,403);
+  await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:1000,overheadCny:0,note:'合成整单依据',confirmed:true});
+  const blocked=await ok(path);assert.equal(blocked.candidateEligible,false);assert.equal(blocked.proposedTransition,null);assert.ok(blocked.blockers.some(b=>b.code==='HAS_ORDERCOSTBASIS'));assert.notEqual(blocked.digest,preview.digest);
+  const c2=x.imported.rows[1];await ok(`/ingest/candidates/${c2.id}/link-item`,'POST',{version:c2.version,itemRef:confirmed.code,possession:'IN_HAND',note:'合成共享 TM 核对'});
+  const linked=await ok(`/ingest/candidates/${c2.id}/confirmation-correction-preview`);assert.equal(linked.candidateEligible,false);assert.equal(linked.originalConfirmationReceiptId,null);assert.ok(linked.blockers.some(b=>b.code==='CREATION_PROOF_MISSING'));
+  const shared=await ok(path);assert.ok(shared.blockers.some(b=>b.code==='SHARED_OWNERSHIP'));
+});
+
+async function correctionFixture(label,withOriginal=false) {
+  const x=await setupAgentTrr(label);await sealAgentBatch(x);
+  const c=x.imported.rows[0], confirmed=await ok(`/ingest/candidates/${c.id}/confirm`,'POST',{version:c.version,possession:'IN_HAND',status:'PAUSED',acceptIncomplete:true,note:'隔离单条纠错测试'});
+  if(withOriginal) await upload(confirmed.itemId);
+  const preview=await ok(`/ingest/candidates/${c.id}/confirmation-compensation-preview`);
+  assert.equal(preview.candidateEligible,true,JSON.stringify(preview.blockers));
+  const body={candidateVersion:preview.target.candidateVersion,itemVersion:preview.target.itemVersion,purchaseLineVersion:preview.target.purchaseLine?.version||null,digest:preview.digest,code:preview.target.code,reason:'合成误确认撤销',confirmed:true};
+  return {...x,c,confirmed,preview,body,path:`/ingest/candidates/${c.id}/revoke-confirmation`};
+}
+function restoreBody(p) {
+  return {candidateVersion:p.target.candidateVersion,itemVersion:p.target.itemVersion,purchaseLineVersion:p.target.purchaseLine?.version||null,digest:p.digest,code:p.target.code,reason:'合成组合恢复核对',confirmed:true};
+}
+test('单件误确认与组合恢复原子保留TM、在手事实、原图和原回执，普通恢复拒绝拆开状态',async()=>{
+  const x=await correctionFixture('SYNTHETIC-COMPENSATION-JOINT',true), key=randomUUID();
+  const oldCandidate=await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}),oldItem=await db.item.findUniqueOrThrow({where:{id:x.confirmed.itemId}}),oldReceipt=await db.receipt.findFirstOrThrow({where:{operation:'ingest.candidate.confirm',response:{path:['id'],equals:x.c.id}}});
+  const assets=await db.asset.findMany({where:{itemId:oldItem.id},orderBy:{id:'asc'}});assert.equal(assets.length,1);
+  const {assetPath}=require('../dist/media/storage');
+  const originalHashes=assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')}));assert.deepEqual(originalHashes,assets.map(a=>({id:a.id,sha256:a.sha256})));
+  const result=await ok(x.path,'POST',x.body,admin,key);
+  assert.deepEqual(await ok(x.path,'POST',x.body,admin,key),result);
+  assert.equal((await api(x.path,'POST',{...x.body,reason:'不同载荷不得复用'},admin,key)).data.error.code,'IDEMPOTENCY_CONFLICT');
+  const c=await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}), i=await db.item.findUniqueOrThrow({where:{id:oldItem.id}}),line=await db.purchaseLine.findUniqueOrThrow({where:{id:c.purchaseLineId}});
+  assert.equal(c.decision,'EXCLUDED');assert.equal(c.itemId,i.id);assert.equal(c.sourceId,oldCandidate.sourceId);assert.equal(c.purchaseLineId,oldCandidate.purchaseLineId);assert.equal(c.possession,oldCandidate.possession);assert.equal(i.serial,oldItem.serial);assert.equal(i.status,'PAUSED');assert.equal(i.approvedValid,false);assert.ok(i.deletedAt);assert.equal(line.businessDecision,'EXCLUDE');assert.equal(c.version,oldCandidate.version+1);assert.equal(i.version,oldItem.version+1);
+  assert.deepEqual(await db.asset.findMany({where:{itemId:i.id},orderBy:{id:'asc'}}),assets);
+  assert.deepEqual(assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')})),originalHashes);
+  assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
+  assert.equal((await api(`/items/${i.id}/restore`,'POST',{version:i.version,reason:'禁止拆开恢复',confirmed:true})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
+  assert.equal((await api(`/ingest/candidates/${c.id}/review`,'POST',{version:c.version,possession:c.possession,decision:'PENDING',note:'禁止单独候选恢复'})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
+  assert.equal((await api(`/procurement/lines/${line.id}/review`,'POST',{version:line.version,businessDecision:'INCLUDE',possession:line.possession,reviewNote:'禁止单独采购恢复'})).data.error.code,'CONFIRMATION_CORRECTION_ACTIVE');
+  const p=await ok(`/ingest/confirmation-corrections/${result.correctionId}/restore-preview`);assert.equal(p.candidateEligible,true,JSON.stringify(p.blockers));
+  const rb=restoreBody(p),rk=randomUUID(),rp=`/ingest/confirmation-corrections/${result.correctionId}/restore`;
+  const restored=await ok(rp,'POST',rb,admin,rk);assert.deepEqual(await ok(rp,'POST',rb,admin,rk),restored);
+  const current=await db.item.findUniqueOrThrow({where:{id:i.id}});assert.equal(current.deletedAt,null);assert.equal(current.serial,oldItem.serial);assert.equal(current.sourceId,oldItem.sourceId);assert.equal(current.status,'PAUSED');assert.equal(current.approvedValid,false);assert.equal(current.version,i.version+1);
+  assert.deepEqual(await db.asset.findMany({where:{itemId:i.id},orderBy:{id:'asc'}}),assets);
+  assert.deepEqual(assets.map(a=>({id:a.id,sha256:createHash('sha256').update(readFileSync(assetPath(a.objectKey))).digest('hex')})),originalHashes);
+  assert.equal((await db.ingestCandidate.findUniqueOrThrow({where:{id:c.id}})).decision,'CONFIRMED');assert.equal((await db.purchaseLine.findUniqueOrThrow({where:{id:line.id}})).businessDecision,'INCLUDE');
+  const history=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:result.correctionId}});assert.ok(history.restoredAt);assert.equal(history.originalReceiptId,oldReceipt.id);assert.equal(await db.audit.count({where:{resourceId:c.id,action:{in:['INGEST_CONFIRMATION_REVOKED','INGEST_CONFIRMATION_RESTORED']}}}),2);
+  assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:c.id}}),1);
+  assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);assert.equal(await db.listing.count({where:{itemId:i.id}}),0);
+  assert.deepEqual(await db.receipt.findUniqueOrThrow({where:{id:oldReceipt.id}}),oldReceipt);
+  await assert.rejects(db.ingestCandidate.update({where:{id:c.id},data:{decision:'EXCLUDED'}}));
+  const latest=await db.itemRevision.findUniqueOrThrow({where:{itemId_version:{itemId:i.id,version:current.version}}});
+  const {snapshot}=require('../dist/catalog/catalog.service');assert.deepEqual(latest.snapshot,JSON.parse(JSON.stringify(await snapshot(db,current))));
+  await ok(`/items/${i.id}/approve`,'POST',{version:current.version});assert.equal((await db.item.findUniqueOrThrow({where:{id:i.id}})).approvedValid,true);assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);
+});
+test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，活动纠错历史和关联不能被数据库绕过',async()=>{
+  let x=await correctionFixture('SYNTHETIC-COMPENSATION-GUARDS');
+  for(const who of [operator,viewer]) assert.equal((await api(x.path,'POST',x.body,who)).status,403);
+  assert.equal((await api(x.path,'POST',{...x.body,itemVersion:x.body.itemVersion+1})).data.error.code,'VERSION_CONFLICT');
+  assert.equal((await api(x.path,'POST',{...x.body,code:'TM999999'})).data.error.code,'CORRECTION_REVIEW_CHANGED');
+  let unlock,ready;const hold=new Promise(r=>{unlock=r}),acquired=new Promise(r=>{ready=r});
+  const transaction=db.$transaction(async tx=>{await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))',`item:${x.confirmed.itemId}`);ready();await hold;},{timeout:10000});
+  await acquired;try{assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_RESOURCE_BUSY');}finally{unlock();await transaction;}
+  assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),0);
+  const alias='CORRPRE_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase();
+  await db.itemAlias.create({data:{itemId:x.confirmed.itemId,code:alias,source:'合成并发依赖',createdBy:admin.id}});
+  assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_REVIEW_CHANGED');
+  await assert.rejects(db.itemAlias.delete({where:{code:alias}}),/immutable evidence/);
+  assert.equal(await db.itemAlias.count({where:{code:alias}}),1);
+  x=await correctionFixture('SYNTHETIC-COMPENSATION-ACTIVE');
+  const commandKey=randomUUID(),r=await ok(x.path,'POST',x.body,admin,commandKey);
+  await db.user.update({where:{id:admin.id},data:{role:'OPERATOR'}});
+  try {assert.equal((await api(x.path,'POST',x.body,admin,commandKey)).status,403);} finally {await db.user.update({where:{id:admin.id},data:{role:'ADMIN'}});}
+  const i=await db.item.findUniqueOrThrow({where:{id:x.confirmed.itemId}});
+  await assert.rejects(db.item.update({where:{id:i.id},data:{deletedAt:null}}));
+  await assert.rejects(db.ingestCandidate.update({where:{id:x.c.id},data:{decision:'PENDING'}}));
+  await assert.rejects(db.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:{reason:'历史原因不得覆盖'}}));
+  await assert.rejects(db.ingestConfirmationCorrection.delete({where:{id:r.correctionId}}));
+  const history=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}});
+  const fakeRestore={restoredAt:new Date(),restoredBy:admin.id,restoreReason:'不得只关闭历史',restoredSnapshot:history.correctedSnapshot};
+  await assert.rejects(db.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:fakeRestore}));
+  await assert.rejects(db.$transaction(async tx=>{
+    await tx.ingestConfirmationCorrection.update({where:{id:r.correctionId},data:fakeRestore});
+    await tx.ingestCandidate.update({where:{id:x.c.id},data:{decision:'CONFIRMED'}});
+    await tx.item.update({where:{id:i.id},data:{deletedAt:null}});
+    // Purchase remains EXCLUDE: neither a fabricated snapshot nor closing
+    // history can unlock this incomplete restore at transaction commit.
+  }));
+  assert.equal((await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}})).restoredAt,null);
+  await assert.rejects(db.itemAlias.create({data:{itemId:i.id,code:'CORRBLK_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase(),source:'合成受保护别名',createdBy:admin.id}}),/active confirmation correction/);
+  assert.ok((await db.item.findUniqueOrThrow({where:{id:i.id}})).deletedAt);
+  assert.equal((await api(x.path,'POST',x.body,operator)).status,403);
+});
+test('组合恢复重新核对整单财务依据，不能因撤销时曾通过而自动改动其他商品成本',async()=>{
+  const x=await correctionFixture('SYNTHETIC-COMPENSATION-FINANCE'),r=await ok(x.path,'POST',x.body);
+  const before=await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}});
+  const first=await ok(`/ingest/confirmation-corrections/${r.correctionId}/restore-preview`);assert.equal(first.candidateEligible,true);
+  await ok(`/costing/orders/${x.order.id}/basis`,'POST',{version:0,mode:'ACTUAL_CASH_CNY',cashPaidCny:1000,overheadCny:0,note:'其他正确商品的新整单依据',confirmed:true});
+  const current=await ok(`/ingest/confirmation-corrections/${r.correctionId}/restore-preview`);assert.equal(current.candidateEligible,false);assert.ok(current.blockers.some(b=>b.code==='HAS_ORDERCOSTBASIS'));
+  assert.equal((await api(`/ingest/confirmation-corrections/${r.correctionId}/restore`,'POST',restoreBody(first))).data.error.code,'CORRECTION_REVIEW_CHANGED');
+  assert.deepEqual(await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}}),before);
+});
+
+test('组合纠错真实事务中途失败全部回滚，并发相同原键重放与不同键竞态只形成一条历史',async()=>{
+  const x=await correctionFixture('SYNTHETIC-COMPENSATION-ATOMIC'),key=randomUUID();
+  async function state(){return {
+    candidate:await db.ingestCandidate.findUniqueOrThrow({where:{id:x.c.id}}),
+    item:await db.item.findUniqueOrThrow({where:{id:x.confirmed.itemId}}),
+    line:await db.purchaseLine.findUniqueOrThrow({where:{id:x.candidates[0].purchaseLineId}}),
+    corrections:await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),
+    itemRevisions:await db.itemRevision.count({where:{itemId:x.confirmed.itemId}}),
+    candidateRevisions:await db.ingestCandidateRevision.count({where:{candidateId:x.c.id}}),
+    lineRevisions:await db.purchaseLineRevision.count({where:{lineId:x.candidates[0].purchaseLineId}}),
+    audits:await db.audit.count({where:{resourceId:x.c.id,action:'INGEST_CONFIRMATION_REVOKED'}}),
+    outbox:await db.outbox.count({where:{itemId:x.confirmed.itemId}}),
+    receipt:await db.receipt.findUnique({where:{actorId_operation_key:{actorId:admin.id,operation:'ingest.candidate.revokeConfirmation',key}}})};}
+  const before=await state();assert.match(x.confirmed.itemId,/^[0-9a-f-]{36}$/);
+  // Real synthetic PostgreSQL failure after domain/history/revisions/audit
+  // writes, before Outbox/Receipt. Never inject an HTTP success response.
+  await db.$executeRawUnsafe(`CREATE FUNCTION synthetic_correction_rollback() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."itemId"='${x.confirmed.itemId}'::uuid AND NEW."payload" ? 'correctionId' THEN RAISE EXCEPTION 'synthetic correction rollback probe' USING ERRCODE='23514'; END IF; RETURN NEW; END $$`);
+  await db.$executeRawUnsafe('CREATE TRIGGER synthetic_correction_rollback BEFORE INSERT ON "Outbox" FOR EACH ROW EXECUTE FUNCTION synthetic_correction_rollback()');
+  try {assert.ok((await api(x.path,'POST',x.body,admin,key)).status>=400);assert.deepEqual(await state(),before);}
+  finally {await db.$executeRawUnsafe('DROP TRIGGER synthetic_correction_rollback ON "Outbox"');await db.$executeRawUnsafe('DROP FUNCTION synthetic_correction_rollback()');}
+  const same=await Promise.all([api(x.path,'POST',x.body,admin,key),api(x.path,'POST',x.body,admin,key)]);assert.ok(same.every(r=>r.status>=200&&r.status<300));assert.deepEqual(same[0].data,same[1].data);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),1);
+  const other=await correctionFixture('SYNTHETIC-COMPENSATION-RACE');
+  const race=await Promise.all([api(other.path,'POST',other.body,admin,randomUUID()),api(other.path,'POST',other.body,admin,randomUUID())]);assert.equal(race.filter(r=>r.status>=200&&r.status<300).length,1);assert.equal(race.filter(r=>r.status===409).length,1);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:other.c.id}}),1);
+});

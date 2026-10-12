@@ -7,7 +7,8 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/");
+  // Form focus and the real login response define readiness, rather than optional resources.
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(
@@ -1144,6 +1145,8 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
   await expect(page.locator('#candidate-bulk')).toContainText('已选 101 件');
   await page.getByRole('link',{name:'上一页',exact:true}).click();
   await expect(page.locator('[data-pick]:checked')).toHaveCount(100);
+  await page.getByRole('link',{name:'下一页',exact:true}).click();
+  await expect(page.locator('.candidate-card')).toHaveCount(1);
   let lost=false;const requests=[];
   await page.route('**/api/ingest/candidates/bulk-confirm',async route=>{
     requests.push({key:route.request().headers()['idempotency-key'],body:route.request().postDataJSON()});
@@ -1164,6 +1167,10 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
   await expect(page.locator('.candidate-card')).toHaveCount(0);
   const result=await (await page.request.get(`/api/ingest/candidates?sourceId=${source.id}&decision=CONFIRMED`)).json();
   expect(result.total).toBe(101);expect(imported.rows.length).toBe(101);
+  const completed=page.getByRole('region',{name:'本次批量结果'});
+  await expect(completed).toContainText('101 件成功');
+  await completed.locator('summary').click();
+  await expect(completed.getByRole('link',{name:'继续整理',exact:true})).toHaveCount(101);
   expect(requests[0]).toEqual(requests[1]);expect(requests[2].body.ids).toHaveLength(1);
   await page.unroute('**/api/ingest/candidates/bulk-confirm');
 });

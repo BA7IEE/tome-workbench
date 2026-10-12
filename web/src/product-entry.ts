@@ -4,6 +4,7 @@ import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
 import { placeStudioSections } from "./studio-fields";
 import { createElement, createRef } from "react";
+import { alignStudioViewport } from "./studio-viewport";
 import { flushSync } from "react-dom";
 import { mountView } from "./arco/runtime";
 import { ProductFields } from "./arco/product-fields";
@@ -23,7 +24,13 @@ import {
   ApiError,
   reauthenticate,
   reload,
+  me,
 } from "./core";
+import {
+  applyQuickDraft,
+  peekQuickDraft,
+  clearQuickDraft,
+} from "./quick-draft-transfer";
 import type { Item, Source } from "./types";
 import { sourceValues } from "./source-fields";
 import { readProduct, changedProduct, bindProductRows } from "./product-fields";
@@ -109,6 +116,11 @@ export async function productEntry(id?: string) {
     return '<section class="panel"><h2>需要商品编辑权限</h2><p>请使用有权限的账号。</p></section>';
   let base = id ? await request<Item>(`/items/${id}`) : blank();
   if (base.deletedAt) return deletedNotice(base);
+  const transferred = id ? peekQuickDraft(me!.id, id) : undefined;
+  const readVersion = base.version;
+  let initialDraft: Record<string, string> = {};
+  if (transferred)
+    ({ base, fields: initialDraft } = applyQuickDraft(base, transferred));
   const qs = new URLSearchParams(location.hash.split("?")[1] || ""),
     sourceId = qs.get("source");
   let source: Source | null = null;
@@ -179,6 +191,7 @@ export async function productEntry(id?: string) {
   ${can("review") ? `<section class="panel entry-review">${check("approveOnSave", "我已核对本次商品资料，保存时同时确认供后续发布使用")}<small>不勾选也能保存。图片授权、供货状态和渠道文案仍按实际情况检查。</small></section>` : ""}
   <div class="studio-save-feedback"><p class="form-error" role="alert" tabindex="-1"></p><button type="button" class="btn" id="entry-retry" hidden>核对上次提交</button><button type="button" class="btn" id="entry-login" hidden>重新登录并保留输入</button></div></form><aside class="studio-publisher" aria-label="本商品发布工作区" hidden></aside></div>`;
   onPageReady(root, (el, signal) => {
+    alignStudioViewport(el, signal);
     const header = createRef<HeaderHandle>();
     mountView(
       el.querySelector<HTMLElement>(".studio-commandbar")!,
@@ -201,9 +214,14 @@ export async function productEntry(id?: string) {
     let fieldsRevision = 0;
     const displayFields = (item: Item) =>
       renderFields(
-        createElement(ProductFields, { item, key: fieldsRevision++ }),
+        createElement(ProductFields, {
+          item,
+          key: fieldsRevision++,
+          initialDraft,
+        }),
       );
     displayFields(base);
+    initialDraft = {};
     const f = el.querySelector<HTMLFormElement>("#product-entry-form")!,
       err = f.querySelector<HTMLElement>(".studio-save-feedback .form-error")!,
       status = el.querySelector<HTMLElement>(".entry-save-state")!;
@@ -567,6 +585,27 @@ export async function productEntry(id?: string) {
       },
       { signal },
     );
+    if (transferred) {
+      dirty = true;
+      status.textContent = "本次修改未保存";
+      f.querySelector(".studio-save-feedback")!.insertAdjacentHTML(
+        "beforebegin",
+        `<div class="panel draft-transfer-notice"><p>已带入快速修改，尚未写入商品。${readVersion !== transferred.base.version ? "服务器资料已变化，请核对差异后再保存。" : "检查后可继续保存。"}</p>${
+          readVersion !== transferred.base.version
+            ? button("核对差异", async () => {
+                try {
+                  sent = readProduct(f, new FormData(f), base);
+                  initialDraft = {};
+                  await conflict();
+                } catch (e) {
+                  displayError(e);
+                }
+              })
+            : ""
+        }</div>`,
+      );
+      clearQuickDraft(me!.id, id!);
+    }
     setLeaveGuard(() => {
       if (busy || publisher.isBusy() || gallery.busy()) {
         toast("正在保存，请稍候");
@@ -582,7 +621,7 @@ export async function productEntry(id?: string) {
           gallery.uncertain()
         ) ||
         window.confirm(
-          "还有未保存内容或未完成图片。确认离开？已保存的商品不会被删除。",
+          "还有未保存资料或未完成图片。离开只放弃这些未保存内容；已生效的图片和经营记录保留，商品不会删除。确认离开？",
         )
       );
     });

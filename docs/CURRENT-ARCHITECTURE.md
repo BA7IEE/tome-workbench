@@ -72,3 +72,5 @@ Distribution Foundation 与 Real Operations：后台用户先从有效 UsePackag
 经营页不以 Attempt 条数代替业务答案。`GET /api/distribution/operations` 在读取时只组合激活 Target 和历史真实 Exposure 的当前 Item、Readiness、UsePackage、Attempt 和 Listing：输出 READY、BLOCKED、PENDING、HANDED_OFF、PUBLISHED、NEEDS_UPDATE、ATTENTION、NEEDS_STOP 或兼容的 CANCELLED，并附已发布资料的健康原因，不落库第二套渠道库存事实。渠道、状态、品牌和 TM/商品搜索在服务端排序和分页之前完成；Dashboard 的分发异常调用同一 `scope=attention` 投影。该读取面不申请凭据、不调平台、不创建 Package、Attempt、Listing 或任务。
 
 来源资料核对仍使用 `source-evidence.ts`、候选控制器和公共 `viewDialog`。公共动作仅在同步调用阶段捕获触发元素，异步读取开始前保存返回焦点；查看弹窗通过可选返回上下文连接来源资料与单件处理，不跨请求保存全局触发元素，不改变写入命令、版本或恢复合同。PC/手机布局由 `ui08.css` 中限定在来源资料和单件身份区域的规则控制。
+
+误确认补偿归 ingest：`IngestConfirmationCorrection` 保留原 Receipt 与 before/after 快照，仅允许一次组合恢复信息追加。Commands 在财务日志边界和回执锁后尝试取得候选、Item、Source、采购行与两种采购订单锁；忙时拒绝并保留输入。写入前重算版本和依赖，业务、修订、历史、审计、Outbox、Receipt 同事务。数据库延迟约束保护活动组合状态，引用写入通过资源锁和提交时检查保护。普通商品/候选/采购恢复与成本提交有明确领域拦截。
