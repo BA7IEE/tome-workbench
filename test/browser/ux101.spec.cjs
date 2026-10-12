@@ -349,6 +349,8 @@ test("快速录货首次建档回执丢失，关闭再开核对原请求仍只�
   await expect(dialog.getByRole("alert")).toContainText("提交结果可能未确认");
   page.once("dialog", (d) => d.accept());
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("#catalog-search")).toBeVisible();
   await page.getByRole("button", { name: "＋ 快速录入我方现货", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("商品名称", { exact: true })).toHaveValue(title);

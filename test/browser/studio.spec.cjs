@@ -323,7 +323,7 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   );
   await expect(page.locator(".studio-image-outcome")).toContainText("原件保留");
   page.once("dialog", (d) => {
-    expect(d.message()).toContainText("已生效的图片和经营记录保留");
+    expect(d.message()).toContain("已生效的图片和经营记录保留");
     return d.accept();
   });
   await page.getByRole("link", { name: "取消编辑", exact: true }).click();
