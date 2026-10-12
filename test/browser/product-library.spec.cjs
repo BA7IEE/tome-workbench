@@ -256,11 +256,13 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
     facts: { sizeLabel: "XL", attributes: { sourcePlatform: "线下门店" } },
   });
   await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await expect(page.locator("[data-filter-scope]")).toContainText("全部库存状态");
   await page.getByText("更多筛选", { exact: true }).click();
   await page.getByLabel("尺码", { exact: true }).fill("xl");
   await page.getByLabel("实物位置", { exact: true }).fill("MVP-5");
   await page.getByLabel("来源名称", { exact: true }).fill("线下");
   await page.getByLabel("待补资料", { exact: true }).selectOption("price");
+  await expect(page.locator("[data-filter-scope]")).toContainText("筛选输入已改动");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(title);
@@ -282,6 +284,7 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
     ),
   ).toBeLessThanOrEqual(2);
   await page.getByRole("link", { name: "商品库", exact: true }).click();
+  await expect(page.locator("[data-filter-scope]")).toContainText(/当前结果：正式商品\s*·\s*可售/);
   await expect(page.locator(".product-grid")).toBeVisible();
   await page.screenshot({
     path: "reports/screenshots/mvp-library-mobile.png",
@@ -377,6 +380,9 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
     .getByRole("button", { name: "继续处理", exact: true })
     .click();
   await expect(resumed.getByRole("dialog")).not.toBeVisible();
+  const resultPanel = resumed.getByRole("region", { name: "本次批量结果" });
+  await expect(resultPanel).toContainText("3 件成功 · 0 件需核对");
+  await expect(resultPanel.getByRole("link", { name: "继续整理" })).toHaveCount(3);
   const after = await api(
     resumed,
     `/ingest/candidates?batchId=${x.batch.id}&decision=CONFIRMED`,
@@ -936,6 +942,8 @@ for (const width of [1440, 390]) {
       name: "AI 上身效果",
       exact: true,
     });
+    await expect(gallery.locator("details")).not.toHaveAttribute("open", "");
+    await gallery.locator("summary").click();
     await expect(gallery).toContainText("还没有 AI 效果图");
     await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
     await page

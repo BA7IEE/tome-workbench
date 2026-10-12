@@ -149,6 +149,7 @@ async function bindFixedDictionary(
     }
   };
   select.addEventListener("change", () => {
+    raw = "";
     const entry = entries.get(select.value);
     root.dataset.selectedLabel = entry?.label || "";
     root.dataset.invalid = "false";
@@ -227,6 +228,7 @@ export function bindDictionaryFields(
     };
 
     const choose = (entry: DictionaryEntry) => {
+      raw = "";
       clearTimeout(timer);
       generation++;
       entries.set(entry.id, entry);
@@ -243,6 +245,7 @@ export function bindDictionaryFields(
     };
 
     const clearSelection = (open = false) => {
+      raw = "";
       clearTimeout(timer);
       generation++;
       hidden.value = "";
@@ -388,6 +391,7 @@ export function bindDictionaryFields(
     input.addEventListener(
       "input",
       () => {
+        raw = "";
         if (input.value !== selectedText()) {
           hidden.value = "";
           root.dataset.selectedLabel = "";

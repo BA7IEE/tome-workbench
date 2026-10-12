@@ -257,7 +257,7 @@ export class IngestAdminController {
         include: {
           procurementSource: true,
           batch: true,
-          item: { select: { id: true, serial: true, title: true } },
+          item: { select: { id: true, serial: true, title: true, status: true, approvedValid: true } },
           assets: {
             where: { retiredAt: null },
             orderBy: { createdAt: "asc" },

@@ -6025,3 +6025,32 @@
     outline-offset: 2px;
   }
 }
+
+@layer foundation {
+  .studio-save-identity { display: none; }
+  .studio-mobile-extra { display: none; }
+  .studio-image-outcome { padding: 8px 12px; color: var(--tome-successText); background: var(--tome-successBg); border-radius: var(--ui-radius); }
+}
+
+@layer foundation {
+  @media (max-width: 760px) {
+    .foundation-shell .studio-commandbar { position: static; margin: 0 0 12px; padding: 0; background: transparent; border: 0; backdrop-filter: none; }
+    .foundation-shell .studio-workspace { padding-bottom: 160px; }
+    .foundation-shell .studio-command-actions {
+      position: fixed; inset-inline: 12px; bottom: max(calc(64px + env(safe-area-inset-bottom, 0px)), var(--studio-viewport-inset, 0px)); z-index: 40;
+      width: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-areas: "identity state state" "save cancel more";
+      gap: 6px 8px; padding: 10px 12px; border: 1px solid var(--tome-border);
+      border-radius: var(--ui-radius); background: var(--tome-surface); box-shadow: 0 -2px 12px rgba(var(--tome-text-rgb), 0.08);
+    }
+    .foundation-shell .studio-save-identity { display: block; grid-area: identity; align-self: center; color: var(--tome-textSecondary); }
+    .foundation-shell .studio-command-actions > .entry-save-state { display: block; grid-area: state; text-align: right; font-size: 12px; }
+    .foundation-shell .studio-main-save { grid-area: save; min-height: 44px; width: 100%; }
+    .foundation-shell .studio-cancel { grid-area: cancel; min-height: 44px; align-content: center; }
+    .foundation-shell .studio-command-actions > .ant-btn:not(.studio-main-save) { display: none; }
+    .foundation-shell .studio-command-actions > .studio-more { grid-area: more; position: relative; }
+    .foundation-shell .studio-more > summary { min-height: 44px; align-content: center; }
+    .foundation-shell .studio-mobile-extra { display: block; }
+    .foundation-shell .studio-more-menu { position: absolute; inset: auto 0 calc(100% + 8px) auto; max-height: 55vh; overflow: auto; overscroll-behavior: contain; min-width: min(240px, calc(100vw - 48px)); }
+  }
+}

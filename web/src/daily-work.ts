@@ -53,13 +53,13 @@ export async function dailyWork() {
       sub: "候选、询盘、停售、补账和冲突",
     },
     {
-      label: "待确认来源候选",
+      label: "来源候选待建档",
       value: counts.pendingCandidates ?? 0,
       to: "#/candidates",
       sub: "Agent采集后等待人工生成TM",
     },
     {
-      label: "待确认商品资料",
+      label: "商品资料待审核",
       value: counts.pendingItemReviews ?? reviews.summary.total,
       to: "#/tasks?scope=ITEM_REVIEW",
       sub: "全部未批准TM，按最新维护时间排序",
@@ -107,7 +107,7 @@ export async function dailyWork() {
     ) +
     `</div>` +
     section(
-      "待确认商品资料",
+      "商品资料待审核",
       reviews.rows.length
         ? reviews.rows
             .map(
@@ -115,7 +115,7 @@ export async function dailyWork() {
                 `<a class="action-row" href="${esc(row.href)}"><div><strong>${esc(row.title)}</strong><small>${esc(row.detail)}</small></div><span>${esc(row.action)} →</span></a>`,
             )
             .join("")
-        : note("当前没有待确认的商品资料。"),
+        : note("当前没有待审核的商品资料。库存暂停和来源建档分别处理。"),
       reviews.summary.total
         ? '<a class="btn subtle" href="#/tasks?scope=ITEM_REVIEW">查看全部待确认资料 →</a>'
         : "",

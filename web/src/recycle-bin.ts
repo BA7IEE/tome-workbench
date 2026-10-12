@@ -20,28 +20,31 @@ type Target = Pick<Item, "id" | "code" | "title" | "version"> & {
   dataMode?: string;
 };
 const reasons = {
+  "": "请选择删除原因",
   测试商品: "测试商品",
   误录或重复建档: "误录或重复建档",
   不再经营此商品: "不再经营此商品",
 };
 export function deleteProduct(item: Target) {
   form(
-    "删除商品 · " + item.code,
+    "移入回收站 · " + item.code,
     `<p><strong>${esc(item.title)}</strong></p>` +
       note(
-        "删除后移入回收站，可恢复；不会回收TM号或删除原图。已成交、有成本或预留，以及尚未下架的商品会被拦截。",
+        "移入回收站可恢复，编号、原图和来源确认历史保留；这不会撤销来源建档或排除已确认候选。已成交、有成本或预留，以及尚未下架的商品会被拦截。",
       ) +
-      select("reason", "删除原因", reasons, "测试商品") +
+      select("reason", "删除原因", reasons) +
       (can("users")
         ? button("有模拟成交？清理测试数据", () => cleanupTestData(item))
         : ""),
     async (d, key) => {
+      const reason = String(d.get("reason") || "");
+      if (!reason || !(reason in reasons)) throw new Error("请明确选择删除原因");
       const result = await request(
         `/items/${item.id}/trash`,
         "POST",
         {
           version: item.version,
-          reason: String(d.get("reason")),
+          reason,
           confirmed: true,
         },
         key,
@@ -64,9 +67,10 @@ export function deleteProducts(items: Target[]) {
       "仅处理下列勾选商品；有成交、成本、预留或未下架渠道的项目不会删除。每件的结果分别显示。",
     ) +
       `<div class="batch-results">${items.map((i) => `<p>${esc(i.code)} · ${esc(i.title)}</p>`).join("")}</div>` +
-      select("reason", "删除原因", reasons, "测试商品"),
+      select("reason", "删除原因", reasons),
     async (d) => {
       const reason = String(d.get("reason"));
+      if (!reason || !(reason in reasons)) throw new Error("请明确选择删除原因");
       setTimeout(
         () =>
           batchActions(

@@ -6,11 +6,13 @@ import {
   button,
   cents,
   dialog,
-  form,
+  formWithExit,
   onDialogClosed,
   request,
   text,
+  me,
 } from "./core";
+import { saveQuickDraft } from "./quick-draft-transfer";
 import {
   bindDictionaryFields,
   readDictionarySelections,
@@ -26,9 +28,14 @@ export function quickEdit(item: Item, after?: () => Promise<void> | void) {
       if (!dialog.open) location.hash = `/items/${item.id}/edit`;
     },
     "subtle",
-  )}</div>
+  )}${button("保留修改并进入完整编辑", () => {
+    if (!formEl || !me) return;
+    const origin = location.hash;
+    if (windowExit.transferDraft(() => saveQuickDraft(me!.id, item, formEl!)))
+      location.hash = `/items/${item.id}/edit?returnTo=${encodeURIComponent(origin)}`;
+  })}</div>
     <div class="quick-edit-core"></div>`;
-  form(
+  const windowExit = formWithExit(
     `快速修改 · ${item.code}`,
     body,
     async (d, key) => {
@@ -53,7 +60,7 @@ export function quickEdit(item: Item, after?: () => Promise<void> | void) {
       } catch (error) {
         if (error instanceof ApiError && error.code === "VERSION_CONFLICT")
           throw new Error(
-            "这件商品刚被其他人修改。当前输入已保留，请关闭后重新打开，或进入完整商品页核对差异。",
+            "这件商品刚被其他人修改。输入仍在此窗口；请点“保留修改并进入完整编辑”核对差异。",
           );
         throw error;
       }

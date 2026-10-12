@@ -7,13 +7,24 @@ import { researchRow, attributeRow, attributeNames } from "../editor-fields";
 import { ControllerSlot } from "./runtime";
 import { TextField, SelectField, OptionalSection } from "./fields";
 
-export function ProductFields({ item: i }: { item: Item }) {
+export function ProductFields({
+  item: i,
+  initialDraft = {},
+}: {
+  item: Item;
+  initialDraft?: Record<string, string>;
+}) {
   const f = i.facts;
   return (
     <>
       <div className="studio-main-column">
         <Card className="studio-title-card" title="商品信息">
-          <TextField name="title" label="商品名称" value={i.title} required />
+          <TextField
+            name="title"
+            label="商品名称"
+            value={initialDraft.title ?? i.title}
+            required
+          />
         </Card>
         <div data-media-slot />
         <Card className="studio-description" title="商品描述">
@@ -106,9 +117,9 @@ export function ProductFields({ item: i }: { item: Item }) {
             html={
               dictionaryField(
                 "BRAND",
-                i.dictionary?.brand || undefined,
-                i.brand,
-                i.brand,
+                (initialDraft.dict_brand ?? i.dictionary?.brand) || undefined,
+                initialDraft.brandText ?? i.brand,
+                initialDraft.dict_brand !== undefined ? "" : i.brand,
               ) + sourceFieldNote(i, "brand")
             }
           />
@@ -116,7 +127,7 @@ export function ProductFields({ item: i }: { item: Item }) {
             name="category"
             label="品类"
             choices={categories}
-            value={i.category}
+            value={initialDraft.category ?? i.category}
           />
         </Card>
         <Card className="studio-price-card" title="价格">
@@ -124,7 +135,10 @@ export function ProductFields({ item: i }: { item: Item }) {
             <TextField
               name="price"
               label="对外报价"
-              value={i.currentPrice == null ? "" : i.currentPrice / 100}
+              value={
+                initialDraft.price ??
+                (i.currentPrice == null ? "" : i.currentPrice / 100)
+              }
               decimal
               placeholder="暂不定价可留空"
             />
@@ -132,7 +146,7 @@ export function ProductFields({ item: i }: { item: Item }) {
               name="currency"
               label="币种"
               choices={currencies}
-              value={i.currency}
+              value={initialDraft.currency ?? i.currency}
             />
           </div>
           {i.currentCostCny !== undefined && (
@@ -148,9 +162,10 @@ export function ProductFields({ item: i }: { item: Item }) {
             html={
               dictionaryField(
                 "CONDITION",
-                i.dictionary?.condition || undefined,
-                f.conditionGrade || "",
-                f.conditionGrade || "",
+                (initialDraft.dict_condition ?? i.dictionary?.condition) ||
+                  undefined,
+                initialDraft.conditionText ?? (f.conditionGrade || ""),
+                initialDraft.dict_condition !== undefined ? "" : f.conditionGrade || "",
               ) + sourceFieldNote(i, "condition")
             }
           />
