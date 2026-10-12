@@ -39,6 +39,7 @@ function Action({ action }: { action: CatalogAction }) {
       type={action.primary ? "primary" : "default"}
       danger={action.danger}
       loading={pending}
+      aria-label={action.label}
       onClick={async () => {
         if (pending) return;
         setPending(true);
