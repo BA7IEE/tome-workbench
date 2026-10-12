@@ -7436,7 +7436,7 @@ test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，�
   assert.equal((await api(x.path,'POST',{...x.body,itemVersion:x.body.itemVersion+1})).data.error.code,'VERSION_CONFLICT');
   assert.equal((await api(x.path,'POST',{...x.body,code:'TM999999'})).data.error.code,'CORRECTION_REVIEW_CHANGED');
   let unlock,ready;const hold=new Promise(r=>{unlock=r}),acquired=new Promise(r=>{ready=r});
-  const transaction=db.$transaction(async tx=>{await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))',`item:${x.confirmed.itemId}`);ready();await hold;},{timeout:10000});
+  const transaction=db.$transaction(async tx=>{await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))',`item:${x.confirmed.itemId}`);ready();await hold;},{timeout:10000});
   await acquired;try{assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_RESOURCE_BUSY');}finally{unlock();await transaction;}
   assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),0);
   const alias='SYNTHETIC-BEFORE-'+randomUUID();
