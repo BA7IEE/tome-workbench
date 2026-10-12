@@ -6,7 +6,7 @@ import { tm } from "../common/domain";
 type Evidence = {
   candidate: { id: string; version: number; decision: string; itemId: string | null; sourceId: string | null; purchaseLineId: string | null };
   item: { id: string; version: number; serial: number; sourceId: string | null; deleted: boolean; dataMode: string; status: string; cycle: number } | null;
-  receipts: { id: string; response: unknown }[];
+  receipts: { id: string; operation: string; response: unknown }[];
   singleSource: boolean;
   singleCandidate: boolean;
   singlePurchase: boolean;
@@ -32,6 +32,7 @@ export function correctionContract(evidence: Evidence) {
   if (candidate.decision !== "CONFIRMED" || !item || candidate.itemId !== item.id)
     block("NOT_CONFIRMED", "候选当前没有明确的已确认 TM，请先核对来源决定。");
   const proofs = evidence.receipts.filter(receipt => {
+    if (receipt.operation !== "ingest.candidate.confirm") return false;
     const response = receipt.response;
     if (!response || typeof response !== "object" || Array.isArray(response)) return false;
     const r = response as Record<string, unknown>;
@@ -76,12 +77,12 @@ export function correctionContract(evidence: Evidence) {
 export async function confirmationCorrectionPreview(tx: Tx, id: string) {
   const candidate = await tx.ingestCandidate.findUnique({ where: { id }, include: { purchaseLine: { include: { order: true, returnLinks: true } } } });
   if (!candidate) throw new Fault("CANDIDATE_NOT_FOUND", "来源候选不存在", 404);
-  const item = candidate.itemId ? await tx.item.findUnique({ where: { id: candidate.itemId }, include: { sourceLinks: true, purchaseLinks: true, _count: true } }) : null;
+  const item = candidate.itemId ? await tx.item.findUnique({ where: { id: candidate.itemId }, include: { source: { select: { purchaseLineId: true } }, sourceLinks: true, purchaseLinks: true, _count: true } }) : null;
   const receipts = item ? await tx.receipt.findMany({
     where: { operation: "ingest.candidate.confirm", AND: [
       { response: { path: ["id"], equals: id } }, { response: { path: ["itemId"], equals: item.id } },
       { response: { path: ["existing"], equals: false } },
-    ] }, select: { id: true, response: true }, take: 2,
+    ] }, select: { id: true, operation: true, response: true }, take: 2,
   }) : [];
   const line = candidate.purchaseLine;
   const [candidateCount, sourceLinkCount, purchaseConfirmations, orderCostBasis, orderItemCosts] = await Promise.all([
@@ -95,7 +96,7 @@ export async function confirmationCorrectionPreview(tx: Tx, id: string) {
     candidate: { id: candidate.id, version: candidate.version, decision: candidate.decision, itemId: candidate.itemId, sourceId: candidate.sourceId, purchaseLineId: candidate.purchaseLineId },
     item: item ? { id: item.id, version: item.version, serial: item.serial, sourceId: item.sourceId, deleted: !!item.deletedAt, dataMode: item.dataMode, status: item.status, cycle: item.cycle } : null,
     receipts, singleCandidate: candidateCount === 1,
-    singleSource: sourceLinkCount === 1 && item?.sourceLinks.length === 1 && item.sourceLinks[0].sourceId === candidate.sourceId,
+    singleSource: sourceLinkCount === 1 && item?.sourceLinks.length === 1 && item.sourceLinks[0].sourceId === candidate.sourceId && item.sourceLinks[0].kind === "ACQUISITION" && item.source?.purchaseLineId === candidate.purchaseLineId,
     singlePurchase: !!item && (line ? item.purchaseLinks.length === 1 && item.purchaseLinks[0].purchaseLineId === line.id : item.purchaseLinks.length === 0),
     purchaseLine: line ? { id: line.id, version: line.version, decision: line.businessDecision, orderId: line.orderId, orderVersion: line.order.version } : null,
     dependencies: Object.fromEntries(Object.keys(dependencyNames).map(key => [key,
