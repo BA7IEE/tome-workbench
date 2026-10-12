@@ -7435,7 +7435,7 @@ test('单件误确认与组合恢复原子保留TM、在手事实、原图和原
   await ok(`/items/${i.id}/approve`,'POST',{version:current.version});assert.equal((await db.item.findUniqueOrThrow({where:{id:i.id}})).approvedValid,true);assert.equal(await db.distributionAttempt.count({where:{itemId:i.id}}),0);
 });
 test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，活动纠错历史和关联不能被数据库绕过',async()=>{
-  const x=await correctionFixture('SYNTHETIC-COMPENSATION-GUARDS');
+  let x=await correctionFixture('SYNTHETIC-COMPENSATION-GUARDS');
   for(const who of [operator,viewer]) assert.equal((await api(x.path,'POST',x.body,who)).status,403);
   assert.equal((await api(x.path,'POST',{...x.body,itemVersion:x.body.itemVersion+1})).data.error.code,'VERSION_CONFLICT');
   assert.equal((await api(x.path,'POST',{...x.body,code:'TM999999'})).data.error.code,'CORRECTION_REVIEW_CHANGED');
@@ -7446,7 +7446,9 @@ test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，�
   const alias='CORRPRE_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase();
   await db.itemAlias.create({data:{itemId:x.confirmed.itemId,code:alias,source:'合成并发依赖',createdBy:admin.id}});
   assert.equal((await api(x.path,'POST',x.body)).data.error.code,'CORRECTION_REVIEW_CHANGED');
-  await db.itemAlias.delete({where:{code:alias}});
+  await assert.rejects(db.itemAlias.delete({where:{code:alias}}),/immutable evidence/);
+  assert.equal(await db.itemAlias.count({where:{code:alias}}),1);
+  x=await correctionFixture('SYNTHETIC-COMPENSATION-ACTIVE');
   const commandKey=randomUUID(),r=await ok(x.path,'POST',x.body,admin,commandKey);
   await db.user.update({where:{id:admin.id},data:{role:'OPERATOR'}});
   try {assert.equal((await api(x.path,'POST',x.body,admin,commandKey)).status,403);} finally {await db.user.update({where:{id:admin.id},data:{role:'ADMIN'}});}
@@ -7466,7 +7468,7 @@ test('纠错角色、版本、当前依赖和资源忙均在事务内拒绝，�
     // history can unlock this incomplete restore at transaction commit.
   }));
   assert.equal((await db.ingestConfirmationCorrection.findUniqueOrThrow({where:{id:r.correctionId}})).restoredAt,null);
-  await assert.rejects(db.itemAlias.create({data:{itemId:i.id,code:'CORRBLK_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase(),source:'合成受保护别名',createdBy:admin.id}}));
+  await assert.rejects(db.itemAlias.create({data:{itemId:i.id,code:'CORRBLK_'+randomUUID().replace(/-/g,'').slice(0,16).toUpperCase(),source:'合成受保护别名',createdBy:admin.id}}),/active confirmation correction/);
   assert.ok((await db.item.findUniqueOrThrow({where:{id:i.id}})).deletedAt);
   assert.equal((await api(x.path,'POST',x.body,operator)).status,403);
 });
