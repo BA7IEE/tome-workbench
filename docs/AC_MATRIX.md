@@ -1,10 +1,6 @@
 # 蓝图 v1.1.1 · 当前实现覆盖矩阵
 
-CSP 动态样式映射见 [STYLE-CSP](STYLE-CSP.md)、`test/style-csp.test.cjs` 与 Foundation 1440/390px 断言；前者实际 HTTP 检查通过，后者尚未运行。领域覆盖状态保持不变。
-
-普通 UX 读取失败/恢复及批量菜单滚动映射见 [UX-READ-FEEDBACK](UX-READ-FEEDBACK.md)；浏览器回归位于 `foundation.spec.cjs`、`arco-workspace.spec.cjs`、`ui08.spec.cjs`，新增用例未运行。领域覆盖状态不因轻量验证改变。
-
-批量菜单滚动修复补充 AC17/24 的选择连续性：`arco-workspace.spec.cjs`、`ui08.spec.cjs` 扩展桌面/手机菜单内部真实 wheel 滚动、选择保持和 Escape 回焦断言。新增断言尚未执行，完整验收 NOT_RUN；不改变长期蓝图覆盖状态，见 [BULK-MENU-SCROLL](BULK-MENU-SCROLL.md)。
+PR #57 的 CSP、读取反馈和菜单滚动以固定 `98df13d` 的 CI 38188343411 两浏览器结果为证据。后续快速录货补充 AC01/02/09 的退出、同一创建身份与版本/回执恢复：`ux101.spec.cjs` 新增四项实际服务回归，`intake-attempt.test.cjs` 四项状态单测。后续浏览器仍待本片自身 CI，不能沿用基线指纹；见 [UX-INTAKE-RECOVERY](UX-INTAKE-RECOVERY.md)。长期领域覆盖状态不因界面或轻量测试改变。
 
 **状态不是测试通过数。**“内部覆盖”表示本版有对应核心路径；“部分”明确限制；“后续”不作为交付完成。具体测试日志以docs/VALIDATION.md和reports为准。正式业务UAT尚未由经营者完成。
 

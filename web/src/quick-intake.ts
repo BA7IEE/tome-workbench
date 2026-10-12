@@ -7,8 +7,9 @@ import {
   cents,
   dialog,
   esc,
-  form,
+  formWithExit,
   request,
+  ApiError,
   select,
   text,
   uploadWithProgress,
@@ -19,6 +20,7 @@ import {
   bindDictionaryFields,
   readDictionarySelections,
 } from "./dictionary-picker";
+import { QuickIntakeAttempt, type IntakeInput } from "./quick-intake-attempt";
 
 type Created = { id: string; code: string; existing?: boolean };
 const fingerprint = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
@@ -38,14 +40,16 @@ export function quickIntake(
   let afterMode = "close",
     savedTitle = "";
   const uploadKeys = new Map<string, string>();
+  const completedFiles = new Set<string>();
+  const itemWrite = new QuickIntakeAttempt(request);
   const fields =
     '<input type="hidden" name="after" value="close"><section class="quick-intake-core"></section>';
   const photos = `<section class="quick-intake-photos"><div class="quick-intake-photo-head"><strong>商品图片</strong>${select("origin", "图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, "OWN")}</div>
     <label class="quick-intake-drop"><input type="file" name="photos" aria-label="商品图片" accept="image/jpeg,image/png,image/webp" multiple><span>＋ 添加图片</span><small>最多100张；单张20MB以内；JPG / PNG / WebP</small></label><div class="quick-intake-previews"></div><p class="quick-intake-upload-status" role="status" aria-live="polite"></p></section>`;
-  form(
+  const windowExit = formWithExit(
     "快速录入我方现货",
     `${lastSaved ? `<p class="quick-intake-last">上一件 <a href="#/items/${lastSaved.id}">${esc(lastSaved.code)} · ${esc(lastSaved.title)}</a> 已保存</p>` : ""}<p class="quick-intake-note">这里只录入已经实际在手的我方现货。尺寸、材质、鉴定、英文和发布资料以后再补。</p><p class="quick-intake-boundary">供应商持有、寄售或远端货源请到 <a href="#/sources" data-quick-source>货源与供应商</a> 处理；“图片来源＝供应商提供”只说明图片出处，不会把商品变成供应商持有。</p>${photos}${fields}<button type="button" class="btn quick-intake-edit" data-after="edit">保存并完善</button>`,
-    async (d, key) => {
+    async (d) => {
       if (!formEl) throw new Error("录货窗口尚未准备完成");
       const files = d
         .getAll("photos")
@@ -66,7 +70,7 @@ export function quickIntake(
       const picked = readDictionarySelections(formEl);
       afterMode = text(d, "after") || "close";
       savedTitle = text(d, "title");
-      const body = {
+      const body: IntakeInput = {
         title: text(d, "title"),
         brand: picked.labels.brand || "",
         dictionary: picked.dictionary,
@@ -80,7 +84,7 @@ export function quickIntake(
         statusEl.textContent = lastItem
           ? `${lastItem.code} 已保存，正在继续原提交…`
           : "正在创建商品档案…";
-      const item = await request<Created>("/items", "POST", body, key);
+      const item = await itemWrite.save(body);
       lastItem = item;
       const origin = text(d, "origin") || "OWN";
       type PendingImage = {
@@ -93,32 +97,52 @@ export function quickIntake(
         uncertain?: boolean;
       };
       const storage = `images:${owner}:${item.id}`;
-      let pending = await readWork<PendingImage[]>(storage);
-      if (!pending)
-        pending = files.map((file) => {
-          const fp = fingerprint(file),
-            uploadKey = uploadKeys.get(fp) || crypto.randomUUID();
-          uploadKeys.set(fp, uploadKey);
-          return {
-            file,
-            key: uploadKey,
-            state: "等待保存",
-            error: "",
-            progress: 0,
-            input: [
-              ["itemId", item.id],
-              ["file", file],
-              ["role", "PRODUCT"],
-              ["origin", origin],
-              [
-                "sourceNote",
-                origin === "SUPPLIER"
-                  ? "快速录入我方现货时附带的供应商图片，待核对授权"
-                  : "快速录入我方现货时附带的自有实拍，待核对实物",
+      let pending: PendingImage[] = (
+        (await readWork<PendingImage[]>(storage)) || []
+      ).map((job) => ({
+        ...job,
+        uncertain:
+          job.uncertain || job.state === "上传中" || job.state === "结果待确认",
+      }));
+      const selectedFiles = new Set(files.map(fingerprint));
+      // A rejected upload can be removed/replaced. An unknown outcome retains
+      // its original File, payload and key until it has been reconciled.
+      pending = pending.filter(
+        (job) => selectedFiles.has(fingerprint(job.file)) || job.uncertain,
+      );
+      const queuedFiles = new Set(pending.map((job) => fingerprint(job.file)));
+      pending.push(
+        ...files
+          .filter(
+            (file) =>
+              !queuedFiles.has(fingerprint(file)) &&
+              !completedFiles.has(fingerprint(file)),
+          )
+          .map<PendingImage>((file) => {
+            const fp = fingerprint(file),
+              uploadKey = uploadKeys.get(fp) || crypto.randomUUID();
+            uploadKeys.set(fp, uploadKey);
+            return {
+              file,
+              key: uploadKey,
+              state: "等待保存",
+              error: "",
+              progress: 0,
+              input: [
+                ["itemId", item.id],
+                ["file", file],
+                ["role", "PRODUCT"],
+                ["origin", origin],
+                [
+                  "sourceNote",
+                  origin === "SUPPLIER"
+                    ? "快速录入我方现货时附带的供应商图片，待核对授权"
+                    : "快速录入我方现货时附带的自有实拍，待核对实物",
+                ],
               ],
-            ],
-          };
-        });
+            };
+          }),
+      );
       const total = pending.length;
       let uploaded = 0;
       if (statusEl)
@@ -141,6 +165,14 @@ export function quickIntake(
             },
           );
         } catch (error) {
+          job.state =
+            error instanceof ApiError &&
+            (error.status === 0 || error.status >= 500)
+              ? "结果待确认"
+              : "未保存";
+          job.uncertain = job.state === "结果待确认";
+          job.error = (error as Error).message;
+          await saveWork(storage, pending);
           if (statusEl)
             statusEl.textContent = `${item.code} 已保存，图片上传停在 ${uploaded} / ${total} 张。可保留当前窗口重试，或稍后打开该商品继续；请勿重复录货。`;
           if (!formEl.querySelector(".quick-recovery"))
@@ -153,6 +185,7 @@ export function quickIntake(
           throw error;
         }
         uploaded++;
+        completedFiles.add(fingerprint(job.file));
         if (statusEl)
           statusEl.textContent = `${item.code} 已保存 · 已上传 ${uploaded} / ${total} 张`;
         pending = pending.filter((j) => j.key !== job.key);
@@ -228,7 +261,16 @@ export function quickIntake(
     drop = formEl.querySelector<HTMLElement>(".quick-intake-drop")!;
   formEl
     .querySelector<HTMLAnchorElement>("[data-quick-source]")
-    ?.addEventListener("click", () => dialog.close(), { signal: scope.signal });
+    ?.addEventListener(
+      "click",
+      (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        event.preventDefault();
+        if (windowExit.close()) location.hash = "/sources";
+      },
+      { signal: scope.signal },
+    );
   let urls: string[] = [];
   const fileList = () => [...(input.files || [])];
   const replaceFiles = (files: File[]) => {

@@ -1,12 +1,8 @@
 # 当前发布事实
 
-PR #57 的安全 gate 发现原 sharp 0.35.4 高危漏洞，现增加独立兼容补丁 0.35.5 及匹配平台锁项；AntD 版本与经营规则不变，见 [Sharp 安全补丁](SHARP-SECURITY-PATCH.md)。完整回归以新固定 head 的 CI 为准。
+PR #57 的固定候选 `98df13d` 已通过 CI 38188343411：两浏览器各191/191、Node 245项、198项静态守卫、HA/恢复/audit/pack。它未合并或部署，不能用该结果证明后续改动。CSP、菜单与 Sharp 修复来历见对应文档。
 
-本轮已批准实施 CSP nonce 修复：实际 HTTP 和定向检查通过，真实 AntD 框架浏览器验收因 Browser Use 授权调用异常而未完成。方案、现状及云端 gate 见 [STYLE-CSP](STYLE-CSP.md)。不是生产发布或完整验证证明。
-
-本轮普通 UX 候选基于已合并 AntD 6 + ProComponents Foundation 的 `main@cf7565a`：迁移保留批量菜单内部滚动修复，GET 失败提示明确重新读取，不再暗示提交未确认；写入恢复规则不变。详见 [UX 读取反馈](UX-READ-FEEDBACK.md)。其后已另行批准实施 CSP nonce 修复，见上方说明；完整回归与部署仍 NOT_RUN。
-
-商品库批量菜单滚动修复候选：菜单内部滚动保持打开，边缘滚动不传给页面；选择、外部点击与 Escape 规则保持。仅轻量检查通过，新增双浏览器断言尚未运行，完整 release gate/打包/上线 NOT_RUN；详见 [批量菜单滚动](BULK-MENU-SCROLL.md)。
+用户已批准 UX 方案分批实施。当前后续 PR #58 基于上述候选，首先修快速录货的退出检查及 TM 已创建后的恢复；新增四项旧实现回归和四项状态单测，完整验收以本片实际固定 head 为准。阶段与边界见 [UX-INTAKE-RECOVERY](UX-INTAKE-RECOVERY.md)。不改默认库存、权限或编号，不执行真实纠错、生产迁移或部署。
 
 当前源码版本：**1.1.0-rc.13**，新增可审计的来源污染纠错：受限来源字段可显式清空，错误候选图片可按 SHA-256 撤下但保留原文件与历史，旧 Agent 建议可作废；继续保留 TRR 结构化尺码与购买日期、采购来源默认币种、逐件折后金额成本分摊、标准分发 Handoff Skill/薄 MCP、轻量分发记录与经营投影、来源关联停售、交易经营意图 `DistributionTarget`、发布安全复核、询盘日程、成交币种与外币结算安全阻断、动态 Readiness 与规模化运营工作流、Real Operations 与 AnQiCMS 本地标准交付合同。源码发布报告本身不作为真实生产部署或经营验收证明。
 

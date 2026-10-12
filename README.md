@@ -1,5 +1,7 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
+已批准 UX 后续在 PR #58 分批实施，先处理快速录货退出与同一 TM 的恢复，见 [UX-INTAKE-RECOVERY](docs/UX-INTAKE-RECOVERY.md)。PR #57 的固定候选 `98df13d` 已通过云端两浏览器各191项；本片仍须自身固定提交的验证，未部署。
+
 每次开工、独立切片和交接分别运行 `npm run dev:preflight`、`npm run dev:checkpoint`、`npm run dev:handoff`；只读、不代替完整发布门禁，流程见 [WORKING-STATE](docs/WORKING-STATE.md)。
 
 当前 UI 开发基线为已合并 PR #56 的 `main@cf7565a`：Ant Design 6.6.5 + ProComponents 3.1.15-5。历史 `arco/` 路径是领域控制器兼容名，不代表仍使用 Arco。开发前核对 origin=`BA7IEE/tome-workbench`、固定 HEAD 和 package/lock；仅有 rc.13 版本号不足以判断框架。本轮候选见 [UX-READ-FEEDBACK](docs/UX-READ-FEEDBACK.md) 与 [STYLE-CSP](docs/STYLE-CSP.md)；真实框架结果按 PR #57 的最终固定 head 与 CI 核对，未部署。

@@ -231,13 +231,14 @@ export const currencies = {
 export const text = (d: FormData, k: string) => String(d.get(k) || "");
 export const itemLink = (id: string, title: string) =>
   `<a class="itemlink" href="#/items/${esc(id)}">${esc(title)}</a>`;
-export function form(
+export type FormExit = { close(): boolean };
+function openForm(
   title: string,
   html: string,
   save: (d: FormData, key: string) => Promise<unknown>,
   label = "保存",
   after?: () => Promise<void>,
-) {
+): FormExit {
   const scope = newDialogScope();
   let key = crypto.randomUUID(),
     dirty = false,
@@ -386,6 +387,27 @@ export function form(
     { signal: scope.signal },
   );
   if (!dialog.open) dialog.showModal();
+  return {
+    close() {
+      if (scope.signal.aborted || !dialog.open || !dialog.contains(el))
+        return false;
+      if (busy) {
+        toast("正在保存，请稍候");
+        return false;
+      }
+      if (!mayClose()) return false;
+      dialog.close();
+      return true;
+    },
+  };
+}
+// Existing action callbacks retain their void contract. Navigation-capable
+// forms explicitly opt into the same dirty/busy/uncertain exit check.
+export function form(...args: Parameters<typeof openForm>): void {
+  openForm(...args);
+}
+export function formWithExit(...args: Parameters<typeof openForm>): FormExit {
+  return openForm(...args);
 }
 export function viewDialog(
   title: string,
