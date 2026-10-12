@@ -1,4 +1,5 @@
 import { readWork, saveWork } from "./work-storage";
+import { candidateResultScope } from "./candidate-result-scope";
 import {
   showSourceEvidence,
   integrityLabel,
@@ -396,7 +397,7 @@ type BulkResult = {
 };
 let lastBulkResult: { owner: string; route: string; plan: PendingBulk; rows: BulkResult["rows"] } | undefined;
 function bulkResultPanel() {
-  if (!lastBulkResult || lastBulkResult.owner !== me?.id || lastBulkResult.route !== location.hash) return "";
+  if (!lastBulkResult || lastBulkResult.owner !== me?.id || lastBulkResult.route !== candidateResultScope(location.hash)) return "";
   const { plan, rows } = lastBulkResult;
   const failed = rows.filter(r => !r.ok);
   return `<section class="panel" aria-label="本次批量结果"><h2>本次批量结果</h2><p>${rows.length - failed.length} 件成功 · ${failed.length} 件需核对 · 仍选中 ${candidateSelection.size} 件。${plan.exclude ? "排除只影响未建档来源，不撤销已经生成的 TM。" : "建档与资料审核、库存状态分别处理；暂停商品可以通过下列 TM 继续整理。本区记录本次提交回执，之后的当前状态请在 TM 核对。"}</p><details ${rows.length <= 10 ? "open" : ""}><summary>逐件结果与下一步（${rows.length} 件）</summary><ul>${rows.map(r => `<li>${esc(plan.selected.find(c => c.id === r.id)?.titleRaw || "来源候选")} · ${r.ok ? r.itemId ? `<a href="#/items/${esc(r.itemId)}?returnTo=${encodeURIComponent(location.hash)}">查看 ${esc(r.code || "TM")}</a> · <a href="#/items/${esc(r.itemId)}/edit?returnTo=${encodeURIComponent(location.hash)}">继续整理</a>` : plan.exclude ? "已排除，原来源记录保留" : "本次建档回执已保存，请在原来源核对 TM" : `${esc(r.error)} ${button("核对该件", () => showSourceEvidence(r.id))}`}</li>`).join("")}</ul></details></section>`;
@@ -461,7 +462,7 @@ async function finishBulk(
   const rows = Object.values(plan.completed).flatMap((r) => r.rows),
     failed = rows.filter((r) => !r.ok);
   await saveWork(storage, undefined);
-  lastBulkResult = { owner: me!.id, route: location.hash, plan, rows };
+  lastBulkResult = { owner: me!.id, route: candidateResultScope(location.hash), plan, rows };
   await after();
   if (failed.length)
     viewDialog(
