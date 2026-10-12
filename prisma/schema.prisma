@@ -1128,7 +1128,7 @@ model IngestConfirmationCorrection {
   source                Source @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   purchaseLineId        String? @db.Uuid
   purchaseLine          PurchaseLine? @relation(fields: [purchaseLineId], references: [id], onDelete: Restrict)
-  originalReceiptId     String
+  originalReceiptId     String @db.Uuid
   originalReceipt       Receipt @relation(fields: [originalReceiptId], references: [id], onDelete: Restrict)
   reason                String
   createdBy             String @db.Uuid

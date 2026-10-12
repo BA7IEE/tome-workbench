@@ -5,7 +5,7 @@ CREATE TABLE "IngestConfirmationCorrection" (
  "itemId" UUID NOT NULL REFERENCES "Item"("id") ON DELETE RESTRICT,
  "sourceId" UUID NOT NULL REFERENCES "Source"("id") ON DELETE RESTRICT,
  "purchaseLineId" UUID REFERENCES "PurchaseLine"("id") ON DELETE RESTRICT,
- "originalReceiptId" TEXT NOT NULL REFERENCES "Receipt"("id") ON DELETE RESTRICT,
+ "originalReceiptId" UUID NOT NULL REFERENCES "Receipt"("id") ON DELETE RESTRICT,
  "reason" TEXT NOT NULL,
  "createdBy" UUID NOT NULL REFERENCES "User"("id") ON DELETE RESTRICT,
  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

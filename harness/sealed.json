@@ -21,6 +21,6 @@
     "prisma/migrations/202609180018_ingest_credential_redaction/migration.sql": "d07021b75ace73db6ae3ef6b8865e75d539032d31157cd3997260e8a85655c52",
     "prisma/migrations/202609200019_source_line_net_cost/migration.sql": "cd8cfc08780b752ce196dfd1b618bb72a7b4cf97852b57e78cb6aa563106d407",
     "prisma/migrations/202609210020_ingest_candidate_asset_retirement/migration.sql": "8bc1e95b31a288e3c0757b4ebb9ac50c5d91d0b723fd6a075436ad6dfc60bbf8",
-    "prisma/migrations/202610120021_confirmation_compensation/migration.sql": "a8c0786d67fb0459db9122a5d75994ea1e1bd668124df4d8c1d624731b6009e3"
+    "prisma/migrations/202610120021_confirmation_compensation/migration.sql": "79e8761b8b6cbcd1be27faf67772d7c48ca180b3d9650bc10060ac2ef4054b1d"
   }
 }
