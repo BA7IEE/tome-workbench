@@ -234,6 +234,7 @@ export async function correctionEvidence(tx: Tx, id: string) {
     candidateCount,
     sourceLinkCount,
     primaryItemCount,
+    collectionEntries,
     purchaseConfirmations,
     orderCostBasis,
     orderItemCosts,
@@ -252,6 +253,7 @@ export async function correctionEvidence(tx: Tx, id: string) {
       ? tx.itemSourceLink.count({ where: { sourceId: candidate.sourceId } })
       : 0,
     candidate.sourceId ? tx.item.count({ where: { sourceId: candidate.sourceId } }) : 0,
+    item ? tx.collectionEntry.count({ where: { itemId: item.id } }) : 0,
     line
       ? tx.purchaseCostConfirmation.count({
           where: { purchaseLine: { orderId: line.orderId } },
@@ -320,7 +322,9 @@ export async function correctionEvidence(tx: Tx, id: string) {
     dependencies: Object.fromEntries(
       Object.keys(dependencyNames).map((key) => [
         key,
-        key === "purchaseConfirmations"
+        key === "collectionEntries"
+          ? collectionEntries
+          : key === "purchaseConfirmations"
           ? purchaseConfirmations
           : key === "orderCostBasis"
             ? orderCostBasis
