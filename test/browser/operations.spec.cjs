@@ -19,7 +19,11 @@ const fixture = JSON.parse(
   fs.readFileSync("data/browser-fixture.json", "utf8"),
 );
 async function login(page) {
-  await page.goto("/#/items");
+  // Login requires the committed document and actual controls; unrelated
+  // resource load completion is not its readiness condition. UI and real
+  // authentication response checks below remain mandatory.
+  const response = await page.goto("/#/items", { waitUntil: "domcontentloaded" });
+  expect(response?.ok()).toBe(true);
   await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(
