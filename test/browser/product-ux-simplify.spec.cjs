@@ -54,6 +54,10 @@ for (const width of [1440, 390]) {
     });
     expect(upload.ok()).toBe(true);
     const back = `#/items?dataMode=TEST&q=${encodeURIComponent(title)}&view=table&size=30`;
+    await page.goto(`/#/items/${item.id}`);
+    await expect(
+      page.getByRole("link", { name: "准备发布", exact: true }),
+    ).toBeVisible();
     await page.goto("/" + back);
     await expect(page.locator("#bulk-toolbar")).toBeHidden();
     await expect(

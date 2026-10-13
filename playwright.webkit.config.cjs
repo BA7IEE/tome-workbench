@@ -6,6 +6,7 @@ module.exports = defineConfig({
     "foundation.spec.cjs",
     "arco-workspace.spec.cjs",
     "product-library.spec.cjs",
+    "product-ux-simplify.spec.cjs",
     "studio.spec.cjs",
     "dictionaries.spec.cjs",
     "interaction.spec.cjs",
