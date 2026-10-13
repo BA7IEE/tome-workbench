@@ -68,7 +68,7 @@ export class ProductUploadQueue {
     return this.jobs.length > 0;
   }
   markup(origin = "OWN") {
-    return `<section class="panel entry-photos"><div class="entry-photo-head"><h2>商品图片</h2>${select("entryImageOrigin", "本批图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, origin)}</div><label class="field studio-file-input"><span>选择商品图片</span><input type="file" name="entryPhotos" accept="image/jpeg,image/png,image/webp" multiple></label><div class="entry-drop" role="button" tabindex="0" aria-label="点击或拖入商品图片"><strong>＋ 添加图片</strong><span>点击选择，或拖到这里</span><small>JPG / PNG / WebP · 每张20MB以内</small></div><div class="entry-file-list"></div><p class="entry-file-error form-error" role="alert"></p><p class="entry-file-summary" role="status"></p></section>`;
+    return `<section class="panel entry-photos"><div class="entry-photo-head"><h2>商品图片</h2>${select("entryImageOrigin", "本批图片来源", { OWN: "自己拍摄", SUPPLIER: "供应商提供" }, origin)}</div><label class="field studio-file-input"><span>选择商品图片</span><input type="file" name="entryPhotos" accept="image/jpeg,image/png,image/webp" multiple></label><div class="entry-drop" role="button" tabindex="0" aria-label="点击或拖入商品图片"><strong>＋ 添加图片</strong><span>选择或拖入，随商品保存</span><small>JPG / PNG / WebP · 每张20MB以内</small></div><div class="entry-file-list"></div><p class="entry-file-error form-error" role="alert"></p><p class="entry-file-summary" role="status"></p></section>`;
   }
   bind(el: HTMLElement, signal: AbortSignal, changed: () => void) {
     this.root = el;
@@ -200,9 +200,14 @@ export class ProductUploadQueue {
           `<article class="entry-file"><img src="${j.preview}" alt="${esc(j.file.name)}"><div><strong>${esc(j.file.name)}</strong><small>${esc(j.state)}${j.progress ? " · " + j.progress + "%" : ""}</small><span class="form-error">${esc(j.error)}</span></div><button type="button" class="btn subtle" data-remove-entry-file="${n}" ${this.running || j.state === "已保存" ? "disabled" : ""}>移除</button></article>`,
       )
       .join("");
+    const saved = this.jobs.filter((j) => j.state === "已保存").length;
     this.root.querySelector(".entry-file-summary")!.textContent = this.jobs
       .length
-      ? `图片已保存 ${this.jobs.filter((j) => j.state === "已保存").length} / ${this.jobs.length}`
+      ? this.running
+        ? `正在上传 · 已保存 ${saved} / ${this.jobs.length} 张，请等待完成`
+        : saved === this.jobs.length
+          ? `本批 ${saved} 张图片已保存`
+          : `已保存 ${saved} / ${this.jobs.length} 张 · 还有 ${this.jobs.length - saved} 张待保存，点击保存商品继续`
       : "";
   }
   async save(itemId: string, origin: string) {

@@ -177,7 +177,7 @@ export function Catalog({
     if (filterHint.current)
       filterHint.current.textContent = pending
         ? "筛选输入已改动。搜索、排序、切换视图或翻页会应用当前输入；范围改变会清除原选择。"
-        : "同一筛选范围内排序、切换视图和翻页保留选择。";
+        : "排序、换视图和翻页保留勾选。";
   };
   const markFilters = () => {
     const form = searchForm.current;
@@ -371,17 +371,17 @@ export function Catalog({
               }}
             />
           )}
-          <Action action={{ label: "资料包与变化", run: materialHistory }} />
-          {(can("edit") || can("supply") || can("delete")) && (
-            <details className="page-actions-menu">
-              <summary className="btn">更多</summary>
-              <div>
-                {can("edit") && <a href="#/items/new">完整建档</a>}
-                {can("supply") && <a href="#/sources">从货源导入</a>}
-                {can("delete") && <a href="#/trash">回收站</a>}
-              </div>
-            </details>
-          )}
+          <details className="page-actions-menu">
+            <summary className="btn">更多</summary>
+            <div>
+              <Action
+                action={{ label: "资料包与变化", run: materialHistory }}
+              />
+              {can("edit") && <a href="#/items/new">完整建档</a>}
+              {can("supply") && <a href="#/sources">从货源导入</a>}
+              {can("delete") && <a href="#/trash">回收站</a>}
+            </div>
+          </details>
         </div>
       </div>
       <Card className="catalog-filter-card">
@@ -519,7 +519,7 @@ export function Catalog({
           {qs.get("category") ? ` · ${categories[qs.get("category")!]}` : ""}
           {hasMore ? " · 已应用更多筛选" : ""}。
           <span ref={filterHint}>
-            同一筛选范围内排序、切换视图和翻页保留选择。
+            排序、换视图和翻页保留勾选。
           </span>
           <a
             href={`#/items?dataMode=${qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS"}`}
@@ -594,13 +594,13 @@ export function Catalog({
           </Button>
         </div>
         <div className="bulk-primary">
-          {actions.slice(0, 3).map((a) => (
+          {actions.slice(0, 1).map((a) => (
             <Action key={a.label} action={a} />
           ))}
           <details className="bulk-more">
             <summary className="btn">批量操作</summary>
             <div>
-              {actions.slice(3).map((a) => (
+              {actions.slice(1).map((a) => (
                 <Action key={a.label} action={a} />
               ))}
             </div>

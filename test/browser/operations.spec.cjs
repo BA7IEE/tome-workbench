@@ -286,6 +286,7 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
   expect(secondId).not.toBe(firstId);
   await second.click();
   await expect(page.locator("#bulk-toolbar")).toContainText("已选 2 件");
+  await page.locator(".bulk-more > summary").click();
   await page.getByRole("button", { name: "逐件编辑", exact: true }).click();
   await expect(page.locator(".editing-queue")).toContainText("第 1 / 2 件");
   await expect(page).toHaveURL(new RegExp(firstId + "/edit$"));

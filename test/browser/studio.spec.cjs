@@ -19,6 +19,12 @@ async function productMore(page) {
   }
 }
 async function stockMore(page) {
+  const operations = page.locator("details.studio-operating-options");
+  if (
+    (await operations.count()) &&
+    (await operations.getAttribute("open")) === null
+  )
+    await operations.locator(":scope > summary").click();
   const summary = page.locator("details.studio-stock-menu > summary");
   if (await summary.count()) {
     await summary.click();
@@ -501,6 +507,7 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   await page
     .getByLabel("中文介绍", { exact: true })
     .fill("这段还没保存，不能丢。");
+  await page.locator(".studio-photo").last().locator("summary").click();
   await page
     .locator(".studio-photo")
     .last()
@@ -517,6 +524,7 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   );
   await expect(page.locator(".entry-save-state")).toContainText("未保存");
   expect(page.url()).toBe(url);
+  await page.locator(".studio-photo").first().locator("summary").click();
   page.once("dialog", (d) => d.accept());
   await page
     .locator(".studio-photo")
@@ -659,6 +667,7 @@ test("图片回执丢失显示可操作错误，重试后原地恢复而不是�
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".studio-photo")).toHaveCount(1);
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的描述");
+  await page.locator(".studio-photo summary").click();
   let first = true;
   await page.route("**/api/assets/*/classify", async (r) => {
     if (first) {

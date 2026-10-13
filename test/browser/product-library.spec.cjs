@@ -440,6 +440,7 @@ test("从商品库真实下载原图资料包，售价用元且能查看后续�
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
   await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.locator(".page-actions-menu > summary").click();
   await page.getByRole("button", { name: "资料包与变化", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -517,6 +518,7 @@ test("商品页保存后直接整理资料，真实回执丢失并关页后仍�
   const i = await api(page, "/items", { title });
   await page.goto(`/#/items/${i.id}/edit`);
   await page.getByLabel("商品名称", { exact: true }).fill(title + " 已补文案");
+  await page.locator(".studio-more > summary").click();
   await page
     .getByRole("button", { name: "保存并下载资料", exact: true })
     .click();
@@ -548,6 +550,7 @@ test("商品页保存后直接整理资料，真实回执丢失并关页后仍�
   await page.close();
   const resumed = await context.newPage();
   await resumed.goto(`/#/items/${i.id}/edit`);
+  await resumed.locator(".studio-more > summary").click();
   await resumed
     .getByRole("button", { name: "保存并下载资料", exact: true })
     .click();
@@ -825,6 +828,7 @@ test("单件录货可保存关闭，下载失败只重试文件不重复整理",
   expect(exports.rows.filter((r) => r.title === title)).toHaveLength(1);
   await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "← 返回商品列表", exact: true }).click();
+  await page.locator(".page-actions-menu > summary").click();
   await page.getByRole("button", { name: "资料包与变化", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -1046,12 +1050,18 @@ for (const width of [1440, 390]) {
       ).toHaveCount(0);
       await expect(
         card.getByRole("button", { name: "移除", exact: true }),
+      ).toBeHidden();
+      await card.locator("summary").click();
+      await expect(
+        card.getByRole("button", { name: "移除", exact: true }),
       ).toBeVisible();
+      await card.locator("summary").click();
     }
     await expect(page.locator(`[data-asset="${real.id}"]`)).toContainText(
       "封面 · 实拍",
     );
     page.once("dialog", (dialog) => dialog.accept());
+    await page.locator(`[data-asset="${ai[0].id}"] summary`).click();
     await page.locator(`[data-photo-remove="${ai[0].id}"]`).click();
     await expect(page.locator(`[data-asset="${ai[0].id}"]`)).toHaveCount(0);
     await page.goto(`/#/items/${item.id}`);

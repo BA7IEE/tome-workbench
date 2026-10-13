@@ -13,7 +13,7 @@ async function login(page) {
 test.beforeEach(async ({ page }) => {
   await login(page);
 });
-test("新建商品首屏提供保存和下载资料，发布从更多进入", async ({ page }) => {
+test("新建商品首屏只突出保存，下载资料和发布从更多进入", async ({ page }) => {
   await page.goto("/#/items/new");
   await expect(page.getByLabel("商品名称", { exact: true })).toBeVisible();
   await expect(
@@ -21,7 +21,7 @@ test("新建商品首屏提供保存和下载资料，发布从更多进入", as
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "保存并下载资料", exact: true }),
-  ).toBeVisible();
+  ).toBeHidden();
   await expect(page.locator(".entry-footer")).toHaveCount(0);
   await expect(page.getByLabel("品牌", { exact: true })).toBeVisible();
   await expect(page.getByLabel("对外报价", { exact: true })).toBeVisible();
@@ -30,7 +30,12 @@ test("新建商品首屏提供保存和下载资料，发布从更多进入", as
   const visibleButtons = await page
     .locator(".studio-command-actions > button:visible")
     .count();
-  expect(visibleButtons).toBe(2);
+  expect(visibleButtons).toBe(1);
+  await page.locator(".studio-more > summary").click();
+  await expect(
+    page.getByRole("button", { name: "保存并下载资料", exact: true }),
+  ).toBeVisible();
+  await page.locator(".studio-more > summary").click();
   await page.screenshot({
     path: "reports/screenshots/ux2-new-product.png",
     fullPage: true,

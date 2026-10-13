@@ -169,10 +169,6 @@ export function studioStock(
         if (["PAUSED", "QUARANTINED"].includes(i.status) && can("review"))
           direct.push(button("恢复可售", reopen));
       }
-      if (i.status === "AVAILABLE" && can("publish"))
-        direct.push(
-          `<a class="btn" href="#/items/${i.id}?tab=use&returnTo=${encodeURIComponent(location.hash)}">准备发布</a>`,
-        );
       if (i.status === "SOLD" && can("sell"))
         direct.push(
           `<a class="btn primary" href="#/sales?itemId=${i.id}&returnTo=${encodeURIComponent(location.hash)}">查看成交</a>`,
@@ -236,6 +232,13 @@ export function studioStock(
           `<a href="#/items/${i.id}?tab=supply&returnTo=${encodeURIComponent(location.hash)}">其他库存与交接操作</a></div></details>`
         : "";
       if (!can("sell")) host.querySelector(".studio-stock-menu")?.remove();
+      const summary = root.querySelector(".studio-operating-options > summary");
+      if (summary)
+        summary.textContent = `经营与来源 · ${states[i.status] || i.status}${i.dataMode === "TEST" ? " · 测试" : ""}`;
+      const options = root.querySelector<HTMLDetailsElement>(
+        ".studio-operating-options",
+      );
+      if (options) options.hidden = !i.id;
     }
     const source = root.querySelector<HTMLElement>(
       "[data-section=supply] .studio-optional-body",

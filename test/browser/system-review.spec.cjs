@@ -209,6 +209,7 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   });
   await page.goto("/#/items/" + i.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的介绍");
+  await page.locator(".studio-operating-options > summary").click();
   await page.locator("details.studio-stock-menu > summary").click();
   await page.getByRole("button", { name: "经营记录", exact: true }).click();
   const d = page.getByRole("dialog");
