@@ -2,7 +2,7 @@ import { exportMaterials } from "./materials";
 import { safeReturn } from "./record-controls";
 import { showItemEvidence } from "./source-evidence";
 import { studioStock } from "./studio-stock";
-import { placeStudioSections } from "./studio-fields";
+import { placeStudioSections, focusStudioField } from "./studio-fields";
 import { createElement, createRef } from "react";
 import { alignStudioViewport } from "./studio-viewport";
 import { flushSync } from "react-dom";
@@ -184,7 +184,7 @@ export async function productEntry(id?: string) {
       : ""
   }
   <div class="studio-operating-bar"><div class="studio-stock-controls" data-stock-controls></div>${id ? `<div class="item-source-access">${button("查看全部来源资料", () => showItemEvidence(id), "subtle")}</div>` : ""}</div>
-  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">${id ? "正在编辑商品资料。文字和新图片点击保存后生效。" : "先录货，随时补充。保存不会自动发布。"}</p><div class="entry-conflicts" hidden></div>
+  <form class="product-entry-form" id="product-entry-form"><p class="studio-intro">${id ? "正在编辑商品资料。文字与新图片分别提交，全部完成后才显示已保存。已有图片的设封面、标瑕疵与移除立即生效，取消编辑不会撤销。" : "先录货，随时补充。保存不会自动发布。"}</p><nav class="studio-section-nav" aria-label="编辑内容定位"><button type="button" class="btn" data-entry-focus="images">定位图片</button><button type="button" class="btn" data-entry-focus="measurements">定位尺寸与材质</button><button type="button" class="btn" data-entry-focus="price">定位报价</button></nav><div class="entry-conflicts" hidden></div>
   <section class="panel entry-source"><h2>货源与实物</h2>${provenance}${!id && can("users") ? select("dataMode", "记录类型", { BUSINESS: "正式经营商品", TEST: "测试数据（不计入经营统计）" }, "BUSINESS") : base.dataMode === "TEST" ? '<p class="notice warning">测试商品：不计入正式统计，不展示到公开展厅。</p>' : ""}</section><div class="entry-fields"></div>
   <section class="entry-existing-media" ${knownPhotos.length ? "" : "hidden"}>${studioGallery(base.assets, base.id)}</section>
   ${files.markup(base.ownership === "SUPPLIER" ? "SUPPLIER" : "OWN")}
@@ -245,6 +245,14 @@ export async function productEntry(id?: string) {
     bindFormValidation(f, err, signal);
     bindProductRows(f, signal);
     files.bind(f, signal, mark);
+    f.querySelectorAll<HTMLButtonElement>("[data-entry-focus]").forEach(
+      (button) =>
+        button.addEventListener(
+          "click",
+          () => focusStudioField(f, button.dataset.entryFocus!),
+          { signal },
+        ),
+    );
     f.addEventListener(
       "input",
       (e) => {
@@ -313,6 +321,12 @@ export async function productEntry(id?: string) {
         base.code || "商品";
     };
     const displayError = (error: unknown) => {
+      status.textContent =
+        write.uncertain || approval.uncertain
+          ? "保存结果待核对"
+          : files.pending && !dirty
+            ? "资料已保存，图片待完成"
+            : "保存未完成";
       err.textContent = (error as Error).message;
       err.scrollIntoView({ block: "nearest" });
       retry.hidden = !(write.uncertain || approval.uncertain);
@@ -381,14 +395,7 @@ export async function productEntry(id?: string) {
           displayFields(merged);
           bindProductRows(f, signal);
           fieldContainer.querySelector("[data-media-slot]")!.append(photoQueue);
-          if (existingGallery) {
-            const drop =
-              photoQueue.querySelector(".entry-drop") ||
-              existingGallery.querySelector(".entry-drop");
-            drop?.remove();
-            photoQueue.append(existingGallery);
-            if (drop) photoQueue.append(drop);
-          }
+          if (existingGallery) photoQueue.append(existingGallery);
           if (sourceSection)
             fieldContainer
               .querySelector("[data-source-slot]")!
@@ -560,6 +567,7 @@ export async function productEntry(id?: string) {
           else if (approval.uncertain) await approval.retry();
           retry.hidden = true;
           dirty = true;
+          status.textContent = "已核对，继续保存";
           err.textContent =
             "上次提交已核对。输入仍保留，可检查后继续保存或上传。";
         } catch (error) {

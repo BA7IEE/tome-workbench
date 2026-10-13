@@ -6030,6 +6030,24 @@
   .studio-save-identity { display: none; }
   .studio-mobile-extra { display: none; }
   .studio-image-outcome { padding: 8px 12px; color: var(--tome-successText); background: var(--tome-successBg); border-radius: var(--ui-radius); }
+  .catalog-item-actions { display: flex; align-items: center; gap: 8px; }
+  .product-card .catalog-item-actions { margin-top: 12px; }
+  .studio-section-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .studio-section-nav .btn { min-height: 44px; }
+  .foundation-shell .entry-existing-media { margin-top: 16px; }
+  .foundation-shell .studio-gallery {
+    max-height: 360px; overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-gutter: stable; padding: 4px;
+  }
+  .foundation-shell .studio-main-column > [data-section="dimensions"] { scroll-margin-top: 120px; }
+  @media (max-width: 720px) {
+    .foundation-shell .studio-gallery { max-height: 240px; }
+    .foundation-shell .studio-main-column > [data-section="dimensions"] { order: 3; scroll-margin-top: 20px; }
+    .foundation-shell .studio-inspector > .studio-classification-card { order: 4; }
+    .foundation-shell .studio-inspector > .studio-price-card { order: 5; }
+    .foundation-shell .studio-inspector > .studio-condition-card { order: 6; }
+    .foundation-shell .studio-main-column > .studio-description { order: 7; }
+  }
 }
 
 @layer foundation {

@@ -1,5 +1,5 @@
 const { submitLogin, fillLogin } = require("./login.cjs");
-const { revealPublishing } = require("./reveal-section.cjs");
+const { revealPublishing, revealSection } = require("./reveal-section.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 // New default product workspace: no force clicks, no page reloads masking stale rendering.
 const { test, expect } = require("@playwright/test");
@@ -75,7 +75,7 @@ async function basic(page, name) {
     .setInputFiles(await photograph());
 }
 async function tradeFacts(page) {
-  await page.getByText("尺寸与材质", { exact: true }).click();
+  await revealSection(page, "dimensions");
   await page.getByLabel("实测尺寸").fill("肩宽40cm，胸围90cm，衣长60cm");
   await page.getByLabel("尺寸来源").fill("已核对供应商尺寸记录");
   await page.getByText("鉴定与资料", { exact: true }).click();
@@ -104,6 +104,194 @@ test.beforeEach(async ({ page }) => {
   await login(page);
 });
 test.afterEach(() => expect(failures.splice(0)).toEqual([]));
+for (const width of [1440, 390]) {
+  test(`商品库直接完整编辑 ${width}px：13图上传前置、尺寸展开、保存重开与取消上下文`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    const title = "编辑体验合成 " + randomUUID().slice(0, 8);
+    const item = await api(page, "/items", { title, dataMode: "TEST" });
+    const original = await photograph("已保存原图.png");
+    const auth = await (await page.request.get("/api/auth/me")).json();
+    for (let n = 0; n < 13; n++) {
+      const image = await sharp(original.buffer)
+        .modulate({ brightness: 0.5 + n / 20 })
+        .png()
+        .toBuffer();
+      const response = await page.request.post("/api/assets/upload", {
+        headers: {
+          Origin: new URL(page.url()).origin,
+          "X-CSRF-Token": auth.csrf,
+          "Idempotency-Key": randomUUID(),
+        },
+        multipart: {
+          itemId: item.id,
+          role: "PRODUCT",
+          origin: "OWN",
+          sourceNote: "隔离合成图库",
+          file: {
+            name: `合成图-${n}.png`,
+            mimeType: "image/png",
+            buffer: image,
+          },
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+    }
+    for (const view of ["table", "grid"]) {
+      const back = `#/items?dataMode=TEST&q=${encodeURIComponent(title)}&view=${view}&sort=newest&page=1&size=20`;
+      await page.goto("/" + back);
+      await page.getByLabel(`选择 ${item.code}`, { exact: true }).check();
+      await page
+        .getByRole("link", { name: `编辑商品 ${item.code}`, exact: true })
+        .click();
+      await expect(page.getByLabel("商品名称", { exact: true })).toHaveValue(
+        title,
+      );
+      await expect(page.locator('[data-section="dimensions"]')).toHaveAttribute(
+        "open",
+        "",
+      );
+      const geometry = await page.evaluate(() => {
+        const drop = document
+          .querySelector(".entry-drop")
+          .getBoundingClientRect();
+        const gallery = document.querySelector(".studio-gallery");
+        return {
+          dropY: drop.top + scrollY,
+          galleryY: gallery.getBoundingClientRect().top + scrollY,
+          galleryHeight: gallery.clientHeight,
+          scrollable: gallery.scrollHeight > gallery.clientHeight,
+          overflow: document.documentElement.scrollWidth > innerWidth + 2,
+        };
+      });
+      expect(geometry.dropY).toBeLessThan(geometry.galleryY);
+      expect(geometry.dropY).toBeLessThan(width === 390 ? 844 : 1000);
+      expect(geometry.galleryHeight).toBeLessThanOrEqual(
+        width === 390 ? 240 : 360,
+      );
+      expect(geometry.scrollable).toBe(true);
+      expect(geometry.overflow).toBe(false);
+      await page
+        .getByRole("button", { name: "定位尺寸与材质", exact: true })
+        .click();
+      await expect(page.getByLabel("实测尺寸", { exact: true })).toBeFocused();
+      await page
+        .getByLabel("实测尺寸", { exact: true })
+        .fill(`合成肩宽40cm-${view}`);
+      await page
+        .getByLabel("材质成分 / 细节", { exact: true })
+        .fill(`合成羊毛-${view}`);
+      const added = await photograph(`新增-${view}.png`);
+      added.buffer = await sharp(added.buffer)
+        .resize(view === "table" ? 701 : 702, 900)
+        .png()
+        .toBuffer();
+      await page
+        .getByLabel("选择商品图片", { exact: true })
+        .setInputFiles(added);
+      await page.getByRole("button", { name: "保存商品", exact: true }).click();
+      await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+      await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+      await expect(page).toHaveURL((url) => url.hash === back);
+      await expect(
+        page.getByLabel(`选择 ${item.code}`, { exact: true }),
+      ).toBeChecked();
+      await page
+        .getByRole("link", { name: `编辑商品 ${item.code}`, exact: true })
+        .click();
+      await expect(page.getByLabel("实测尺寸", { exact: true })).toHaveValue(
+        `合成肩宽40cm-${view}`,
+      );
+      await expect(
+        page.getByLabel("材质成分 / 细节", { exact: true }),
+      ).toHaveValue(`合成羊毛-${view}`);
+      const saved = await (
+        await page.request.get(`/api/items/${item.id}`)
+      ).json();
+      expect(
+        saved.assets.some((asset) => asset.originalName === added.name),
+      ).toBe(true);
+      await page.getByLabel("实测尺寸", { exact: true }).fill("取消的尺寸");
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.getByRole("link", { name: "取消编辑", exact: true }).click();
+      await expect(page).toHaveURL((url) => url.hash === back);
+      const afterCancel = await (
+        await page.request.get(`/api/items/${item.id}`)
+      ).json();
+      expect(afterCancel.facts.measurements).toBe(`合成肩宽40cm-${view}`);
+      expect(afterCancel.version).toBe(saved.version);
+    }
+  });
+}
+
+test("完整编辑冲突保留文件；实际保存后断线、重复点击与原请求核对", async ({
+  page,
+}) => {
+  const item = await api(page, "/items", {
+    title: "编辑故障合成 " + randomUUID(),
+    dataMode: "TEST",
+  });
+  await page.goto(`/#/items/${item.id}/edit`);
+  await page.getByLabel("实测尺寸", { exact: true }).fill("我的合成尺寸");
+  await page
+    .getByLabel("选择商品图片", { exact: true })
+    .setInputFiles(await photograph("冲突保留.png"));
+  const before = await (await page.request.get(`/api/items/${item.id}`)).json();
+  await api(
+    page,
+    `/items/${item.id}`,
+    { version: before.version, facts: { material: "同事的合成材质" } },
+    "PATCH",
+  );
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("保存未完成");
+  await expect(page.locator(".entry-conflicts")).toBeVisible();
+  await expect(page.locator(".entry-file-list")).toContainText("冲突保留.png");
+  await page.getByLabel("我已核对差异，保留下面输入的改动").check();
+  await page
+    .getByRole("button", { name: "合并后继续编辑", exact: true })
+    .click();
+  await expect(page.getByLabel("材质成分 / 细节", { exact: true })).toHaveValue(
+    "同事的合成材质",
+  );
+  await expect(page.getByLabel("实测尺寸", { exact: true })).toHaveValue(
+    "我的合成尺寸",
+  );
+  const keys = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "PATCH" &&
+      request.url().endsWith(`/api/items/${item.id}`)
+    )
+      keys.push(request.headers()["idempotency-key"]);
+  });
+  await page.route(`**/api/items/${item.id}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    const real = await route.fetch();
+    expect(real.ok()).toBeTruthy();
+    await route.abort("connectionreset");
+    await page.unroute(`**/api/items/${item.id}`);
+  });
+  await page
+    .getByRole("button", { name: "保存商品", exact: true })
+    .click({ clickCount: 2 });
+  await expect(page.locator(".entry-save-state")).toHaveText("保存结果待核对");
+  expect(keys).toHaveLength(1);
+  await expect(page.locator(".entry-file-list")).toContainText("冲突保留.png");
+  await page.getByRole("button", { name: "核对上次提交", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText(
+    "已核对，继续保存",
+  );
+  expect(keys).toEqual([keys[0], keys[0]]);
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  const saved = await (await page.request.get(`/api/items/${item.id}`)).json();
+  expect(saved.facts.measurements).toBe("我的合成尺寸");
+  expect(saved.facts.material).toBe("同事的合成材质");
+  expect(saved.assets).toHaveLength(1);
+});
+
 test("只录标题、价格和图片即可保存，不要求先走审核或流水线", async ({
   page,
 }) => {
@@ -308,7 +496,9 @@ test("已保存图片可以原地查看、标瑕疵和移除，未保存文字�
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
     "这段还没保存，不能丢。",
   );
-  await expect(page.locator(".studio-image-outcome")).toContainText("瑕疵标记已保存");
+  await expect(page.locator(".studio-image-outcome")).toContainText(
+    "瑕疵标记已保存",
+  );
   await expect(page.locator(".entry-save-state")).toContainText("未保存");
   expect(page.url()).toBe(url);
   page.once("dialog", (d) => d.accept());
@@ -639,9 +829,7 @@ test("点击可见上传区域就打开文件选择器，不需要寻找隐藏�
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".studio-photo")).toHaveCount(1);
 });
-test("服务端发现同平台历史暴露时可二次确认加入分发渠道", async ({
-  page,
-}) => {
+test("服务端发现同平台历史暴露时可二次确认加入分发渠道", async ({ page }) => {
   await start(page);
   await basic(page, "服务端经营确认 " + randomUUID());
   await tradeFacts(page);
@@ -821,40 +1009,113 @@ test("读取发布预览失败可原地重试，已经保存的商品和图片�
 
 test.describe("触摸设备的发布排序", () => {
   test.use({ hasTouch: true });
-test("发布图片可拖动键盘及手机指定位置，排序只改发布草稿", async ({ page }) => {
-  await start(page);
-  await basic(page, "发布排序 " + randomUUID());
-  await page.getByLabel("选择商品图片", { exact: true }).setInputFiles(await photograph("order-b.png"));
-  await tradeFacts(page);
-  await revealPublishing(page);
-  await page.getByRole("button", { name: "保存并准备发布", exact: true }).click();
-  await expect(page.locator(".studio-order-row")).toHaveCount(2);
-  const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1];
-  const before = await (await page.request.get("/api/items/" + id)).json();
-  const ids = await page.locator(".studio-order-row").evaluateAll(rows => rows.map(row => row.dataset.orderId));
-  await page.locator(".studio-order-row").last().dragTo(page.locator(".studio-order-row").first());
-  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
-  const up = page.locator(".studio-order-row").last().getByRole("button", { name: /^上移/ });
-  await up.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
-  await expect.poll(() => page.locator(".studio-order-row").first().locator("select").evaluate(el => el === document.activeElement)).toBe(true);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator(".studio-order-row").first().locator("select").selectOption({ value: "1" });
-  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
-  expect((await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).boundingBox()).height).toBeGreaterThanOrEqual(44);
-  await page.locator(".studio-order-row").first().getByRole("button", { name: /^下移/ }).tap();
-  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[0]);
-  await page.locator(".studio-order-row").last().getByRole("button", { name: /^上移/ }).tap();
-  await expect(page.locator(".studio-order-row").first()).toHaveAttribute("data-order-id", ids[1]);
-  const saved = page.waitForResponse(r => r.url().includes("/publishing-draft") && r.request().method() === "POST");
-  await page.getByRole("button", { name: "保存草稿", exact: true }).click();
-  const response = await saved;
-  expect(response.ok()).toBe(true);
-  expect(response.request().postDataJSON().assetIds).toEqual([ids[1], ids[0]]);
-  const after = await (await page.request.get("/api/items/" + id)).json();
-  expect(after.assets.map(a => [a.id, a.sha256, a.position])).toEqual(before.assets.map(a => [a.id, a.sha256, a.position]));
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
-  await page.screenshot({ path: "reports/screenshots/ux102-image-order-mobile.png", fullPage: true });
-});
+  test("发布图片可拖动键盘及手机指定位置，排序只改发布草稿", async ({
+    page,
+  }) => {
+    await start(page);
+    await basic(page, "发布排序 " + randomUUID());
+    await page
+      .getByLabel("选择商品图片", { exact: true })
+      .setInputFiles(await photograph("order-b.png"));
+    await tradeFacts(page);
+    await revealPublishing(page);
+    await page
+      .getByRole("button", { name: "保存并准备发布", exact: true })
+      .click();
+    await expect(page.locator(".studio-order-row")).toHaveCount(2);
+    const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1];
+    const before = await (await page.request.get("/api/items/" + id)).json();
+    const ids = await page
+      .locator(".studio-order-row")
+      .evaluateAll((rows) => rows.map((row) => row.dataset.orderId));
+    await page
+      .locator(".studio-order-row")
+      .last()
+      .dragTo(page.locator(".studio-order-row").first());
+    await expect(page.locator(".studio-order-row").first()).toHaveAttribute(
+      "data-order-id",
+      ids[1],
+    );
+    const up = page
+      .locator(".studio-order-row")
+      .last()
+      .getByRole("button", { name: /^上移/ });
+    await up.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".studio-order-row").first()).toHaveAttribute(
+      "data-order-id",
+      ids[0],
+    );
+    await expect
+      .poll(() =>
+        page
+          .locator(".studio-order-row")
+          .first()
+          .locator("select")
+          .evaluate((el) => el === document.activeElement),
+      )
+      .toBe(true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .locator(".studio-order-row")
+      .first()
+      .locator("select")
+      .selectOption({ value: "1" });
+    await expect(page.locator(".studio-order-row").first()).toHaveAttribute(
+      "data-order-id",
+      ids[1],
+    );
+    expect(
+      (
+        await page
+          .locator(".studio-order-row")
+          .first()
+          .getByRole("button", { name: /^下移/ })
+          .boundingBox()
+      ).height,
+    ).toBeGreaterThanOrEqual(44);
+    await page
+      .locator(".studio-order-row")
+      .first()
+      .getByRole("button", { name: /^下移/ })
+      .tap();
+    await expect(page.locator(".studio-order-row").first()).toHaveAttribute(
+      "data-order-id",
+      ids[0],
+    );
+    await page
+      .locator(".studio-order-row")
+      .last()
+      .getByRole("button", { name: /^上移/ })
+      .tap();
+    await expect(page.locator(".studio-order-row").first()).toHaveAttribute(
+      "data-order-id",
+      ids[1],
+    );
+    const saved = page.waitForResponse(
+      (r) =>
+        r.url().includes("/publishing-draft") &&
+        r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "保存草稿", exact: true }).click();
+    const response = await saved;
+    expect(response.ok()).toBe(true);
+    expect(response.request().postDataJSON().assetIds).toEqual([
+      ids[1],
+      ids[0],
+    ]);
+    const after = await (await page.request.get("/api/items/" + id)).json();
+    expect(after.assets.map((a) => [a.id, a.sha256, a.position])).toEqual(
+      before.assets.map((a) => [a.id, a.sha256, a.position]),
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth,
+      ),
+    ).toBeLessThanOrEqual(2);
+    await page.screenshot({
+      path: "reports/screenshots/ux102-image-order-mobile.png",
+      fullPage: true,
+    });
+  });
 });

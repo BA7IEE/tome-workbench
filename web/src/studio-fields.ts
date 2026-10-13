@@ -5,7 +5,7 @@ export function placeStudioSections(form: HTMLFormElement) {
     existing = form.querySelector(".entry-existing-media");
   if (photos) {
     media.append(photos);
-    if (existing) photos.querySelector(".entry-drop")!.before(existing);
+    if (existing) photos.append(existing);
   }
   const source = form.querySelector(".entry-source");
   if (source) {
@@ -33,7 +33,7 @@ export function placeStudioSections(form: HTMLFormElement) {
 }
 export function focusStudioField(form: HTMLFormElement, name: string) {
   const selectors: Record<string, string> = {
-    images: ".entry-photos",
+    images: ".entry-drop",
     brand: '[data-dictionary="BRAND"] .dictionary-input',
     title: "[name=title]",
     price: "[name=price]",

@@ -328,13 +328,13 @@ test("快速修改完整页入口保护未保存输入，来源等级仍待人�
   await expect(d.getByLabel("成色", { exact: true })).toHaveValue("");
   await d.getByLabel("商品名称", { exact: true }).fill(title + " 未保存");
   page.once("dialog", (x) => x.dismiss());
-  await d.getByRole("button", { name: "完整商品页", exact: true }).click();
+  await d.getByRole("button", { name: "进入完整编辑", exact: true }).click();
   await expect(d).toBeVisible();
   await expect(d.getByLabel("商品名称", { exact: true })).toHaveValue(
     title + " 未保存",
   );
   page.once("dialog", (x) => x.accept());
-  await d.getByRole("button", { name: "完整商品页", exact: true }).click();
+  await d.getByRole("button", { name: "进入完整编辑", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(item.id + "/edit"));
   await expect(d).not.toBeVisible();
   await expect(

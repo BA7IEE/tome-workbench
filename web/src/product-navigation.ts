@@ -37,3 +37,9 @@ export function productHref(id: string, origin = "", tab = "") {
   if (safeReturn(origin)) qs.set("returnTo", origin);
   return `#/items/${id}${qs.size ? "?" + qs : ""}`;
 }
+
+export function productEditHref(id: string, origin = location.hash) {
+  const qs = new URLSearchParams();
+  if (safeReturn(origin)) qs.set("returnTo", origin);
+  return `#/items/${id}/edit${qs.size ? "?" + qs : ""}`;
+}

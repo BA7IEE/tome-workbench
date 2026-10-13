@@ -1,0 +1,10 @@
+{
+  "version": "1.1.0-rc.14",
+  "sourceSha256": "e902804d50b7c81b988ee523d0d228cdedca0b78d3facc75de926e5889300cfe",
+  "fullHarnessExitCode": null,
+  "sourceUnchanged": false,
+  "passed": false,
+  "error": "NOT_RUN: cloud Prisma/Playwright downloads blocked; awaiting current PR head CI",
+  "evidence": {},
+  "productionDeployment": false
+}
