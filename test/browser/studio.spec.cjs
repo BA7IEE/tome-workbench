@@ -3,7 +3,7 @@ const { revealPublishing, revealSection } = require("./reveal-section.cjs");
 const { chooseDictionary } = require("./dictionary-control.cjs");
 // New default product workspace: no force clicks, no page reloads masking stale rendering.
 const { test, expect } = require("@playwright/test");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHash } = require("node:crypto");
 const fs = require("node:fs");
 const sharp = require("sharp");
 const fixture = JSON.parse(
@@ -215,9 +215,19 @@ for (const width of [1440, 390]) {
       const saved = await (
         await page.request.get(`/api/items/${item.id}`)
       ).json();
-      expect(
-        saved.assets.some((asset) => asset.originalName === added.name),
-      ).toBe(true);
+      // Multipart filename encodings vary; original bytes and their server hash identify this upload.
+      const image = saved.assets.find(
+        (asset) =>
+          asset.sha256 ===
+          createHash("sha256").update(added.buffer).digest("hex"),
+      );
+      expect(image).toBeTruthy();
+      expect(saved.assets).toHaveLength(view === "table" ? 14 : 15);
+      const originalFile = await page.request.get(
+        `/api/assets/${image.id}/original`,
+      );
+      expect(originalFile.ok()).toBeTruthy();
+      expect(await originalFile.body()).toEqual(added.buffer);
       await page.getByLabel("实测尺寸", { exact: true }).fill("取消的尺寸");
       page.once("dialog", (dialog) => dialog.accept());
       await page.getByRole("link", { name: "取消编辑", exact: true }).click();
