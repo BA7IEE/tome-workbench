@@ -25,7 +25,9 @@
 
 复现顺序采用仓库/官方流程：固定 Node 22.22.3 与 npm 10.9.8 → `npm ci` → `npm run db:generate` → 在本机独立 PostgreSQL 设置仅用于合成数据的 DATABASE_URL → `node scripts/prepare-test.mjs` → `npx playwright install --with-deps chromium webkit` → `npm run typecheck && npm run lint && npm run build` → `npm run verify:release` → audit、pack。不得使用生产 URL、真实经营数据或降低校验来补齐准备。
 
-当前网络准入阻断 Prisma 官方引擎、Playwright 官方下载及 Library 材料；保存环境 setup 的修复与全新任务复现仍未验收。可继续使用现有 GitHub-hosted CI 的独立 PostgreSQL、真实登录、原文件和两浏览器完成代码回归。
+Prisma 与 Playwright 的官方下载被网络代理以 403 阻断；Library 材料两次下载失败，返回的是通用下载失败信息，未取得可读文件。保存环境 setup 的修复与全新任务复现仍未验收。可继续使用现有 GitHub-hosted CI 的独立 PostgreSQL、真实登录、原文件和两浏览器完成代码回归。
+
+首轮 CI `38433294741` 对 head `1a99acb` 的完整类型、lint、API/web build、单元 51/51、Harness 33/33、集成 174/174 通过；Chromium 205 通过、2 失败，WebKit/HA/恢复/pack 尚未执行。两个新增列表用例把分页设为后端拒绝的 20（正式合同只允许 30/60/100），进入了读取错误页而等不到选择控件；测试已改为合法 30，并先检查真实列表 API 与页面加载。没有扩大超时、模拟成功或修改业务分页合同；后续新固定 head 必须重新完整验收。
 
 ## 身份与交付边界
 

@@ -139,8 +139,14 @@ for (const width of [1440, 390]) {
       expect(response.ok()).toBeTruthy();
     }
     for (const view of ["table", "grid"]) {
-      const back = `#/items?dataMode=TEST&q=${encodeURIComponent(title)}&view=${view}&sort=newest&page=1&size=20`;
+      const back = `#/items?dataMode=TEST&q=${encodeURIComponent(title)}&view=${view}&sort=newest&page=1&size=30`;
+      const listed = await page.request.get("/api/items?" + back.split("?")[1]);
+      expect(listed.ok()).toBeTruthy();
+      expect((await listed.json()).rows.some((row) => row.id === item.id)).toBe(
+        true,
+      );
       await page.goto("/" + back);
+      await expect(page.locator(".catalog-page")).toBeVisible();
       await page.getByLabel(`选择 ${item.code}`, { exact: true }).check();
       await page
         .getByRole("link", { name: `编辑商品 ${item.code}`, exact: true })
