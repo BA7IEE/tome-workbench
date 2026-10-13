@@ -557,6 +557,7 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   const before = await (await page.request.get("/api/items/" + item.id)).json(); // Creation returns identity only; compare persisted facts.
   await page.goto("/#/items/" + item.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("还没保存的商品文案");
+  await page.locator(".studio-operating-options > summary").click();
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
   const d = page.getByRole("dialog", { name: "记录询盘", exact: true });
   await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
@@ -724,8 +725,7 @@ test("已确认候选不再提供无效勾选，维护商品后返回原候选�
     page.getByRole("link", { name: "返回商品详情", exact: true }).first(),
   ).toBeVisible();
   await page.getByLabel("中文介绍", { exact: true }).fill("在TM中维护后的说明");
-  await page.locator(".studio-more summary").click();
-  await page.getByRole("button", { name: "保存并返回", exact: true }).click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".product-overview")).toContainText(
     "在TM中维护后的说明",
   );
