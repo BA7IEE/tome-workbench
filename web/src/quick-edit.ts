@@ -22,7 +22,7 @@ import { type Item } from "./types";
 
 export function quickEdit(item: Item, after?: () => Promise<void> | void) {
   let formEl: HTMLFormElement | null = null;
-  const body = `<div class="quick-edit-note"><p>这里只修改名称、归类与报价；图片、尺寸和材质请进入完整编辑。</p>${button(
+  const body = `<div class="quick-edit-note"><p>这里只修改名称、归类、报价与成色；图片、尺寸和材质请进入完整编辑。</p>${button(
     "进入完整编辑",
     () => {
       formEl?.querySelector<HTMLButtonElement>("header .close")?.click();

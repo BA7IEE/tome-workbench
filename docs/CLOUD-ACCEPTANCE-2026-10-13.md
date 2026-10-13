@@ -17,7 +17,7 @@
 | Library 方案 | 按本轮 Library 技能两次 materialize `libfile_948395635e488191ae6bd74c838c64ef` v0，下载均失败，未取得可读本地文件；按授权中明确的第一批范围继续实施，没有借用其他环境路径 |
 | GitHub | 只读远端核对与普通 push dry-run 成功；CLI token 状态无效，连接器仓库读取成功，后续 Draft PR 采用连接器；不修改持久凭据 |
 
-独立检查已通过：前端 `tsc --noEmit -p web/tsconfig.json`、全项目 lint、前端 build、Foundation admission、70 个脚本语法、audit（0 vulnerabilities）。尝试部分 Node 测试得到 16 通过、2 个文件因缺少 API dist 无法加载，不能称该组通过。单独 Harness selftest 初次 31/33，通过的负向守卫保留；2 个失败均为本地还没有当前源码验证摘要/指纹。提交前生成明确 pending 摘要后另行记录静态 selftest；pending 不表示完整运行通过。本轮代码运行证据以现有 CI 对应固定 SHA 和源码指纹为准。
+独立检查已通过：前端 `tsc --noEmit -p web/tsconfig.json`、全项目 lint、前端 build、Foundation admission、70 个脚本语法、audit（0 vulnerabilities）。尝试部分 Node 测试得到 16 通过、2 个文件因缺少 API dist 无法加载，不能称该组通过。单独 Harness selftest 初次 31/33，通过的负向守卫保留；2 个失败均为本地还没有当前源码验证摘要/指纹。提交前生成明确 pending 摘要后，静态 selftest 33/33、198 项静态守卫全部通过；pending 仍为 passed=false，不表示完整运行通过。本轮代码运行证据以现有 CI 对应固定 SHA 和源码指纹为准。
 
 ## 全新任务 setup 复现
 
