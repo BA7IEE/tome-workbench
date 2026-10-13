@@ -1,0 +1,38 @@
+name: PR62 source-only deployment handoff
+on:
+  push:
+    branches: [ops/pr62-source-only-87bc1d7]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Extract already built exact source without rebuilding
+        run: |
+          set -euo pipefail
+          gh run download 38457171689 -R BA7IEE/tome-workbench -n tome-release-87bc1d7 -D "$RUNNER_TEMP/built-bundle"
+          mkdir source-handoff
+          cp "$RUNNER_TEMP/built-bundle/tome-workbench-87bc1d7-source.zip" source-handoff/
+          cp "$RUNNER_TEMP/built-bundle/release-identity.json" "$RUNNER_TEMP/built-bundle/image-identities.txt" "$RUNNER_TEMP/built-bundle/verified-source-summary.json" source-handoff/
+          test "$(sha256sum source-handoff/tome-workbench-87bc1d7-source.zip | cut -d ' ' -f 1)" = 7ebf388f11cb94fa19f4fcf814c5161b2d03387cfadc1c96a0f501f367a85608
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          value=json.loads(Path('source-handoff/release-identity.json').read_text())
+          assert value['builtFromCommit']=='87bc1d7f722b1992b0ad58561da632c8262612d0'
+          assert value['sourceSha256']=='906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca'
+          PY
+          (cd source-handoff && sha256sum *.zip *.json *.txt > SHA256SUMS)
+          cat source-handoff/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tome-source-87bc1d7
+          path: source-handoff/
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
