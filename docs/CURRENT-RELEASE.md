@@ -107,6 +107,7 @@ rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一�
     "operations.spec.cjs",
     "procurement.spec.cjs",
     "product-library.spec.cjs",
+    "product-ux-simplify.spec.cjs",
     "studio.spec.cjs",
     "system-review.spec.cjs",
     "ui08.spec.cjs",
