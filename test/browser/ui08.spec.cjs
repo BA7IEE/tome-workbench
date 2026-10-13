@@ -108,7 +108,7 @@ test("桌面商品编辑器保持清晰主栏与侧栏，不横向溢出", async
   expect(g.overflow).toBeLessThanOrEqual(2);
 });
 
-test("手机商品页按真实录货顺序排布且所有卡片占满宽度", async ({ page }) => {
+test("手机商品页前置尺寸材质且所有卡片占满宽度", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openNew(page);
   const y = await page.evaluate(() => {
@@ -131,13 +131,14 @@ test("手机商品页按真实录货顺序排布且所有卡片占满宽度", as
     [
       y.title,
       y.media,
+      y.dimensions,
       y.classification,
       y.price,
       y.condition,
       y.description,
-      y.dimensions,
     ].every((v, i, a) => i === 0 || v > a[i - 1]),
   ).toBe(true);
+  await expect(page.locator("[data-section=dimensions]")).toHaveAttribute("open", "");
   expect(y.width).toBeGreaterThan(350);
   expect(y.overflow).toBeLessThanOrEqual(2);
 });
