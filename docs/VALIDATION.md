@@ -1,6 +1,6 @@
 # 当前验证记录 — 1.1.0-rc.14
 
-本轮云端商品编辑第一批基线为远端 main@dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d，范围见 PRODUCT-EDIT-UX。当前完整结果等待本轮固定 head 的现有 CI；实例 Prisma/Playwright 官方下载被 403 阻断，完整本实例运行 NOT_RUN，详见 CLOUD-ACCEPTANCE-2026-10-13。下文旧候选结果不证明本轮。
+本轮为云端商品 UX 第二批，基线经只读核验为远端 main@87bc1d7f722b1992b0ad58561da632c8262612d0（PR #62 已合并），范围和真实浏览器对照见 PRODUCT-UX-SIMPLIFY，候选见 Draft PR #63。当前实例已成功生成 Prisma、准备独立 tome_test、完成 API/web build 与 Chromium 合成验收；本地 WebKit 受系统库检测阻断。完整验证以 PR #63 最终固定 head 的 GitHub verify:release 结果为准，不复用下文历史候选，也不代表部署或实体手机验收。第一批下载 403 的旧实例记录仅为历史。
 
 PR58/d8d197ce 和 PR59/f98ebb12 的已验证结果独立保留，见 UX-IMPLEMENTATION；它们不验证本页 rc.14 组合撤销/恢复实现。当前候选完整结果待本轮固定 head 的 CI，不操作生产。首候选新增外键类型失败已修正；5bd05ae 的隔离 migration、bootstrap、类型/lint/build/unit 已完成，完整 Harness 在当前报告的旧产物版本引用守卫失败，尚未执行其余业务验收。本报告消除当前版引用与历史版混用，旧报告原样移至 archive/VALIDATION-through-1.1.0-rc.13.md。
 
