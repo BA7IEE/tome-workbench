@@ -1,0 +1,71 @@
+name: PR62 fixed merged release bundle
+on:
+  push:
+    branches: [ops/pr62-release-build-87bc1d7]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TARGET_SHA: 87bc1d7f722b1992b0ad58561da632c8262612d0
+      TARGET_VERSION: 1.1.0-rc.14
+      VERIFIED_SOURCE: 906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 87bc1d7f722b1992b0ad58561da632c8262612d0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+          cache: npm
+      - name: Assert fixed source and reuse exact green source verification
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(node -p "require('./package.json').version")" = "$TARGET_VERSION"
+          gh run download 38437301562 -R BA7IEE/tome-workbench -n verification-reports -D "$RUNNER_TEMP/pr62-proof"
+          cp "$RUNNER_TEMP/pr62-proof/docs/validation/1.1.0-rc.14/summary.json" docs/validation/1.1.0-rc.14/summary.json
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import { sourceFingerprint } from './scripts/source-fingerprint.mjs';
+          const proof=JSON.parse(fs.readFileSync('docs/validation/1.1.0-rc.14/summary.json'));
+          if(!proof.passed || !proof.sourceUnchanged || proof.sourceSha256!==process.env.VERIFIED_SOURCE || sourceFingerprint().sha256!==proof.sourceSha256) throw new Error('Verified source mismatch');
+          console.log('FIXED_MERGED_SOURCE_VERIFIED '+process.env.TARGET_SHA+' '+proof.sourceSha256);
+          JS
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - name: Build exact production targets
+        run: |
+          set -euo pipefail
+          docker build --target runtime --build-arg APP_VERSION="$TARGET_VERSION" --label org.opencontainers.image.revision="$TARGET_SHA" -t tome-workbench:sha-87bc1d7 -t tome-workbench:"$TARGET_VERSION" .
+          docker build --target migration --build-arg APP_VERSION="$TARGET_VERSION" --label org.opencontainers.image.revision="$TARGET_SHA" -t tome-workbench-migration:sha-87bc1d7 -t tome-workbench-migration:"$TARGET_VERSION" .
+      - name: Package source and image handoff
+        run: |
+          set -euo pipefail
+          npm run pack
+          mkdir -p release-bundle
+          cp release/tome-workbench-1.1.0-rc.14.zip release-bundle/tome-workbench-87bc1d7-source.zip
+          docker save tome-workbench:sha-87bc1d7 tome-workbench:1.1.0-rc.14 tome-workbench-migration:sha-87bc1d7 tome-workbench-migration:1.1.0-rc.14 | gzip -1 > release-bundle/tome-workbench-87bc1d7-images.tar.gz
+          docker image inspect --format '{{json .Id}} {{json .RepoTags}} {{json (index .Config.Labels "org.opencontainers.image.version")}} {{json (index .Config.Labels "org.opencontainers.image.revision")}}' tome-workbench:sha-87bc1d7 tome-workbench-migration:sha-87bc1d7 > release-bundle/image-identities.txt
+          cp docs/validation/1.1.0-rc.14/summary.json release-bundle/verified-source-summary.json
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          const manifest={builtFromCommit:process.env.TARGET_SHA,appVersion:process.env.TARGET_VERSION,sourceSha256:process.env.VERIFIED_SOURCE,validationRun:38437301562,bundleRun:process.env.GITHUB_RUN_ID,workflowControlCommit:process.env.GITHUB_SHA,baseCommit:'dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d',newMigration:false,serverDeployment:false,images:['tome-workbench:sha-87bc1d7','tome-workbench-migration:sha-87bc1d7'],sameVersionTag:'1.1.0-rc.14',beforeDockerLoad:'Retain old actual runtime image ID under a rollback alias before loading/replacing the rc.14 tag.',deploymentMode:'EXTERNAL_REVERSE_PROXY',productionCredentialsIncluded:false};
+          fs.writeFileSync('release-bundle/release-identity.json',JSON.stringify(manifest,null,2)+'\n');
+          JS
+          (cd release-bundle && sha256sum *.zip *.gz *.txt *.json > SHA256SUMS)
+          cat release-bundle/release-identity.json
+          cat release-bundle/image-identities.txt
+          cat release-bundle/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tome-release-87bc1d7
+          path: release-bundle/
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
