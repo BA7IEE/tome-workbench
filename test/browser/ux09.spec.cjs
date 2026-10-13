@@ -1,3 +1,4 @@
+const { revealSection } = require("./reveal-section.cjs");
 const { submitLogin, fillLogin } = require("./login.cjs");
 const {chooseDictionary}=require("./dictionary-control.cjs");
 const { test, expect } = require("@playwright/test");
@@ -33,7 +34,7 @@ test("字典控件按选项规模选择正确交互，不再一律做搜索框",
   const condition=await dictionaryRoot(page,"成色");
   await expect(condition.input).toHaveJSProperty("tagName","SELECT");
   await expect(condition.root.locator(".dictionary-input")).toHaveCount(0);
-  await page.getByText("尺寸与材质",{exact:true}).click();
+  await revealSection(page, "dimensions");
   for(const label of ["颜色","主要材质"]){
     const fixed=await dictionaryRoot(page,label);
     await expect(fixed.root.locator("select.dictionary-select")).toHaveCount(1);

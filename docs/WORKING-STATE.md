@@ -1,5 +1,7 @@
 # ToMe 开工与交接
 
+本轮激活工作区为云实例 `/workspace/tome-workbench`，仓库 `BA7IEE/tome-workbench`，开工远端 main=`dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d`，独立分支 `fix/product-edit-ux-batch1`；不在 Mac 开发。当前实施及云端状态见 [PRODUCT-EDIT-UX](PRODUCT-EDIT-UX.md) 与 [云实例验收](CLOUD-ACCEPTANCE-2026-10-13.md)。下文 Mac、旧 PR 和旧运行结果仅保留为历史，不作为本轮目录、版本或验收指令。
+
 规范身份为 `github.com/ba7iee/tome-workbench`；当前 owner 的审阅树为 `/Users/dengwang/Documents/Codex/2026-10-10/task-2/tome-menu-fix`，PR #57、`fix/ux-csp-and-task-flow`。框架基线 `cf7565a0c0f68b87e9c6b8802b8cf4d39c825447` 是 AntD 6.6.5 / ProComponents 3.1.15-5。原 `coding/tome-workbench` 的 Arco 基线和独有资源改动保留，不能覆盖或当当前修复树。
 
 本工具接入前的 CSP checkpoint 为 `ae905e4057ced7e9f206209a4515863e52889b05`（Pro token nonce 修复）；先前 `7d60b54` 云端为 189/191 Chromium 通过，两处未通过均是已定位的 Pro 变量 style。该状态不代表当前候选通过。实际固定 HEAD/upstream/dirty 以每次以下审计的新 JSON 和 PR head 为准，不能拿旧 clean/dirty 数复用。

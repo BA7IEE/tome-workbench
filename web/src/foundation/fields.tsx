@@ -79,14 +79,20 @@ export function SelectField({
 export function OptionalSection({
   title,
   name,
+  open = false,
   children,
 }: {
   title: string;
   name: string;
+  open?: boolean;
   children: ReactNode;
 }) {
   return (
-    <details className="studio-card studio-optional" data-section={name}>
+    <details
+      className="studio-card studio-optional"
+      data-section={name}
+      open={open}
+    >
       <summary>{title}</summary>
       <div className="studio-optional-body">{children}</div>
     </details>

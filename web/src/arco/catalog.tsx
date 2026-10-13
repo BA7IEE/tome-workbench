@@ -16,6 +16,7 @@ import {
   rememberList,
   selectItem,
   saveListScroll,
+  clearEditQueue,
 } from "../catalog-context";
 import { catalogBrand, catalogCondition } from "../item-source-facts";
 import {
@@ -25,6 +26,7 @@ import {
 import { materialHistory, exportMaterials } from "../materials";
 import { quickIntake } from "../quick-intake";
 import { quickEdit } from "../quick-edit";
+import { productEditHref, productHref } from "../product-navigation";
 import { deleteProduct } from "../recycle-bin";
 import { catalogActions, type CatalogAction } from "../catalog-actions";
 import { categories, states, type Item } from "../types";
@@ -108,7 +110,22 @@ function RowMenu({ item }: { item: Item }) {
     </CommandMenu>
   );
 }
-const itemLink = (i: Item) => `#/items/${i.id}`;
+const itemLink = (i: Item) => productHref(i.id, catalogContext().listHash);
+function EditLink({ item }: { item: Item }) {
+  if (!can("edit")) return null;
+  return (
+    <Button
+      href={productEditHref(item.id, catalogContext().listHash)}
+      aria-label={`编辑商品 ${item.code}`}
+      onClick={() => {
+        clearEditQueue();
+        saveListScroll();
+      }}
+    >
+      编辑
+    </Button>
+  );
+}
 function Photo({ item }: { item: Item }) {
   return item.assets[0] ? (
     <img
@@ -157,9 +174,10 @@ export function Catalog({
   const searchForm = useRef<HTMLFormElement>(null);
   const filterHint = useRef<HTMLSpanElement>(null);
   const setFilterPending = (pending: boolean) => {
-    if (filterHint.current) filterHint.current.textContent = pending
-      ? "筛选输入已改动。搜索、排序、切换视图或翻页会应用当前输入；范围改变会清除原选择。"
-      : "同一筛选范围内排序、切换视图和翻页保留选择。";
+    if (filterHint.current)
+      filterHint.current.textContent = pending
+        ? "筛选输入已改动。搜索、排序、切换视图或翻页会应用当前输入；范围改变会清除原选择。"
+        : "同一筛选范围内排序、切换视图和翻页保留选择。";
   };
   const markFilters = () => {
     const form = searchForm.current;
@@ -167,7 +185,8 @@ export function Catalog({
     try {
       const query = new URLSearchParams();
       for (const [key, value] of new FormData(form))
-        if (typeof value === "string" && !key.startsWith("dict_")) query.set(key, value);
+        if (typeof value === "string" && !key.startsWith("dict_"))
+          query.set(key, value);
       const chosen = readDictionarySelections(form).dictionary;
       for (const key of ["brand", "condition", "color", "material"] as const)
         query.set(key + "Id", chosen[key] || "");
@@ -494,13 +513,17 @@ export function Catalog({
           </div>
         </form>
         <p className="note" role="status" data-filter-scope>
-          当前结果：{qs.get("dataMode") === "TEST" ? "测试商品" : "正式商品"}
-          · {qs.get("status") ? states[qs.get("status")!] : "全部库存状态"}
+          当前结果：{qs.get("dataMode") === "TEST" ? "测试商品" : "正式商品"}·{" "}
+          {qs.get("status") ? states[qs.get("status")!] : "全部库存状态"}
           {qs.get("q") ? ` · 搜索“${qs.get("q")}”` : ""}
           {qs.get("category") ? ` · ${categories[qs.get("category")!]}` : ""}
           {hasMore ? " · 已应用更多筛选" : ""}。
-          <span ref={filterHint}>同一筛选范围内排序、切换视图和翻页保留选择。</span>
-          <a href={`#/items?dataMode=${qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS"}`}>
+          <span ref={filterHint}>
+            同一筛选范围内排序、切换视图和翻页保留选择。
+          </span>
+          <a
+            href={`#/items?dataMode=${qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS"}`}
+          >
             查看全部库存状态
           </a>
         </p>
@@ -631,6 +654,9 @@ export function Catalog({
                     {i.ownership === "OWN" ? "我方持有" : "供应商持有"}
                   </span>
                 </div>
+                <div className="catalog-item-actions">
+                  <EditLink item={i} />
+                </div>
               </div>
             </article>
           ))}
@@ -706,9 +732,14 @@ export function Catalog({
               },
               {
                 title: "操作",
-                width: 64,
+                width: 150,
                 fixed: "right",
-                render: (_, i) => <RowMenu item={i} />,
+                render: (_, i) => (
+                  <div className="catalog-item-actions">
+                    <EditLink item={i} />
+                    <RowMenu item={i} />
+                  </div>
+                ),
               },
             ]}
           />

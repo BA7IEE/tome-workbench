@@ -13,6 +13,7 @@ import {
   me,
 } from "./core";
 import { saveQuickDraft } from "./quick-draft-transfer";
+import { productEditHref } from "./product-navigation";
 import {
   bindDictionaryFields,
   readDictionarySelections,
@@ -21,18 +22,18 @@ import { type Item } from "./types";
 
 export function quickEdit(item: Item, after?: () => Promise<void> | void) {
   let formEl: HTMLFormElement | null = null;
-  const body = `<div class="quick-edit-note"><p>修改常用信息；图片、尺寸和详细介绍在完整商品页维护。</p>${button(
-    "完整商品页",
+  const body = `<div class="quick-edit-note"><p>这里只修改名称、归类、报价与成色；图片、尺寸和材质请进入完整编辑。</p>${button(
+    "进入完整编辑",
     () => {
       formEl?.querySelector<HTMLButtonElement>("header .close")?.click();
-      if (!dialog.open) location.hash = `/items/${item.id}/edit`;
+      if (!dialog.open) location.hash = productEditHref(item.id);
     },
     "subtle",
   )}${button("保留修改并进入完整编辑", () => {
     if (!formEl || !me) return;
     const origin = location.hash;
     if (windowExit.transferDraft(() => saveQuickDraft(me!.id, item, formEl!)))
-      location.hash = `/items/${item.id}/edit?returnTo=${encodeURIComponent(origin)}`;
+      location.hash = productEditHref(item.id, origin);
   })}</div>
     <div class="quick-edit-core"></div>`;
   const windowExit = formWithExit(

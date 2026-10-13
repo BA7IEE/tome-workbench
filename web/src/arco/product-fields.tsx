@@ -27,16 +27,7 @@ export function ProductFields({
           />
         </Card>
         <div data-media-slot />
-        <Card className="studio-description" title="商品描述">
-          <TextField
-            name="descriptionZh"
-            label="中文介绍"
-            value={f.descriptionZh}
-            multiline={5}
-            placeholder="记录这件商品的特点、搭配建议与使用情况"
-          />
-        </Card>
-        <OptionalSection title="尺寸与材质" name="dimensions">
+        <OptionalSection title="尺寸与材质" name="dimensions" open>
           <div className="form-grid">
             <TextField name="sizeLabel" label="标签尺码" value={f.sizeLabel} />
             <TextField
@@ -76,6 +67,15 @@ export function ProductFields({
             />
           </div>
         </OptionalSection>
+        <Card className="studio-description" title="商品描述">
+          <TextField
+            name="descriptionZh"
+            label="中文介绍"
+            value={f.descriptionZh}
+            multiline={5}
+            placeholder="记录这件商品的特点、搭配建议与使用情况"
+          />
+        </Card>
         <OptionalSection title="英文介绍" name="english">
           <TextField
             name="descriptionEn"
@@ -165,7 +165,9 @@ export function ProductFields({
                 (initialDraft.dict_condition ?? i.dictionary?.condition) ||
                   undefined,
                 initialDraft.conditionText ?? (f.conditionGrade || ""),
-                initialDraft.dict_condition !== undefined ? "" : f.conditionGrade || "",
+                initialDraft.dict_condition !== undefined
+                  ? ""
+                  : f.conditionGrade || "",
               ) + sourceFieldNote(i, "condition")
             }
           />

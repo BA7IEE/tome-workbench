@@ -1,5 +1,9 @@
 # 兔泥巴 ToMeBoutique · 商品资料库
 
+### 商品编辑第一批（云端候选）
+
+商品库表格和卡片直接进入完整编辑，上传前置、长图库限高、尺寸材质默认展开及定位、保存故障状态和原列表返回上下文。范围与验收见 [商品编辑 UX](docs/PRODUCT-EDIT-UX.md) 和 [本轮云实例验收](docs/CLOUD-ACCEPTANCE-2026-10-13.md)。本轮以 main@dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d 为基线，不复用下文旧 PR/Mac 状态；完整门禁由新的固定 head CI 确认，未合并、未部署。
+
 已批准 UX 后续在 PR #58 分片实施：快速录货受保护退出、同件建档/图片恢复、跨窗口原请求核对、快速修改草稿转交、保存与取消说明、手机保存、范围与批量结果，以及图片任务说明。各片边界见 [UX 交互实施](docs/UX-IMPLEMENTATION.md)。第一片 `2b54f9e` 的 CI 38197506838 两浏览器各195通过；随后片仍须自身固定 head 的完整验证，未合并或部署。
 
 每次开工、独立切片和交接分别运行 `npm run dev:preflight`、`npm run dev:checkpoint`、`npm run dev:handoff`；只读、不代替完整发布门禁，流程见 [WORKING-STATE](docs/WORKING-STATE.md)。

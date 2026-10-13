@@ -1,9 +1,11 @@
 # 当前验证记录 — 1.1.0-rc.14
 
+本轮云端商品编辑第一批基线为远端 main@dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d，范围见 PRODUCT-EDIT-UX。当前完整结果等待本轮固定 head 的现有 CI；实例 Prisma/Playwright 官方下载被 403 阻断，完整本实例运行 NOT_RUN，详见 CLOUD-ACCEPTANCE-2026-10-13。下文旧候选结果不证明本轮。
+
 PR58/d8d197ce 和 PR59/f98ebb12 的已验证结果独立保留，见 UX-IMPLEMENTATION；它们不验证本页 rc.14 组合撤销/恢复实现。当前候选完整结果待本轮固定 head 的 CI，不操作生产。首候选新增外键类型失败已修正；5bd05ae 的隔离 migration、bootstrap、类型/lint/build/unit 已完成，完整 Harness 在当前报告的旧产物版本引用守卫失败，尚未执行其余业务验收。本报告消除当前版引用与历史版混用，旧报告原样移至 archive/VALIDATION-through-1.1.0-rc.13.md。
 
 本地完整验证待执行。验证源码指纹为
-`79a7f9af4aaae7008ae10e7788473e4c94b5cae809e7319e2232a6ce372eebba`。
+`906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca`。
 本机仅轻量检查；完整通过证据应由本轮 CI 的 verify:release 生成。本页的版本与源码指纹在执行时同步；pending 摘要不表示通过。
 
 | 检查 | 实际结果 |

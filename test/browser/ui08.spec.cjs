@@ -108,7 +108,7 @@ test("桌面商品编辑器保持清晰主栏与侧栏，不横向溢出", async
   expect(g.overflow).toBeLessThanOrEqual(2);
 });
 
-test("手机商品页按真实录货顺序排布且所有卡片占满宽度", async ({ page }) => {
+test("手机商品页前置尺寸材质且所有卡片占满宽度", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openNew(page);
   const y = await page.evaluate(() => {
@@ -131,13 +131,14 @@ test("手机商品页按真实录货顺序排布且所有卡片占满宽度", as
     [
       y.title,
       y.media,
+      y.dimensions,
       y.classification,
       y.price,
       y.condition,
       y.description,
-      y.dimensions,
     ].every((v, i, a) => i === 0 || v > a[i - 1]),
   ).toBe(true);
+  await expect(page.locator("[data-section=dimensions]")).toHaveAttribute("open", "");
   expect(y.width).toBeGreaterThan(350);
   expect(y.overflow).toBeLessThanOrEqual(2);
 });
@@ -328,13 +329,13 @@ test("快速修改完整页入口保护未保存输入，来源等级仍待人�
   await expect(d.getByLabel("成色", { exact: true })).toHaveValue("");
   await d.getByLabel("商品名称", { exact: true }).fill(title + " 未保存");
   page.once("dialog", (x) => x.dismiss());
-  await d.getByRole("button", { name: "完整商品页", exact: true }).click();
+  await d.getByRole("button", { name: "进入完整编辑", exact: true }).click();
   await expect(d).toBeVisible();
   await expect(d.getByLabel("商品名称", { exact: true })).toHaveValue(
     title + " 未保存",
   );
   page.once("dialog", (x) => x.accept());
-  await d.getByRole("button", { name: "完整商品页", exact: true }).click();
+  await d.getByRole("button", { name: "进入完整编辑", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(item.id + "/edit"));
   await expect(d).not.toBeVisible();
   await expect(
