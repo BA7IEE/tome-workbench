@@ -1,5 +1,8 @@
 name: ToMe PR63 release preparation
 on:
+  push:
+    branches: [release/pr63-prep-1c450a2]
+    paths: [.github/workflows/pr63-release-prep.yml]
   workflow_dispatch:
 permissions:
   contents: read
