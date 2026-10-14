@@ -86,19 +86,24 @@ export const ProductHeader = forwardRef<
             取消编辑
           </a>
         )}
-        {save("materials", "保存并下载资料", "保存并下载资料")}
-        <details className="studio-more">
+        <details
+          className="studio-more"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
+          }}
+        >
           <summary className="btn subtle">更多</summary>
           <div className="studio-more-menu">
-            <div className="studio-mobile-extra">
-              {save("materials", "保存并下载资料", "保存并下载资料")}
-            </div>
+            {save("materials", "保存并下载资料", "保存并下载资料")}
             {can("publish") && save("publish", "准备发布", "保存并准备发布")}
-            {save("return", "保存并返回")}
+            {!finishOnSave && save("return", "保存并返回")}
             {nextId
               ? save("next", "保存并编辑下一件")
               : !sourceTitle && save("new", "保存并新增下一件")}
-            <a href={returnTarget}>{returnLabel}</a>
+            {!identity.id && <a href={returnTarget}>{returnLabel}</a>}
             {identity.id && (
               <a data-detail-link href={`#/items/${identity.id}?tab=facts`}>
                 查看详细记录

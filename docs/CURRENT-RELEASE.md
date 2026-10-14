@@ -1,5 +1,7 @@
 # 当前发布事实
 
+商品 UX 第二批以已合并 PR #62 的远端 `main@87bc1d7f722b1992b0ad58561da632c8262612d0` 开始，云端独立分支 `fix/product-ux-simplify-batch2`，AntD 6 / ProComponents 基线保持。本批减少同时出现的按钮、合并重复入口、收起低频经营及单图修改，保留直接编辑、上传、尺寸材质、保存/恢复与返回上下文。真实合成浏览器改前/改后、原保存边界和验收范围见 [商品 UX 第二批](PRODUCT-UX-SIMPLIFY.md)。完整门禁由本批固定 SHA 的 GitHub CI 确认；本批不合并、不部署。下段第一批候选叙述保留为历史，本轮不以其旧 main 或旧未合并状态作为开工事实。
+
 本轮商品编辑 UX 第一批在云端独立实施，实际基线为远端 `main@dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d` / rc.14。商品库直接完整编辑、上传前置与图库限高、默认展开尺寸材质、定位按钮与明确保存故障反馈；完整范围及原非原子保存边界见 [PRODUCT-EDIT-UX](PRODUCT-EDIT-UX.md)，实例与全新任务 setup 区分见 [CLOUD-ACCEPTANCE-2026-10-13](CLOUD-ACCEPTANCE-2026-10-13.md)。本轮不新增 migration/依赖，旧 PR 验证不证明本候选；使用本候选固定 SHA 的现有 CI，不合并、不部署。
 
 PR #57 的固定候选 `98df13d` 已通过 CI 38188343411：两浏览器各191/191、Node 245项、198项静态守卫、HA/恢复/audit/pack。它未合并或部署，不能用该结果证明后续改动。CSP、菜单与 Sharp 修复来历见对应文档。
@@ -105,6 +107,7 @@ rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一�
     "operations.spec.cjs",
     "procurement.spec.cjs",
     "product-library.spec.cjs",
+    "product-ux-simplify.spec.cjs",
     "studio.spec.cjs",
     "system-review.spec.cjs",
     "ui08.spec.cjs",

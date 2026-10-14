@@ -209,6 +209,7 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   });
   await page.goto("/#/items/" + i.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的介绍");
+  await page.locator(".studio-operating-options > summary").click();
   await page.locator("details.studio-stock-menu > summary").click();
   await page.getByRole("button", { name: "经营记录", exact: true }).click();
   const d = page.getByRole("dialog");
@@ -584,8 +585,7 @@ test("采购第二页往返TM保留关键词来源页码和列表位置", async 
   await expect(page.locator(".product-overview")).toBeVisible();
   await page.getByRole("button", { name: "编辑商品", exact: true }).click();
   await page.getByLabel("中文介绍", { exact: true }).fill("合成采购往返补充");
-  await page.locator("details.studio-more summary").click();
-  await page.getByRole("button", { name: "保存并返回", exact: true }).click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".product-overview")).toContainText(
     "合成采购往返补充",
   );

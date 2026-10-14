@@ -5,7 +5,7 @@ import type { Item, Asset } from "./types";
 export function studioGallery(assets: Asset[], itemId = "", outcome = "") {
   const list = assets.filter((a) => !a.archived && a.role !== "DOCUMENT");
   const cover = list.find((a) => !isAiImage(a));
-  return `<h2>已保存图片 · ${list.length} 张</h2>${can("edit") ? '<p class="note">设封面、标瑕疵和移除会立即保存；取消文字编辑不会撤销这些图片操作。新上传图片随商品保存。</p>' : ""}${outcome ? `<p class="studio-image-outcome" role="status">${esc(outcome)}；未保存文字仍需点击保存</p>` : ""}<div class="studio-gallery" role="region" aria-label="已保存图片列表" tabindex="0">${list.map((a) => `<article class="studio-photo" data-asset="${a.id}"><button type="button" class="studio-zoom" data-photo-view="${a.id}" aria-label="查看图片 ${esc(a.originalName)}"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button><span>${a.id === cover?.id ? "封面 · " : ""}${isAiImage(a) ? "AI素材" : ({ PRODUCT: "实拍", DETAIL: "细节", DEFECT: "瑕疵", REFERENCE: "参考", AI_MARKETING: "AI素材" } as Record<string, string>)[a.role] || "图片"}</span>${can("edit") ? `<div class="studio-photo-tools">${!isAiImage(a) ? `<button type="button" data-photo-first="${a.id}" ${a.id === cover?.id ? "disabled" : ""}>设封面</button><button type="button" data-photo-defect="${a.id}" ${a.role === "DEFECT" ? "disabled" : ""}>标瑕疵</button>` : ""}<button type="button" data-photo-remove="${a.id}">移除</button></div>` : ""}</article>`).join("")}</div>${itemId ? `<a class="studio-media-records" href="#/items/${itemId}?tab=assets">更多素材操作</a>` : ""}<p class="studio-media-error form-error" role="alert"></p><button type="button" class="btn" data-photo-retry hidden>核对图片操作</button>`;
+  return `<h2>已保存图片 · ${list.length} 张</h2>${can("edit") ? '<p class="studio-media-hint">点击图片查看原图；修改操作在每张图的「更多」中，立即保存。</p>' : ""}${outcome ? `<p class="studio-image-outcome" role="status">${esc(outcome)}；未保存文字仍需点击保存</p>` : ""}<div class="studio-gallery" role="region" aria-label="已保存图片列表" tabindex="0">${list.map((a, n) => `<article class="studio-photo" data-asset="${a.id}"><button type="button" class="studio-zoom" data-photo-view="${a.id}" aria-label="查看图片 ${esc(a.originalName)}"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button><span>${a.id === cover?.id ? "封面 · " : ""}${isAiImage(a) ? "AI素材" : ({ PRODUCT: "实拍", DETAIL: "细节", DEFECT: "瑕疵", REFERENCE: "参考", AI_MARKETING: "AI素材" } as Record<string, string>)[a.role] || "图片"}</span>${can("edit") ? `<details class="studio-photo-tools"><summary aria-label="图片 ${n + 1} 更多操作">更多</summary><div class="studio-photo-menu"><p>立即保存，取消编辑不撤销</p>${!isAiImage(a) ? `<button type="button" data-photo-first="${a.id}" ${a.id === cover?.id ? "disabled" : ""}>设封面</button><button type="button" data-photo-defect="${a.id}" ${a.role === "DEFECT" ? "disabled" : ""}>标瑕疵</button>` : ""}<button type="button" data-photo-remove="${a.id}">移除</button></div></details>` : ""}</article>`).join("")}</div>${itemId ? `<a class="studio-media-records" href="#/items/${itemId}?tab=assets">更多素材操作</a>` : ""}<p class="studio-media-error form-error" role="alert"></p><button type="button" class="btn" data-photo-retry hidden>核对图片操作</button>`;
 }
 export function bindStudioMedia(
   root: HTMLElement,
@@ -18,9 +18,15 @@ export function bindStudioMedia(
     lastError = "",
     outcome = "",
     refreshPending = false;
+  let focusAfterAction: string | undefined;
   const paint = () => {
     const el = root.querySelector<HTMLElement>(".entry-existing-media");
     if (el) {
+      const activePhoto =
+        (el.contains(document.activeElement)
+          ? document.activeElement?.closest<HTMLElement>(".studio-photo")
+              ?.dataset.asset
+          : undefined) || focusAfterAction;
       const galleryScroll = el.querySelector(".studio-gallery")?.scrollTop || 0;
       el.innerHTML = studioGallery(
         get().assets,
@@ -42,6 +48,16 @@ export function bindStudioMedia(
         attempt.uncertain || refreshPending
       );
       if (lastError) el.hidden = false;
+      if (activePhoto) {
+        const photo =
+          el.querySelector<HTMLElement>(
+            `[data-asset="${CSS.escape(activePhoto)}"]`,
+          ) || el.querySelector<HTMLElement>(".studio-photo");
+        (
+          photo?.querySelector<HTMLElement>("summary") ||
+          photo?.querySelector<HTMLElement>("button")
+        )?.focus({ preventScroll: true });
+      }
     }
   };
   const refresh = async () => {
@@ -75,6 +91,8 @@ export function bindStudioMedia(
         return;
       }
       if (busy) return;
+      focusAfterAction =
+        btn.closest<HTMLElement>(".studio-photo")?.dataset.asset;
       busy = true;
       lastError = "";
       for (const b of root.querySelectorAll<HTMLButtonElement>(
@@ -98,7 +116,7 @@ export function bindStudioMedia(
         if (btn.dataset.photoRemove) {
           if (
             !window.confirm(
-              "从当前商品展示中移除这张图片？原件保留，可在素材记录中恢复。",
+              "立即从商品展示中移除这张图片？取消编辑不会撤销。原件保留，可在素材记录中恢复。",
             )
           )
             return;
@@ -133,7 +151,22 @@ export function bindStudioMedia(
       } finally {
         busy = false;
         paint();
+        focusAfterAction = undefined;
       }
+    },
+    { signal },
+  );
+  root.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape") return;
+      const details = (event.target as Element).closest<HTMLDetailsElement>(
+        "details.studio-photo-tools[open]",
+      );
+      if (!details) return;
+      event.preventDefault();
+      details.open = false;
+      details.querySelector<HTMLElement>("summary")?.focus();
     },
     { signal },
   );

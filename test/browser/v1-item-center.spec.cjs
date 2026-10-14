@@ -1244,6 +1244,7 @@ test('来源图册直接查看全部原图与参数，建档后原地查看不�
   await expect.poll(()=>catalogRow.locator('img').evaluate(i=>i.naturalWidth)).toBeGreaterThan(0);
   await page.goto(`/#/items/${confirmed.itemId}/edit`);
   await page.getByLabel('商品名称',{exact:true}).fill('尚未保存的人工草稿');
+  await page.locator('.studio-operating-options > summary').click();
   await page.getByRole('button',{name:'查看全部来源资料',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'商品来源资料'}).locator('.evidence-gallery img')).toHaveCount(2);
   await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();

@@ -1,5 +1,7 @@
 # ToMe 开工与交接
 
+当前 UX 第二批唯一实施目录为云实例 `/workspace/tome-workbench`，远端 main 只读核验为 `87bc1d7f722b1992b0ad58561da632c8262612d0`，新分支 `fix/product-ux-simplify-batch2`。PR #62 已合并；本批不使用 Mac、不部署。当前范围见 [PRODUCT-UX-SIMPLIFY](PRODUCT-UX-SIMPLIFY.md)，下文第一批及 Mac 状态均为历史。
+
 本轮激活工作区为云实例 `/workspace/tome-workbench`，仓库 `BA7IEE/tome-workbench`，开工远端 main=`dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d`，独立分支 `fix/product-edit-ux-batch1`；不在 Mac 开发。当前实施及云端状态见 [PRODUCT-EDIT-UX](PRODUCT-EDIT-UX.md) 与 [云实例验收](CLOUD-ACCEPTANCE-2026-10-13.md)。下文 Mac、旧 PR 和旧运行结果仅保留为历史，不作为本轮目录、版本或验收指令。
 
 规范身份为 `github.com/ba7iee/tome-workbench`；当前 owner 的审阅树为 `/Users/dengwang/Documents/Codex/2026-10-10/task-2/tome-menu-fix`，PR #57、`fix/ux-csp-and-task-flow`。框架基线 `cf7565a0c0f68b87e9c6b8802b8cf4d39c825447` 是 AntD 6.6.5 / ProComponents 3.1.15-5。原 `coding/tome-workbench` 的 Arco 基线和独有资源改动保留，不能覆盖或当当前修复树。

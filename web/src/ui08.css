@@ -6051,6 +6051,35 @@
 }
 
 @layer foundation {
+  .foundation-shell .entry-fields { gap: 20px; }
+  .foundation-shell .studio-main-column,
+  .foundation-shell .studio-inspector { gap: 16px; }
+  .foundation-shell .studio-intro { font-size: 13px; line-height: 1.6; margin: 12px 0 8px; color: var(--tome-textSecondary); }
+  .foundation-shell .studio-section-nav { gap: 4px; margin-bottom: 16px; }
+  .foundation-shell .studio-section-nav .btn { border-color: transparent; background: transparent; padding-inline: 10px; }
+  .foundation-shell .studio-operating-options { margin: 12px 0; }
+  .foundation-shell .studio-operating-options > summary { cursor: pointer; color: var(--tome-textSecondary); min-height: 44px; align-content: center; font-size: 13px; }
+  .foundation-shell .studio-operating-options[open] { padding: 0 16px 12px; border: 1px solid var(--tome-border); border-radius: var(--ui-radius); background: var(--tome-surface); }
+  .foundation-shell .studio-operating-options .studio-operating-bar { flex-wrap: wrap; gap: 12px; }
+  .foundation-shell .entry-existing-media h2 { font-size: 14px; margin-bottom: 8px; }
+  .foundation-shell .studio-media-hint { color: var(--tome-textSecondary); font-size: 13px; margin: 0 0 12px; }
+  .foundation-shell .studio-gallery { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+  .foundation-shell .studio-photo > span { padding: 6px 10px 0; font-size: 12px; }
+  .foundation-shell .studio-photo-tools { display: block; padding: 0 10px 8px; }
+  .foundation-shell .studio-photo-tools > summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 13px; color: var(--tome-primary); }
+  .foundation-shell .studio-photo-menu { display: grid; gap: 4px; }
+  .foundation-shell .studio-photo-menu p { color: var(--tome-warningText); font-size: 12px; margin: 0 0 4px; }
+  .foundation-shell .studio-photo-tools button { min-height: 44px; padding: 8px; width: 100%; font-size: 13px; text-align: left; border: 1px solid var(--tome-border); border-radius: var(--ui-radius); background: var(--tome-surface); }
+  .foundation-shell .entry-file-summary:not(:empty) { padding: 10px 12px; background: var(--tome-infoBg); color: var(--tome-infoText); font-size: 13px; border-radius: var(--ui-radius); }
+  @media (max-width: 720px) {
+    .foundation-shell .entry-fields { gap: 16px; }
+    .foundation-shell .studio-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .foundation-shell .bulk-toolbar { gap: 12px; }
+    .foundation-shell .bulk-primary { display: flex; flex-wrap: wrap; gap: 8px; }
+  }
+}
+
+@layer foundation {
   @media (max-width: 760px) {
     .foundation-shell .studio-commandbar { position: static; margin: 0 0 12px; padding: 0; background: transparent; border: 0; backdrop-filter: none; }
     .foundation-shell .studio-workspace { padding-bottom: 160px; }
