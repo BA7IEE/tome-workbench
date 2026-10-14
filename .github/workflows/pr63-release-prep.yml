@@ -1,0 +1,73 @@
+name: ToMe PR63 release preparation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - role: candidate
+            sha: 1c450a2ade3d4f0fa226640d0f12cd009e7c7c82
+            fingerprint: 28fd39b26373be8f05907a09f5897fa30f5e7a73f06d5215e7bf6536503379aa
+          - role: rollback-baseline
+            sha: 87bc1d7f722b1992b0ad58561da632c8262612d0
+            fingerprint: 906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - name: Check fixed source and build production targets
+        env:
+          TOME_SOURCE_SHA: ${{ matrix.sha }}
+          TOME_SOURCE_FP: ${{ matrix.fingerprint }}
+          TOME_ROLE: ${{ matrix.role }}
+          TOME_WORKFLOW_SHA: ${{ github.sha }}
+          TOME_PREP_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TOME_SOURCE_SHA"
+          mkdir out
+          node --input-type=module -e 'import {sourceFingerprint} from "./scripts/source-fingerprint.mjs"; import fs from "node:fs";const f=sourceFingerprint().sha256;if(f!==process.env.TOME_SOURCE_FP)throw new Error("source fingerprint mismatch");fs.writeFileSync("out/source-fingerprint.txt",f+"\n");'
+          TOME_APP_VERSION=$(node -p 'require("./package.json").version')
+          TOME_TAG="prepared-${TOME_ROLE}-${TOME_SOURCE_SHA:0:7}"
+          export TOME_APP_VERSION TOME_TAG
+          docker build --platform linux/amd64 --target runtime --build-arg "APP_VERSION=$TOME_APP_VERSION" --label "org.opencontainers.image.revision=$TOME_SOURCE_SHA" --label "org.opencontainers.image.version=$TOME_APP_VERSION" --label org.opencontainers.image.source=https://github.com/BA7IEE/tome-workbench -t "tome-workbench:$TOME_TAG" .
+          docker build --platform linux/amd64 --target migration --build-arg "APP_VERSION=$TOME_APP_VERSION" --label "org.opencontainers.image.revision=$TOME_SOURCE_SHA" --label "org.opencontainers.image.version=$TOME_APP_VERSION" --label org.opencontainers.image.source=https://github.com/BA7IEE/tome-workbench -t "tome-workbench-migration:$TOME_TAG" .
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --entrypoint node "tome-workbench:$TOME_TAG" -e 'const fs=require("fs");const p=require("./package.json");require("@prisma/client");require("sharp");if(!fs.existsSync("dist/main.js")||!fs.existsSync("dist/web/index.html")||!fs.existsSync("scripts/runtime-lock.cjs"))throw new Error("runtime content missing");console.log(JSON.stringify({kind:"runtime-content-smoke",version:p.version,node:process.version,passed:true}));'
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --entrypoint node "tome-workbench-migration:$TOME_TAG" -e 'const fs=require("fs");if(!fs.existsSync("scripts/migrate-safe.mjs")||!fs.existsSync("prisma/schema.prisma"))throw new Error("migration content missing");console.log(JSON.stringify({kind:"migration-content-smoke",version:require("./package.json").version,passed:true,executedMigration:false}));'
+          git archive --format=tar.gz --prefix=tome-workbench/ HEAD > "out/source-$TOME_ROLE.tar.gz"
+          docker save "tome-workbench:$TOME_TAG" "tome-workbench-migration:$TOME_TAG" | gzip -n > "out/images-$TOME_ROLE.tar.gz"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          tag=os.environ['TOME_TAG']
+          refs=['tome-workbench:'+tag,'tome-workbench-migration:'+tag]
+          images=json.loads(subprocess.check_output(['docker','image','inspect',*refs]))
+          result={'role':os.environ['TOME_ROLE'],'sourceSha':os.environ['TOME_SOURCE_SHA'],'sourceFingerprint':os.environ['TOME_SOURCE_FP'],'version':os.environ['TOME_APP_VERSION'],'workflowSha':os.environ['TOME_WORKFLOW_SHA'],'workflowRunId':os.environ['TOME_PREP_RUN'],'platform':'linux/amd64','productionDeployment':False,'executedMigration':False,'images':[]}
+          for ref,im in zip(refs,images):
+            labels=im['Config']['Labels'] or {}
+            assert labels['org.opencontainers.image.revision']==result['sourceSha']
+            assert labels['org.opencontainers.image.version']==result['version']
+            assert im['Os']=='linux' and im['Architecture']=='amd64'
+            result['images'].append({'ref':ref,'imageId':im['Id'],'revision':labels['org.opencontainers.image.revision'],'version':labels['org.opencontainers.image.version'],'user':im['Config']['User']})
+          files=sorted(pathlib.Path('out').glob('*'))
+          result['files']={p.name:{'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'bytes':p.stat().st_size} for p in files}
+          pathlib.Path('out/manifest.json').write_text(json.dumps(result,indent=2)+'\n')
+          PY
+          cd out
+          sha256sum * > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr63-${{ matrix.role }}-images
+          path: out/
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
