@@ -1,4 +1,4 @@
-name: ToMe PR63 release preparation
+name: ToMe PR63 main release preparation
 on:
   push:
     branches: [release/pr63-prep-1c450a2]
@@ -14,12 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - role: candidate
-            sha: 1c450a2ade3d4f0fa226640d0f12cd009e7c7c82
+          - role: main-candidate
+            sha: 004eef6ed299b8cb52c630e3698588acb0e95752
             fingerprint: 28fd39b26373be8f05907a09f5897fa30f5e7a73f06d5215e7bf6536503379aa
-          - role: rollback-baseline
-            sha: 87bc1d7f722b1992b0ad58561da632c8262612d0
-            fingerprint: 906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca
     steps:
       - uses: actions/checkout@v4
         with:
