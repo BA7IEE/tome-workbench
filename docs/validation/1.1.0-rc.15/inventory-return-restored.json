@@ -1,0 +1,13 @@
+{
+  "scope": "Read-only comparison of synthetic physical return facts after the full local recovery drill",
+  "observedAt": "2026-10-22T10:59:37.715Z",
+  "source": "tome_test",
+  "target": "tome_restore_mvjfhfxx",
+  "receivedFacts": 4,
+  "selectedFactHash": "e9550431e96a565a0822692f905fb85b",
+  "checks": {
+    "populatedReceiptFactsRestored": true,
+    "moneyAndCycleFieldsUnchanged": true
+  },
+  "passed": true
+}

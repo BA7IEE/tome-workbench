@@ -1,0 +1,44 @@
+{
+  "sourceHead": "47b4f395d640ece3796ccd7f3519b94393d30a38",
+  "sourceSha256": "c6a756cec66a06637723645c05bd90caf1c3fd662e0fe8808740e0f8151499f0",
+  "fullLocalPassed": false,
+  "nodeSuitesCompleted": [
+    {
+      "suite": "unit",
+      "passed": 51,
+      "tests": 51
+    },
+    {
+      "suite": "harness-selftest",
+      "passed": 33,
+      "tests": 33
+    },
+    {
+      "suite": "postgresql",
+      "passed": 179,
+      "tests": 179
+    }
+  ],
+  "chromium": {
+    "passed": 217,
+    "tests": 217
+  },
+  "webkit": {
+    "startTime": "2026-10-22T10:27:02.068Z",
+    "duration": 1557704.744,
+    "expected": 216,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "failure": "Cross-page sequential editing captured an unrelated prior-screen Item ID before the real filtered response/render completed. Actual editor was on the selected filtered Item.",
+  "correction": "Wait for real GET /api/items with exact q and assert the 32-item result before capturing pick identity; retain all ordered writes, next Item and return assertions, no timeout increase, no retries.",
+  "targetedCorrectedWebkit": {
+    "passed": 1,
+    "tests": 1,
+    "durationSeconds": 12.1
+  },
+  "haInFailedLocalRun": "not reached; exact-source-head remote CI succeeded",
+  "recoveryAdditional": "Separate actual local recovery succeeded, 70 models, 2686 media files, including 4 populated physical return facts",
+  "externalActionsExecuted": 0
+}

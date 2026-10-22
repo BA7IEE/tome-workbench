@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-10-22T10:33:29.908879+00:00",
+  "scope": "Public read-only deployment metadata; no login, business data or server changes",
+  "endpoints": [
+    {
+      "url": "https://tome.23cc.cn/api/system/health",
+      "httpStatus": 200,
+      "metadata": {
+        "status": "up",
+        "version": "1.1.0-rc.14"
+      }
+    },
+    {
+      "url": "https://tome.23cc.cn/api/system/ready",
+      "httpStatus": 200,
+      "metadata": {
+        "status": "ready",
+        "database": "up",
+        "storage": "accessible"
+      }
+    }
+  ],
+  "productionSha": "UNKNOWN"
+}

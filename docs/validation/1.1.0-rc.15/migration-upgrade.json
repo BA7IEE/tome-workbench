@@ -1,0 +1,17 @@
+{
+  "scope": "Nonempty legacy Sale-shaped schema replay inside a rolled-back tome_test transaction; not production or a full legacy application deployment",
+  "migration": "prisma/migrations/202610220023_inventory_return_fact/migration.sql",
+  "migrationSha256": "408810afa8ca086f108a1123b9d07cf73a106cc4183439a0a8921a046c7df428",
+  "checks": {
+    "existingFourRowsAndAmountsUnchanged": true,
+    "noHistoricalBackfill": true,
+    "originalFullRefundCheckPreserved": true,
+    "financialAndPreviouslyMaintainedRowsRefused": true,
+    "physicalReceiptPreservesUnknownMoneyAndCost": true,
+    "receiptCannotBeErased": true,
+    "oneActiveInventorySaleStillEnforced": true,
+    "publicApplicationRowsUnchangedInSnapshot": true,
+    "temporarySchemaRolledBack": true
+  },
+  "passed": true
+}

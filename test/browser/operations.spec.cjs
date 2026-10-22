@@ -280,7 +280,17 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
         brand: "QUEUE",
       }),
     );
-  await page.goto("/#/items?q=" + encodeURIComponent(prefix) + "&category=BAG");
+  const [filtered] = await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/items" && url.searchParams.get("q") === prefix &&
+        response.request().method() === "GET";
+    }),
+    page.goto("/#/items?q=" + encodeURIComponent(prefix) + "&category=BAG"),
+  ]);
+  expect(filtered.ok(), "真实筛选请求完成后再读取勾选项身份").toBe(true);
+  await expect(page.locator(".catalog-count")).toContainText("共 32 件");
+  await expect(page.locator("#content")).toContainText(prefix + " 31");
   const first = page.locator("[data-pick]").first();
   const firstId = await first.getAttribute("data-pick");
   await first.click();
