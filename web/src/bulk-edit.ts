@@ -1,4 +1,4 @@
-import { request, can, formWithExit, button, field, select, area, check, note, esc, text, cents, currencies, dialog, onDialogClosed } from "./core";
+import { request, can, formWithExit, button, field, select, area, check, note, esc, text, cents, currencies, dialog, onDialogClosed, table } from "./core";
 import { beginEditQueue, saveListScroll } from "./catalog-context";
 import { dictionaryField, bindDictionaryFields, readDictionarySelections } from "./dictionary-picker";
 import { dictionaryKeys, dictionaryNames, type DictionaryKind, type DictionarySelection } from "./dictionary-editor";
@@ -13,11 +13,11 @@ export async function bulkEdit(items: Item[]) {
   if (!items.length || items.length > 100) throw new Error("请选择1—100件商品");
   const channels = can("publish") ? (await request<Channel[]>("/channels"))
     .filter(c => c.active && c.businessPurpose === "TRADE") : [];
-  const priceRows = items.map(item => '<tr><td><strong>' + esc(item.code) +
-    "</strong><small>" + esc(item.title) + "</small></td><td>" +
+  const priceRows = items.map(item => [check("include_" + item.id, "保存 " + item.code, true),
+    '<strong>' + esc(item.code) + "</strong><small>" + esc(item.title) + "</small>",
     field("price_" + item.id, "售价 " + item.code, item.currentPrice == null ? "" : item.currentPrice / 100,
-      "text", false, 'inputmode="decimal"') + "</td><td>" +
-    select("currency_" + item.id, "币种 " + item.code, currencies, item.currency) + "</td></tr>").join("");
+      "text", false, 'inputmode="decimal"'),
+    select("currency_" + item.id, "币种 " + item.code, currencies, item.currency)]);
   const exit = formWithExit("批量编辑商品",
     note("只修改本次选择的内容，逐件保存结果；库存、资料批准和实际上架分别处理。") +
     button("逐件编辑完整资料", () => {
@@ -32,8 +32,8 @@ export async function bulkEdit(items: Item[]) {
     }, "PRICE") +
     '<section class="full" data-edit-section="PRICE">' +
     select("priceChannel", "报价适用范围", { "": "商品默认报价", ...Object.fromEntries(channels.map(c => [c.id, c.name])) }) +
-    '<div class="table-wrap bulk-edit-prices"><table data-foundation-records><thead><tr><th>商品</th><th>售价</th><th>币种</th></tr></thead><tbody>' +
-    priceRows + "</tbody></table></div><p class=\"note\" data-price-hint>留空表示暂不报价，不会用零补空。</p></section>" +
+    '<div class="bulk-edit-prices">' + table(["本次保存", "商品", "售价", "币种"], priceRows) +
+    '</div><p class="note" data-price-hint>留空表示暂不报价，不会用零补空。</p><p class="note" data-price-summary role="status" aria-live="polite"></p></section>' +
     '<section class="full" data-edit-section="ATTRIBUTES" hidden>' +
     kinds.map(kind => '<section>' + check("change_" + dictionaryKeys[kind], "修改" + dictionaryNames[kind]) +
       dictionaryField(kind, undefined) + "</section>").join("") +
@@ -50,12 +50,24 @@ export async function bulkEdit(items: Item[]) {
       if (!data.has("confirmed")) throw new Error("请先核对本次修改");
       const mode = text(data, "editKind");
       let actions: BatchAction[] = [];
+      const skipped: string[] = [];
       if (mode === "PRICE") {
         const channel = channels.find(c => c.id === text(data, "priceChannel"));
         actions = items.flatMap(item => {
-          const amount = cents(data.get("price_" + item.id));
+          if (!data.has("include_" + item.id)) {
+            const auto = dialog.querySelector<HTMLInputElement>('[name="include_' + item.id + '"]')!.dataset.autoSkipped;
+            skipped.push(item.code + (channel && auto
+              ? item.currency !== currencyFor(channel) ? "：币种不同，未换汇或复制金额" : "：暂无有效默认报价，保持原样"
+              : "：本次未勾选"));
+            return [];
+          }
+          let amount: number | null;
+          try { amount = cents(data.get("price_" + item.id)); }
+          catch { skipped.push(item.code + "：价格格式不正确，保持原样"); return []; }
           const currency = channel ? currencyFor(channel) : text(data, "currency_" + item.id);
-          if (channel && (amount == null || amount <= 0)) throw new Error(item.code + " 的渠道报价须大于零，请填写金额");
+          if (channel && (amount == null || amount <= 0)) {
+            skipped.push(item.code + "：缺少大于零的渠道报价，保持原样"); return [];
+          }
           if (!channel && amount === item.currentPrice && currency === item.currency) return [];
           return [{
             label: item.code + " " + item.title,
@@ -99,9 +111,13 @@ export async function bulkEdit(items: Item[]) {
           }, key),
         }));
       }
-      if (!actions.length) throw new Error("尚未修改任何内容");
+      if (!actions.length) throw new Error(mode === "PRICE" && text(data, "priceChannel")
+        ? "没有可保存的渠道报价；请填写大于零的金额并勾选对应商品，未报价的商品保持原样"
+        : "尚未选择需要保存的修改");
       setTimeout(() => {
         confirmedBatchActions(mode === "CHANNEL" ? "上架准备结果" : "批量编辑结果", actions);
+        if (skipped.length) dialog.querySelector(".button-row")?.insertAdjacentHTML("beforebegin",
+          '<p class="note">' + skipped.length + ' 件未修改：</p><ul>' + skipped.map(reason => '<li>' + esc(reason) + '</li>').join('') + '</ul>');
         if (mode === "CHANNEL") dialog.querySelector(".button-row")?.insertAdjacentHTML("beforeend",
           '<a class="btn" href="#/distribution?channelId=' + esc(text(data, "channelId")) + '">去渠道完成上架</a>');
       }, 0);
@@ -119,6 +135,36 @@ export async function bulkEdit(items: Item[]) {
   const priceChannel = formElement.querySelector<HTMLSelectElement>('[name="priceChannel"]')!;
   const channelSelect = formElement.querySelector<HTMLSelectElement>('[name="channelId"]')!;
   let generation = 0;
+  const priceSummary = () => {
+    const channel = channels.find(c => c.id === priceChannel.value);
+    let included = 0, missing = 0;
+    for (const item of items) {
+      const picked = formElement.querySelector<HTMLInputElement>('[name="include_' + item.id + '"]')!;
+      if (!picked.checked) continue;
+      included++;
+      const value = formElement.querySelector<HTMLInputElement>('[name="price_' + item.id + '"]')!.value.trim();
+      if (channel && (!value || !Number.isFinite(Number(value)) || Number(value) <= 0)) missing++;
+    }
+    formElement.querySelector("[data-price-summary]")!.textContent = channel
+      ? `本次保存 ${included - missing} 件有效渠道报价；${items.length - included + missing} 件未勾选或缺报价，将保持原样。`
+      : `本次勾选 ${included} 件；未勾选的商品保持原样。`;
+  };
+  formElement.addEventListener("input", event => {
+    const input = event.target as HTMLInputElement;
+    if (input.name.startsWith("price_")) {
+      const pick = formElement.querySelector<HTMLInputElement>('[name="include_' + input.name.slice(6) + '"]')!;
+      if (pick.dataset.autoSkipped && input.value.trim() && Number(input.value) > 0) {
+        pick.checked = true;
+        delete pick.dataset.autoSkipped;
+      }
+    }
+    priceSummary();
+  }, { signal: scope.signal });
+  formElement.addEventListener("change", event => {
+    const input = event.target as HTMLInputElement;
+    if (input.name.startsWith("include_")) delete input.dataset.autoSkipped;
+    priceSummary();
+  }, { signal: scope.signal });
   const preview = async () => {
     const current = ++generation;
     const host = formElement.querySelector<HTMLElement>("[data-publish-preview]")!;
@@ -145,6 +191,10 @@ export async function bulkEdit(items: Item[]) {
       const currency = channel ? currencyFor(channel) : item.currency;
       const amount = formElement.querySelector<HTMLInputElement>('[name="price_' + item.id + '"]')!;
       amount.value = item.currentPrice == null || item.currency !== currency ? "" : String(item.currentPrice / 100);
+      const picked = formElement.querySelector<HTMLInputElement>('[name="include_' + item.id + '"]')!;
+      picked.checked = !channel || (!!amount.value && Number(amount.value) > 0);
+      if (picked.checked) delete picked.dataset.autoSkipped;
+      else picked.dataset.autoSkipped = "true";
       const selector = formElement.querySelector<HTMLSelectElement>('[name="currency_' + item.id + '"]')!;
       selector.disabled = !!channel;
       if (channel) selector.replaceChildren(new Option(currency, currency));
@@ -154,5 +204,7 @@ export async function bulkEdit(items: Item[]) {
     formElement.querySelector("[data-price-hint]")!.textContent = channel
       ? "仅带入同币种的商品默认报价；请逐件确认渠道金额，不自动换汇。"
       : "留空表示暂不报价，不会用零补空。";
+    priceSummary();
   }, { signal: scope.signal });
+  priceSummary();
 }

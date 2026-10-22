@@ -3765,6 +3765,29 @@
         ]
       }
     },
+    "/api/sales/{id}/receive-unrecorded-return": {
+      "post": {
+        "operationId": "TradingController_receiveUnrecordedReturn",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
     "/api/inquiries": {
       "get": {
         "operationId": "TradingController_inquiries",

@@ -798,7 +798,7 @@ test("批量渠道价不会用零伪造未知默认报价，必须由操作者�
   await dialog
     .getByRole("button", { name: "确认保存", exact: true })
     .click();
-  await expect(dialog.locator(".form-error")).toContainText("渠道报价须大于零");
+  await expect(dialog.locator(".form-error")).toContainText("没有可保存的渠道报价");
   await rows.fill("1380");
   await dialog
     .getByRole("button", { name: "确认保存", exact: true })
@@ -980,4 +980,32 @@ test("回执未确认时继续编辑不会把新内容误当已保存，核对�
   await expect(page.locator(".entry-save-state")).toContainText("已保存");
   expect(await find(page, original)).toHaveLength(0);
   expect(await find(page, changed)).toHaveLength(1);
+});
+
+test("批量渠道报价隔离未知价与不同币种，可明确跳过并只写有效行", async ({ page }) => {
+  const title = "混合渠道报价 " + randomUUID().slice(0, 8);
+  const a = await api(page, "/items", { title: title + " CNY", currentPrice: 123400, currency: "CNY" });
+  const b = await api(page, "/items", { title: title + " 未报价" });
+  const c = await api(page, "/items", { title: title + " USD", currentPrice: 56000, currency: "USD" });
+  const channel = await api(page, "/channels", { name: title, platform: "XIANYU", locale: "zh-CN" });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByLabel("选择本页", { exact: true }).check();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("报价适用范围").selectOption(channel.id);
+  await expect(dialog.getByLabel("保存 " + a.code, { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("保存 " + b.code, { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel("保存 " + c.code, { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel("售价 " + c.code, { exact: true })).toHaveValue("");
+  await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；2 件");
+  await dialog.getByLabel("我确认以上修改适用于所选商品").check();
+  await dialog.getByRole("button", { name: "确认保存", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "批量编辑结果", exact: true })).toBeVisible();
+  await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+  await expect(page.getByRole("dialog")).toContainText("2 件未修改");
+  const prices = async item => (await (await page.request.get(`/api/items/${item.id}/channel-prices`)).json());
+  expect((await prices(a)).find(price => price.channelId === channel.id).amount).toBe(123400);
+  expect((await prices(b)).some(price => price.channelId === channel.id)).toBe(false);
+  expect((await prices(c)).some(price => price.channelId === channel.id)).toBe(false);
+  expect((await (await page.request.get(`/api/items/${c.id}`)).json()).currentPrice).toBe(56000);
 });

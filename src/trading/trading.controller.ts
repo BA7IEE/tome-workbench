@@ -121,6 +121,13 @@ export class TradingController {
       b,
     );
   }
+  @Access("finance") @Post("sales/:id/receive-unrecorded-return") receiveUnrecordedReturn(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Req() r: AuthRequest,
+  ) {
+    return this.service.receiveUnrecordedReturn(r.actor, uuid.parse(id), r.get("Idempotency-Key"), body);
+  }
   @ApiQuery({
     name: "id",
     required: false,

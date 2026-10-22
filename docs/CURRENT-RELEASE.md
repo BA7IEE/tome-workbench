@@ -4,7 +4,7 @@
 全系统减法见 [CORE-UX-SIMPLIFICATION](CORE-UX-SIMPLIFICATION.md)：商品默认全部库存，
 四个主入口；批量确认先分组预检、颜色原文兼容、单件风险隔离；合并批量编辑，
 删除日常成本/财务编辑和补账待办，仅保留受保护只读历史。现有库存、发布权利、
-版本/幂等和外部机器合同保留。本轮不新增 migration，不写生产、不合并或部署。
+版本/幂等和外部机器合同保留。新增 `202610220023_inventory_return_fact` 分开实物回收与全额退款事实；保留旧财务CHECK，不写生产、不合并或部署。
 双浏览器和完整门禁以本候选 VALIDATION 及源码指纹为准。
 
 以下为已保留的历史来源与领域演进记录。
@@ -106,7 +106,8 @@ rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一�
     "202609200019_source_line_net_cost",
     "202609210020_ingest_candidate_asset_retirement",
     "202610120021_confirmation_compensation",
-    "202610120022_correction_candidate_anchor"
+    "202610120022_correction_candidate_anchor",
+    "202610220023_inventory_return_fact"
   ],
   "browserFiles": [
     "arco-workspace.spec.cjs",

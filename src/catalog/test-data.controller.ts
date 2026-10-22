@@ -33,6 +33,7 @@ async function impact(tx: Tx, id: string) {
           refunded: true,
           paid: true,
           returned: true,
+          inventoryReturnedAt: true,
           cooperation: true,
         },
       }),

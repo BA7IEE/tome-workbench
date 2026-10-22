@@ -30,4 +30,4 @@ Playwright 的 ldconfig 主机探测不能识别该本地安装；已实际启�
 Node 24 显式使用 `NODE_OPTIONS=--test-reporter=tap` 输出 Node 测试计数，不改变范围或断言。
 
 未核验生产后端 SHA、实体手机手指操作或真实经营 UAT；未合并、未部署。
-本轮无新迁移；既有 migration、封存快照、历史金额与素材原文件保留。
+本轮新增一条可空实物回收时间及守卫的 forward migration；只在隔离库应用。旧全额退款CHECK、既有 migration、封存快照、历史金额与素材原文件保留。

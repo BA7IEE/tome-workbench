@@ -7611,3 +7611,67 @@ test("简化卖货：不记账也能售出并保持停售，日常待办没有�
   assert.equal(history.rows[0].id, s.id);
   assert.equal((await api("/sales?id=" + s.id, "GET", undefined, viewer)).status, 403);
 });
+
+test("无记账实物回收保留NULL与原成交，隔离复检后可再售且回收重放不影响新成交", async () => {
+  const i = await ready();
+  const pkg = await pack(i.id);
+  const publication = await ok("/distribution/plan", "POST", { packageId: pkg.id });
+  await ok(`/distribution/attempts/${publication.id}/manual-result`, "POST", { state: "SUCCEEDED", evidence: { method: "TM_SEARCH", note: "合成商品在本账号确认完成" } });
+  const sale = await sold(i.id);
+  const stops = await db.distributionAttempt.findMany({ where: { itemId: i.id, action: "DELIST" } });
+  assert.equal(stops.length, 1);
+  assert.equal(stops[0].sourceAttemptId, publication.id);
+  const body = { version: 1, intact: true, evidence: "合成同件商品与附件已完整退回，未登记任何收退款" };
+  assert.equal((await api(`/sales/${sale.id}/receive-unrecorded-return`, "POST", body, operator)).status, 403);
+  assert.equal((await api(`/sales/${sale.id}/return`, "POST", { intact: true, evidence: body.evidence })).status, 409);
+  const key = randomUUID();
+  const [first, replay] = await Promise.all([
+    ok(`/sales/${sale.id}/receive-unrecorded-return`, "POST", body, admin, key),
+    ok(`/sales/${sale.id}/receive-unrecorded-return`, "POST", body, admin, key),
+  ]);
+  assert.deepEqual(first, replay);
+  const received = await db.sale.findUniqueOrThrow({ where: { id: sale.id } });
+  assert.equal(received.returned, false); assert.ok(received.inventoryReturnedAt); assert.equal(received.version, 2);
+  assert.equal(received.amount, null); assert.equal(received.cost, null); assert.equal(received.fees, null);
+  assert.equal(received.refunded, 0); assert.equal(received.paid, false);
+  assert.equal(contribution(received).value, null);
+  await assert.rejects(db.sale.update({ where: { id: sale.id }, data: { inventoryReturnedAt: null } }));
+  await assert.rejects(db.sale.update({ where: { id: sale.id }, data: { returned: true } }));
+  assert.equal((await item(i.id)).status, "QUARANTINED");
+  assert.equal((await item(i.id)).cycle, 1);
+  assert.equal(await db.adjustment.count({ where: { saleId: sale.id } }), 0);
+  assert.equal(await db.audit.count({ where: { resourceId: i.id, action: "RETURN_RECEIVED" } }), 1);
+  assert.equal((await api(`/items/${i.id}/state`, "POST", { state: "AVAILABLE", reason: "无复核权限不可重售" }, operator)).status, 403);
+  await ok(`/items/${i.id}/state`, "POST", { state: "AVAILABLE", reason: "已复检同件商品、实物与附件无误" });
+  const retained = await db.distributionAttempt.findMany({ where: { itemId: i.id, action: "DELIST" } });
+  assert.deepEqual(retained.map(row => row.id), stops.map(row => row.id));
+  assert.equal(retained[0].state, stops[0].state);
+  const second = await sold(i.id);
+  assert.notEqual(second.id, sale.id);
+  await ok(`/sales/${sale.id}/receive-unrecorded-return`, "POST", body);
+  assert.equal((await item(i.id)).status, "SOLD");
+  assert.equal(await db.sale.count({ where: { itemId: i.id } }), 2);
+  assert.equal(await db.sale.count({ where: { itemId: i.id, returned: false, inventoryReturnedAt: null } }), 1);
+});
+
+test("未记账回收入口不能跳过既有账务与退款约束，自动取得成本快照不被伪造或清空", async () => {
+  const i = await sparse();
+  await activeCnyCost(i.id, 30000);
+  const first = await sold(i.id);
+  const initial = await db.sale.findUniqueOrThrow({ where: { id: first.id } });
+  await ok(`/sales/${first.id}/receive-unrecorded-return`, "POST", { version: 1, intact: true, evidence: "误标售出，同件实物及附件实际仍在" });
+  const after = await db.sale.findUniqueOrThrow({ where: { id: first.id } });
+  assert.equal(after.cost, initial.cost); assert.equal(after.amount, null); assert.equal(after.fees, null);
+  await ok(`/items/${i.id}/state`, "POST", { state: "AVAILABLE", reason: "误标后已复核可售" });
+  const monetary = await sold(i.id);
+  await finance(monetary.id, { amount: 100000, fees: 1000 });
+  const recorded = await db.sale.findUniqueOrThrow({ where: { id: monetary.id } });
+  const rejected = await api(`/sales/${monetary.id}/receive-unrecorded-return`, "POST", { version: recorded.version, intact: true, evidence: "已有账务不能用新入口绕过" });
+  assert.equal(rejected.status, 409); assert.equal(rejected.data.error.code, "RETURN_FINANCIAL_REVIEW");
+  await assert.rejects(db.sale.update({ where: { id: monetary.id }, data: { inventoryReturnedAt: new Date(), version: { increment: 1 } } }));
+  assert.equal((await api(`/sales/${monetary.id}/return`, "POST", { intact: true, evidence: "仍未全额退款" })).status, 409);
+  assert.equal((await item(i.id)).status, "SOLD");
+  await ok(`/sales/${monetary.id}/refund`, "POST", { amount: 100000, reason: "合成已有账务已全额退款" });
+  await ok(`/sales/${monetary.id}/return`, "POST", { intact: true, evidence: "原规则全额退款并完整收回" });
+  assert.equal((await item(i.id)).status, "QUARANTINED");
+});

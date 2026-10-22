@@ -1,4 +1,5 @@
 import { recordSale, canRecordSale } from "./sale-form";
+import { receiveStockReturn } from "./stock-return";
 import {
   request,
   can,
@@ -10,6 +11,8 @@ import {
   area,
   check,
   text,
+  dialog,
+  onDialogClosed,
 } from "./core";
 import { states, type Item, type Supplier } from "./types";
 export function studioStock(
@@ -179,6 +182,16 @@ export function studioStock(
             return request("/items/" + i.id + "/state", "POST",
               { state, reason: text(data, "reason") }, key);
           }, "确认库存情况", refresh);
+        const scope = new AbortController();
+        onDialogClosed(() => scope.abort());
+        const selector = dialog.querySelector<HTMLSelectElement>('[name="state"]')!;
+        const sync = () => {
+          const next = ["RESERVED", "RELEASE", "AVAILABLE"].includes(selector.value);
+          dialog.querySelector('[name="reason"]')!.closest("label")!.hidden = next;
+          dialog.querySelector('button[type="submit"]')!.textContent = next ? "下一步" : "确认库存情况";
+        };
+        selector.addEventListener("change", sync, { signal: scope.signal });
+        sync();
       };
       const canChange = can("sell") && (["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status) ||
         (i.status === "QUARANTINED" && can("review")));
@@ -188,7 +201,10 @@ export function studioStock(
             ? button("标记售出", sold, "primary") : "") +
           (canChange ? button("更改库存状态", changeStock) : "") +
           (i.status === "SOLD" && can("sell")
-            ? '<a class="btn" href="#/sales?itemId=' + i.id + '">查看成交记录</a>' : "")
+            ? '<a class="btn" href="#/sales?itemId=' + i.id + '">查看成交记录</a>' : "") +
+          (i.status === "SOLD" && can("finance")
+            ? button("确认实物退回", () => receiveStockReturn({ itemId: i.id, cycle: i.cycle, dataMode: i.dataMode }, refresh))
+            : i.status === "SOLD" && can("sell") ? '<small>实物退回或误标售出，请管理员确认回收；复检后才能再次销售。</small>' : "")
         : "";
       const summary = root.querySelector(".studio-operating-options > summary");
       if (summary)

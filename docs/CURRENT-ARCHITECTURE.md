@@ -26,6 +26,7 @@ rc.15 以商品为默认入口，日常导航为商品、导入、上架、设�
 候选 `confirmation-preview` 只读分组预检，实际写入继续原按件事务、版本、Receipt 与审计。
 未知颜色保留原文属性；已存在标准别名才归一。来源缺项明确批量接受不放松发布校验。
 详细跨路由映射见 CORE-UX-SIMPLIFICATION。
+新增可空 Sale.inventoryReturnedAt 分离实物与财务回收。原 returned/CHECK不变；新回收命令沿用finance权限、版本、事务、审计与回执，库存占用仅忽略已收回的实物记录。复售继续review复检，Cycle与旧DELIST保留。
 
 
 来源成色降噪只改变 ingest 的新候选提示生成与待确认页面表示：`conditionRaw` 原文留在候选与来源证据，历史 `warnings`/修订不迁移；表示层过滤旧来源成色警告的当前行动计数，并以普通文本显示原文及本地等级待实物检查。`conditionGrade`、TM 和字典写入路径不变。

@@ -140,7 +140,8 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
     });
     await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
     await page.getByRole("dialog").getByLabel("实际库存情况").selectOption(stateChoice);
-    await page.getByRole("dialog").getByRole("button", { name: "确认库存情况", exact: true }).click();
+    await expect(page.getByRole("dialog").getByLabel("原因或依据")).not.toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "下一步", exact: true }).click();
     const d = page.getByRole("dialog");
     if (action === "reserve")
       await d.getByLabel("客户内部标记", { exact: true }).fill("合成预留客户");
@@ -163,7 +164,7 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
   await expect(page.locator("[data-overview-status]")).toHaveText("已暂停");
   await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
   await page.getByRole("dialog").getByLabel("实际库存情况").selectOption("AVAILABLE");
-  await page.getByRole("dialog").getByRole("button", { name: "确认库存情况", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "下一步", exact: true }).click();
   const d = page.getByRole("dialog");
   await d.getByLabel("实物、库存与品相复核依据").fill("合成实物已重新核对");
   await d.getByLabel("已重新核对库存，确认可以销售").check();

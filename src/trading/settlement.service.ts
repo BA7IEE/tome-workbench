@@ -92,7 +92,7 @@ export class SettlementService {
       where: {
         dataMode: "BUSINESS",
         status: "SOLD",
-        sales: { none: { returned: false } },
+        sales: { none: { returned: false, inventoryReturnedAt: null } },
       },
       orderBy: { id: "asc" },
       select: { id: true, serial: true },

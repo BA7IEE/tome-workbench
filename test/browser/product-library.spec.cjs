@@ -1281,3 +1281,53 @@ test("全系统简化：管理员日常售出不显示记账字段且全部导�
   await expect(page.getByRole("heading", { name: "历史账务（只读）", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "补收支" })).toHaveCount(0);
 });
+
+test("无记账售出可完整退回，真实丢回执重试后待复检再售且历史保留", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const item = await api(page, "/items", { title: "实物退回合成 " + randomUUID() });
+  const financialWrites = [];
+  page.on("request", request => { if (/\/api\/sales\/[^/]+\/(finance|refund)$/.test(new URL(request.url()).pathname)) financialWrites.push(request.url()); });
+  await page.goto("/#/items/" + item.id);
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "确认已售出", exact: true }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  const sales = await api(page, "/sale-facts?itemId=" + item.id + "&page=1", undefined, "GET");
+  const original = sales.rows[0];
+  expect((await api(page, "/items/" + item.id, undefined, "GET")).status).toBe("SOLD");
+  await page.getByRole("button", { name: "确认实物退回", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "确认实物退回", exact: true });
+  await dialog.getByRole("button", { name: "确认回收，进入待复检", exact: true }).click();
+  await expect(dialog.locator(".form-error")).toContainText("请先核对同件实物");
+  await dialog.getByLabel("实物身份、附件、品相及退回或误标依据").fill("已收到同件商品及全部附件，品相需复检，未登记任何收退款");
+  await dialog.getByLabel("已核对同件实物与附件，确认目前完整收回或仍由我方持有").check();
+  const keys = [];
+  await page.route(`**/api/sales/${original.id}/receive-unrecorded-return`, async route => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (keys.length === 1) { const response = await route.fetch(); expect(response.ok()).toBe(true); await route.abort("failed"); }
+    else await route.continue();
+  });
+  await dialog.getByRole("button", { name: "确认回收，进入待复检", exact: true }).click();
+  await expect(dialog.locator(".form-error")).not.toBeEmpty();
+  await dialog.getByRole("button", { name: "确认回收，进入待复检", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(keys).toHaveLength(2); expect(keys[0]).toBe(keys[1]);
+  await expect(page.locator("[data-overview-status]")).toHaveText("退回待复检");
+  await page.screenshot({ path: "reports/screenshots/core-ux-return-390.png", fullPage: true });
+  await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("实际库存情况").selectOption("AVAILABLE");
+  await expect(page.getByRole("dialog").getByLabel("原因或依据")).not.toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "下一步", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("实物、库存与品相复核依据").fill("同件实物和附件已检查，库存与品相符合再次销售要求");
+  await page.getByRole("dialog").getByLabel("已重新核对库存，确认可以销售").check();
+  await page.getByRole("dialog").getByRole("button", { name: "确认恢复", exact: true }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "确认已售出", exact: true }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  const history = await api(page, "/sales?itemId=" + item.id + "&page=1", undefined, "GET");
+  expect(history.rows).toHaveLength(2);
+  expect(history.rows.filter(row => !row.returned && !row.inventoryReturnedAt)).toHaveLength(1);
+  const returned = history.rows.find(row => row.id === original.id);
+  expect(returned.returned).toBe(false); expect(returned.inventoryReturnedAt).toBeTruthy(); expect(returned.amount).toBeNull(); expect(returned.fees).toBeNull(); expect(returned.refunded).toBe(0);
+  expect(financialWrites).toEqual([]);
+});
