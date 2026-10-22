@@ -1,5 +1,5 @@
-import { request, form, area, check, note, text } from "./core";
-import type { Sale } from "./types";
+import { request, form, area, check, note, text, viewDialog, button, dialog } from "./core";
+import type { Sale, Item } from "./types";
 
 /** Uses the existing return permission. It never records payment or refund amounts. */
 export async function receiveStockReturn(
@@ -9,10 +9,26 @@ export async function receiveStockReturn(
   const query = new URLSearchParams({ page: "1", size: "100",
     ...(target.saleId ? { id: target.saleId } : { itemId: target.itemId! }),
     ...(target.dataMode === "TEST" ? { dataMode: "TEST" } : {}) });
-  const result = await request<{ rows: (Sale & { cycleNumber: number })[] }>("/sales?" + query);
+  const result = await request<{ rows: (Sale & { cycleNumber: number; adjustments: { id: string }[] })[] }>("/sales?" + query);
   const sale = result.rows.find(row => !row.returned && !row.inventoryReturnedAt && (target.cycle == null || row.cycleNumber === target.cycle));
   if (!sale) throw new Error("未找到本次尚未回收的成交记录，请核对商品与成交记录");
-  const unrecorded = sale.amount === null;
+  const missingAmount = sale.amount === null;
+  // Mirror the protected command's live eligibility before asking for evidence.
+  // The server repeats these checks under locks and verifies the captured version.
+  const untouched = sale.version === 1 && sale.fees === null && !sale.paid &&
+    sale.refunded === 0 && sale.adjustments.length === 0;
+  const unrecorded = missingAmount && untouched;
+  const item = unrecorded ? await request<Item>("/items/" + sale.itemId) : undefined;
+  const eligible = unrecorded
+    ? !!item && item.cycle === sale.cycleNumber && ["SOLD", "PAUSED"].includes(item.status)
+    : !missingAmount && sale.refunded === sale.amount;
+  if (!eligible) {
+    viewDialog("这条成交需要历史核对", note(missingAmount
+      ? "此笔旧记录已有账务维护、收退款或库存变化，不能按未记账实物回收处理。请管理员按受保护的历史处理路径核对。尚未修改库存或任何金额。"
+      : "此笔已有金额的成交尚未满足原全额退款约束，请管理员先核对历史退款记录。尚未修改库存或任何金额。") +
+      button("查看只读历史记录", () => { dialog.close(); location.hash = "/financial-history?id=" + sale.id; }));
+    return;
+  }
   form("确认实物退回",
     note("核对原商品、附件和实际持有情况。也可用于误标售出但实物仍在的更正。完成后进入待复检，不直接可售，不自动重新上架。") +
     note(unrecorded

@@ -1331,3 +1331,23 @@ test("无记账售出可完整退回，真实丢回执重试后待复检再售�
   expect(returned.returned).toBe(false); expect(returned.inventoryReturnedAt).toBeTruthy(); expect(returned.amount).toBeNull(); expect(returned.fees).toBeNull(); expect(returned.refunded).toBe(0);
   expect(financialWrites).toEqual([]);
 });
+
+test("旧空金额记录有账务维护时先说明历史处理，不要求先填退回依据", async ({ page }) => {
+  const item = await api(page, "/items", { title: "历史回收预检 " + randomUUID() });
+  const sale = await api(page, `/items/${item.id}/sold`, { channel: "合成旧渠道" });
+  await api(page, `/sales/${sale.id}/finance`, { version: 1, amount: null, cost: null, fees: null, paid: false, currency: "CNY", note: "合成既有账务维护，保持未知金额" });
+  let returns = 0;
+  page.on("request", request => { if (request.method() === "POST" && /\/api\/sales\/[^/]+\/(receive-unrecorded-return|return)$/.test(new URL(request.url()).pathname)) returns++; });
+  await page.goto("/#/items/" + item.id);
+  await page.getByRole("button", { name: "确认实物退回", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "这条成交需要历史核对", exact: true });
+  await expect(dialog).toContainText("已有账务维护");
+  await expect(dialog.getByLabel("实物身份、附件、品相及退回或误标依据")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "查看只读历史记录", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "历史账务（只读）", exact: true })).toBeVisible();
+  expect(returns).toBe(0);
+  expect((await api(page, "/items/" + item.id, undefined, "GET")).status).toBe("SOLD");
+  const history = await api(page, "/sales?id=" + sale.id + "&page=1", undefined, "GET");
+  expect(history.rows[0].inventoryReturnedAt).toBeNull(); expect(history.rows[0].amount).toBeNull();
+});

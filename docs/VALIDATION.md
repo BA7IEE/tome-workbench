@@ -4,7 +4,7 @@
 路由与领域依赖清单见 CORE-UX-SIMPLIFICATION。未连接生产数据库或执行生产经营动作。
 
 本地完整验证待执行。验证源码指纹为
-`a97fd90981d1fe129853462990dbb598ca006f5a2fd5027ca3227f1552ca2ce2`。
+`98985e2f83cd3f7e0f6a39715cdb76a666dffaa43e78e8a854536690ff82c165`。
 本页指纹、完成时间和下列结果由本轮 verify:release 同步，pending 不表示通过。
 
 | 检查 | 实际结果 |
@@ -31,3 +31,5 @@ Node 24 显式使用 `NODE_OPTIONS=--test-reporter=tap` 输出 Node 测试计数
 
 未核验生产后端 SHA、实体手机手指操作或真实经营 UAT；未合并、未部署。
 本轮新增一条可空实物回收时间及守卫的 forward migration；只在隔离库应用。旧全额退款CHECK、既有 migration、封存快照、历史金额与素材原文件保留。
+
+保留的先前失败/中断证据：首候选 CI 39755043845 在 Foundation 准入拦下价格表；已改用现有适配器，未改守卫。0958e86 完整日志保留于云环境 evidence/verification-0958-interrupted.log（179项集成通过后为最后两项预检P2收口主动中断，不是最终通过报告）。最终以本页新源码指纹及同范围完整验证为准。

@@ -1009,3 +1009,31 @@ test("批量渠道报价隔离未知价与不同币种，可明确跳过并只�
   expect((await prices(c)).some(price => price.channelId === channel.id)).toBe(false);
   expect((await (await page.request.get(`/api/items/${c.id}`)).json()).currentPrice).toBe(56000);
 });
+
+test("批量渠道价预览与提交使用同一金额规则，非法格式不拖住合法行", async ({ page }) => {
+  const title = "金额规则一致 " + randomUUID().slice(0, 8);
+  const valid = await api(page, "/items", { title: title + " 合法", currentPrice: 123400 });
+  const invalid = await api(page, "/items", { title: title + " 非法" });
+  const channel = await api(page, "/channels", { name: title, platform: "XIANYU", locale: "zh-CN" });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByLabel("选择本页", { exact: true }).check();
+  for (const [index, value] of ["1.234", "1e3", "0x10", "20000000.01"].entries()) {
+    await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("报价适用范围").selectOption(channel.id);
+    await dialog.getByLabel("售价 " + valid.code, { exact: true }).fill(String(110 + index));
+    await dialog.getByLabel("售价 " + invalid.code, { exact: true }).fill(value);
+    await expect(dialog.getByLabel("保存 " + invalid.code, { exact: true })).not.toBeChecked();
+    await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；1 件");
+    await dialog.getByLabel("保存 " + invalid.code, { exact: true }).check();
+    await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；1 件");
+    await dialog.getByLabel("我确认以上修改适用于所选商品").check();
+    await dialog.getByRole("button", { name: "确认保存", exact: true }).click();
+    await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+    await expect(page.getByRole("dialog")).toContainText("价格格式不正确");
+    await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
+    const prices = await (await page.request.get(`/api/items/${valid.id}/channel-prices`)).json();
+    expect(prices.find(price => price.channelId === channel.id).amount).toBe((110 + index) * 100);
+  }
+  expect(await (await page.request.get(`/api/items/${invalid.id}/channel-prices`)).json()).toEqual([]);
+});

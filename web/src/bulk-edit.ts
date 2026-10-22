@@ -8,6 +8,12 @@ import type { Channel, Item } from "./types";
 const kinds: DictionaryKind[] = ["BRAND", "CONDITION", "COLOR", "MATERIAL"];
 const currencyFor = (channel: Channel) => channel.platform === "ANQICMS" ? "USD" :
   channel.platform === "XIANYU" ? "CNY" : channel.defaultCurrency;
+const parsePrice = (value: FormDataEntryValue | null) => {
+  try { return { amount: cents(value), invalid: false }; }
+  catch { return { amount: null, invalid: true }; }
+};
+const validChannelPrice = (value: ReturnType<typeof parsePrice>) =>
+  !value.invalid && value.amount !== null && value.amount > 0;
 
 export async function bulkEdit(items: Item[]) {
   if (!items.length || items.length > 100) throw new Error("请选择1—100件商品");
@@ -61,11 +67,11 @@ export async function bulkEdit(items: Item[]) {
               : "：本次未勾选"));
             return [];
           }
-          let amount: number | null;
-          try { amount = cents(data.get("price_" + item.id)); }
-          catch { skipped.push(item.code + "：价格格式不正确，保持原样"); return []; }
+          const parsed = parsePrice(data.get("price_" + item.id));
+          if (parsed.invalid) { skipped.push(item.code + "：价格格式不正确，保持原样"); return []; }
+          const amount = parsed.amount;
           const currency = channel ? currencyFor(channel) : text(data, "currency_" + item.id);
-          if (channel && (amount == null || amount <= 0)) {
+          if (channel && !validChannelPrice(parsed)) {
             skipped.push(item.code + "：缺少大于零的渠道报价，保持原样"); return [];
           }
           if (!channel && amount === item.currentPrice && currency === item.currency) return [];
@@ -142,8 +148,8 @@ export async function bulkEdit(items: Item[]) {
       const picked = formElement.querySelector<HTMLInputElement>('[name="include_' + item.id + '"]')!;
       if (!picked.checked) continue;
       included++;
-      const value = formElement.querySelector<HTMLInputElement>('[name="price_' + item.id + '"]')!.value.trim();
-      if (channel && (!value || !Number.isFinite(Number(value)) || Number(value) <= 0)) missing++;
+      const value = formElement.querySelector<HTMLInputElement>('[name="price_' + item.id + '"]')!.value;
+      if (channel && !validChannelPrice(parsePrice(value))) missing++;
     }
     formElement.querySelector("[data-price-summary]")!.textContent = channel
       ? `本次保存 ${included - missing} 件有效渠道报价；${items.length - included + missing} 件未勾选或缺报价，将保持原样。`
@@ -153,7 +159,7 @@ export async function bulkEdit(items: Item[]) {
     const input = event.target as HTMLInputElement;
     if (input.name.startsWith("price_")) {
       const pick = formElement.querySelector<HTMLInputElement>('[name="include_' + input.name.slice(6) + '"]')!;
-      if (pick.dataset.autoSkipped && input.value.trim() && Number(input.value) > 0) {
+      if (pick.dataset.autoSkipped && validChannelPrice(parsePrice(input.value))) {
         pick.checked = true;
         delete pick.dataset.autoSkipped;
       }
@@ -192,7 +198,7 @@ export async function bulkEdit(items: Item[]) {
       const amount = formElement.querySelector<HTMLInputElement>('[name="price_' + item.id + '"]')!;
       amount.value = item.currentPrice == null || item.currency !== currency ? "" : String(item.currentPrice / 100);
       const picked = formElement.querySelector<HTMLInputElement>('[name="include_' + item.id + '"]')!;
-      picked.checked = !channel || (!!amount.value && Number(amount.value) > 0);
+      picked.checked = !channel || validChannelPrice(parsePrice(amount.value));
       if (picked.checked) delete picked.dataset.autoSkipped;
       else picked.dataset.autoSkipped = "true";
       const selector = formElement.querySelector<HTMLSelectElement>('[name="currency_' + item.id + '"]')!;
