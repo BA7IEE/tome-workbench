@@ -463,3 +463,19 @@ AC17/24/审计与恢复：`confirmation-correction.test.cjs` 的纯核对合同�
 第二批保留该节的所有核心行为，增加按钮减法与防误操作。AC17/24 的直接编辑/返回/批量范围、AC50/52/73 的原件与媒体即时保存边界不变。`product-ux-simplify.spec.cjs` 在 1440/390px 验证一个主保存、唯一下载入口、批量条件、单图菜单/取消/重复点击/焦点、真实保存失败后的字段和原文件保留、同键核对与返回勾选。改前/改后与测试期望调整理由见 [PRODUCT-UX-SIMPLIFY](PRODUCT-UX-SIMPLIFY.md)，实际门禁以本批固定 SHA CI 结果为准。
 
 AC17/24 的商品维护入口、AC50/52/73 的图片原件/取消边界保持。`studio.spec.cjs` 新增 1440px/390px 表格与卡片直接编辑、13图图库与上传位置、尺寸默认展开/定位、文字与原图保存重开、选择/返回上下文及取消零资料写入；新增真实冲突、真实写入后断线、重复点击和原 key 核对。测试是隔离合成验收，结果必须来自当前固定 head CI，不能由测试源码宣称已通过。范围见 PRODUCT-EDIT-UX，环境阻断/NOT_RUN 见 CLOUD-ACCEPTANCE-2026-10-13。
+
+
+## rc.15 全系统减法的验收映射
+
+全路由保留/合并/退役清单见 CORE-UX-SIMPLIFICATION。旧界面断言随明确退役的入口更新，
+既有后端财务恢复、权限、库存、图片权利与发布领域套件保留，不将历史能力误当当前必用 UI。
+
+| 范围 | 实现与测试证据 |
+|---|---|
+| AC01/02/06/17/24 来源批量确认 | integration：90条同类缺项、只读预检零写入、同键并发、颜色原文与别名、版本单件隔离；product-library：全系统简化四项真实E2E |
+| AC08/09/18 批量编辑和找回 | bulk-edit 合并售价/渠道价/属性/位置；operations、dictionaries、system-review、product-ux-simplify 保留冲突、跨币种、逐件编辑与恢复测试 |
+| AC25/31/34/35 售出无记账 | integration：无成本/费用正常停售且无SALE_FINANCE；product-library/workbench：真实售出、NULL历史值与售出事实读取；原DELIST保护不变 |
+| AC52/手机/导航 | product-library：全部管理员入口实际打开、375/390弹窗边界与关闭/返回、保存后TM找回；ux101保持角色边界，financial-history仅finance可读 |
+
+旧单独成本批处理和财务编辑 UI 已删除，对应浏览器用例改验来源历史无记账门禁、
+只读账务及正常售出；后台完整快照、退款、回收再售和原请求恢复测试继续执行。

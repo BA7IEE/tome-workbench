@@ -8,6 +8,7 @@ import {
   request,
   text,
   cents,
+  toast,
 } from "./core";
 import type { Item, Channel } from "./types";
 
@@ -111,4 +112,17 @@ export async function recordInquiry(i: Item, after?: () => Promise<void>) {
   };
   channel?.addEventListener("change", sync);
   sync();
+}
+
+export function chooseInquiryItem(after: () => Promise<void>) {
+  form("选择要跟进的商品", field("code", "商品TM号", "", "text", true), async data => {
+    const code = text(data, "code").trim().toUpperCase();
+    const result = await request<{ rows: Item[] }>("/items?q=" + encodeURIComponent(code));
+    const selected = result.rows.find(item => item.code === code);
+    if (!selected) throw new Error("没有找到该TM号，请在商品列表核对编号");
+    setTimeout(() => {
+      void recordInquiry(selected, after).catch(error => toast((error as Error).message, true));
+    }, 0);
+    return { nextStep: true };
+  }, "继续记录");
 }

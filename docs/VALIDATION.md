@@ -1,26 +1,33 @@
-# 当前验证记录 — 1.1.0-rc.14
+# 当前验证记录 — 1.1.0-rc.15
 
-本轮为云端商品 UX 第二批，基线经只读核验为远端 main@87bc1d7f722b1992b0ad58561da632c8262612d0（PR #62 已合并），范围和真实浏览器对照见 PRODUCT-UX-SIMPLIFY，候选见 Draft PR #63。当前实例已成功生成 Prisma、准备独立 tome_test、完成 API/web build 与 Chromium 合成验收；本地 WebKit 受系统库检测阻断。完整验证以 PR #63 最终固定 head 的 GitHub verify:release 结果为准，不复用下文历史候选，也不代表部署或实体手机验收。第一批下载 403 的旧实例记录仅为历史。
-
-PR58/d8d197ce 和 PR59/f98ebb12 的已验证结果独立保留，见 UX-IMPLEMENTATION；它们不验证本页 rc.14 组合撤销/恢复实现。当前候选完整结果待本轮固定 head 的 CI，不操作生产。首候选新增外键类型失败已修正；5bd05ae 的隔离 migration、bootstrap、类型/lint/build/unit 已完成，完整 Harness 在当前报告的旧产物版本引用守卫失败，尚未执行其余业务验收。本报告消除当前版引用与历史版混用，旧报告原样移至 archive/VALIDATION-through-1.1.0-rc.13.md。
+本轮范围为全系统 UX 减法，基线 main@004eef6ed299b8cb52c630e3698588acb0e95752。
+路由与领域依赖清单见 CORE-UX-SIMPLIFICATION。未连接生产数据库或执行生产经营动作。
 
 本地完整验证待执行。验证源码指纹为
-`906bc2afb11dbf0d471f30f6f76e07e0e3e680ca03311a1de28c9abf41055dca`。
-本机仅轻量检查；完整通过证据应由本轮 CI 的 verify:release 生成。本页的版本与源码指纹在执行时同步；pending 摘要不表示通过。
+`a97fd90981d1fe129853462990dbb598ca006f5a2fd5027ca3227f1552ca2ce2`。
+本页指纹、完成时间和下列结果由本轮 verify:release 同步，pending 不表示通过。
 
 | 检查 | 实际结果 |
 | --- | --- |
-| syntax / typecheck / lint / build | 固定 5bd05ae 的 CI 已通过；当前候选完整验证待执行 |
+| syntax / typecheck / lint / build | 已完成局部检查；最终固定源码完整门禁待执行 |
 | Node 测试组（unit / Harness selftest / integration / HA） | NOT_COMPLETE |
-| Chromium | NOT_RUN |
-| WebKit | NOT_RUN |
+| Chromium | NOT_COMPLETE |
+| WebKit | NOT_COMPLETE |
 | 1,000 Item 规模基准 | NOT_RUN |
 | 完整 Harness | NOT_COMPLETE |
 | HA | NOT_RUN |
 | Recovery | NOT_RUN |
 
-本轮版本化证据路径为 `validation/1.1.0-rc.14/summary.json`、`validation/1.1.0-rc.14/audit.json` 与 `validation/1.1.0-rc.14/verification.log`；通过后才可生成 `tome-workbench-1.1.0-rc.14.zip`，目前未有本候选已通过产物。
+本轮版本化证据为 `validation/1.1.0-rc.15/summary.json`、`validation/1.1.0-rc.15/audit.json`
+及 `validation/1.1.0-rc.15/verification.log`；通过后才生成 `tome-workbench-1.1.0-rc.15.zip`。
+双浏览器覆盖相同18个文件，retries=0，不允许跳过或把失败改写为通过。
+测试仅使用隔离 PostgreSQL tome_test 和合成图片/商品，外部动作关闭。
 
-误确认与组合恢复范围和不变量见 CONFIRMATION-COMPENSATION，测试映射见 AC_MATRIX。保留原始 TM、来源、采购、原图、原回执；未知写入以原请求号核对。migration 202610120021_confirmation_compensation 已在隔离 CI 应用，原样保留；后续数据库修复只能追加新 forward migration。
+云实例未预装浏览器。浏览器二进制下载到工作区；WebKit 所需 Debian 共享库也仅下载并
+解包到工作区，再放入本地浏览器依赖搜索目录，未修改系统包或应用权限。
+Playwright 的 ldconfig 主机探测不能识别该本地安装；已实际启动 WebKit 后才运行真实双浏览器验收。
+未修改浏览器实现、应用授权、禁用控件或成功响应；测试仍使用真实登录与数据库事务。
+Node 24 显式使用 `NODE_OPTIONS=--test-reporter=tap` 输出 Node 测试计数，不改变范围或断言。
 
-未完成真实手机手指/键盘 UAT、精确生产后端 SHA、最终合并/部署批准和生产维护迁移；没有进行任何生产经营写入。源码验证通过不能代替这些验收或授权。
+未核验生产后端 SHA、实体手机手指操作或真实经营 UAT；未合并、未部署。
+本轮无新迁移；既有 migration、封存快照、历史金额与素材原文件保留。

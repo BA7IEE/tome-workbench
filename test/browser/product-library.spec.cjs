@@ -1,3 +1,4 @@
+const { acceptSourceGaps } = require("./source-gap-confirmation.cjs");
 const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const { randomUUID, createHash } = require("node:crypto");
@@ -55,7 +56,7 @@ const genericProfileFields = [
   ["sourceFacts.description", "来源描述"],
   ["sourceCurrentPrice", "来源当前价"],
 ];
-async function makeBatch(page, count, gaps = false) {
+async function makeBatch(page, count, gaps = false, colors = []) {
   const suffix = randomUUID().slice(0, 8),
     source = await api(page, "/procurement/sources", {
       code: "MVP" + suffix.toUpperCase(),
@@ -104,7 +105,13 @@ async function makeBatch(page, count, gaps = false) {
       categoryRaw: "Outerwear",
       conditionRaw: "Synthetic checked",
       sourceCurrentPrice: 10000 + n,
+      ...(colors.length ? { agentProposal: {
+        generator: "RULES", generatedAt: "2026-10-22T00:00:00.000Z", fields: [
+          { path: "facts.color", value: colors[n % colors.length], method: "EXTRACTED", confidence: 1, evidencePaths: ["sourceFacts.color"] },
+        ],
+      } } : {}),
       sourceFacts: {
+        ...(colors.length ? { color: colors[n % colors.length] } : {}),
         sizeLabel: "M",
         productUrl: sourceUrl,
         description: "合成来源完整说明 " + n,
@@ -120,6 +127,7 @@ async function makeBatch(page, count, gaps = false) {
             : { pageUrl: sourceUrl }),
           capturedAt: new Date().toISOString(),
           fields: [
+            ...(colors.length ? [{ path: "sourceFacts.color", label: "颜色", status: "CAPTURED" }] : []),
             ...genericProfileFields.map(([path, label]) => ({
               path,
               label,
@@ -268,23 +276,23 @@ test("商品资料库按尺码位置来源及缺项找货，手机日常入口�
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toContainText(title);
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).not.toContainText("已定价");
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const label of ["工作台", "商品库", "导入记录", "销售", "更多"])
+  for (const label of ["商品", "导入", "上架", "设置"])
     await expect(
       page
         .getByRole("navigation", { name: "主导航" })
         .getByRole("link", { name: label, exact: true }),
     ).toBeVisible();
-  await page.getByRole("link", { name: "导入记录", exact: true }).click();
+  await page.getByRole("link", { name: "导入", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "导入记录", exact: true }),
+    page.getByRole("heading", { name: "待确认商品", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - innerWidth,
     ),
   ).toBeLessThanOrEqual(2);
-  await page.getByRole("link", { name: "商品库", exact: true }).click();
-  await expect(page.locator("[data-filter-scope]")).toContainText(/当前结果：正式商品\s*·\s*可售/);
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }).click();
+  await expect(page.locator("[data-filter-scope]")).toContainText(/当前结果：正式商品\s*·\s*全部库存状态/);
   await expect(page.locator(".product-grid")).toBeVisible();
   await page.screenshot({
     path: "reports/screenshots/mvp-library-mobile.png",
@@ -302,16 +310,17 @@ test("导入记录精确进入本批，来源缺项可集中核对并逐件保�
   await expect(page.locator(".candidate-card")).toHaveCount(3);
   await page.getByLabel("选择本页", { exact: true }).check();
   await page
-    .getByRole("button", { name: "批量生成TM", exact: true })
+    .getByRole("button", { name: "批量确认入库", exact: true })
     .click();
   const d = page.getByRole("dialog");
   await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
-  await d.getByLabel("我已核对上述缺项，允许先建档并保留逐件说明").check();
+  await d.getByLabel("我同意保留上述来源缺项，确认入库后继续整理").check();
   await d
-    .getByLabel("本批缺项处理依据")
+    .getByLabel("补充说明（选填）")
     .fill("已核实在手，原记录没有尺寸，后续实测");
-  await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole("button", { name: "确认入库", exact: true }).click();
   await expect(d).not.toBeVisible();
   await expect(
     page.getByRole("heading", { name: "当前没有待确认商品" }),
@@ -341,7 +350,7 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
   await page.goto("/#/candidates?batchId=" + x.batch.id);
   await page.getByLabel("选择本页", { exact: true }).check();
   await page
-    .getByRole("button", { name: "批量生成TM", exact: true })
+    .getByRole("button", { name: "批量确认入库", exact: true })
     .click();
   let intercepted = false;
   await page.route("**/api/ingest/candidates/bulk-confirm", async (route) => {
@@ -356,7 +365,8 @@ test("批量真实写入后丢回执，关闭页面再继续只保留一份TM", 
   const d = page.getByRole("dialog");
   await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
-  await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole("button", { name: "确认入库", exact: true }).click();
   await expect(d.locator(".form-error")).toContainText("响应未完整收到");
   expect(intercepted).toBe(true);
   const before = await api(
@@ -849,14 +859,15 @@ test("详情暂停需要确认，真实写入丢回执后同键重试且不产�
 }) => {
   const item = await api(page, "/items", { title: "暂停确认 " + randomUUID() });
   await page.goto(`/#/items/${item.id}`);
-  await page.locator(".studio-stock-menu summary").click();
-  await page.getByRole("button", { name: "暂停推广", exact: true }).click();
-  const d = page.getByRole("dialog", { name: "暂停这件商品推广" });
+  await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
+  const d = page.getByRole("dialog", { name: "更改库存状态" });
   await d.getByRole("button", { name: "取消", exact: true }).click();
   expect((await api(page, `/items/${item.id}`, undefined, "GET")).status).toBe(
     "AVAILABLE",
   );
-  await page.getByRole("button", { name: "暂停推广", exact: true }).click();
+  await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
+  await d.getByLabel("实际库存情况").selectOption("PAUSED");
+  await d.getByLabel("原因或依据").fill("合成实物暂不销售");
   const keys = [];
   await page.route(`**/api/items/${item.id}/state`, async (route) => {
     keys.push(route.request().headers()["idempotency-key"]);
@@ -870,9 +881,9 @@ test("详情暂停需要确认，真实写入丢回执后同键重试且不产�
       });
     } else await route.continue();
   });
-  await d.getByRole("button", { name: "确认暂停", exact: true }).click();
+  await d.getByRole("button", { name: "确认库存情况", exact: true }).click();
   await expect(d.locator(".form-error")).toContainText("响应未完整收到");
-  await d.getByRole("button", { name: "确认暂停", exact: true }).click();
+  await d.getByRole("button", { name: "确认库存情况", exact: true }).click();
   await expect(d).not.toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
@@ -922,7 +933,7 @@ test("只读角色默认详情不暴露成本、编辑或库存写入入口", as
     ).toHaveCount(0);
     await expect(viewer.locator(".studio-stock-menu")).toHaveCount(0);
     await expect(
-      viewer.getByRole("button", { name: "暂停推广", exact: true }),
+      viewer.getByRole("button", { name: "更改库存状态", exact: true }),
     ).toHaveCount(0);
     const body = await (
       await viewer.request.get(`/api/items/${item.id}`)
@@ -946,10 +957,9 @@ for (const width of [1440, 390]) {
       name: "AI 上身效果",
       exact: true,
     });
-    await expect(gallery.locator("details")).not.toHaveAttribute("open", "");
-    await gallery.locator("summary").click();
-    await expect(gallery).toContainText("还没有 AI 效果图");
-    await gallery.getByRole("link", { name: "管理 AI 图片" }).click();
+    await expect(gallery).toHaveCount(0);
+    await page.locator(".product-overview-records > summary").click();
+    await page.getByRole("link", { name: "素材管理", exact: true }).click();
     await page
       .getByRole("button", { name: "＋ 上传图片", exact: true })
       .click();
@@ -1155,4 +1165,119 @@ test('误确认真实写入后丢回执，跨窗口保留原内容原请求号�
     expect(replays).toHaveLength(1);expect(replays[0]).toEqual(attempts[0]);
     const state=await api(other,`/ingest/candidates/${c.id}`,undefined,'GET');expect(state.confirmationCorrections).toEqual([{id:written.correctionId}]);expect(state.decision).toBe('EXCLUDED');expect(state.version).toBe(c.version+2);
   } finally {await other.close();}
+});
+
+for (const width of [375, 390]) {
+  test("全系统简化：90件同类缺失和截图颜色正常确认，手机关闭返回与入库找回 " + width, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const x = await makeBatch(page, 90, true, ["Burgundy", "Pink, Pattern Prints"]);
+    await page.goto("/#/candidates?batchId=" + x.batch.id);
+    await expect(page.locator(".candidate-card")).toHaveCount(90);
+    await page.getByLabel("选择本页", { exact: true }).check();
+    const open = page.getByRole("button", { name: "批量确认入库", exact: true });
+    await open.click();
+    let dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("90 件可确认入库，0 件需单独处理");
+    await expect(dialog.locator(".candidate-gap-groups li")).toHaveCount(2);
+    await expect(dialog).toContainText("Burgundy");
+    await expect(dialog).toContainText("Pink, Pattern Prints");
+    const layout = await dialog.evaluate(el => {
+      const box = el.getBoundingClientRect(), close = el.querySelector(".close").getBoundingClientRect();
+      return { overflow: el.scrollWidth - el.clientWidth, left: box.left, right: box.right, closeRight: close.right, width: innerWidth };
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(1); expect(layout.left).toBeGreaterThanOrEqual(0);
+    expect(layout.right).toBeLessThanOrEqual(width); expect(layout.closeRight).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: "reports/screenshots/core-ux-preview-" + width + ".png", fullPage: false });
+    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator("#candidate-bulk")).toContainText("已选 90 件");
+    await open.click();
+    dialog = page.getByRole("dialog");
+    await dialog.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
+    await acceptSourceGaps(dialog);
+    // No repeated per-item note or accounting field is needed.
+    await expect(dialog.getByLabel("补充说明（选填）")).toHaveValue("");
+    const receipt = page.waitForResponse(r => r.url().endsWith("/api/ingest/candidates/bulk-confirm") && r.request().method() === "POST");
+    await dialog.getByRole("button", { name: "确认入库", exact: true }).click();
+    expect((await receipt).ok()).toBe(true);
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole("region", { name: "本次批量结果" })).toContainText("90 件成功");
+    const confirmed = await api(page, "/ingest/candidates?decision=CONFIRMED&batchId=" + x.batch.id, undefined, "GET");
+    expect(confirmed.total).toBe(90);
+    const first = confirmed.rows[0];
+    const saved = await api(page, "/items/" + first.item.id, undefined, "GET");
+    expect(saved.approvedValid).toBe(false); expect(saved.status).toBe("PAUSED");
+    expect(["Burgundy", "Pink, Pattern Prints"]).toContain(saved.facts.attributes.proposedColor);
+    await page.goto("/#/items?q=" + encodeURIComponent(saved.code));
+    await expect(page.locator("#content")).toContainText(saved.title);
+    await expect(page.locator("#content")).not.toContainText("人民币成本");
+    await page.screenshot({ path: "reports/screenshots/core-ux-found-" + width + ".png", fullPage: false });
+  });
+}
+
+test("全系统简化：关键版本冲突单件隔离，其他商品成功后可重选失败件继续", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 844 });
+  const x = await makeBatch(page, 3, true, ["Burgundy", "Pink, Pattern Prints"]);
+  await page.goto("/#/candidates?batchId=" + x.batch.id);
+  await expect(page.locator(".candidate-card")).toHaveCount(3);
+  await page.getByLabel("选择本页", { exact: true }).check();
+  await api(page, "/ingest/candidates/" + x.rows[2].id + "/review", {
+    version: x.rows[2].version, decision: "PENDING", possession: "IN_HAND", note: "合成其他窗口更新",
+  });
+  await page.getByRole("button", { name: "批量确认入库", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("2 件可确认入库，1 件需单独处理");
+  await dialog.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
+  await acceptSourceGaps(dialog);
+  await dialog.getByRole("button", { name: "确认入库", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "批量处理结果" })).toContainText("2件成功，1件需要处理");
+  const bounds = await page.getByRole("dialog").evaluate(el => ({ width: innerWidth, right: el.getBoundingClientRect().right, overflow: el.scrollWidth - el.clientWidth }));
+  expect(bounds.right).toBeLessThanOrEqual(bounds.width); expect(bounds.overflow).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: "reports/screenshots/core-ux-result-375.png", fullPage: false });
+  await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.locator(".candidate-card")).toHaveCount(1);
+  const pick = page.locator(".candidate-card [data-pick]");
+  await pick.uncheck(); await pick.check();
+  await page.getByRole("button", { name: "批量确认入库", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
+  await acceptSourceGaps(dialog);
+  await dialog.getByRole("button", { name: "确认入库", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const result = await api(page, "/ingest/candidates?decision=CONFIRMED&batchId=" + x.batch.id, undefined, "GET");
+  expect(result.total).toBe(3);
+});
+
+test("全系统简化：管理员日常售出不显示记账字段且全部导航与历史记录可达", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const title = "无需记账合成 " + randomUUID().slice(0, 8);
+  const item = await api(page, "/items", { title });
+  await page.goto("/#/items/" + item.id);
+  await expect(page.getByRole("navigation", { name: "主导航" }).getByRole("link")).toHaveCount(4);
+  await expect(page.getByRole("button", { name: "记录询盘", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "标记售出", exact: true })).toBeVisible();
+  await expect(page.locator("[data-stock-controls] > button")).toHaveCount(2);
+  await page.screenshot({ path: "reports/screenshots/core-ux-product-390.png", fullPage: true });
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  for (const label of ["本次取得成本", "本次直接费用合计", "成交总额", "已核对实际到账"])
+    await expect(dialog.getByLabel(label, { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "确认已售出", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const sold = await api(page, "/items/" + item.id, undefined, "GET");
+  expect(sold.status).toBe("SOLD");
+  await page.getByRole("link", { name: "查看成交记录", exact: true }).click();
+  await expect(page.locator("#content")).toContainText(title);
+  await expect(page.getByRole("button", { name: "补收支" })).toHaveCount(0);
+  await page.goto("/#/settings");
+  await page.screenshot({ path: "reports/screenshots/core-ux-navigation-390.png", fullPage: true });
+  const targets = await page.locator(".library-tools a").evaluateAll(links => links.map(link => link.getAttribute("href")));
+  for (const target of targets) {
+    await page.goto("/" + target);
+    await expect(page.locator("#content")).not.toContainText("此页面不可用");
+    await expect(page.locator("#content")).not.toContainText("没有完成读取");
+  }
+  await page.goto("/#/financial-history");
+  await expect(page.getByRole("heading", { name: "历史账务（只读）", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "补收支" })).toHaveCount(0);
 });

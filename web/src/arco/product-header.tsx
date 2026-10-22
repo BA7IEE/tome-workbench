@@ -69,7 +69,7 @@ export const ProductHeader = forwardRef<
             : "保存后留在当前件，可继续编辑"}
         </span>
         <span id="entry-cancel-scope" className="visually-hidden">
-          只放弃未保存资料和待上传图片；已生效的图片及经营操作保留
+          只放弃未保存资料和待上传图片；已生效的图片及库存变更保留
         </span>
         {save(
           finishOnSave ? "return" : "stay",
@@ -98,7 +98,7 @@ export const ProductHeader = forwardRef<
           <summary className="btn subtle">更多</summary>
           <div className="studio-more-menu">
             {save("materials", "保存并下载资料", "保存并下载资料")}
-            {can("publish") && save("publish", "准备发布", "保存并准备发布")}
+            {can("publish") && save("publish", "准备上架", "保存并准备上架")}
             {!finishOnSave && save("return", "保存并返回")}
             {nextId
               ? save("next", "保存并编辑下一件")

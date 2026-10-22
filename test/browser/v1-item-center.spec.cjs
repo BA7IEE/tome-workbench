@@ -1,3 +1,4 @@
+const { acceptSourceGaps } = require("./source-gap-confirmation.cjs");
 const { submitLogin, fillLogin } = require("./login.cjs");
 const { test, expect } = require("@playwright/test");
 const { randomUUID } = require("node:crypto");
@@ -548,17 +549,18 @@ test("v1 Agent导入7件TRR后只在待确认页批量一次生成7个TM", async
   await page.getByLabel("选择本页").check();
   await expect(page.locator("#candidate-bulk")).toContainText("已选 7 件");
   await page
-    .getByRole("button", { name: "批量生成TM", exact: true })
+    .getByRole("button", { name: "批量确认入库", exact: true })
     .click();
-  const d = page.getByRole("dialog", { name: "批量生成TM · 7件" });
+  const d = page.getByRole("dialog", { name: "批量确认入库 · 7件" });
   await expect(d.getByLabel("生成TM后的状态")).toHaveValue("PAUSED");
   await d.getByLabel("生成TM后的状态").selectOption("AVAILABLE");
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
   await d
-    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .getByLabel("我同意保留上述来源缺项，确认入库后继续整理")
     .check();
-  await d.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
-  await d.getByRole("button", { name: "确认生成TM", exact: true }).click();
+  await d.getByLabel("补充说明（选填）").fill("已核对合成来源缺项");
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole("button", { name: "确认入库", exact: true }).click();
   await expect(d).not.toBeVisible();
   await expect(page.locator(".candidate-card")).toHaveCount(0);
   const after = (
@@ -627,15 +629,16 @@ test("v1 待确认真实支持一页100件，101件时确认一页后只剩1件�
   await page.getByLabel("选择本页").check();
   await expect(page.locator("#candidate-bulk")).toContainText("已选 100 件");
   await page
-    .getByRole("button", { name: "批量生成TM", exact: true })
+    .getByRole("button", { name: "批量确认入库", exact: true })
     .click();
-  const d = page.getByRole("dialog", { name: "批量生成TM · 100件" });
+  const d = page.getByRole("dialog", { name: "批量确认入库 · 100件" });
   await d.getByLabel("我已确认所选商品为实际持有并应纳入经营").check();
   await d
-    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .getByLabel("我同意保留上述来源缺项，确认入库后继续整理")
     .check();
-  await d.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
-  await d.getByRole("button", { name: "确认生成TM" }).click();
+  await d.getByLabel("补充说明（选填）").fill("已核对合成来源缺项");
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole("button", { name: "确认入库" }).click();
   await expect(d).not.toBeVisible({ timeout: 45000 });
   await expect(page.locator(".candidate-card")).toHaveCount(1, {
     timeout: 45000,
@@ -745,18 +748,19 @@ test("待确认显示来源尺码并可按页码跳转，批量操作保留位�
   const confirmScroll = await page.evaluate(() => window.scrollY);
   expect(confirmScroll).toBeGreaterThan(600);
   await page
-    .getByRole("button", { name: "批量生成TM", exact: true })
+    .getByRole("button", { name: "批量确认入库", exact: true })
     .click();
-  let dialog = page.getByRole("dialog", { name: "批量生成TM · 1件" });
+  let dialog = page.getByRole("dialog", { name: "批量确认入库 · 1件" });
   await dialog
     .getByLabel("我已确认所选商品为实际持有并应纳入经营")
     .check();
   await dialog
-    .getByLabel("我已核对上述缺项，允许先建档并保留逐件说明")
+    .getByLabel("我同意保留上述来源缺项，确认入库后继续整理")
     .check();
-  await dialog.getByLabel("本批缺项处理依据").fill("已核对合成来源缺项");
+  await dialog.getByLabel("补充说明（选填）").fill("已核对合成来源缺项");
+  await acceptSourceGaps(page.getByRole("dialog"));
   await dialog
-    .getByRole("button", { name: "确认生成TM", exact: true })
+    .getByRole("button", { name: "确认入库", exact: true })
     .click();
   await expect(dialog).not.toBeVisible();
   expect(new URL(page.url()).hash).toContain("page=2");
@@ -788,108 +792,51 @@ test("待确认显示来源尺码并可按页码跳转，批量操作保留位�
   await expect(page.locator(".candidate-card")).toHaveCount(100);
   expect(new URL(page.url()).hash).not.toContain("page=");
 });
-test("v1 TRR订单级成本一次分摊到全部TM，商品页直接显示人民币成本", async ({
-  page,
-}) => {
+test("v1 TRR七件商品无需成本分摊即可确认并从全部库存找回", async ({ page }) => {
   const x = await setupAgentOrder(page);
   await sealAgentBatch(page, x);
   await api(page, "/ingest/candidates/bulk-confirm", {
-    ids: x.imported.rows.map((r) => r.id),
-    possession: "IN_HAND",
-    status: "AVAILABLE",
+    ids: x.imported.rows.map(r => r.id), possession: "IN_HAND", status: "PAUSED",
     ...incompleteAcknowledgements(x.imported.rows, "已核对合成来源缺项"),
   });
   await page.goto("/#/procurement/" + x.order.id);
-  await expect(
-    page.getByRole("heading", {
-      name: new RegExp(x.orderInput.externalOrderNo),
-    }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "来源成本规则", exact: true }).click();
-  let d = page.getByRole("dialog", { name: "来源成本规则" });
-  await d.getByLabel("每单附加成本（人民币）").fill("200");
-  await d.getByLabel("Store Credit是否计入支付价值").selectOption("true");
-  await d.getByRole("button", { name: "保存规则" }).click();
-  await expect(d).not.toBeVisible();
-  await page
-    .getByRole("button", { name: "确认订单成本依据", exact: true })
-    .click();
-  d = page.getByRole("dialog", { name: "确认订单成本依据" });
-  await d.getByLabel("换算方式").selectOption("ACTUAL_CASH_CNY");
-  await d.getByLabel("实际人民币扣款").fill("5054.40");
-  await d.getByLabel("本单附加成本（人民币）").fill("200");
-  await d.getByLabel("确认依据").fill("浏览器合成测试：实际扣款5054.40");
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).not.toBeVisible();
-  const panel = page.locator(".procurement-cost-panel");
-  await expect(panel).toContainText("CNY 5,794.40");
-  await expect(panel.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(7);
-  await panel
-    .getByRole("button", { name: "确认写入 7 件TM成本", exact: true })
-    .click();
-  await expect(page.locator("#toast")).toContainText("人民币成本已写入TM商品");
-  const confirmed = await (
-      await page.request.get(
-        `/api/ingest/candidates?decision=CONFIRMED&sourceId=${x.source.id}&size=100`,
-      )
-    ).json(),
-    itemId = confirmed.rows[0].item.id;
-  const item = await (await page.request.get("/api/items/" + itemId)).json();
-  expect(item.currentCostCny).toBeGreaterThan(0);
-  await page.goto("/#/items/" + itemId + "/edit");
-  await expect(page.locator(".studio-cost-fact")).toContainText(
-    "当前人民币成本",
-  );
-  await expect(page.locator(".studio-cost-fact")).toContainText("CNY");
+  await expect(page.locator(".procurement-cost-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "确认订单成本依据", exact: true })).toHaveCount(0);
+  const confirmed = await (await page.request.get(`/api/ingest/candidates?decision=CONFIRMED&sourceId=${x.source.id}&size=100`)).json();
+  expect(confirmed.rows).toHaveLength(7);
+  for (const candidate of confirmed.rows) {
+    const item = await (await page.request.get("/api/items/" + candidate.item.id)).json();
+    expect(item.currentCostCny).toBeNull(); expect(item.status).toBe("PAUSED");
+  }
+  await page.goto("/#/items?batchId=" + x.batch.id);
+  await expect(page.locator("#content")).toContainText(confirmed.rows[0].item.code || "TM");
 });
 
-test("Credit退款明细校验后一次算净额，重开保留明细与固定汇率", async ({ page }) => {
+test("Credit来源记录原样保留，商品编辑不要求汇率或支付依据", async ({ page }) => {
   const x = await setupAgentOrder(page);
   await sealAgentBatch(page, x);
   await api(page, "/ingest/candidates/bulk-confirm", {
-    ids: x.imported.rows.map(r => r.id), possession: "IN_HAND", status: "AVAILABLE",
+    ids: x.imported.rows.map(r => r.id), possession: "IN_HAND", status: "PAUSED",
     ...incompleteAcknowledgements(x.imported.rows, "已核对合成来源缺项"),
   });
-  await page.goto("/#/procurement/" + x.order.id);
-  await page.getByRole("button", { name: "确认订单成本依据", exact: true }).click();
-  let d = page.getByRole("dialog", { name: "确认订单成本依据" });
-  await d.getByLabel("实际人民币扣款").fill("2160");
-  await d.getByLabel("本单附加成本（人民币）").fill("200");
-  await d.getByLabel("确认依据").fill("合成支付300美元现金、100美元Credit，退款50美元Credit且无需退货");
-  await d.getByText("核对现金与Credit支付、退款", { exact: true }).click();
-  await d.getByLabel("原始现金支付（USD）").fill("300");
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).toContainText("请填全现金、Credit及两项退款金额");
-  await expect(d.getByLabel("原始现金支付（USD）")).toHaveValue("300");
-  await d.getByLabel("使用的Store Credit（USD）").fill("100");
-  await d.getByLabel("退回现金（USD）").fill("0");
-  await d.getByLabel("退回Store Credit（USD）").fill("500");
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).toContainText("退款不能超过现金与Credit支付总额");
-  await d.getByLabel("退回Store Credit（USD）").fill("50");
-  await d.getByText("退款明确属于某件商品", { exact: true }).click();
-  await d.getByLabel(`${x.orderInput.lines[0].title} · 退款（USD）`, { exact: true }).fill("20");
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).toContainText("逐件退款合计必须等于现金与Credit退款总额");
-  await d.getByLabel(`${x.orderInput.lines[0].title} · 退款（USD）`, { exact: true }).fill("50");
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).not.toBeVisible();
-  await expect(page.locator(".procurement-cost-panel")).toContainText("CNY 2,720.00");
-  await page.getByRole("button", { name: "修改订单成本依据", exact: true }).click();
-  d = page.getByRole("dialog", { name: "确认订单成本依据" });
-  await expect(d.getByLabel("退回Store Credit（USD）")).toHaveValue("50.00");
-  await expect(d.getByLabel(`${x.orderInput.lines[0].title} · 退款（USD）`, { exact: true })).toHaveValue("50.00");
-  await expect(d.getByLabel("确认汇率")).toHaveValue("7.2");
-  await expect(d.getByLabel("RMA/排除后的最终经济支付（订单币种）")).toHaveValue("350.00");
-  // Re-saving the persisted breakdown must not subtract the same refund again.
-  await d.getByRole("button", { name: "保存成本依据" }).click();
-  await expect(d).not.toBeVisible();
-  const panel = page.locator(".procurement-cost-panel");
-  await expect(panel).toContainText("CNY 2,720.00");
-  await panel.getByRole("button", { name: "确认写入 7 件TM成本", exact: true }).click();
-  await expect(page.locator("#toast")).toContainText("人民币成本已写入TM商品");
+  const before = await (await page.request.get("/api/procurement/orders/" + x.order.id)).json();
+  const confirmed = await (await page.request.get(`/api/ingest/candidates?decision=CONFIRMED&sourceId=${x.source.id}&size=100`)).json();
+  const itemId = confirmed.rows[0].item.id;
+  const financialWrites = [];
+  page.on("request", r => { if (r.method() !== "GET" && /\/api\/costing\//.test(r.url())) financialWrites.push(r.url()); });
+  await page.goto("/#/items/" + itemId + "/edit");
+  await expect(page.locator(".studio-cost-fact")).toHaveCount(0);
+  await expect(page.getByLabel("确认汇率", { exact: true })).toHaveCount(0);
+  await page.getByLabel("中文介绍", { exact: true }).fill("来源支付证据不等于商品必填字段");
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  const after = await (await page.request.get("/api/procurement/orders/" + x.order.id)).json();
+  expect(after.rawPayload).toEqual(before.rawPayload);
+  expect(after.adjustments).toEqual(before.adjustments);
+  expect((await (await page.request.get("/api/items/" + itemId)).json()).currentCostCny).toBeNull();
+  expect(financialWrites).toEqual([]);
   const preview = await (await page.request.get(`/api/costing/orders/${x.order.id}/preview`)).json();
-  expect(preview.rows.reduce((n, r) => n + r.totalCny, 0)).toBe(272000);
+  expect(preview).toHaveProperty("rows");
 });
 
 test("v1 Agent接入Token只在创建时显示一次，之后后台只保留会话元数据", async ({
@@ -942,7 +889,7 @@ test("v1 手机待确认保持单一批量任务且无横向溢出", async ({ br
     ).toBe(true);
     await mobile.getByLabel("选择本页").check();
     await expect(
-      mobile.getByRole("button", { name: "批量生成TM", exact: true }),
+      mobile.getByRole("button", { name: "批量确认入库", exact: true }),
     ).toBeVisible();
     await mobile.screenshot({
       path: "reports/screenshots/v1-candidates-mobile.png",
@@ -954,11 +901,12 @@ test("v1 手机待确认保持单一批量任务且无横向溢出", async ({ br
 });
 
 
-test("v1 经营待办把Agent候选直接带回对应来源的待确认处理页", async ({ page }) => {
+test("v1 待处理事项把Agent候选直接带回对应来源的待确认处理页", async ({ page }) => {
   const x = await setupAgentOrder(page);
   await page.goto("/#/tasks?scope=CANDIDATE");
-  await expect(page.getByRole("heading", { name: "经营待办", exact: true })).toBeVisible();
-  await expect(page.locator(".metrics.compact")).toContainText("商品待确认");
+  await expect(page.getByRole("heading", { name: "待处理事项", exact: true })).toBeVisible();
+  await expect(page.locator(".metrics.compact")).toHaveCount(0);
+  await expect(page.getByLabel("查看范围", { exact: true })).toHaveValue("CANDIDATE");
   const row = page.locator("tbody tr:not(.ant-table-measure-row)").filter({ hasText: "商品待确认" }).filter({ hasText: x.candidates[0].titleRaw }).first();
   await expect(row).toContainText("商品待确认");
   await row.getByRole("link", { name: "去确认", exact: true }).click();
@@ -1025,9 +973,9 @@ test("v1.0.0-rc.3 同图候选在待确认页提示已有TM并可人工归入同
 });
 
 
-test("rc.4 经营待办默认聚焦高优先事项，手机按卡片阅读而不是横向大表", async ({ browser, page }) => {
+test("rc.4 待处理事项默认聚焦高优先事项，手机按卡片阅读而不是横向大表", async ({ browser, page }) => {
   await page.goto("/#/tasks");
-  await expect(page.getByRole("heading", { name: "经营待办", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "待处理事项", exact: true })).toBeVisible();
   await expect(page.getByLabel("查看范围")).toHaveValue("IMPORTANT");
   const desktopRows = page.locator(".work-queue-table tbody tr:not(.ant-table-measure-row)");
   expect(await desktopRows.count()).toBeLessThanOrEqual(60);
@@ -1153,16 +1101,18 @@ test('跨页选择101件分段确认，真实写入回执丢失后重试不重�
     const response=await route.fetch();
     if(!lost) {lost=true;await route.abort('failed');} else await route.fulfill({response});
   });
-  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
-  const d=page.getByRole('dialog',{name:'批量生成TM · 101件'});
+  await page.getByRole('button',{name:'批量确认入库',exact:true}).click();
+  const d=page.getByRole('dialog',{name:'批量确认入库 · 101件'});
   await d.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
-  await d.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
-  await d.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
-  await d.getByRole('button',{name:'确认生成TM',exact:true}).click();
+  await d.getByLabel('我同意保留上述来源缺项，确认入库后继续整理').check();
+  await d.getByLabel('补充说明（选填）').fill('已核对合成来源缺项');
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole('button',{name:'确认入库',exact:true}).click();
   await expect(d.locator('.form-error')).toContainText('网络中断',{timeout:45000});
   const interim=await (await page.request.get(`/api/ingest/candidates?sourceId=${source.id}&decision=CONFIRMED`)).json();
   expect(interim.total).toBe(100);
-  await d.getByRole('button',{name:'确认生成TM',exact:true}).click();
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await d.getByRole('button',{name:'确认入库',exact:true}).click();
   await expect(d).not.toBeVisible({timeout:45000});
   await expect(page.locator('.candidate-card')).toHaveCount(0);
   const result=await (await page.request.get(`/api/ingest/candidates?sourceId=${source.id}&decision=CONFIRMED`)).json();
@@ -1257,22 +1207,24 @@ test('批量部分失败显示逐件原因，成功移除而失败保留供重�
   await page.goto('/#/candidates?sourceId='+x.source.id);
   await page.locator(`[data-pick="${first.id}"]`).check();await page.locator(`[data-pick="${second.id}"]`).check();
   await api(page,`/ingest/candidates/${first.id}/review`,{version:first.version,possession:'UNKNOWN',title:'并发核对后的名称',note:'合成并发变更'});
-  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
+  await page.getByRole('button',{name:'批量确认入库',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
-  await page.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
-  await page.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
-  await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
+  await page.getByLabel('我同意保留上述来源缺项，确认入库后继续整理').check();
+  await page.getByLabel('补充说明（选填）').fill('已核对合成来源缺项');
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await page.getByRole('button',{name:'确认入库',exact:true}).click();
   const result=page.getByRole('dialog',{name:'批量处理结果'});
-  await expect(result).toContainText('1件成功，1件需要处理');await expect(result).toContainText('修改');
+  await expect(result).toContainText('1件成功，1件需要处理');await expect(result).toContainText('资料已更新，请重新选择');
   await result.getByRole('button',{name:'关闭',exact:true}).click();
   await expect(page.locator(`[data-candidate="${second.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-pick="${first.id}"]`)).toBeChecked();
   await page.locator(`[data-pick="${first.id}"]`).uncheck();await page.locator(`[data-pick="${first.id}"]`).check();
-  await page.getByRole('button',{name:'批量生成TM',exact:true}).click();
+  await page.getByRole('button',{name:'批量确认入库',exact:true}).click();
   await page.getByLabel('我已确认所选商品为实际持有并应纳入经营').check();
-  await page.getByLabel('我已核对上述缺项，允许先建档并保留逐件说明').check();
-  await page.getByLabel('本批缺项处理依据').fill('已核对合成来源缺项');
-  await page.getByRole('button',{name:'确认生成TM',exact:true}).click();
+  await page.getByLabel('我同意保留上述来源缺项，确认入库后继续整理').check();
+  await page.getByLabel('补充说明（选填）').fill('已核对合成来源缺项');
+  await acceptSourceGaps(page.getByRole("dialog"));
+  await page.getByRole('button',{name:'确认入库',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   const confirmed=await (await page.request.get(`/api/ingest/candidates?sourceId=${x.source.id}&decision=CONFIRMED`)).json();expect(confirmed.total).toBe(2);
 });

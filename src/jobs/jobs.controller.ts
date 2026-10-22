@@ -94,103 +94,32 @@ export class JobsController {
     });
   }
   @Access("read") @Get("dashboard") async dashboard(@Req() r: AuthRequest) {
-    const canSell = permission(r.actor.role, "sell"),
-      canPublish = permission(r.actor.role, "publish"),
-      canFinance = permission(r.actor.role, "finance");
-    const [
-      items,
-      available,
-      openTasks,
-      sold,
-      unresolved,
-      pendingJobs,
-      pendingCandidates,
-      pendingItemReviews,
-      pendingInquiries,
-      pendingSalesFinance,
-      pendingDistribution,
-      pendingDistributionWork,
-    ] = await Promise.all([
-      this.db.item.count({
+    const canPublish = permission(r.actor.role, "publish");
+    const [inventory, queue, pendingDistribution, sold, pendingJobs] = await Promise.all([
+      this.db.item.groupBy({
+        by: ["status", "approvedValid"],
         where: { deletedAt: null, dataMode: "BUSINESS" },
+        _count: { _all: true },
       }),
-      this.db.item.count({
-        where: { deletedAt: null, dataMode: "BUSINESS", status: "AVAILABLE" },
-      }),
-      this.db.task.count({
-        where: {
-          status: "OPEN",
-          kind: { not: "PREPARE" },
-          item: { deletedAt: null, dataMode: "BUSINESS" },
-        },
-      }),
+      readWorkQueue(this.db, r.actor.role, { scope: "ALL", size: 1 }),
+      canPublish ? this.distribution.operationalAttentionCount() : 0,
       this.db.sale.count({ where: { item: { dataMode: "BUSINESS" } } }),
-      this.db.observation.count({
-        where: { resolved: false, item: { dataMode: "BUSINESS" } },
-      }),
-      this.db.outbox.count({
-        where: { status: { in: ["PENDING", "WORKING", "FAILED"] } },
-      }),
-      this.db.ingestCandidate.count({ where: { decision: "PENDING" } }),
-      this.db.item.count({
-        where: {
-          deletedAt: null,
-          dataMode: "BUSINESS",
-          approvedValid: false,
-        },
-      }),
-      this.db.inquiry.count({
-        where: {
-          state: { in: ["OPEN", "FOLLOWUP"] },
-          item: { deletedAt: null, dataMode: "BUSINESS" },
-        },
-      }),
-      this.db.sale.count({
-        where: {
-          item: { deletedAt: null, dataMode: "BUSINESS" },
-          OR: [
-            { amount: null },
-            { cost: null },
-            { fees: null },
-            { paid: false },
-          ],
-        },
-      }),
-      this.distribution.operationalAttentionCount(),
-      // Use the same read-only queue projection as the workbench so stale or
-      // dead-session handoffs cannot appear on one operating surface but be
-      // absent from the dashboard action total.
-      readWorkQueue(this.db, r.actor.role, {
-        scope: "DISTRIBUTION",
-        page: 1,
-        size: 1,
-      }).then((queue) => queue.total),
+      this.db.outbox.count({ where: { status: { in: ["PENDING", "WORKING", "FAILED"] } } }),
     ]);
-    const visibleInquiries = canSell ? pendingInquiries : 0,
-      visibleDistribution = canPublish ? pendingDistribution : 0,
-      visibleDistributionWork = canPublish ? pendingDistributionWork : 0,
-      visibleSalesFinance = canFinance ? pendingSalesFinance : 0,
-      actionable =
-        openTasks +
-        unresolved +
-        pendingCandidates +
-        pendingItemReviews +
-        visibleDistributionWork +
-        visibleInquiries +
-        visibleSalesFinance;
+    const count = (test: (row: typeof inventory[number]) => boolean) =>
+      inventory.filter(test).reduce((total, row) => total + row._count._all, 0);
     return {
-      items,
-      available,
-      openTasks,
+      items: count(() => true),
+      available: count(row => row.status === "AVAILABLE"),
+      pendingItemReviews: count(row => !row.approvedValid),
+      openTasks: queue.summary.tasks,
+      unresolved: queue.summary.observations,
+      pendingCandidates: queue.summary.candidates,
+      pendingInquiries: queue.summary.inquiries,
+      pendingDistribution,
+      actionable: queue.summary.total,
       sold,
-      unresolved,
       pendingJobs,
-      pendingCandidates,
-      pendingItemReviews,
-      pendingDistribution: visibleDistribution,
-      pendingInquiries: visibleInquiries,
-      pendingSalesFinance: visibleSalesFinance,
-      actionable,
     };
   }
 }

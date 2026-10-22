@@ -4,6 +4,7 @@ import { categories, states, type Item } from "./types";
 import {
   catalogBrand,
   catalogCondition,
+  catalogColor,
   sourceFieldNote,
 } from "./item-source-facts";
 import {
@@ -14,6 +15,7 @@ import {
 import { isAiImage, productImages, showProductImages } from "./product-images";
 import { exportMaterials } from "./materials";
 import { showItemEvidence } from "./source-evidence";
+import { itemActivity } from "./item-activity";
 import { studioStock } from "./studio-stock";
 import { onPageReady } from "./page-lifecycle";
 import { catalogContext } from "./catalog-context";
@@ -79,22 +81,22 @@ export function productOverview(item: Item) {
             "primary",
           )
         : ""
-    }${button("下载商品资料", () => exportMaterials([item]))}${can("delete") ? `<details class="studio-more overview-more"><summary class="btn subtle">更多</summary><div class="studio-more-menu">${button("删除商品", () => deleteProduct(item), "danger")}</div></details>` : ""}</div></header>
+    }${button("下载商品资料", () => exportMaterials([item]))}${can("publish") && item.status === "AVAILABLE" ? link("use", "准备上架") : ""}${can("delete") ? `<details class="studio-more overview-more"><summary class="btn subtle">更多</summary><div class="studio-more-menu">${button("删除商品", () => deleteProduct(item), "danger")}</div></details>` : ""}</div></header>
     <div class="product-overview-layout"><section class="panel product-overview-gallery" aria-label="商品图片">${images.length ? `<div class="product-overview-cover">${button("", () => showProductImages(images, images[0].id), "overview-cover-button").replace("></button>", ` aria-label="查看商品大图"><img src="/api/assets/${images[0].id}/preview" alt="${esc(item.title)}"></button>`)}</div><div class="product-overview-thumbnails">${images.map((a, n) => button("", () => showProductImages(images, a.id), "overview-thumbnail").replace("></button>", ` aria-label="查看第 ${n + 1} 张图片"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button>`)).join("")}</div><p class="note">${images.length} 张图片 · 点击可连续翻图、放大及下载原图</p>` : '<div class="empty"><p>还没有图片</p><p>可以先保存商品，之后再补。</p></div>'}</section>
-    <div class="product-overview-info"><section class="panel"><div class="product-overview-prices"><div><span>对外报价</span><strong>${item.currentPrice == null ? "尚未报价" : money(item.currentPrice, item.currency)}</strong></div>${can("finance") ? `<div><span>人民币成本</span><strong>${item.currentCostCny == null ? "尚未确认" : money(item.currentCostCny, "CNY")}</strong></div>` : ""}</div>${details(
+    <div class="product-overview-info"><section class="panel"><div class="product-overview-prices"><div><span>对外报价</span><strong>${item.currentPrice == null ? "尚未报价" : money(item.currentPrice, item.currency)}</strong></div></div>${details(
       [
         ["品牌", catalogBrand(item)],
         ["品类", categories[item.category]],
         ["成色", catalogCondition(item)],
         ["尺码", f.sizeLabel],
-        ["颜色", f.color],
+        ["颜色", catalogColor(item)],
         ["实物持有", item.ownership === "OWN" ? "我方持有" : "供应商持有"],
         ["存放位置", item.location],
       ],
     )}${sourceFieldNote(item, "condition")}</section>
-    <section class="panel product-overview-operations"><h2>经营操作</h2><div data-stock-controls></div><p class="note">售出、暂停等操作独立生效。资料未补齐也可以登记实际经营情况。</p></section>
+    <section class="panel product-overview-operations"><h2>库存状态</h2><div data-stock-controls></div><p class="note">库存变化立即保存；标记售出或暂停售卖后，已上架的渠道仍需确认下架。</p></section>
     ${missing.length ? `<p class="product-overview-gaps">还可补充：${missing.join("、")}。${can("edit") ? `<a href="${esc(edit)}">去补充</a>` : ""}</p>` : ""}</div></div>
-    <section class="panel product-overview-ai" aria-label="AI 上身效果">${aiImages.length ? "<h2>AI 上身效果</h2>" : "<details><summary>AI 上身效果（尚无图片）</summary>"}<p class="note">AI 生成，上身效果仅供参考；请以实物图片和尺寸为准。</p>${aiImages.length ? `<div class="product-ai-grid">${aiImages.map((a, n) => button("", () => showProductImages(aiImages, a.id), "overview-ai-button").replace("></button>", ` aria-label="查看第 ${n + 1} 张 AI 上身效果"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button>`)).join("")}</div>` : '<p class="note">还没有 AI 效果图。可在素材管理中上传，用途和来源均选择“AI营销图”。</p>'}${link("assets", "管理 AI 图片")}${aiImages.length ? "" : "</details>"}</section>
+    ${aiImages.length ? `<section class="panel product-overview-ai" aria-label="AI 上身效果"><h2>AI 上身效果</h2><p class="note">AI 生成，上身效果仅供参考；请以实物图片和尺寸为准。</p><div class="product-ai-grid">${aiImages.map((a, n) => button("", () => showProductImages(aiImages, a.id), "overview-ai-button").replace("></button>", ` aria-label="查看第 ${n + 1} 张 AI 上身效果"><img src="/api/assets/${a.id}/preview" alt="${esc(a.originalName)}" loading="lazy"></button>`)).join("")}</div>${link("assets", "管理 AI 图片")}</section>` : ""}
     ${section("商品介绍", `<div class="product-overview-descriptions"><div><h3>中文介绍</h3><div class="copy">${esc(f.descriptionZh || "未填写")}</div></div><div><h3>英文介绍</h3><div class="copy">${esc(f.descriptionEn || "未填写")}</div></div></div>`)}
     ${section(
       "尺寸、材质与品相",
@@ -106,5 +108,5 @@ export function productOverview(item: Item) {
         ["瑕疵与使用痕迹", f.condition],
       ]),
     )}
-    <details class="panel product-overview-records"><summary>来源、复核与详细记录</summary><div class="button-row">${button("查看全部来源资料", () => showItemEvidence(item.id))}${link("facts", "完整资料与复核")}${link("assets", "素材管理")}${link("supply", "货源与交接")}${can("finance") ? link("costs", "成本明细") : ""}${link("history", "版本与记录")}${can("publish") && item.status !== "AVAILABLE" ? link("use", "准备发布") : ""}</div><p class="note">来源原始记录保留在这里，人工维护的商品资料以当前档案为准。</p></details></div>`;
+    <details class="panel product-overview-records"><summary>来源、复核与详细记录</summary><div class="button-row">${button("查看全部来源资料", () => showItemEvidence(item.id))}${button("查看销售与渠道记录", () => itemActivity(item))}${link("facts", "完整资料与复核")}${link("assets", "素材管理")}${link("supply", "货源与交接")}${link("history", "版本与记录")}${can("publish") && item.status !== "AVAILABLE" ? link("use", "准备上架") : ""}</div><p class="note">来源原始记录保留在这里，人工维护的商品资料以当前档案为准。</p></details></div>`;
 }

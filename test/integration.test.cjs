@@ -3365,7 +3365,7 @@ test("Cost Batch：一个请求返回当前页各订单的同一成本预览", a
   assert.equal(tooMany.status, 400);
 });
 
-test('v1 经营行动中心统一投影候选、任务、询盘、成交补账和事实冲突，并按角色收口敏感事项',async()=>{
+test('v1 经营行动中心统一投影候选、任务、询盘和事实冲突，取消补账并按角色收口',async()=>{
   const x=await setupAgentTrr('Action queue source');
   const taskItem=await sparse({title:'行动中心任务商品'}),inquiryItem=await sparse({title:'行动中心询盘商品'}),saleItem=await sparse({title:'行动中心成交商品'}),observationItem=await sparse({title:'行动中心冲突商品'});
   const task=await db.task.create({data:{itemId:taskItem.id,dedupeKey:'action-'+randomUUID(),kind:'RESEARCH',title:'补齐行动中心资料',status:'OPEN',assignee:'',note:''}});
@@ -3377,19 +3377,19 @@ test('v1 经营行动中心统一投影候选、任务、询盘、成交补账�
   assert.ok(queue.rows.some(r=>r.id===`candidate:${x.imported.rows[0].id}`));
   assert.ok(queue.rows.some(r=>r.id===`task:${task.id}`));
   assert.ok(queue.rows.some(r=>r.id===`inquiry:${inquiry.id}`));
-  assert.ok(queue.rows.some(r=>r.id===`sale:${sale.id}`));
+  assert.equal(queue.rows.some(r=>r.id===`sale:${sale.id}`),false);
   assert.ok(queue.rows.some(r=>r.id===`observation:${observation.id}`));
   for(let i=1;i<queue.rows.length;i++)assert.ok(queue.rows[i-1].priority>=queue.rows[i].priority);
   const viewerQueue=await ok('/work-queue','GET',undefined,viewer);
   assert.equal(viewerQueue.rows.some(r=>r.kind==='INQUIRY'),false);
   assert.equal(viewerQueue.rows.some(r=>r.kind==='SALE_FINANCE'),false);
   assert.equal(viewerQueue.summary.inquiries,0);
-  assert.equal(viewerQueue.summary.saleFinance,0);
+  assert.equal(Object.hasOwn(viewerQueue.summary,"saleFinance"),false);
   const dashboard=await ok('/dashboard');
   assert.ok(dashboard.actionable>=queue.summary.total);
   assert.ok(dashboard.pendingCandidates>=7);
   assert.ok(dashboard.pendingInquiries>=1);
-  assert.ok(dashboard.pendingSalesFinance>=1);
+  assert.equal(Object.hasOwn(dashboard,"pendingSalesFinance"),false);
 });
 
 test("询盘下次跟进时间驱动待办，逾期优先且结束状态清空日程", async () => {
@@ -5774,15 +5774,11 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
   });
   assert.equal(pendingDelist.sourceAttemptId, published.id);
   const queue = await ok("/work-queue");
-  // rc.5 puts every unapproved business TM in the shared queue.  A lower
-  // priority financial follow-up can legitimately fall beyond the first page,
-  // so verify its scoped projection instead of relying on the old small queue.
-  const financeQueue = await ok("/work-queue?scope=SALE_FINANCE");
   const unknown = queue.rows.find(
     (row) => row.id === `distribution:${attempt.id}`,
   );
   const followup = queue.rows.find((row) => row.id === `inquiry:${inquiry.id}`);
-  const finance = financeQueue.rows.find((row) => row.id === `sale:${sale.id}`);
+  assert.equal(queue.rows.some(row => row.id === `sale:${sale.id}`), false);
   const delist = queue.rows.find(
     (row) => row.id === `distribution:${pendingDelist.id}`,
   );
@@ -5793,11 +5789,10 @@ test("Real Operations：工作队列优先已售下架、未知分发和客户�
     `#/distribution?attemptId=${attempt.id}&from=tasks`,
   );
   assert.equal(followup.priority, 85);
-  assert.equal(finance.priority, 30);
   assert.ok(queue.summary.distribution >= 1);
 });
 
-test("Operations cleanup：超时Handoff进入统一待办，外币成交显示结算依据而非人民币成本", async () => {
+test("Operations cleanup：超时Handoff进入统一待办，外币成交不产生补账事项", async () => {
   const staleItem = await ready();
   const stalePackage = await pack(staleItem.id);
   const staleAttempt = await ok("/distribution/plan", "POST", {
@@ -5927,16 +5922,8 @@ test("Operations cleanup：超时Handoff进入统一待办，外币成交显示�
   assert.equal(sale.currency, "USD");
   assert.equal(sale.cost, null);
   const foreignCode = (await item(foreignItem.id)).code;
-  const foreignQueue = await ok(
-    `/work-queue?scope=SALE_FINANCE&q=${encodeURIComponent(foreignCode)}`,
-  );
-  const financeRow = foreignQueue.rows.find(
-    (row) => row.entityId === foreignSale.id,
-  );
-  assert.ok(financeRow);
-  assert.equal(financeRow.title, "外币成交待确认结算依据");
-  assert.match(financeRow.detail, /外币结算依据/);
-  assert.doesNotMatch(financeRow.detail, /缺 [^·]*成本/);
+  const foreignQueue = await ok("/work-queue?scope=ALL&q=" + encodeURIComponent(foreignCode));
+  assert.equal(foreignQueue.rows.some(row => row.entityId === foreignSale.id), false);
 
   const unifiedQueue = await ok("/work-queue");
   const dashboard = await ok("/dashboard");
@@ -7511,4 +7498,116 @@ test('组合纠错真实事务中途失败全部回滚，并发相同原键重�
   const same=await Promise.all([api(x.path,'POST',x.body,admin,key),api(x.path,'POST',x.body,admin,key)]);assert.ok(same.every(r=>r.status>=200&&r.status<300));assert.deepEqual(same[0].data,same[1].data);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:x.c.id}}),1);
   const other=await correctionFixture('SYNTHETIC-COMPENSATION-RACE');
   const race=await Promise.all([api(other.path,'POST',other.body,admin,randomUUID()),api(other.path,'POST',other.body,admin,randomUUID())]);assert.equal(race.filter(r=>r.status>=200&&r.status<300).length,1);assert.equal(race.filter(r=>r.status===409).length,1);assert.equal(await db.ingestConfirmationCorrection.count({where:{candidateId:other.c.id}}),1);
+});
+
+async function simpleReceiptBatch(count, colors = []) {
+  const suffix = randomUUID().slice(0, 8);
+  const source = await ok("/procurement/sources", "POST", {
+    code: "BULK" + suffix.toUpperCase(), name: "合成简化入库 " + suffix, kind: "OFFLINE", defaultCurrency: "CNY",
+  });
+  const session = await ok("/ingest/sessions", "POST", { procurementSourceId: source.id, label: "合成批量确认", ttlMinutes: 60 });
+  const batch = await machineOk("/agent-ingest/batches", session.token, "POST", {
+    externalBatchKey: "simple-" + suffix, agentName: "Synthetic", kind: "OFFLINE_IMPORT",
+    rawManifest: standardManifest(),
+  });
+  const candidates = Array.from({ length: count }, (_, index) => {
+    const color = colors[index % colors.length] || "";
+    return standardizeGenericCandidate({
+      externalKey: suffix + "-" + index, sourceItemKey: "SYN-" + suffix + "-" + index,
+      titleRaw: "合成简化外套 " + suffix + " " + index, brandRaw: "合成来源品牌",
+      categoryRaw: "Clothing", conditionRaw: "来源成色仅参考", sourceCurrentPrice: null,
+      sourceFacts: { color, capture: {
+        pageUrl: "https://example.invalid/simple/" + suffix + "/" + index,
+        capturedAt: "2026-10-22T00:00:00.000Z",
+        fields: [{ path: "sourceFacts.measurements", label: "尺寸", status: "UNAVAILABLE", reason: "合成来源未提供尺寸" },
+          ...(color ? [{ path: "sourceFacts.color", label: "颜色", status: "CAPTURED" }] : [])],
+        images: [{ sourceFile: "missing-" + index + ".txt", quality: "UNAVAILABLE", reason: "合成来源没有图片" }],
+      } },
+      ...(color ? { agentProposal: { generator: "RULES", generatedAt: "2026-10-22T00:00:00.000Z", fields: [
+        { path: "facts.color", value: color, method: "EXTRACTED", confidence: 1, evidencePaths: ["sourceFacts.color"] },
+      ] } } : {}),
+      rawPayload: { synthetic: true },
+    });
+  });
+  const imported = await machineOk("/agent-ingest/batches/" + batch.id + "/candidates", session.token, "POST", { candidates });
+  await machineOk("/agent-ingest/batches/" + batch.id + "/seal", session.token, "POST", {});
+  return { source, rows: imported.rows };
+}
+
+test("简化入库：90件同类来源缺项一次明确接受，确认成功且同键并发重试不重复建档", async () => {
+  const x = await simpleReceiptBatch(90);
+  const ids = x.rows.map(row => row.id), versions = Object.fromEntries(x.rows.map(row => [row.id, row.version]));
+  const before = await db.item.count(), audits = await db.audit.count(), costs = await db.costEntry.count();
+  const preview = await ok("/ingest/candidates/confirmation-preview", "POST", { ids, versions });
+  assert.equal(preview.rows.length, 90);
+  assert.ok(preview.rows.every(row => row.blockers.length === 0 && row.integrity.fieldGaps.some(gap => gap.label === "尺寸")));
+  assert.equal(await db.item.count(), before);
+  assert.equal(await db.audit.count(), audits);
+  const body = { ids, versions, possession: "IN_HAND", status: "PAUSED",
+    incompleteAcknowledgements: Object.fromEntries(ids.map(id => [id, "人工同意保留已列来源缺项并确认入库；合成来源未提供尺寸及图片"])) };
+  const key = randomUUID();
+  const [first, replay] = await Promise.all([
+    ok("/ingest/candidates/bulk-confirm", "POST", body, admin, key),
+    ok("/ingest/candidates/bulk-confirm", "POST", body, admin, key),
+  ]);
+  assert.equal(first.ok, 90); assert.equal(first.failed, 0); assert.deepEqual(replay, first);
+  assert.equal(await db.item.count(), before + 90);
+  assert.equal(await db.costEntry.count(), costs);
+  const created = await db.item.findMany({ where: { id: { in: first.rows.map(row => row.itemId) } } });
+  assert.ok(created.every(row => row.status === "PAUSED" && !row.approvedValid && row.currentPrice === null));
+  const evidence = await db.audit.findMany({ where: { action: "INGEST_CANDIDATE_CONFIRMED", resourceId: { in: ids } } });
+  assert.equal(evidence.length, 90); assert.ok(evidence.every(row => row.detail.note.includes("来源缺项")));
+  const id = first.rows[0].itemId;
+  const readiness = await ok("/items/" + id + "/readiness?channelId=" + channel.id + "&purpose=TRADE");
+  assert.equal(readiness.ready, false); assert.ok(readiness.missing.some(row => row.code === "images"));
+});
+
+test("简化入库：截图颜色保留原文并确认，精确别名正常归一化，过期候选独立失败", async () => {
+  const colors = ["Burgundy", "Pink, Pattern Prints", "ＢＬＵＥ"];
+  const x = await simpleReceiptBatch(3, colors);
+  const ids = x.rows.map(row => row.id), versions = Object.fromEntries(x.rows.map(row => [row.id, row.version]));
+  const preview = await ok("/ingest/candidates/confirmation-preview", "POST", { ids, versions });
+  assert.equal(preview.rows.filter(row => row.colorNotice).length, 2);
+  await ok("/ingest/candidates/" + ids[2] + "/review", "POST", {
+    version: versions[ids[2]], possession: "IN_HAND", decision: "PENDING", note: "合成并发修改版本",
+  });
+  const stalePreview = await ok("/ingest/candidates/confirmation-preview", "POST", { ids, versions });
+  assert.match(stalePreview.rows[2].blockers.join("；"), /已更新/);
+  const body = { ids, versions, possession: "IN_HAND", status: "PAUSED",
+    incompleteAcknowledgements: Object.fromEntries(ids.map(id => [id, "人工同意保留合成来源尺寸及图片缺项"])) };
+  const result = await ok("/ingest/candidates/bulk-confirm", "POST", body);
+  assert.equal(result.ok, 2); assert.equal(result.failed, 1);
+  for (const [index, row] of result.rows.slice(0, 2).entries()) {
+    const saved = await item(row.itemId);
+    assert.equal(saved.facts.attributes.sourceColor, colors[index]);
+    assert.equal(saved.facts.attributes.proposedColor, colors[index]);
+    assert.equal(saved.facts.color, ""); assert.equal(saved.dictionary.color, undefined);
+    assert.equal(saved.approvedValid, false);
+    const found = await ok("/items?q=" + encodeURIComponent(saved.code));
+    assert.ok(found.rows.some(value => value.id === saved.id));
+  }
+  const current = await db.ingestCandidate.findUniqueOrThrow({ where: { id: ids[2] } });
+  const retry = await ok("/ingest/candidates/bulk-confirm", "POST", {
+    ids: [current.id], versions: { [current.id]: current.version }, possession: "IN_HAND",
+    incompleteAcknowledgements: { [current.id]: "人工同意保留合成来源尺寸及图片缺项" },
+  });
+  assert.equal(retry.ok, 1);
+  assert.equal((await item(retry.rows[0].itemId)).facts.color, "蓝色");
+  assert.equal(await db.dictionaryTerm.count({ where: { kind: "COLOR", normalized: { in: ["burgundy", "pink, pattern prints"] } } }), 0);
+});
+
+test("简化卖货：不记账也能售出并保持停售，日常待办没有补账分支", async () => {
+  const i = await sparse({ title: "合成不记账售出 " + randomUUID() });
+  const s = await sold(i.id);
+  const saved = await item(i.id);
+  assert.equal(saved.status, "SOLD");
+  const record = await db.sale.findUniqueOrThrow({ where: { id: s.id } });
+  assert.equal(record.amount, null); assert.equal(record.cost, null); assert.equal(record.fees, null);
+  const queue = await ok("/work-queue?scope=ALL&q=" + encodeURIComponent(saved.code));
+  assert.ok(queue.rows.every(row => row.kind !== "SALE_FINANCE"));
+  const dashboard = await ok("/dashboard");
+  assert.equal(Object.hasOwn(dashboard, "pendingSalesFinance"), false);
+  const history = await ok("/sales?id=" + s.id + "&page=1");
+  assert.equal(history.rows[0].id, s.id);
+  assert.equal((await api("/sales?id=" + s.id, "GET", undefined, viewer)).status, 403);
 });

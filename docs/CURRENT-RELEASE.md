@@ -1,5 +1,14 @@
 # 当前发布事实
 
+当前源码候选为 rc.15，基线 main@004eef6ed299b8cb52c630e3698588acb0e95752。
+全系统减法见 [CORE-UX-SIMPLIFICATION](CORE-UX-SIMPLIFICATION.md)：商品默认全部库存，
+四个主入口；批量确认先分组预检、颜色原文兼容、单件风险隔离；合并批量编辑，
+删除日常成本/财务编辑和补账待办，仅保留受保护只读历史。现有库存、发布权利、
+版本/幂等和外部机器合同保留。本轮不新增 migration，不写生产、不合并或部署。
+双浏览器和完整门禁以本候选 VALIDATION 及源码指纹为准。
+
+以下为已保留的历史来源与领域演进记录。
+
 商品 UX 第二批以已合并 PR #62 的远端 `main@87bc1d7f722b1992b0ad58561da632c8262612d0` 开始，云端独立分支 `fix/product-ux-simplify-batch2`，AntD 6 / ProComponents 基线保持。本批减少同时出现的按钮、合并重复入口、收起低频经营及单图修改，保留直接编辑、上传、尺寸材质、保存/恢复与返回上下文。真实合成浏览器改前/改后、原保存边界和验收范围见 [商品 UX 第二批](PRODUCT-UX-SIMPLIFY.md)。完整门禁由本批固定 SHA 的 GitHub CI 确认；本批不合并、不部署。下段第一批候选叙述保留为历史，本轮不以其旧 main 或旧未合并状态作为开工事实。
 
 本轮商品编辑 UX 第一批在云端独立实施，实际基线为远端 `main@dfa1de8da4c9ea6d4b5f2ed980206955ebd8db4d` / rc.14。商品库直接完整编辑、上传前置与图库限高、默认展开尺寸材质、定位按钮与明确保存故障反馈；完整范围及原非原子保存边界见 [PRODUCT-EDIT-UX](PRODUCT-EDIT-UX.md)，实例与全新任务 setup 区分见 [CLOUD-ACCEPTANCE-2026-10-13](CLOUD-ACCEPTANCE-2026-10-13.md)。本轮不新增 migration/依赖，旧 PR 验证不证明本候选；使用本候选固定 SHA 的现有 CI，不合并、不部署。
@@ -62,7 +71,7 @@ rc.5 的已发布候选基线是 `main@cb1fe6ce0eb9a6a915a02107e10714c8fb5e0e06`
 
 渠道币种与成交补充：`Channel.defaultCurrency` 是账号默认币种；AnQiCMS 固定 USD、闲鱼固定 CNY，后端拒绝错误账号配置和错误 ChannelPrice。选择不同目标币种的账号时，批量和单件渠道价不复制 Item 金额，必须显式填写；询盘默认带同币种有效渠道价，缺价时只保留目标币种与 NULL。前向 migration `202609180017_inquiry_followup` 新增 `Inquiry.nextFollowUpAt` 与索引：FOLLOWUP 必须给出下次跟进时间，OPEN/WON/LOST 不保留日程；工作队列把逾期 FOLLOWUP 提升为 90、今天 FOLLOWUP/新 OPEN 为 85、未来 FOLLOWUP 为 55。询盘转 Sale 严格保留 `Inquiry.currency`；配置账号直接成交以有效渠道价币种或账号要求币种为准，未配置账号使用 Item 币种。只有 CNY Sale 自动冻结 CNY 成本，外币 Sale 的成本保持 NULL。没有 FX basis 的外币结算确认返回 `FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED`，没有实时汇率、自动定价或 FX 引擎，也不改写已有外币 Sale。
 
-运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。 主工作队列现在与分发经营投影保持一致：已交付超过时限或其分发会话失效的记录也进入 DISTRIBUTION 待办；外币 Sale 的空成本不再被描述为缺人民币成本，而明确显示为待确认外币结算依据。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
+运营规模化收口：渠道 Readiness 只在激活的 `DistributionTarget` 与历史真实 Exposure 配对上动态计算，Readiness 缺项不再创建持久 `PREPARE` Task；历史 Task 不被改写。 主工作队列现在与分发经营投影保持一致：已交付超过时限或其分发会话失效的记录也进入 DISTRIBUTION 待办；财务缺项已在 rc.15 从待办移除；外币历史金额仍保留。分发读取面先限定这些配对，再批量加载健康判断所需事实，避免 Item × Channel 笛卡尔积和按行 N+1。未批准的正式 TM 进入全局工作队列而非当前页切片；成本批量操作以最多 100 单的一次 `previews` 请求复用既有成本计算。Quick Intake 只建立 `ownership=OWN` 的我方现货，来源/供应商货仍走来源与人工确认。列表中的“发布记录”统一称为“远端身份记录”。隔离的 1,000 Item / 8 Channel 基准验证 Operations、Dashboard 与工作队列均在 1 秒内完成。
 
 rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一、归属单一且无任何经营/整单财务依赖时提交。商品移入回收站并保持 PAUSED/待审核，候选 EXCLUDED，关联采购行 EXCLUDE；保留永久 TM、原图、实物在手及原回执。专用组合恢复重新核对当前依赖，恢复同一 TM、CONFIRMED 和 INCLUDE，仍 PAUSED/待审核、不自动发布。普通商品/候选/采购恢复不能拆开活动纠错，历史仅允许追加一次恢复信息。补充 forward migration `202610120022_correction_candidate_anchor` 仅允许有活动历史的已排除候选保留 TM，并阻止只关闭历史或不完整恢复；已应用的迁移原样保留。新增迁移必须使用停写、备份清单和正式维护窗口；本源码工作未操作生产。详见 [误确认组合纠错](CONFIRMATION-COMPENSATION.md)。
 
@@ -74,7 +83,7 @@ rc.14 的单件误确认撤销只允许管理员在原新建确认回执唯一�
 
 ```json
 {
-  "version": "1.1.0-rc.14",
+  "version": "1.1.0-rc.15",
   "migrations": [
     "202609100001_initial",
     "202609100002_workflow_reliability",

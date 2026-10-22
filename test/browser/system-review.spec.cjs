@@ -91,12 +91,11 @@ test("批量定价逐件展示并在真实写入回执丢失后重试，不重�
     b = await api(page, "/items", { title: prefix + " B" });
   await page.goto("/#/items?q=" + encodeURIComponent(prefix));
   await page.locator("#select-page").check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "批量定价", exact: true }).click();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
   let d = page.getByRole("dialog");
   expect(
     await d.evaluate((el) => el.getBoundingClientRect().width),
-  ).toBeGreaterThan(900);
+  ).toBeGreaterThan(500);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await d.evaluate((el) => el.getBoundingClientRect().width),
@@ -107,9 +106,9 @@ test("批量定价逐件展示并在真实写入回执丢失后重试，不重�
     ),
   ).toBeLessThanOrEqual(2);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await d.getByLabel("拟售价 " + a.code, { exact: true }).fill("1234.56");
-  await d.getByLabel("拟售价 " + b.code, { exact: true }).fill("2345.67");
-  await d.getByLabel("我已逐件核对以上售价与币种").check();
+  await d.getByLabel("售价 " + a.code, { exact: true }).fill("1234.56");
+  await d.getByLabel("售价 " + b.code, { exact: true }).fill("2345.67");
+  await d.getByLabel("我确认以上修改适用于所选商品").check();
   let writesA = 0,
     lost = false;
   await page.route("**/api/items/" + a.id, async (route) => {
@@ -123,8 +122,8 @@ test("批量定价逐件展示并在真实写入回执丢失后重试，不重�
     }
     return route.fulfill({ response: r });
   });
-  await d.getByRole("button", { name: "确认并执行" }).click();
-  await expect(d.getByRole("heading", { name: "批量定价结果" })).toBeVisible();
+  await d.getByRole("button", { name: "确认保存" }).click();
+  await expect(d.getByRole("heading", { name: "批量编辑结果" })).toBeVisible();
   await expect(d.locator("#batch-summary")).toHaveText("完成1 / 2");
   await d.getByRole("button", { name: "重试未完成项" }).click();
   await expect(d.locator("#batch-summary")).toHaveText("完成2 / 2");
@@ -174,7 +173,7 @@ test("询盘旧窗口保留本次输入，核对最新沟通后追加历史", as
   expect((await read(page, "/items/" + i.id)).status).toBe("AVAILABLE");
 });
 
-test("商品经营记录原地查看不丢草稿，并可精确定位同件第二笔成交", async ({
+test("商品保存后查看销售记录，可精确定位同件第二笔成交且不产生补账入口", async ({
   page,
 }) => {
   const i = await api(page, "/items", { title: "经营记录 " + randomUUID() }),
@@ -209,34 +208,40 @@ test("商品经营记录原地查看不丢草稿，并可精确定位同件第�
   });
   await page.goto("/#/items/" + i.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的介绍");
-  await page.locator(".studio-operating-options > summary").click();
-  await page.locator("details.studio-stock-menu > summary").click();
-  await page.getByRole("button", { name: "经营记录", exact: true }).click();
-  const d = page.getByRole("dialog");
-  await expect(d).toContainText("客户二");
-  await d.locator("button.close").click();
-  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
-    "尚未保存的介绍",
-  );
+  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue("尚未保存的介绍");
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
-  // Existing work-queue tools now live under the approved MVP More entry.
-  await page.getByRole("link", { name: "更多", exact: true }).click();
-  await page.getByText("其他业务记录与维护工具", { exact: true }).click();
-  await page.getByRole("link", { name: "经营待办", exact: true }).click();
-  await expect(page.getByLabel("查看范围", { exact: true })).toBeVisible();
+  await page.goto("/#/items/" + i.id);
+  await page.locator(".product-overview-records > summary").click();
+  await page.getByRole("button", { name: "查看销售与渠道记录", exact: true }).click();
+  const d = page.getByRole("dialog");
+  await expect(d).toContainText("客户二");
+  await d.getByRole("button", { name: "关闭", exact: true }).click();
   await page.goto("/#/sales?id=" + second.id + "&from=tasks");
   await expect(page.locator("tbody tr:not(.ant-table-measure-row)")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("客户二");
   await expect(page.locator("tbody")).not.toContainText("客户一");
   await page
-    .getByRole("link", { name: "返回成交补账待办", exact: true })
+    .getByRole("link", { name: "返回全部待办", exact: true })
     .click();
   await expect(page.getByLabel("查看范围", { exact: true })).toHaveValue(
-    "SALE_FINANCE",
+    "ALL",
   );
   expect(first.id).not.toBe(second.id);
 });
+
+async function chooseCollectionItems(page, query, count = 1) {
+  await page.goto("/#/collections");
+  await page.getByRole("button", { name: "看图创建合集", exact: true }).click();
+  await page.getByLabel("搜索选品商品", { exact: true }).fill(query);
+  const previous = await page.locator("#collection-builder").elementHandle();
+  await page.getByRole("button", { name: "搜索", exact: true }).click();
+  await page.waitForFunction(root => !root.isConnected, previous);
+  await previous.dispose();
+  const choices = page.getByRole("checkbox", { name: /^选品 TM/ });
+  await expect(choices).toHaveCount(count);
+  for (const choice of await choices.all()) await choice.check();
+}
 
 test("二十件看图选品集中显示两件缺项，维护返回保留标题选择并且失败前不生成资料包", async ({
   page,
@@ -253,10 +258,7 @@ test("二十件看图选品集中显示两件缺项，维护返回保留标题�
     locale: "zh-CN",
     titleLimit: 200,
   });
-  await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-  await page.locator("#select-page").check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
+  await chooseCollectionItems(page, prefix, 20);
   await page.getByLabel("合集名称", { exact: true }).fill("周末试穿二十件");
   await page.getByLabel("语言与内容模板", { exact: true }).selectOption(c.id);
   let packages = 0;
@@ -304,10 +306,7 @@ test("看图选品真实创建后丢失回执，重试只生成一个合集和�
     locale: "zh-CN",
     titleLimit: 200,
   });
-  await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-  await page.locator("#select-page").check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
+  await chooseCollectionItems(page, prefix);
   await page.getByLabel("合集名称", { exact: true }).fill(prefix);
   await page.getByLabel("语言与内容模板", { exact: true }).selectOption(c.id);
   await page.getByLabel("我已确认选择的商品，生成本次客户选品快照").check();
@@ -374,7 +373,7 @@ test("渠道维护可修改停用，发布查询保留显式范围且手机可�
       locale: "zh-CN",
       titleLimit: 100,
     });
-  await page.goto("/#/settings");
+  await page.goto("/#/settings?section=channels");
   const row = page.locator("tr").filter({ hasText: title });
   await row.getByRole("button", { name: "修改 / 停用", exact: true }).click();
   const d = page.getByRole("dialog");
@@ -466,80 +465,25 @@ async function procurement(
   }
   return { source: s, orders, key };
 }
-test("集中成本批量确认两单，退款单保留待核对且回执丢失重试只写一次", async ({
-  page,
-}) => {
+test("采购来源和商品维护没有隐形成本预检，历史成本接口保持受控", async ({ page }) => {
   const x = await procurement(page, 3, { linked: true, refundLast: true });
-  let batchPreviewRequests = 0,
-    individualPreviewRequests = 0;
-  page.on("request", (request) => {
-    if (request.method() !== "GET" && request.method() !== "POST") return;
-    if (request.url().endsWith("/api/costing/orders/previews")) batchPreviewRequests++;
-    if (/\/api\/costing\/orders\/[^/]+\/preview$/.test(request.url())) individualPreviewRequests++;
-  });
-  const batchPreview = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith("/api/costing/orders/previews"),
-  );
-  await page.goto(
-    "/#/procurement?mode=costs&sourceId=" + x.source.id + "&month=2024-06",
-  );
-  const previewResponse = await batchPreview;
-  expect(previewResponse.ok(), await previewResponse.text()).toBeTruthy();
-  expect(batchPreviewRequests).toBe(1);
-  expect(individualPreviewRequests).toBe(0);
-  expect(previewResponse.request().postDataJSON().orderIds.sort()).toEqual(
-    x.orders.map((order) => order.id).sort(),
-  );
-  await page.getByRole("button", { name: "选择本页", exact: true }).click();
-  await expect(page.locator("[data-cost-count]")).toContainText("已选 3 单");
-  await page
-    .getByRole("button", { name: "批量确认汇率依据", exact: true })
-    .click();
-  const d = page.getByRole("dialog");
-  await d.getByLabel("本月采用汇率", { exact: true }).fill("7.1");
-  await d
-    .getByLabel("汇率来源与确认说明", { exact: true })
-    .fill("合成测试经确认的月参考汇率");
-  await d
-    .getByLabel("我已核对本月汇率，并确认按各来源已配置的每单附加成本执行")
-    .check();
-  let lost = false;
-  await page.route(
-    "**/api/costing/orders/" + x.orders[0].id + "/basis",
-    async (route) => {
-      const r = await route.fetch();
-      if (!lost) {
-        lost = true;
-        expect(r.ok(), await r.text()).toBeTruthy();
-        return route.abort("failed");
-      }
-      return route.fulfill({ response: r });
-    },
-  );
-  await d.getByRole("button", { name: "确认并执行" }).click();
-  await expect(d.locator("#batch-summary")).toHaveText("完成1 / 3");
-  await expect(d).toContainText("请逐单确认净支付");
-  await d.getByRole("button", { name: "重试未完成项" }).click();
-  await expect(d.locator("#batch-summary")).toHaveText("完成2 / 3");
-  await d.locator("button.close").click();
-  await expect(page.locator("[data-cost-count]")).toContainText("已选 3 单");
-  await page
-    .getByRole("button", { name: "批量写入TM成本", exact: true })
-    .click();
-  await d.getByLabel("我已逐单核对本批成本预览和依据").check();
-  await d.getByRole("button", { name: "确认并执行" }).click();
-  await expect(d.locator("#batch-summary")).toHaveText("完成2 / 3");
-  for (const o of x.orders.slice(0, 2)) {
-    expect((await read(page, "/items/" + o.itemId)).currentCostCny).toBe(91000);
-    expect(
-      (await read(page, "/costing/orders/" + o.id + "/preview")).basis.version,
-    ).toBe(1);
-  }
-  expect(
-    (await read(page, "/items/" + x.orders[2].itemId)).currentCostCny,
-  ).toBeNull();
+  const requests = [];
+  page.on("request", request => { if (request.url().includes("/api/costing/")) requests.push(request.url()); });
+  await page.goto("/#/procurement?sourceId=" + x.source.id);
+  await expect(page.getByRole("heading", { name: "采购历史", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "集中确认成本", exact: true })).toHaveCount(0);
+  await page.goto("/#/procurement/" + x.orders[0].id);
+  await expect(page.locator(".procurement-cost-panel")).toHaveCount(0);
+  await page.goto("/#/items/" + x.orders[0].itemId + "/edit");
+  await page.getByLabel("中文介绍", { exact: true }).fill("无需记账即可维护的合成商品说明");
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toHaveText("已保存");
+  expect(requests).toEqual([]);
+  const saved = await read(page, "/items/" + x.orders[0].itemId);
+  expect(saved.facts.descriptionZh).toBe("无需记账即可维护的合成商品说明");
+  expect(saved.currentCostCny).toBeNull();
+  const history = await read(page, "/costing/orders/" + x.orders[0].id + "/preview");
+  expect(history.ready).toBe(false);
 });
 
 test("采购第二页往返TM保留关键词来源页码和列表位置", async ({ page }) => {
@@ -659,31 +603,22 @@ test("图片归档按商品名称选择，保留来源输入且原图与中文�
 });
 
 test("分次加入选品按合并后的数量限制，超限不改变已有选择", async ({ page }) => {
-  const prefix = "选品容量 " + randomUUID();
-  const rows = [];
-  for (let n = 0; n < 41; n++)
-    rows.push(await api(page, "/items", { title: prefix + " " + n }));
+  const prefix = "选品容量 " + randomUUID(), rows = [];
+  for (let n = 0; n < 41; n++) rows.push(await api(page, "/items", { title: prefix + " " + n }));
+  await page.goto("/#/collections");
+  await page.getByRole("button", { name: "看图创建合集", exact: true }).click();
   for (let n = 0; n < 40; n++) {
-    await page.evaluate((id) => {
-      location.hash = "/items?q=" + id;
-    }, rows[n].code);
-    await page.locator("#select-page").check();
-    await page.locator(".bulk-more > summary").click();
-    await page
-      .getByRole("button", { name: "创建客户选品", exact: true })
-      .click();
+    await page.getByLabel("搜索选品商品", { exact: true }).fill(rows[n].code);
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await page.getByRole("checkbox", { name: "选品 " + rows[n].code, exact: true }).check();
     await expect(page.locator(".selection-row")).toHaveCount(n + 1);
   }
-  await page.evaluate((id) => {
-    location.hash = "/items?q=" + id;
-  }, rows[40].code);
-  await page.locator("#select-page").check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
-  await expect(page.locator("#toast")).toContainText("超过40件");
-  await page.evaluate(() => {
-    location.hash = "/collections/new";
-  });
+  await page.getByLabel("搜索选品商品", { exact: true }).fill(rows[40].code);
+  await page.getByRole("button", { name: "搜索", exact: true }).click();
+  const last = page.getByRole("checkbox", { name: "选品 " + rows[40].code, exact: true });
+  await last.click();
+  await expect(last).not.toBeChecked();
+  await expect(page.locator("[data-collection-error]")).toContainText("最多40件");
   await expect(page.locator(".selection-row")).toHaveCount(40);
 });
 
@@ -780,10 +715,7 @@ test("待办进入单条询盘后重置仍只显示原记录，返回保留待�
 test("选品草稿关页恢复时重读商品且只保存账号范围内的必要字段", async ({ page, context }) => {
   const prefix = "选品草稿 " + randomUUID();
   const item = await api(page, "/items", { title: prefix });
-  await page.goto("/#/items?q=" + encodeURIComponent(prefix));
-  await page.locator("#select-page").check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "创建客户选品", exact: true }).click();
+  await chooseCollectionItems(page, prefix);
   await page.getByLabel("合集名称", { exact: true }).fill("待继续 " + prefix);
   const owner = (await read(page, "/auth/me")).user.id;
   const draft = await page.evaluate(id => JSON.parse(localStorage.getItem("tome:collection-draft:" + id)), owner);

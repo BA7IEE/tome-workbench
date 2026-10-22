@@ -1,5 +1,5 @@
 import { Button, Card } from "../foundation/components";
-import { can, currencies, money } from "../core";
+import { can, currencies } from "../core";
 import { dictionaryField } from "../dictionary-picker";
 import { sourceFieldNote } from "../item-source-facts";
 import { categories, type Item } from "../types";
@@ -149,13 +149,7 @@ export function ProductFields({
               value={initialDraft.currency ?? i.currency}
             />
           </div>
-          {i.currentCostCny !== undefined && (
-            <div className="studio-cost-fact">
-              <span>当前人民币成本</span>
-              <strong>{money(i.currentCostCny, "CNY")}</strong>
-              <small>采购来源与成本依据可在历史中追溯</small>
-            </div>
-          )}
+
         </Card>
         <Card className="studio-condition-card" title="成色与品相">
           <ControllerSlot

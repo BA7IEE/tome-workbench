@@ -496,6 +496,18 @@ export const candidateBulkInput = z
         });
   });
 
+export const candidateConfirmationPreviewInput = z
+  .object({
+    ids: z.array(uuid).min(1).max(100),
+    versions: z.record(uuid, z.number().int().positive()),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Set(value.ids).size !== value.ids.length ||
+        value.ids.some((id) => !value.versions[id]))
+      ctx.addIssue({ code: "custom", message: "预检需要所选候选及其当前版本" });
+  });
+
 export const candidateBulkExcludeInput = z
   .object({
     ids: z.array(uuid).min(1).max(100),

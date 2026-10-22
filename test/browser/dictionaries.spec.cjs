@@ -320,9 +320,9 @@ test("有模拟成交也能从删除窗口清理，保留历史金额并显示�
     ).json();
   expect(business).toHaveLength(0);
   expect(testRows.map((s) => s.id)).toContain(sale.id);
-  await page.goto("/#/sales?dataMode=TEST&q=" + i.code);
+  await page.goto("/#/financial-history?dataMode=TEST&q=" + i.code);
   await expect(page.locator("#content")).toContainText(i.code);
-  await expect(page.locator("#content")).toContainText("不计入正式合作对账");
+  await expect(page.locator("#content")).toContainText("模拟历史记录");
   await page.screenshot({
     path: "reports/screenshots/test-sales-separated.png",
     fullPage: true,
@@ -342,11 +342,11 @@ test("批量改品牌只影响勾选商品与指定字段，版本冲突单独�
   await expect(page.locator("[data-pick]")).toHaveCount(3);
   await page.getByLabel("选择 " + a.code, { exact: true }).check();
   await page.getByLabel("选择 " + b.code, { exact: true }).check();
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "批量修改属性", exact: true }).click();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("要修改什么").selectOption("ATTRIBUTES");
   await page.locator("#dialog").getByLabel("修改品牌", { exact: true }).check();
   await chooseDictionary(page.locator("#dialog"), "品牌", "Dior", "Dior");
-  await page.getByLabel("我已逐件核对，所选属性适用于本次全部商品").check();
+  await page.getByLabel("我确认以上修改适用于所选商品").check();
   // Another authorized action changes B after the selection, so it must not be overwritten.
   await command(page, `/items/${b.id}/move`, {
     version: 1,
@@ -354,7 +354,7 @@ test("批量改品牌只影响勾选商品与指定字段，版本冲突单独�
     evidence: "模拟其他操作者登记交接",
   });
   await page
-    .getByRole("button", { name: "确认并执行", exact: true })
+    .getByRole("button", { name: "确认保存", exact: true })
     .click();
   await expect(page.locator("#batch-summary")).toContainText("完成1 / 2");
   await expect(page.locator(".batch-results")).toContainText(

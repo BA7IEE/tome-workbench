@@ -8,8 +8,10 @@ import { viewDialog, dialog, ApiError } from "./core";
 import { editChannel, platformNames, setupChannel } from "./channel-setup";
 import { onPageReady } from "./page-lifecycle";
 import { logsPage } from "./logs-page";
+import { chooseInquiryItem } from "./inquiry-form";
 import {
   request,
+  reload,
   can,
   me,
   esc,
@@ -21,9 +23,7 @@ import {
   area,
   select,
   check,
-  currencies,
   text,
-  cents,
   iso,
   form,
   empty,
@@ -31,11 +31,10 @@ import {
   table,
   section,
   itemLink,
-  downloadJson,
   observed,
 } from "./core";
 import { states } from "./types";
-import type { Listing, Sale, Inquiry, Channel, User } from "./types";
+import type { Listing, Inquiry, Channel, User } from "./types";
 interface WorkQueueRow {
   id: string;
   entityId: string;
@@ -45,7 +44,6 @@ interface WorkQueueRow {
     | "OBSERVATION"
     | "DISTRIBUTION"
     | "INQUIRY"
-    | "SALE_FINANCE"
     | "ITEM_REVIEW";
   priority: number;
   title: string;
@@ -68,7 +66,6 @@ interface WorkQueue {
     observations: number;
     distribution: number;
     inquiries: number;
-    saleFinance: number;
   };
   rows: WorkQueueRow[];
 }
@@ -76,9 +73,8 @@ const workKindNames: Record<WorkQueueRow["kind"], string> = {
   CANDIDATE: "商品待确认",
   TASK: "商品任务",
   OBSERVATION: "事实核对",
-  DISTRIBUTION: "分发执行",
+  DISTRIBUTION: "上架处理",
   INQUIRY: "客户跟进",
-  SALE_FINANCE: "成交补账",
   ITEM_REVIEW: "商品资料确认",
 };
 function taskControl(row: WorkQueueRow) {
@@ -126,15 +122,6 @@ export async function tasksPage() {
       new URLSearchParams({ scope, q, page: String(page), size: "60" }),
   );
   const s = queue.summary;
-  const metrics = [
-    ["全部待处理", s.total, "按业务风险和时效统一排序"],
-    ["商品待确认", s.candidates, "Agent采集后等待人工生成TM"],
-    ["商品资料待确认", s.itemReviews, "全部未批准TM，不受商品列表当前页限制"],
-    ["分发异常", s.distribution, "结果未知优先按 TM 核对，再处理明确失败"],
-    ["客户跟进", s.inquiries, "新询盘与跟进中询盘"],
-    ["成交补账", s.saleFinance, "缺成交额、成本、费用或到账确认"],
-    ["事实冲突", s.observations, "库存或经营事实需要人工核对"],
-  ];
   const visible = queue.rows;
   onPageReady("work-queue-filter", (el, signal) => {
     el.addEventListener(
@@ -160,17 +147,10 @@ export async function tasksPage() {
     ITEM_REVIEW: "待确认商品资料",
     DISTRIBUTION: "分发异常",
     INQUIRY: "客户跟进",
-    SALE_FINANCE: "成交补账",
-    OBSERVATION: "事实核对",
+      OBSERVATION: "事实核对",
   };
   return (
-    `<div class="page-title"><div><h1>经营待办</h1><p>系统从真实业务记录中汇总“下一步要做什么”；默认只展示真正需要先处理的事项，常规候选可进入待确认商品批量处理。</p></div><div class="button-row"><a class="btn" href="#/candidates">待确认商品</a><a class="btn" href="#/items">商品库</a></div></div>` +
-    `<div class="metrics compact">${metrics
-      .map(
-        ([label, value, sub]) =>
-          `<article class="metric"><span>${esc(label)}</span><strong>${value}</strong><small>${esc(sub)}</small></article>`,
-      )
-      .join("")}</div>` +
+    `<div class="page-title"><div><h1>待处理事项</h1><p>点一项直接处理对应记录。同一商品可以有多项；来源入库与商品资料确认分别处理。</p></div><div class="button-row"><a class="btn" href="#/candidates">待确认商品</a><a class="btn" href="#/items">商品库</a></div></div>` +
     `<form id="work-queue-filter" class="admin-filter-form">${select("scope", "查看范围", scopeOptions, scope)}${field("q", "搜索事项 / 商品", q)}<button class="btn primary">筛选</button><a class="btn" href="#/tasks">重置</a></form>` +
     section(
       `按优先级处理 · ${queue.total}项`,
@@ -214,7 +194,7 @@ export async function listingsPage() {
       recordFilters("listings", qs, "listings") +
         recordContext(qs, "listings") +
         note(
-          "这里只保留已取得稳定远端ID的身份记录。实际发布、待更新、异常和需停售状态请到“商品分发”查看；平台发布和下架仍由外部操作者实际执行。",
+          "这里只保留已取得稳定远端ID的身份记录。实际发布、待更新、异常和需停售状态请到“渠道上架”查看；平台发布和下架仍由外部操作者实际执行。",
         ) +
         table(
           ["商品", "渠道", "平台商品ID", "应有状态", "实际状态", "操作"],
@@ -230,180 +210,7 @@ export async function listingsPage() {
     ) +
     recordPaging("listings", qs, result) +
     (!listings.length
-      ? '<p><a class="btn" href="#/items">从商品准备发布</a></p>'
-      : "")
-  );
-}
-function editFinance(s: Sale) {
-  form(
-    "补齐成交收支 · " + s.code,
-    note(
-      "金额以本次交易币种记账。留空表示未知，不等于0。取得成本需要根据采购/供货凭据确认；不自动套用最新供应商报价。",
-    ) +
-      field("amount", "成交总额", s.amount == null ? "" : s.amount / 100) +
-      field("cost", "本次取得成本", s.cost == null ? "" : s.cost / 100) +
-      field("fees", "本次直接费用合计", s.fees == null ? "" : s.fees / 100) +
-      select("currency", "交易币种", currencies, s.currency) +
-      check("paid", "已核对实际到账", s.paid) +
-      area("note", "核对凭据、费用构成与备注", s.note),
-    (d, k) =>
-      request(
-        `/sales/${s.id}/finance`,
-        "POST",
-        {
-          version: s.version,
-          amount: cents(d.get("amount")),
-          cost: cents(d.get("cost")),
-          fees: cents(d.get("fees")),
-          currency: text(d, "currency"),
-          paid: d.has("paid"),
-          note: text(d, "note"),
-        },
-        k,
-      ),
-  );
-}
-export async function salesPage() {
-  const qs = new URLSearchParams(location.hash.split("?")[1] || ""),
-    dataMode = qs.get("dataMode") === "TEST" ? "TEST" : "BUSINESS";
-  const result = await request<{
-    rows: Sale[];
-    total: number;
-    page: number;
-    size: number;
-    summary: {
-      totals: Record<string, number>;
-      pending: number;
-      excluded: number;
-    };
-  }>("/sales?" + recordParams(qs));
-  const sales = result.rows,
-    { totals, pending, excluded } = result.summary;
-  const summary = `<div class="metrics compact">${Object.entries(totals)
-    .map(
-      ([c, n]) =>
-        `<article class="metric"><span>${esc(c)} 已核对合作贡献</span><strong class="amount">${money(n, c)}</strong></article>`,
-    )
-    .join(
-      "",
-    )}<article class="metric"><span>待补或待核对</span><strong>${pending}</strong></article><article class="metric"><span>不计入合作</span><strong>${excluded}</strong></article></div>`;
-  return (
-    recordFilters("sales", qs, "sales") +
-    recordContext(qs, "sales") +
-    (dataMode === "TEST"
-      ? note(
-          "以下仅为测试记录，保留历史金额供检查，不计入正式合作对账。商品已归档时不能继续补款或退款。",
-        )
-      : "") +
-    section(
-      "经营账",
-      note(
-        "此页不是最终季度结算，不自动打款。不同币种分开显示；缺少金额、成本、费用或到账确认的记录不计入合计。全额退款并完好回收后原销售成本冲回，再售重新应用。",
-      ) +
-        summary +
-        table(
-          [
-            "商品 / 时间",
-            "渠道与客户",
-            "成交 / 退款",
-            "成本 / 费用",
-            "合作归属 / 项目贡献",
-            "操作",
-          ],
-          sales.map((s) => [
-            `${itemLink(s.itemId, s.code + " " + s.item.title)}<small>${when(s.soldAt)}</small>`,
-            `${esc(s.channel)}<small>${esc(s.customerRef)}</small>`,
-            `${money(s.amount, s.currency)}<small>已退 ${money(s.refunded, s.currency)} · ${s.paid ? "到账已确认" : "到账待确认"}</small>`,
-            `${money(s.cost, s.currency)}<small>直接费用 ${money(s.fees, s.currency)}</small>`,
-            `${esc(states[s.cooperation] || s.cooperation)}<small>${s.contribution.value === null ? "不计入合计" : money(s.contribution.value, s.currency)}${s.returned ? " · 已回收" : ""}</small>`,
-            `<div class="sale-actions">${button("补收支", () => editFinance(s))}<details class="catalog-row-menu sale-row-menu"><summary class="btn subtle">更多</summary><div>${
-              can("users")
-                ? button("核对合作归属", () =>
-                    form(
-                      "记录人工合作归属判定",
-                      note(
-                        "默认纳入；仅对有明确约定依据的交易调整。会记录修改前后状态、原因与规则来源，不代表已经完成季度结算。",
-                      ) +
-                        select(
-                          "cooperation",
-                          "本次交易",
-                          { INCLUDED: "计入合作", EXCLUDED: "不计入合作" },
-                          s.cooperation === "EXCLUDED"
-                            ? "EXCLUDED"
-                            : "INCLUDED",
-                        ) +
-                        field(
-                          "ruleReference",
-                          "实际采用的协议 / 约定依据",
-                          "",
-                          "text",
-                          true,
-                        ) +
-                        area("reason", "核对理由") +
-                        check("confirmed", "已核对适用范围和事实"),
-                      (d, k) => {
-                        if (!d.has("confirmed"))
-                          throw new Error("请先确认核对结果");
-                        return request(
-                          `/sales/${s.id}/classify`,
-                          "POST",
-                          {
-                            version: s.version,
-                            cooperation: text(d, "cooperation"),
-                            ruleReference: text(d, "ruleReference"),
-                            reason: text(d, "reason"),
-                            confirmed: true,
-                          },
-                          k,
-                        );
-                      },
-                    ),
-                  )
-                : ""
-            }${button("记录退款", () => form("记录退款", note("只登记已经发生的退款，不实际调用支付平台。累计金额不能超过成交额。") + field("amount", "本次退款金额", "", "text", true) + area("reason", "退款原因与凭据"), (d, k) => request(`/sales/${s.id}/refund`, "POST", { amount: cents(d.get("amount")), reason: text(d, "reason") }, k)))}${
-              !s.returned
-                ? button("确认完好退回", () =>
-                    form(
-                      "确认全额退款并完好收回",
-                      note(
-                        "本版仅对“已全额退款、同件商品完整回收”自动恢复成本。确认后进入待复检，不自动可售。",
-                      ) +
-                        area("evidence", "实物身份、附件、品相与签收依据") +
-                        check("intact", "确认是原商品，实物及附件完整回收"),
-                      (d, k) => {
-                        if (!d.has("intact"))
-                          throw new Error("未确认完整回收，不能执行此操作");
-                        return request(
-                          `/sales/${s.id}/return`,
-                          "POST",
-                          { intact: true, evidence: text(d, "evidence") },
-                          k,
-                        );
-                      },
-                    ),
-                  )
-                : '<span class="sale-returned">已回收</span>'
-            }</div></details></div>`,
-          ]),
-        ),
-      button("导出当前页", () => downloadJson("经营账_当前页.json", sales)) +
-        button("导出全部匹配记录", async () => {
-          const p = recordParams(qs);
-          p.set("export", "1");
-          const all = await request<{
-            rows: Sale[];
-            total: number;
-            summary: unknown;
-          }>("/sales?" + p);
-          downloadJson("经营账_全部匹配记录.json", {
-            filters: Object.fromEntries(p),
-            ...all,
-          });
-        }),
-    ) +
-    recordPaging("sales", qs, result) +
-    (!sales.length
-      ? '<p><a class="btn" href="#/items">从商品登记售出</a></p>'
+      ? '<p><a class="btn" href="#/items">从商品准备上架</a></p>'
       : "")
   );
 }
@@ -423,8 +230,9 @@ export async function inquiriesPage() {
     section(
       "询盘与跟进",
       note(
-        "在商品工作区点击“记录询盘”即可登记。确认成交会原子写入 Sale、停售商品并生成已分发渠道的下架执行记录；不是单纯改一个状态。",
+        "需要时按TM号记录客户沟通；不影响正常入库、编辑或卖货。确认成交后会同步停售库存，并保留各渠道的下架待处理记录。",
       ) +
+        button("记录询盘", () => chooseInquiryItem(reload), "primary") +
         context +
         table(
           ["商品", "渠道 / 客户", "报价", "记录", "状态", "下次跟进", "操作"],
@@ -445,9 +253,7 @@ export async function inquiriesPage() {
         ),
     ) +
     recordPaging("inquiries", qs, result) +
-    (!rows.length
-      ? '<p><a class="btn" href="#/items">从商品记录询盘</a></p>'
-      : "")
+    (!rows.length ? note("暂时没有客户跟进记录。") : "")
   );
 }
 async function historyHtml(id: string) {
@@ -547,7 +353,7 @@ function convertInquiry(i: Inquiry) {
   form(
     "确认询盘成交",
     note(
-      "将锁定商品、创建成交记录、把商品停售并将本询盘标为已转化。成交金额、成本和费用仍按既有成交记录补充；此操作不会收款。",
+      "将锁定商品、创建成交记录、把商品停售并将本询盘标为已转化。只记录实际成交与库存，不需要记账；此操作不会收款。",
     ) +
       field("externalKey", "外部订单唯一键（可留空）") +
       area("note", "成交说明", "", 3),
@@ -575,8 +381,9 @@ const roleLabels: Record<string, string> = {
   VIEWER: "只读",
 };
 export async function settingsPage() {
-  const channels = await request<Channel[]>("/channels");
-  const users = can("users") ? await request<User[]>("/auth/users") : [];
+  const currentSection = new URLSearchParams(location.hash.split("?")[1] || "").get("section");
+  const channels = currentSection === "channels" ? await request<Channel[]>("/channels") : [];
+  const users = currentSection === "users" && can("users") ? await request<User[]>("/auth/users") : [];
   let html = section(
     "个人账户",
     `<p>${esc(me?.name)} · ${esc(me?.email)} · ${esc(states[me?.role || ""] || "内部账户")}</p>`,
@@ -606,7 +413,7 @@ export async function settingsPage() {
       ),
     ),
   );
-  html += section(
+  const channelSettings = section(
     "渠道账号",
     note(
       "标题上限是本项目的操作配置，不代表已经核实该平台最新规则。全渠道使用同一个TM号。自有展厅指本系统提供的商品展示页面。",
@@ -625,8 +432,7 @@ export async function settingsPage() {
       ),
     can("users") ? button("＋ 创建渠道", () => setupChannel()) : "",
   );
-  if (can("users"))
-    html += section(
+  const userSettings = can("users") ? section(
       "用户与权限",
       table(
         ["姓名", "登录名", "角色", "状态", "操作"],
@@ -706,7 +512,7 @@ export async function settingsPage() {
             ),
         ),
       ),
-    );
+    ) : "";
   html += section(
     "系统能力",
     note(
@@ -714,7 +520,10 @@ export async function settingsPage() {
     ) +
       `<details class="technical-details"><summary>技术维护</summary><div class="button-row"><a class="btn" href="/api/system/openapi" target="_blank" rel="noopener">API接口说明</a>${can("users") ? '<a class="btn" href="#/jobs">后台任务</a>' : ""}${can("audit") ? '<a class="btn" href="#/audit">操作记录</a>' : ""}</div></details>`,
   );
-  return html;
+  if (currentSection === "channels") return '<a class="btn" href="#/settings">返回设置</a>' + channelSettings;
+  if (currentSection === "users" && can("users")) return '<a class="btn" href="#/settings">返回设置</a>' + userSettings;
+  return html + '<div class="button-row"><a class="btn" href="#/settings?section=channels">渠道账号设置</a>' +
+    (can("users") ? '<a class="btn" href="#/settings?section=users">账户与权限设置</a>' : '') + '</div>';
 }
 export async function jobsPage() {
   return logsPage(true);

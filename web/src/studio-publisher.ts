@@ -175,11 +175,11 @@ export class StudioPublisher {
       if (!this.channels.length) {
         if (!can("users")) {
           this.host.innerHTML =
-            "<h2>准备发布</h2><p>还没有渠道，请管理员先添加实际使用的账号。商品已经保存。</p>";
+            "<h2>准备上架</h2><p>还没有渠道，请管理员先添加实际使用的账号。商品已经保存。</p>";
           return;
         }
         this.host.innerHTML =
-          '<h2>准备发布</h2><p>还没有渠道。添加一次，以后可直接选择。</p><button type="button" class="btn primary" id="studio-add-channel">添加渠道</button><button type="button" class="btn" id="studio-close">继续编辑</button>';
+          '<h2>准备上架</h2><p>还没有渠道。添加一次，以后可直接选择。</p><button type="button" class="btn primary" id="studio-add-channel">添加渠道</button><button type="button" class="btn" id="studio-close">继续编辑</button>';
         this.host
           .querySelector("#studio-close")!
           .addEventListener("click", () => this.close());
@@ -290,7 +290,7 @@ export class StudioPublisher {
     const selectedUsesSupplierImages = () =>
       this.selected.some((id) => p.assets.find((a) => a.id === id)?.origin !== "OWN");
     const note = previous?.note || (selectedUsesSupplierImages() ? "" : ownPhotoNote);
-    this.host.innerHTML = `<header class="studio-publish-head"><div><h2>准备发布</h2><small>${esc(this.item.code)} · ${money(p.price, p.currency)}</small></div><button type="button" class="btn" id="studio-close">收起</button></header><div class="studio-publish-scroll"><form id="studio-publish-form"><div class="studio-target"><label>目标账号<select name="studioChannel" aria-label="发布目标账号">${this.channels.map((c) => `<option value="${c.id}" ${c.id === this.channelId ? "selected" : ""}>${esc(platformNames[c.platform] || c.platform)} · ${esc(c.name)}</option>`).join("")}</select></label><label>使用场景<select name="studioPurpose" aria-label="使用场景"><option value="TRADE" ${this.use === "TRADE" ? "selected" : ""}>发布到平台</option><option value="CUSTOMER_CARD" ${this.use === "CUSTOMER_CARD" ? "selected" : ""}>发给客户</option></select></label></div>
+    this.host.innerHTML = `<header class="studio-publish-head"><div><h2>准备上架</h2><small>${esc(this.item.code)} · ${money(p.price, p.currency)}</small></div><button type="button" class="btn" id="studio-close">收起</button></header><div class="studio-publish-scroll"><form id="studio-publish-form"><div class="studio-target"><label>目标账号<select name="studioChannel" aria-label="发布目标账号">${this.channels.map((c) => `<option value="${c.id}" ${c.id === this.channelId ? "selected" : ""}>${esc(platformNames[c.platform] || c.platform)} · ${esc(c.name)}</option>`).join("")}</select></label><label>使用场景<select name="studioPurpose" aria-label="使用场景"><option value="TRADE" ${this.use === "TRADE" ? "selected" : ""}>发布到平台</option><option value="CUSTOMER_CARD" ${this.use === "CUSTOMER_CARD" ? "selected" : ""}>发给客户</option></select></label></div>
    ${this.use === "TRADE" && !hasActiveTarget ? `<div class="notice warning studio-target-warning">这件商品尚未明确加入「${esc(p.channel.name)}」经营。可以先准备资料，但登记发布前必须明确经营目标。 <button type="button" class="btn" id="studio-activate-target">加入此分发渠道</button></div>` : ""}
    ${this.conflictDraft ? `<section class="studio-draft-conflict"><strong>渠道文案被其他人更新了</strong><p>你的编辑已保留。请先比较，不会自动覆盖对方的新内容。</p><details><summary>查看服务器文案</summary><h4>${esc(this.conflictDraft.title)}</h4><div class="copy">${esc(this.conflictDraft.body)}</div></details>${check("studioConflictAck", "已比较双方文案和选图，确认处理方式")}<button type="button" class="btn" id="studio-use-remote">使用服务器文案</button><button type="button" class="btn" id="studio-keep-local">核对后保留我的文案</button></section>` : ""}
    <div class="studio-missing" role="status">${p.missing.length ? "<strong>还需补充：</strong>" + p.missing.map((m) => `<button class="btn subtle" type="button" data-studio-fix="${m.code}">${esc(m.title)}</button>`).join("") : "<span>资料已齐，核对文案和图片即可。</span>"}</div><button type="button" class="btn" id="studio-refresh">保存商品并重新检查</button>
@@ -374,7 +374,7 @@ export class StudioPublisher {
           activated = await activateDistributionTarget(
             this.item.id,
             p.channel,
-            "商品编辑工作室明确加入分发渠道",
+            "商品编辑工作室明确加入上架渠道",
             duplicatePlatformTarget,
           );
           if (activated)

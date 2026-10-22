@@ -17,7 +17,6 @@ const querySchema = z
         "OBSERVATION",
         "DISTRIBUTION",
         "INQUIRY",
-        "SALE_FINANCE",
         "ITEM_REVIEW",
       ])
       .default("ALL"),
@@ -50,7 +49,6 @@ export async function readWorkQueue(
   const q = querySchema.parse(raw),
     sell = permission(role, "sell"),
     publish = permission(role, "publish"),
-    finance = permission(role, "finance"),
     staleHours = config().distributionHandoffStaleHours;
   const [result] = await db.$queryRaw<
     { rows: Row[]; total: number; summary: Record<string, number> }[]
@@ -123,31 +121,16 @@ export async function readWorkQueue(
         concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title, n.channel, n."customerRef"), n."updatedAt",
         jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
       FROM "Inquiry" n JOIN "Item" i ON i.id=n."itemId" WHERE ${sell} AND n.state IN ('OPEN','FOLLOWUP') AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
-      UNION ALL
-      SELECT 'sale:' || s.id::text, s.id, 'SALE_FINANCE', 30,
-        CASE
-          WHEN s.currency<>'CNY' AND s.cost IS NULL THEN '外币成交待确认结算依据'
-          ELSE '成交记录待补收支'
-        END,
-        concat_ws(' · ', 'TM' || lpad(i.serial::text, greatest(6,length(i.serial::text)), '0'), i.title,
-          '缺 ' || concat_ws('、',
-            CASE WHEN s.amount IS NULL THEN '成交额' END,
-            CASE WHEN s.cost IS NULL AND s.currency='CNY' THEN '成本' END,
-            CASE WHEN s.cost IS NULL AND s.currency<>'CNY' THEN '外币结算依据' END,
-            CASE WHEN s.fees IS NULL THEN '费用' END,
-            CASE WHEN NOT s.paid THEN '到账确认' END
-          )), s."soldAt",
-        jsonb_build_object('id',i.id,'serial',i.serial,'title',i.title), NULL, NULL, NULL
-      FROM "Sale" s JOIN "Item" i ON i.id=s."itemId" WHERE ${finance} AND (s.amount IS NULL OR s.cost IS NULL OR s.fees IS NULL OR NOT s.paid) AND i."dataMode"='BUSINESS' AND i."deletedAt" IS NULL
+
     ), filtered AS (
-      SELECT * FROM all_rows WHERE (${q.scope}='ALL' OR (${q.scope}='IMPORTANT' AND priority>=70) OR (${q.scope}='NEXT' AND priority<80) OR kind=${q.scope})
+      SELECT * FROM all_rows WHERE (${q.scope}='ALL' OR (${q.scope}='IMPORTANT' AND priority>=70) OR (${q.scope}='NEXT' AND priority<70) OR kind=${q.scope})
         AND strpos(lower(title || ' ' || detail), lower(${q.q}))>0
     ), page_rows AS (
       SELECT * FROM filtered ORDER BY priority DESC, "createdAt", id LIMIT ${q.size} OFFSET ${(q.page - 1) * q.size}
     ) SELECT coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.priority DESC,p."createdAt",p.id) FROM page_rows p),'[]'::jsonb) AS rows,
       (SELECT count(*)::int FROM filtered) AS total,
       (SELECT jsonb_build_object('total',count(*),'candidates',count(*) FILTER(WHERE kind='CANDIDATE'),'tasks',count(*) FILTER(WHERE kind='TASK'),
-        'itemReviews',count(*) FILTER(WHERE kind='ITEM_REVIEW'),'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'distribution',count(*) FILTER(WHERE kind='DISTRIBUTION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY'),'saleFinance',count(*) FILTER(WHERE kind='SALE_FINANCE')) FROM all_rows) AS summary
+        'itemReviews',count(*) FILTER(WHERE kind='ITEM_REVIEW'),'observations',count(*) FILTER(WHERE kind='OBSERVATION'),'distribution',count(*) FILTER(WHERE kind='DISTRIBUTION'),'inquiries',count(*) FILTER(WHERE kind='INQUIRY')) FROM all_rows) AS summary
   `);
   for (const row of result.rows) {
     const item = row.item;
@@ -175,10 +158,7 @@ export async function readWorkQueue(
       row.href = `#/inquiries?id=${row.entityId}&from=tasks`;
       row.action = "去跟进";
     }
-    if (row.kind === "SALE_FINANCE") {
-      row.href = `#/sales?id=${row.entityId}&from=tasks`;
-      row.action = "去补账";
-    }
+
   }
   return { ...result, page: q.page, size: q.size };
 }

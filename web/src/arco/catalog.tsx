@@ -94,7 +94,7 @@ function RowMenu({ item }: { item: Item }) {
             href={`#/items/${item.id}/edit?publish=1`}
             onClick={() => setOpen(false)}
           >
-            准备发布
+            准备上架
           </Button>
         )}
         {can("delete") && (
@@ -155,9 +155,7 @@ function Price({ item: i }: { item: Item }) {
   return (
     <div className="catalog-price">
       <strong>{quote(i)}</strong>
-      {i.currentCostCny !== undefined && (
-        <small>成本 {money(i.currentCostCny, "CNY")}</small>
-      )}
+
     </div>
   );
 }
@@ -594,17 +592,9 @@ export function Catalog({
           </Button>
         </div>
         <div className="bulk-primary">
-          {actions.slice(0, 1).map((a) => (
-            <Action key={a.label} action={a} />
+          {actions.map((action) => (
+            <Action key={action.label} action={action} />
           ))}
-          <details className="bulk-more">
-            <summary className="btn">批量操作</summary>
-            <div>
-              {actions.slice(1).map((a) => (
-                <Action key={a.label} action={a} />
-              ))}
-            </div>
-          </details>
         </div>
       </div>
       {!data.rows.length ? (

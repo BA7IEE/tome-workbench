@@ -58,13 +58,26 @@ export function sourceValues(source: Source) {
   return {
     sourceId: source.id,
     title: source.title,
-    brand: value("brand"),
+    brand: "",
     category,
     ownership: ["OWN","SUPPLIER"].includes(value("ownership"))
       ? value("ownership")
       : source.supplier ? "SUPPLIER" : "OWN",
     location: value("location") || source.supplier?.name || "",
-    facts,
+    facts: {
+      ...facts,
+      color: "",
+      attributes: {
+        ...(value("brand") ? { sourceBrand: value("brand") } : {}),
+        ...(value("color") ? { sourceColor: value("color") } : {}),
+        sourcePlatform: source.sourceLabel || source.supplier?.name || "手工货源",
+      },
+      attributeLabels: {
+        sourceBrand: "来源品牌",
+        sourceColor: "来源颜色",
+        sourcePlatform: "来源",
+      },
+    },
     currency: ["CNY", "USD", "EUR", "HKD", "GBP", "SGD"].includes(
       value("currency"),
     )

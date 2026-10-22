@@ -34,7 +34,6 @@ import { detailPage } from "./items";
 import {
   tasksPage,
   listingsPage,
-  salesPage,
   inquiriesPage,
   settingsPage,
   jobsPage,
@@ -43,7 +42,7 @@ import {
 } from "./pages";
 import { intakePage } from "./intake-page";
 import { collectionsPage } from "./collections-page";
-import { settlementsPage } from "./settlements-page";
+import { financialHistoryPage } from "./financial-history";
 import { operationsPage } from "./operations-page";
 let generation = 0;
 let renderedHash = "";
@@ -91,7 +90,7 @@ async function render() {
     }
   }
   if (!location.hash || location.hash === "#/") {
-    history.replaceState(null, "", "#/dashboard");
+    history.replaceState(null, "", "#/items?view=grid");
   }
   const path = location.hash.replace(/^#\/?/, "").split("?")[0],
     parts = path.split("/"),
@@ -127,8 +126,8 @@ async function render() {
       html = await intakePage(parts[1]);
     else if (page === "collections" && can("read"))
       html = await collectionsPage(parts[1]);
-    else if (page === "settlements" && can("finance"))
-      html = await settlementsPage(parts[1]);
+    else if ((page === "financial-history" || page === "settlements") && can("finance"))
+      html = await financialHistoryPage(page === "settlements" ? parts[1] : undefined, page === "settlements");
     else if (page === "operations" && can("users"))
       html = await operationsPage();
     else if (page === "tasks") html = await tasksPage();
@@ -136,15 +135,16 @@ async function render() {
       html = await distributionCenter();
     else if (page === "listings") html = await listingsPage();
     else if (page === "sales" && can("sell"))
-      html = can("finance") ? await salesPage() : await salesFactsPage();
+      html = await salesFactsPage();
     else if (page === "inquiries" && can("sell")) html = await inquiriesPage();
     else if (page === "settings")
       html =
-        `<div class="page-title"><div><h1>更多</h1><p>账户与常用配置；采购、供应商、对账、字典、运行状态和审计都在这里。</p></div></div><details class="panel library-tools"><summary>其他业务记录与维护工具</summary>${extraNavigation(page)}</details>` +
+        `<div class="page-title"><div><h1>设置</h1><p>账户、配置与历史记录；日常管货从商品库开始。</p></div></div><div class="panel library-tools">${extraNavigation(page)}</div>` +
         (await settingsPage());
     else if (page === "jobs" && can("users")) html = await jobsPage();
     else if (page === "audit" && can("audit")) html = await auditPage();
-    else html = await dailyWork();
+    else if (page === "dashboard") html = await dailyWork();
+    else html = '<div class="empty panel"><h1>此页面不可用</h1><p>页面不存在，或当前账号没有访问权限。</p><a class="btn" href="#/items">回商品库</a></div>';
   } catch (error) {
     html = pageReadError((error as Error).message, () => render());
   }

@@ -15,7 +15,7 @@ async function login(page) {
   await fillLogin(page, fixture.email, fixture.password);
   await submitLogin(page);
   await expect(
-    page.getByRole("link", { name: "更多", exact: true }),
+    page.getByRole("link", { name: "设置", exact: true }),
   ).toBeVisible();
 }
 async function command(page, path, body, method = "POST") {
@@ -58,35 +58,13 @@ test("选择商品和操作菜单不擦除尚未提交的筛选输入，键盘�
   await page.getByLabel("选择 " + a.code, { exact: true }).check();
   await expect(page.getByLabel("品牌", { exact: true })).toHaveValue("Dior");
   await expect(brand).toHaveValue(brandId);
-  const more = page.locator(".bulk-more > summary");
-  await more.click();
-  await expect(
-    page.getByRole("button", { name: "批量定价", exact: true }),
-  ).toBeVisible();
-  const menu = page.locator(".bulk-more > div");
-  // With vendor styles restored a short action list can fit. Constrain only this
-  // panel to exercise the internal-scroll regression without changing actions.
-  await menu.evaluate((el) => {
-    el.style.maxHeight = "120px";
-  });
-  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
-    true,
-  );
-  const box = await menu.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + 30);
-  await page.mouse.wheel(0, 40);
-  await expect
-    .poll(() => menu.evaluate((el) => el.scrollTop))
-    .toBeGreaterThan(0);
-  await expect(page.locator(".bulk-more")).toHaveAttribute("open", "");
-  await expect(
-    page.getByLabel("选择 " + a.code, { exact: true }),
-  ).toBeChecked();
+  const edit = page.getByRole("button", { name: "批量编辑", exact: true });
+  await edit.click();
+  await expect(page.getByRole("dialog", { name: "批量编辑商品" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(more).toBeFocused();
-  await expect(
-    page.getByRole("button", { name: "批量定价", exact: true }),
-  ).not.toBeVisible();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(edit).toBeFocused();
+  await expect(page.getByLabel("选择 " + a.code, { exact: true })).toBeChecked();
   await expect(page.getByLabel("搜索商品", { exact: true })).toHaveValue(
     prefix + " A",
   );
@@ -136,7 +114,7 @@ test("完整编辑遇到并发改价后保留中文草稿，合并仍需主动�
   expect(before.facts.descriptionZh).toBe("旧介绍");
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".entry-save-state")).toHaveText("已保存");
-  await page.getByRole("link", { name: "商品库", exact: true }).click();
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }).click();
   await page.goto(`/#/items/${item.id}/edit`);
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
     "这次补充的介绍",
@@ -327,6 +305,9 @@ for (const width of [1440, 390]) {
       "imports",
       "candidates",
       "settings",
+      "settings?section=channels",
+      "settings?section=users",
+      "financial-history",
       "dictionaries",
       "sources",
       "procurement",
@@ -346,10 +327,11 @@ for (const width of [1440, 390]) {
     ];
     for (const route of routes) {
       const previousContent = await page.locator("#content").elementHandle();
+      const changed = new URL(page.url()).hash !== "#/" + route;
       await page.goto("/#/" + route);
       // Wait for this hash route to mount before inspecting its UI, including
       // routes that share a heading or show the same type of search form.
-      await page.waitForFunction(
+      if (changed) await page.waitForFunction(
         (previous) => !previous.isConnected,
         previousContent,
       );
@@ -422,7 +404,7 @@ for (const width of [1440, 390]) {
         await expect(page.getByRole("dialog")).not.toBeVisible();
         await expect(page).toHaveURL(/#\/sources$/);
       }
-      if (route === "settings") {
+      if (route === "settings?section=channels") {
         // Channel.defaultCurrency is now an operating fact shown with the
         // account, so the former six-column layout expectation is obsolete.
         await expect(content.locator(".record-table").first()).toContainText(
@@ -459,6 +441,9 @@ for (const width of [1440, 390]) {
         [
           "imports",
           "settings",
+      "settings?section=channels",
+      "settings?section=users",
+      "financial-history",
           "sources",
           `items/${item.id}/edit`,
           `procurement/${order.id}`,

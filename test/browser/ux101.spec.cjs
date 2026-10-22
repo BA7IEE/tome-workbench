@@ -31,11 +31,11 @@ async function api(page, path, body, method = "POST") {
 
 test.beforeEach(async ({ page }) => login(page));
 
-test("无hash登录后默认进入工作台而不是全量商品库", async ({ page }) => {
+test("无hash登录后默认进入全部商品，暂停的新入库商品也可找回", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "工作总览" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "工作台", exact: true }),
+    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }),
   ).toHaveAttribute("aria-current", "page");
 });
 
@@ -74,11 +74,8 @@ test("运营可以看成交事实但不能读取经营财务账", async ({ page 
   await page.getByRole("button", { name: "退出登录", exact: true }).click();
   await fillLogin(page, email, password);
   await submitLogin(page);
-  await expect(
-    page
-      .getByRole("navigation", { name: "主导航" })
-      .getByRole("link", { name: "销售", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "设置", exact: true }).click();
+  await expect(page.getByRole("link", { name: "成交记录", exact: true })).toBeVisible();
   await api(page, `/items/${item.id}/sold`, {
     channel: "线下成交",
     customerRef: "UX客户",
@@ -104,16 +101,9 @@ test("运营可以看成交事实但不能读取经营财务账", async ({ page 
   expect(
     (await page.request.get(`/api/sales?page=1&itemId=${item.id}`)).status(),
   ).toBe(403);
-  await page
-    .getByRole("navigation", { name: "主导航" })
-    .getByRole("link", { name: "销售", exact: true })
-    .click();
+  await page.getByRole("link", { name: "成交记录", exact: true }).click();
   await expect(page.getByRole("heading", { name: "成交记录" })).toBeVisible();
-  await expect(
-    page.getByText(
-      "成交额、成本、费用、退款、到账和合作分成只向经营财务角色显示",
-    ),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "补收支" })).toHaveCount(0);
   const salesHash = new URL(page.url()).hash;
   await page.locator(".itemlink").filter({ hasText: item.code }).click();
   await expect(page.locator(".product-overview")).toBeVisible();
@@ -131,9 +121,9 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
   await page.goto(`/#/items/${item.id}`);
   await expect(page.locator(".product-overview")).toBeVisible();
   await expect(page.getByLabel("商品名称", { exact: true })).toHaveCount(0);
-  for (const [action, open, submit, state] of [
-    ["reserve", "预留", "确认预留", "RESERVED"],
-    ["release", "解除预留", "确认解除", "PAUSED"],
+  for (const [action, stateChoice, submit, state] of [
+    ["reserve", "RESERVED", "确认预留", "RESERVED"],
+    ["release", "RELEASE", "确认解除", "PAUSED"],
   ]) {
     const keys = [],
       path = `**/api/items/${item.id}/${action}`;
@@ -148,7 +138,9 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
         });
       else await route.fulfill({ response });
     });
-    await page.getByRole("button", { name: open, exact: true }).click();
+    await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
+    await page.getByRole("dialog").getByLabel("实际库存情况").selectOption(stateChoice);
+    await page.getByRole("dialog").getByRole("button", { name: "确认库存情况", exact: true }).click();
     const d = page.getByRole("dialog");
     if (action === "reserve")
       await d.getByLabel("客户内部标记", { exact: true }).fill("合成预留客户");
@@ -169,7 +161,9 @@ test("只读详情直接预留和解除，真实写入丢回执后同键重试�
     expect(latest.reservations).toHaveLength(action === "reserve" ? 1 : 0);
   }
   await expect(page.locator("[data-overview-status]")).toHaveText("已暂停");
-  await page.getByRole("button", { name: "恢复可售", exact: true }).click();
+  await page.getByRole("button", { name: "更改库存状态", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("实际库存情况").selectOption("AVAILABLE");
+  await page.getByRole("dialog").getByRole("button", { name: "确认库存情况", exact: true }).click();
   const d = page.getByRole("dialog");
   await d.getByLabel("实物、库存与品相复核依据").fill("合成实物已重新核对");
   await d.getByLabel("已重新核对库存，确认可以销售").check();
@@ -214,7 +208,7 @@ test("登录真实响应延迟时先等确定回执，保留页面断言且只�
       "合成ADMIN",
     );
     await expect(
-      other.getByRole("heading", { name: "工作总览", exact: true }),
+      other.getByRole("heading", { name: "商品", exact: true }),
     ).toBeVisible();
     expect(writes).toBe(1);
     expect(
@@ -238,7 +232,9 @@ test("各角色界面使用服务端能力，商品编辑与销售入口符合�
       await login(other, email, password);
       const session = await (await other.request.get("/api/auth/me")).json();
       expect(session.capabilities.includes("sell")).toBe(permission(role, "sell"));
-      await expect(other.getByRole("link", { name: "销售", exact: true })).toHaveCount(permission(role, "sell") ? 1 : 0);
+      await expect(other.getByRole("navigation", { name: "主导航" }).getByRole("link")).toHaveCount(permission(role, "publish") ? 4 : 3);
+      await other.getByRole("link", { name: "设置", exact: true }).click();
+      await expect(other.getByRole("link", { name: "成交记录", exact: true })).toHaveCount(permission(role, "sell") ? 1 : 0);
       await other.goto("/#/items");
       await expect(other.getByRole("heading", { name: "商品", exact: true })).toBeVisible();
       await expect(other.getByRole("button", { name: "＋ 快速录入我方现货", exact: true })).toHaveCount(permission(role, "edit") ? 1 : 0);
