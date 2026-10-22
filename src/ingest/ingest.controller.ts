@@ -36,6 +36,7 @@ import { compensationInput, compensationPreview, compensateConfirmation } from "
 import { confirmationCorrectionPreview } from "./confirmation-correction";
 import {
   candidateBulkInput,
+  candidateConfirmationPreviewInput,
   candidateBulkExcludeInput,
   candidateConfirmInput,
   candidateLinkItemInput,
@@ -454,6 +455,12 @@ export class IngestAdminController {
       uuid.parse(id),
       candidateConfirmInput.parse(raw),
     );
+  }
+  @Access("edit") @Post("candidates/confirmation-preview") confirmationPreview(
+    @Body() raw: unknown,
+  ) {
+    const b = candidateConfirmationPreviewInput.parse(raw);
+    return this.service.confirmationPreview(b.ids, b.versions);
   }
   @Access("edit") @Post("candidates/bulk-confirm") async bulkConfirm(
     @Body() raw: unknown,

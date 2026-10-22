@@ -197,6 +197,7 @@ test("供应商包袋：接手时复用资料和保管方式，不抄供货价�
       supplierId: supplier.id,
       payload: {
         brand: "SUPPLIER",
+        color: "Pink, Pattern Prints",
         category: "包袋",
         measurements: "30×20×10cm",
         measurementSource: "供应商已提供尺寸",
@@ -207,9 +208,10 @@ test("供应商包袋：接手时复用资料和保管方式，不抄供货价�
   ]);
   await page.goto("/#/sources?q=" + encodeURIComponent(title));
   await page.getByRole("button", { name: "接手建档", exact: true }).click();
-  await expect(page.getByLabel("品牌", { exact: true })).toHaveValue(
-    "SUPPLIER",
-  );
+  await expect(page.getByLabel("品牌", { exact: true })).toHaveValue("");
+  await expect(page.locator("[data-source-field=brand]")).toContainText("SUPPLIER");
+  await expect(page.getByLabel("颜色", { exact: true })).toHaveValue("");
+  await expect(page.locator("[data-source-field=color]")).toContainText("Pink, Pattern Prints");
   await expect(page.getByLabel("品类", { exact: true })).toHaveValue("BAG");
   await expect(page.getByLabel("实测尺寸", { exact: true })).toHaveValue(
     "30×20×10cm",
@@ -225,7 +227,11 @@ test("供应商包袋：接手时复用资料和保管方式，不抄供货价�
   const saved = await (await page.request.get("/api/items/" + savedId)).json();
   expect(saved.title).toBe(title);
   expect(saved.ownership).toBe("SUPPLIER");
+  expect(saved.brand).toBe("");
+  expect(saved.facts.attributes.sourceBrand).toBe("SUPPLIER");
   expect(saved.currentPrice).toBeNull();
+  expect(saved.facts.color).toBe("");
+  expect(saved.facts.attributes.sourceColor).toBe("Pink, Pattern Prints");
   expect(saved.assets).toHaveLength(0);
 });
 test("保存图片的回执中断：保留已建商品，重试不生成第二件或第二张图", async ({
@@ -274,7 +280,17 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
         brand: "QUEUE",
       }),
     );
-  await page.goto("/#/items?q=" + encodeURIComponent(prefix) + "&category=BAG");
+  const [filtered] = await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/items" && url.searchParams.get("q") === prefix &&
+        response.request().method() === "GET";
+    }),
+    page.goto("/#/items?q=" + encodeURIComponent(prefix) + "&category=BAG"),
+  ]);
+  expect(filtered.ok(), "真实筛选请求完成后再读取勾选项身份").toBe(true);
+  await expect(page.locator(".catalog-count")).toContainText("共 32 件");
+  await expect(page.locator("#content")).toContainText(prefix + " 31");
   const first = page.locator("[data-pick]").first();
   const firstId = await first.getAttribute("data-pick");
   await first.click();
@@ -286,8 +302,8 @@ test("跨页选择后逐件编辑，保存回到原筛选页且不混淆两件�
   expect(secondId).not.toBe(firstId);
   await second.click();
   await expect(page.locator("#bulk-toolbar")).toContainText("已选 2 件");
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "逐件编辑", exact: true }).click();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "逐件编辑完整资料", exact: true }).click();
   await expect(page.locator(".editing-queue")).toContainText("第 1 / 2 件");
   await expect(page).toHaveURL(new RegExp(firstId + "/edit$"));
   await revealSection(page, "dimensions");
@@ -568,7 +584,7 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
     .fill("https://example.invalid/synthetic-post");
   await page.getByRole("button", { name: "记录发布结果", exact: true }).click();
   await expect(page.locator("#dialog")).not.toBeVisible();
-  await page.getByRole("button", { name: "我方已售出", exact: true }).click();
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
   await page.getByRole("button", { name: "确认已售出", exact: true }).click();
   await expect(page.locator("#dialog")).not.toBeVisible();
   await expect(page.locator(".item-status")).toContainText("我方已售");
@@ -588,7 +604,7 @@ test("完整手工路径：录货、图片核对、准备渠道资料、登记�
   expect(delistAttempt.sourceAttemptId).toBe(publishAttempt.id);
   await page.goto("/#/distribution");
   await expect(
-    page.getByRole("heading", { name: "商品分发", exact: true }),
+    page.getByRole("heading", { name: "渠道上架", exact: true }),
   ).toBeVisible();
   await expect(page.locator("table")).toContainText(title);
 });
@@ -628,14 +644,14 @@ test("分发中心经营投影保留交付语义，UNKNOWN 可在原记录上人
   });
 
   await page.goto("/#/dashboard");
-  await expect(page.getByRole("link", { name: /分发异常/ })).toBeVisible();
-  await page.getByRole("link", { name: /分发异常/ }).click();
+  await expect(page.getByRole("link", { name: /上架异常/ })).toBeVisible();
+  await page.getByRole("link", { name: /上架异常/ }).click();
   await expect(page).toHaveURL(/#\/distribution\?scope=attention/);
   await expect(page.locator("table")).toContainText(title);
 
   await page.goto(`/#/distribution?attemptId=${attempt.id}`);
   await expect(
-    page.getByRole("heading", { name: "商品分发", exact: true }),
+    page.getByRole("heading", { name: "渠道上架", exact: true }),
   ).toBeVisible();
   const row = page.locator("table").filter({ hasText: title });
   await expect(row).toContainText("需要核对");
@@ -781,25 +797,24 @@ test("批量渠道价不会用零伪造未知默认报价，必须由操作者�
   await page
     .getByRole("checkbox", { name: `选择 ${item.code}`, exact: true })
     .check();
-  await page.getByText("批量操作", { exact: true }).click();
   await page
-    .getByRole("button", { name: "批量渠道价", exact: true })
+    .getByRole("button", { name: "批量编辑", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(channel.id);
-  const rows = dialog.getByLabel("渠道价格", { exact: true });
-  await expect(rows).toHaveValue(item.code);
-  await dialog.getByLabel(/我已逐件核对/).check();
+  await dialog.getByLabel("报价适用范围", { exact: true }).selectOption(channel.id);
+  const rows = dialog.getByLabel("售价 " + item.code, { exact: true });
+  await expect(rows).toHaveValue("");
+  await dialog.getByLabel("我确认以上修改适用于所选商品").check();
   await dialog
-    .getByRole("button", { name: "确认写入渠道价", exact: true })
+    .getByRole("button", { name: "确认保存", exact: true })
     .click();
-  await expect(dialog.locator(".form-error")).toContainText("尚未填写金额");
-  await rows.fill(`${item.code} 1380`);
+  await expect(dialog.locator(".form-error")).toContainText("没有可保存的渠道报价");
+  await rows.fill("1380");
   await dialog
-    .getByRole("button", { name: "确认写入渠道价", exact: true })
+    .getByRole("button", { name: "确认保存", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "渠道价格写入结果", exact: true }),
+    page.getByRole("heading", { name: "批量编辑结果", exact: true }),
   ).toBeVisible();
   await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
   const prices = await (
@@ -816,7 +831,7 @@ test("批量渠道价不会用零伪造未知默认报价，必须由操作者�
   );
 });
 
-test("批量加入分发渠道只记录交易经营意图，不生成发布资料或远端记录", async ({ page }) => {
+test("批量加入上架渠道只记录交易经营意图，不生成发布资料或远端记录", async ({ page }) => {
   const title = "批量经营意图界面 " + randomUUID().slice(0, 8);
   const created = await api(page, "/items", { title });
   const item = await (await page.request.get(`/api/items/${created.id}`)).json();
@@ -835,17 +850,16 @@ test("批量加入分发渠道只记录交易经营意图，不生成发布资�
   expect(content.businessPurpose).toBe("CONTENT");
   await page.goto(`/#/items?q=${encodeURIComponent(title)}`);
   await page.getByRole("checkbox", { name: `选择 ${item.code}`, exact: true }).check();
-  await page.getByText("批量操作", { exact: true }).click();
-  await page.getByRole("button", { name: "加入分发渠道", exact: true }).click();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  const choices = dialog.getByLabel("交易渠道账号", { exact: true });
+  await dialog.getByLabel("要修改什么").selectOption("CHANNEL");
+  const choices = dialog.getByLabel("上架渠道", { exact: true });
   await expect(choices).toContainText(trade.name);
   await expect(choices).not.toContainText(content.name);
   await choices.selectOption(trade.id);
-  await dialog.getByLabel("经营意图说明", { exact: true }).fill("本周明确由该交易账号经营，发布资料稍后逐件核对。");
-  await dialog.getByLabel(`我已核对并确认加入该渠道的 1 件商品`, { exact: true }).check();
-  await dialog.getByRole("button", { name: "确认加入 1 件商品", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "加入分发渠道结果", exact: true })).toBeVisible();
+  await dialog.getByLabel("我确认以上修改适用于所选商品", { exact: true }).check();
+  await dialog.getByRole("button", { name: "确认保存", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "上架准备结果", exact: true })).toBeVisible();
   await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
   const targets = await (await page.request.get(`/api/items/${item.id}/distribution-targets`)).json();
   expect(targets).toEqual(expect.arrayContaining([
@@ -884,28 +898,27 @@ test("渠道账号和批量渠道价会同步目标币种，不把人民币金�
   await page
     .getByRole("checkbox", { name: `选择 ${item.code}`, exact: true })
     .check();
-  await page.getByText("批量操作", { exact: true }).click();
   await page
-    .getByRole("button", { name: "批量渠道价", exact: true })
+    .getByRole("button", { name: "批量编辑", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  const rows = dialog.getByLabel("渠道价格", { exact: true });
-  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(cny.id);
-  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("CNY");
-  await expect(rows).toHaveValue(`${item.code} 8800`);
-  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(usd.id);
-  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("USD");
-  await expect(rows).toHaveValue(item.code);
+  const rows = dialog.getByLabel("售价 " + item.code, { exact: true });
+  await dialog.getByLabel("报价适用范围", { exact: true }).selectOption(cny.id);
+  await expect(dialog.getByLabel("币种 " + item.code, { exact: true })).toHaveValue("CNY");
+  await expect(rows).toHaveValue("8800");
+  await dialog.getByLabel("报价适用范围", { exact: true }).selectOption(usd.id);
+  await expect(dialog.getByLabel("币种 " + item.code, { exact: true })).toHaveValue("USD");
+  await expect(rows).toHaveValue("");
   await expect(rows).not.toHaveValue(/8800/);
-  await expect(dialog).toContainText("不同于商品默认币种的金额没有带入");
-  await dialog.getByLabel("目标渠道账号", { exact: true }).selectOption(cny.id);
-  await expect(dialog.getByLabel("币种", { exact: true })).toHaveValue("CNY");
-  await expect(rows).toHaveValue(`${item.code} 8800`);
+  await expect(dialog).toContainText("不自动换汇");
+  await dialog.getByLabel("报价适用范围", { exact: true }).selectOption(cny.id);
+  await expect(dialog.getByLabel("币种 " + item.code, { exact: true })).toHaveValue("CNY");
+  await expect(rows).toHaveValue("8800");
   page.once("dialog", (confirmation) => confirmation.accept());
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
-  await page.goto("/#/settings");
+  await page.goto("/#/settings?section=channels");
   await page.getByRole("button", { name: "＋ 创建渠道", exact: true }).click();
   const channelDialog = page.getByRole("dialog");
   await channelDialog.getByLabel("平台", { exact: true }).selectOption("ANQICMS");
@@ -933,8 +946,10 @@ test("记录询盘会预填目标渠道的有效价格和币种", async ({ page 
     amount: 138000,
     currency: "USD",
   });
-  await page.goto(`/#/items/${item.id}`);
+  await page.goto("/#/inquiries");
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("商品TM号", { exact: true }).fill(item.code);
+  await page.getByRole("dialog").getByRole("button", { name: "继续记录", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("渠道", { exact: true }).selectOption(channel.id);
   await expect(dialog.getByLabel("报价（可留空）", { exact: true })).toHaveValue(
@@ -975,4 +990,60 @@ test("回执未确认时继续编辑不会把新内容误当已保存，核对�
   await expect(page.locator(".entry-save-state")).toContainText("已保存");
   expect(await find(page, original)).toHaveLength(0);
   expect(await find(page, changed)).toHaveLength(1);
+});
+
+test("批量渠道报价隔离未知价与不同币种，可明确跳过并只写有效行", async ({ page }) => {
+  const title = "混合渠道报价 " + randomUUID().slice(0, 8);
+  const a = await api(page, "/items", { title: title + " CNY", currentPrice: 123400, currency: "CNY" });
+  const b = await api(page, "/items", { title: title + " 未报价" });
+  const c = await api(page, "/items", { title: title + " USD", currentPrice: 56000, currency: "USD" });
+  const channel = await api(page, "/channels", { name: title, platform: "XIANYU", locale: "zh-CN" });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByLabel("选择本页", { exact: true }).check();
+  await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("报价适用范围").selectOption(channel.id);
+  await expect(dialog.getByLabel("保存 " + a.code, { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("保存 " + b.code, { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel("保存 " + c.code, { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel("售价 " + c.code, { exact: true })).toHaveValue("");
+  await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；2 件");
+  await dialog.getByLabel("我确认以上修改适用于所选商品").check();
+  await dialog.getByRole("button", { name: "确认保存", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "批量编辑结果", exact: true })).toBeVisible();
+  await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+  await expect(page.getByRole("dialog")).toContainText("2 件未修改");
+  const prices = async item => (await (await page.request.get(`/api/items/${item.id}/channel-prices`)).json());
+  expect((await prices(a)).find(price => price.channelId === channel.id).amount).toBe(123400);
+  expect((await prices(b)).some(price => price.channelId === channel.id)).toBe(false);
+  expect((await prices(c)).some(price => price.channelId === channel.id)).toBe(false);
+  expect((await (await page.request.get(`/api/items/${c.id}`)).json()).currentPrice).toBe(56000);
+});
+
+test("批量渠道价预览与提交使用同一金额规则，非法格式不拖住合法行", async ({ page }) => {
+  const title = "金额规则一致 " + randomUUID().slice(0, 8);
+  const valid = await api(page, "/items", { title: title + " 合法", currentPrice: 123400 });
+  const invalid = await api(page, "/items", { title: title + " 非法" });
+  const channel = await api(page, "/channels", { name: title, platform: "XIANYU", locale: "zh-CN" });
+  await page.goto("/#/items?q=" + encodeURIComponent(title));
+  await page.getByLabel("选择本页", { exact: true }).check();
+  for (const [index, value] of ["1.234", "1e3", "0x10", "20000000.01"].entries()) {
+    await page.getByRole("button", { name: "批量编辑", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("报价适用范围").selectOption(channel.id);
+    await dialog.getByLabel("售价 " + valid.code, { exact: true }).fill(String(110 + index));
+    await dialog.getByLabel("售价 " + invalid.code, { exact: true }).fill(value);
+    await expect(dialog.getByLabel("保存 " + invalid.code, { exact: true })).not.toBeChecked();
+    await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；1 件");
+    await dialog.getByLabel("保存 " + invalid.code, { exact: true }).check();
+    await expect(dialog.locator("[data-price-summary]")).toContainText("保存 1 件有效渠道报价；1 件");
+    await dialog.getByLabel("我确认以上修改适用于所选商品").check();
+    await dialog.getByRole("button", { name: "确认保存", exact: true }).click();
+    await expect(page.locator("#batch-summary")).toHaveText("完成1 / 1");
+    await expect(page.getByRole("dialog")).toContainText("价格格式不正确");
+    await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
+    const prices = await (await page.request.get(`/api/items/${valid.id}/channel-prices`)).json();
+    expect(prices.find(price => price.channelId === channel.id).amount).toBe((110 + index) * 100);
+  }
+  expect(await (await page.request.get(`/api/items/${invalid.id}/channel-prices`)).json()).toEqual([]);
 });

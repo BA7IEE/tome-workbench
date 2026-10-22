@@ -79,7 +79,7 @@ function AppShell({ page, user, version, onLogout }: AppShellOptions) {
       </a>
       <aside id="foundation-sidebar" className="admin-sidebar">
         <a
-          href="#/dashboard"
+          href="#/items?view=grid"
           className="wordmark"
           aria-label="ToMeBoutique 工作台"
         >

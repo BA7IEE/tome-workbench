@@ -17,7 +17,7 @@ export const required = [
   "prisma/migrations/202609150011_product_materials/migration.sql",
   "src/catalog/test-data.controller.ts",
   "web/src/test-data.ts",
-  "web/src/bulk-dictionaries.ts",
+  "web/src/bulk-edit.ts",
   "prisma/migrations/202609120007_test_data_scope/migration.sql",
   "src/catalog/trash.controller.ts",
   "web/src/recycle-bin.ts",
@@ -402,7 +402,7 @@ export function checks(
       read("src/distribution/distribution.service.ts").includes(
         "DISTRIBUTION_TARGET_REQUIRED",
       ) &&
-      read("web/src/bulk-distribution.ts").includes("加入分发渠道") &&
+      read("web/src/bulk-edit.ts").includes("/distribution-targets/") &&
       read("web/src/publishing-workspace.ts").includes(
         "activate-distribution-target",
       ) &&
@@ -413,7 +413,7 @@ export function checks(
         'channel.businessPurpose === "TRADE"',
       ) &&
       read("test/integration.test.cjs").includes("Distribution Intent：") &&
-      read("test/browser/operations.spec.cjs").includes("批量加入分发渠道"),
+      read("test/browser/operations.spec.cjs").includes("批量加入上架渠道"),
   );
   check(
     "v11-publication-safety",
@@ -588,7 +588,7 @@ export function checks(
       ) &&
       read("test/integration.test.cjs").includes("Distribution 经营投影：") &&
       read("test/browser/operations.spec.cjs").includes(
-        "分发异常",
+        "上架异常",
       ),
   );
   check(
@@ -618,9 +618,7 @@ export function checks(
       read("src/jobs/work-queue.ts").includes(
         "已交付分发会话失效，需要核对",
       ) &&
-      read("src/jobs/work-queue.ts").includes(
-        "外币成交待确认结算依据",
-      ) &&
+      !read("src/jobs/work-queue.ts").includes("SALE_FINANCE") &&
       read("scripts/check-current-docs.mjs").includes(
         "current-validation-artifact-version",
       ) &&
@@ -648,7 +646,7 @@ export function checks(
       read("src/trading/trading.controller.ts").includes(
         "resolveChannelPrice",
       ) &&
-      read("web/src/bulk-channel-prices.ts").includes("priceTemplate") &&
+      read("web/src/bulk-edit.ts").includes("item.currency !== currency") &&
       read("web/src/inquiry-form.ts").includes("channelCurrency") &&
       read("test/integration.test.cjs").includes(
         "渠道账号币种约束、渠道价和询盘默认值不混用商品默认币种",

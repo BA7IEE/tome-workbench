@@ -73,7 +73,7 @@ test("真实登录、商品列表与全部运营入口可读取", async ({ page 
   }
   await page.goto("/#/dashboard");
   await expect(
-    page.getByRole("heading", { name: "工作总览", exact: true }),
+    page.getByRole("heading", { name: "待处理", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: "reports/screenshots/dashboard.png",
@@ -101,11 +101,9 @@ test("资料不完整仍可建档、维护并按缺项安排工作", async ({ pa
   await productMore(page);
   await page.getByRole("link", { name: "查看详细记录", exact: true }).click();
   await expect(page.locator("#content")).toContainText("羊毛");
-  await page.getByRole("button", { name: "用途检查", exact: true }).click();
-  await page.locator("#dialog button[type=submit]").click();
-  await expect(page.locator("#dialog")).toContainText("用途检查结果");
-  await expect(page.locator("#dialog")).toContainText("只为缺失的结果");
-  await page.locator("#dialog .close").click();
+  await page.getByRole("link", { name: "准备上架", exact: true }).click();
+  await expect(page.locator("#publication-requirements")).toContainText("还需要处理");
+  await expect(page.locator("#publication-requirements")).toContainText("图片");
   await page.screenshot({
     path: "reports/screenshots/item.png",
     fullPage: true,
@@ -114,7 +112,7 @@ test("资料不完整仍可建档、维护并按缺项安排工作", async ({ pa
 test("卖出先停推广，金额未知不会被填成零", async ({ page }) => {
   const name = "浏览器售出 " + randomUUID().slice(0, 8);
   await create(page, name);
-  await page.getByRole("button", { name: "我方已售出", exact: true }).click();
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
   await page
     .getByLabel("客户内部标记（建议不用手机号）")
     .fill("浏览器合成客户");
@@ -123,16 +121,15 @@ test("卖出先停推广，金额未知不会被填成零", async ({ page }) => 
   await expect(page.locator("#content")).toContainText("我方已售");
   await page.goto("/#/sales");
   const row = page.locator("tr").filter({ hasText: name });
-  await expect(row).toContainText("待补");
-  await expect(row).toContainText("合作");
-  await row.getByRole("button", { name: "补收支" }).click();
-  await page.getByLabel("成交总额", { exact: true }).fill("2000");
-  await page.getByLabel("本次取得成本").fill("1000");
-  await page.getByLabel("本次直接费用合计").fill("100");
-  await page.getByLabel("已核对实际到账").check();
-  await page.locator("#dialog button[type=submit]").click();
-  await expect(page.locator("#dialog")).not.toBeVisible();
-  await expect(row).toContainText("900.00");
+  await expect(row).toContainText("浏览器合成客户");
+  await expect(page.getByRole("button", { name: "补收支" })).toHaveCount(0);
+  const id = new URL(page.url()).hash;
+  expect(id).toContain("/sales");
+  const result = await (await page.request.get("/api/sales?page=1&q=" + encodeURIComponent(name))).json();
+  expect(result.rows[0].amount).toBeNull();
+  expect(result.rows[0].cost).toBeNull();
+  expect(result.rows[0].fees).toBeNull();
+
 });
 test("货源批次先预览再写入，不直接变成自有库存", async ({ page }) => {
   const key = "BROWSER:" + randomUUID();
@@ -409,119 +406,43 @@ test("客户合集直接使用TM编号创建，售出一件只停止该件取用
   );
   await expect(page.locator("tr").filter({ hasText: "可使用" })).toHaveCount(1);
 });
-test("外币对账快照缺少汇率基础时保持草稿，不执行打款", async ({
-  page,
-  browserName,
-}) => {
-  // The prior expectation that this isolated foreign-currency snapshot could
-  // confirm is no longer valid in rc.5. Each browser keeps its own currency
-  // fixture so unrelated CNY settlement history cannot enter this preview.
-  const statementCurrency = browserName === "webkit" ? "GBP" : "SGD";
-  const i = await preparedFixture(
-      page,
-      "快照浏览器交易 " + randomUUID().slice(0, 8),
-      statementCurrency,
-    ),
-    s = await browserCommand(page, `/items/${i.id}/sold`, "POST", {
-      channel: "浏览器合成渠道",
-    });
-  await browserCommand(page, `/sales/${s.id}/finance`, "POST", {
-    version: 1,
-    amount: 200000,
-    cost: 100000,
-    fees: 10000,
-    currency: statementCurrency,
-    paid: true,
-    note: "合成收支，不是真实收入",
+test("历史外币快照只读可查，原接口缺少汇率依据仍拒绝确认", async ({ page, browserName }) => {
+  const currency = browserName === "webkit" ? "GBP" : "SGD";
+  const i = await preparedFixture(page, "快照历史合成 " + randomUUID().slice(0, 8), currency);
+  const sale = await browserCommand(page, `/items/${i.id}/sold`, "POST", { channel: "合成历史渠道" });
+  await browserCommand(page, `/sales/${sale.id}/finance`, "POST", {
+    version: 1, amount: 200000, cost: 100000, fees: 10000, currency, paid: true, note: "合成历史，不是真实收入",
   });
-  await page.goto("/#/settlements");
-  await page.getByRole("button", { name: "新建规则草稿", exact: true }).click();
-  const name = "合成规则 " + randomUUID().slice(0, 8),
-    ref = "SYNTHETIC-ONLY-" + randomUUID().slice(0, 8);
-  await page.getByLabel("规则名称", { exact: true }).fill(name);
-  await page.getByLabel("合作方比例（%）").fill("30");
-  await page.getByLabel("明确的协议/规则版本引用").fill(ref);
-  await page.getByLabel("协议生效时间").fill("2020-01-01T00:00");
-  await page.getByLabel("协议截止时间").fill("2030-01-01T00:00");
-  await page
-    .locator("#dialog")
-    .getByRole("button", { name: "保存", exact: true })
-    .click();
-  await expect(page.locator("#dialog")).not.toBeVisible();
-  await page
-    .locator("tr")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "确认启用", exact: true })
-    .click();
-  await page.locator("#dialog input[name=agreementRef]").fill(ref);
-  await page.locator("#dialog input[name=confirmed]").check();
-  await page
-    .locator("#dialog")
-    .getByRole("button", { name: "启用已核对规则", exact: true })
-    .click();
-  await expect(page.locator("#dialog")).not.toBeVisible();
-  await page.getByRole("button", { name: "生成核对快照", exact: true }).click();
-  await page.getByLabel("规则", { exact: true }).selectOption({ label: name });
-  await page
-    .getByLabel("币种", { exact: true })
-    .selectOption(statementCurrency);
-  await page.getByLabel("期间开始（含）").fill("2026-01-01T00:00");
-  await page.getByLabel("期间结束（不含）").fill("2027-01-01T00:00");
-  await page
-    .locator("#dialog")
-    .getByRole("button", { name: "生成预览", exact: true })
-    .click();
-  await expect(page.locator("#dialog")).not.toBeVisible();
-  await expect(page.locator("#content")).toContainText(
-    `${statementCurrency} 900.00`,
-  );
-  await expect(page.locator("#content")).toContainText(
-    `${statementCurrency} 270.00`,
-  );
-  await page.getByRole("button", { name: "确认此快照", exact: true }).click();
-  await page.locator("#dialog input[name=confirmed]").check();
-  await page
-    .locator("#dialog")
-    .getByRole("button", { name: "确认并保留不可变快照", exact: true })
-    .click();
-  await expect(page.locator("#dialog")).toContainText(
-    "外币结算尚无经确认的汇率基础",
-  );
-  await expect(page.locator("#content")).toContainText("草稿");
-  const discardConfirmation = new Promise((resolve, reject) => {
-    page.once("dialog", async (discard) => {
-      try {
-        expect(discard.type()).toBe("confirm");
-        expect(discard.message()).toContain("还有未保存的修改");
-        await discard.accept();
-        resolve(undefined);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  const agreementRef = "SYNTHETIC-ONLY-" + randomUUID();
+  const rule = await browserCommand(page, "/settlements/rules", "POST", {
+    name: "历史规则 " + randomUUID(), agreementRef, basisPoints: 3000,
+    effectiveFrom: "2020-01-01T00:00:00.000Z", effectiveTo: "2030-01-01T00:00:00.000Z",
   });
-  await page.getByRole("button", { name: "取消", exact: true }).click();
-  await discardConfirmation;
-  await expect(page.locator("#dialog")).not.toBeVisible();
-  await page.screenshot({
-    path: "reports/screenshots/settlement.png",
-    fullPage: true,
+  await browserCommand(page, `/settlements/rules/${rule.id}/activate`, "POST", { confirmed: true, agreementRef });
+  const snapshot = await browserCommand(page, "/settlements/preview", "POST", {
+    ruleId: rule.id, currency, periodStart: "2026-01-01T00:00:00.000Z", periodEnd: "2027-01-01T00:00:00.000Z",
   });
-  // Keep repeated browser runs independent: this is an explicitly synthetic
-  // item and the draft statement stays as evidence, while its sale no longer
-  // participates in a later foreign-currency preview.
-  const cleanupPreview = await page.request.get(
-    `/api/items/${i.id}/test-cleanup-preview`,
-  );
-  expect(cleanupPreview.ok()).toBeTruthy();
-  const cleanup = await cleanupPreview.json();
+  const auth = await (await page.request.get("/api/auth/me")).json();
+  const rejected = await page.request.post(`/api/settlements/${snapshot.id}/confirm`, {
+    headers: { Origin: new URL(page.url()).origin, "X-CSRF-Token": auth.csrf, "Idempotency-Key": randomUUID() },
+    data: { confirmed: true, digest: snapshot.digest },
+  });
+  expect(rejected.status()).toBe(409);
+  expect((await rejected.json()).error.code).toBe("FOREIGN_SETTLEMENT_FX_BASIS_REQUIRED");
+  await page.goto("/#/settlements/" + snapshot.id);
+  await expect(page.getByRole("heading", { name: "历史对账快照（只读）", exact: true })).toBeVisible();
+  await expect(page.locator("pre")).toContainText(currency);
+  await expect(page.locator("pre")).toContainText("DRAFT");
+  for (const label of ["新建规则草稿", "生成核对快照", "确认此快照"])
+    await expect(page.getByRole("button", { name: label, exact: true })).toHaveCount(0);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载原始快照", exact: true }).click();
+  expect(require("node:fs").readFileSync(await (await download).path(), "utf8")).toContain(snapshot.digest);
+  await page.screenshot({ path: "reports/screenshots/settlement-readonly.png", fullPage: true });
+  const cleanup = await (await page.request.get(`/api/items/${i.id}/test-cleanup-preview`)).json();
   await browserCommand(page, `/items/${i.id}/test-cleanup`, "POST", {
-    version: cleanup.version,
-    digest: cleanup.digest,
-    typedCode: cleanup.code,
-    reason: "浏览器外币对账隔离夹具",
-    noRealTransaction: true,
-    noRealPublication: true,
+    version: cleanup.version, digest: cleanup.digest, typedCode: cleanup.code,
+    reason: "浏览器历史外币隔离夹具", noRealTransaction: true, noRealPublication: true,
   });
 });
 
@@ -578,8 +499,7 @@ test("批量清理仅影响本测试创建并勾选的两件样本", async ({ pa
   for (const sample of samples.slice(0, 2)) {
     await page.locator(`[data-pick="${sample.id}"]`).click();
   }
-  await page.locator(".bulk-more > summary").click();
-  await page.getByRole("button", { name: "批量删除", exact: true }).click();
+  await page.getByRole("button", { name: "删除所选", exact: true }).click();
   await page.getByLabel("删除原因", { exact: true }).selectOption("测试商品");
   await page.getByRole("button", { name: "确认删除所选商品", exact: true }).click();
   await expect(page.locator("#batch-summary")).toContainText("完成2 / 2");

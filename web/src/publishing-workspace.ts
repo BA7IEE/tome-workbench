@@ -615,7 +615,7 @@ export async function publishingWorkspace(i: Item, channels: Channel[]) {
           const activated = await activateDistributionTarget(
             i.id,
             channel,
-            "商品渠道资料页明确加入分发渠道",
+            "商品渠道资料页明确加入上架渠道",
             duplicatePlatformTarget,
           );
           if (!activated) return;

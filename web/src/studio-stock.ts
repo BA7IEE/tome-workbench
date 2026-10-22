@@ -1,6 +1,5 @@
 import { recordSale, canRecordSale } from "./sale-form";
-import { itemActivity } from "./item-activity";
-import { recordInquiry } from "./inquiry-form";
+import { receiveStockReturn } from "./stock-return";
 import {
   request,
   can,
@@ -12,6 +11,8 @@ import {
   area,
   check,
   text,
+  dialog,
+  onDialogClosed,
 } from "./core";
 import { states, type Item, type Supplier } from "./types";
 export function studioStock(
@@ -156,94 +157,58 @@ export function studioStock(
       host = root.querySelector<HTMLElement>("[data-stock-controls]");
     if (host) {
       host.classList.add("button-row");
-      const direct: string[] = [];
-      if (can("sell")) {
-        if (i.status === "AVAILABLE")
-          direct.push(
-            button("记录询盘", () => recordInquiry(i, async () => {})),
-          );
-        if (i.status === "AVAILABLE") direct.push(button("预留", reserve));
-        if (canRecordSale(i) && ["AVAILABLE", "RESERVED"].includes(i.status))
-          direct.push(button("登记售出", sold, "primary"));
-        if (i.status === "RESERVED") direct.push(button("解除预留", release));
-        if (["PAUSED", "QUARANTINED"].includes(i.status) && can("review"))
-          direct.push(button("恢复可售", reopen));
-      }
-      // The editor has save-and-prepare in its menu; browsing keeps its direct entry.
-      if (
-        i.status === "AVAILABLE" &&
-        can("publish") &&
-        !root.classList.contains("product-entry-page")
-      )
-        direct.push(
-          `<a class="btn" href="#/items/${i.id}?tab=use&returnTo=${encodeURIComponent(location.hash)}">准备发布</a>`,
-        );
-      if (i.status === "SOLD" && can("sell"))
-        direct.push(
-          `<a class="btn primary" href="#/sales?itemId=${i.id}&returnTo=${encodeURIComponent(location.hash)}">查看成交</a>`,
-        );
+      const changeStock = () => {
+        const choices: Record<string, string> = {};
+        if (i.status === "AVAILABLE") choices.RESERVED = "预留给客户";
+        if (i.status === "RESERVED") choices.RELEASE = "解除客户预留";
+        if (["AVAILABLE", "RESERVED"].includes(i.status)) choices.PAUSED = "暂停售卖";
+        if (["PAUSED", "QUARANTINED"].includes(i.status) && can("review")) choices.AVAILABLE = "核对后恢复可售";
+        if (["AVAILABLE", "PAUSED"].includes(i.status)) {
+          choices.QUARANTINED = "待复检，暂不销售";
+          choices.GIFTED = "已赠出";
+          choices.SELF_USE = "自留";
+          if (i.ownership === "SUPPLIER") choices.SUPPLIER_SOLD = "供货方已售";
+        }
+        form("更改库存状态",
+          select("state", "实际库存情况", choices) +
+          area("reason", "原因或依据", "", 2),
+          async (data, key) => {
+            const state = text(data, "state");
+            if (!choices[state]) throw new Error("请选择当前可用的库存操作");
+            if (["RESERVED", "RELEASE", "AVAILABLE"].includes(state)) {
+              setTimeout(() => state === "RESERVED" ? reserve() : state === "RELEASE" ? release() : reopen(), 0);
+              return { nextStep: true };
+            }
+            return request("/items/" + i.id + "/state", "POST",
+              { state, reason: text(data, "reason") }, key);
+          }, "确认库存情况", refresh);
+        const scope = new AbortController();
+        onDialogClosed(() => scope.abort());
+        const selector = dialog.querySelector<HTMLSelectElement>('[name="state"]')!;
+        const sync = () => {
+          const next = ["RESERVED", "RELEASE", "AVAILABLE"].includes(selector.value);
+          dialog.querySelector('[name="reason"]')!.closest("label")!.hidden = next;
+          dialog.querySelector('button[type="submit"]')!.textContent = next ? "下一步" : "确认库存情况";
+        };
+        selector.addEventListener("change", sync, { signal: scope.signal });
+        sync();
+      };
+      const canChange = can("sell") && (["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status) ||
+        (i.status === "QUARANTINED" && can("review")));
       host.innerHTML = i.id
-        ? `<span class="studio-stock-badge">${esc(states[i.status] || i.status)}${i.dataMode === "TEST" ? " · 测试" : ""}</span>` +
-          direct.join("") +
-          (!can("sell") ? button("经营记录", () => itemActivity(i)) : "") +
-          `<details class="studio-stock-menu"><summary class="btn subtle">更多操作</summary><div class="studio-stock-menu-list">` +
-          button("经营记录", () => itemActivity(i)) +
-          (can("sell")
-            ? (i.status !== "AVAILABLE" && i.status !== "SOLD"
-                ? button("记录询盘", () => recordInquiry(i, async () => {}))
-                : "") +
-              (canRecordSale(i) && !["AVAILABLE", "RESERVED"].includes(i.status)
-                ? button("登记售出", sold)
-                : "") +
-              (["AVAILABLE", "RESERVED"].includes(i.status)
-                ? button("暂停推广", () =>
-                    form(
-                      "暂停这件商品推广",
-                      `<p>确认暂停 ${esc(i.code)} · ${esc(i.title)}？已发布的渠道仍需实际下架并登记回执。</p>` +
-                        area("reason", "暂停原因", "暂时停止推广", 2),
-                      (d, k) =>
-                        request(
-                          `/items/${i.id}/state`,
-                          "POST",
-                          {
-                            state: "PAUSED",
-                            reason: text(d, "reason"),
-                          },
-                          k,
-                        ),
-                      "确认暂停",
-                      refresh,
-                    ),
-                  )
-                : "") +
-              (i.status === "AVAILABLE"
-                ? button("隔离待复检", () =>
-                    form(
-                      "隔离待复检",
-                      `<p>确认将 ${esc(i.code)} 标记为待复检？已发布渠道会新增需要停售的记录，恢复可售不会自动重新发布。</p>` +
-                        area("reason", "隔离依据", "实物状态待复核", 2),
-                      (d, k) =>
-                        request(
-                          `/items/${i.id}/state`,
-                          "POST",
-                          {
-                            state: "QUARANTINED",
-                            reason: text(d, "reason"),
-                          },
-                          k,
-                        ),
-                      "确认隔离",
-                      refresh,
-                    ),
-                  )
-                : "")
-            : "") +
-          `<a href="#/items/${i.id}?tab=supply&returnTo=${encodeURIComponent(location.hash)}">其他库存与交接操作</a></div></details>`
+        ? '<span class="studio-stock-badge">' + esc(states[i.status] || i.status) + '</span>' +
+          (can("sell") && canRecordSale(i) && ["AVAILABLE", "RESERVED", "PAUSED"].includes(i.status)
+            ? button("标记售出", sold, "primary") : "") +
+          (canChange ? button("更改库存状态", changeStock) : "") +
+          (i.status === "SOLD" && can("sell")
+            ? '<a class="btn" href="#/sales?itemId=' + i.id + '">查看成交记录</a>' : "") +
+          (i.status === "SOLD" && can("finance")
+            ? button("确认实物退回", () => receiveStockReturn({ itemId: i.id, cycle: i.cycle, dataMode: i.dataMode }, refresh))
+            : i.status === "SOLD" && can("sell") ? '<small>实物退回或误标售出，请管理员确认回收；复检后才能再次销售。</small>' : "")
         : "";
-      if (!can("sell")) host.querySelector(".studio-stock-menu")?.remove();
       const summary = root.querySelector(".studio-operating-options > summary");
       if (summary)
-        summary.textContent = `经营与来源 · ${states[i.status] || i.status}${i.dataMode === "TEST" ? " · 测试" : ""}`;
+        summary.textContent = `库存与来源 · ${states[i.status] || i.status}${i.dataMode === "TEST" ? " · 测试" : ""}`;
       const options = root.querySelector<HTMLDetailsElement>(
         ".studio-operating-options",
       );

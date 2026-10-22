@@ -1,6 +1,5 @@
 import {
   button,
-  can,
   check,
   dialog,
   esc,
@@ -9,7 +8,6 @@ import {
   me,
   note,
   request,
-  select,
   toast,
   viewDialog,
   when,
@@ -168,12 +166,6 @@ export async function exportMaterials(items: Item[]) {
         "text",
         true,
       ) +
-      select("scope", "资料范围", {
-        OPERATIONS: "运营参考资料（不含成本及内部备注）",
-        ...(can("finance")
-          ? { INTERNAL: "内部完整资料（含成本及来源原文）" }
-          : {}),
-      }) +
       check(
         "usage",
         "我知道来源参考图需另行核对外部使用权限，下载不代表已经发布",
@@ -182,7 +174,7 @@ export async function exportMaterials(items: Item[]) {
       if (!d.has("usage")) throw new Error("请确认资料使用范围");
       const body = {
         title: String(d.get("title")),
-        scope: String(d.get("scope")),
+        scope: "OPERATIONS",
         dataMode: items[0].dataMode || "BUSINESS",
         items: items.map((i) => ({ id: i.id, version: i.version })),
       };

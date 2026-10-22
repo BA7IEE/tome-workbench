@@ -1,0 +1,298 @@
+{
+  "kind": "actual-local-offline-recovery-drill",
+  "at": "2026-10-22T10:58:53.969Z",
+  "passed": true,
+  "source": "tome_test",
+  "target": "tome_restore_mvjfhfxx",
+  "checks": {
+    "liveProcessBlocksBackup": true,
+    "allSelectedTableHashesEqual": true,
+    "tmSequenceBeyondMaximum": true,
+    "restoredMediaChecksumsEqual": true
+  },
+  "tables": {
+    "user": {
+      "count": 27,
+      "sha256": "b3456712183d63fa6c53924471ec31f8c2c104f6ce27fbd5a595b3d9cef6a8a3"
+    },
+    "session": {
+      "count": 451,
+      "sha256": "57ed051835fa8ff6be3aad1dde56fec088b1aa1ef39d5998dfa48cbfc1527fe3"
+    },
+    "loginThrottle": {
+      "count": 2,
+      "sha256": "4bcfa441be973f830e0fb6b04611fa4544f10f132f46b0feed5f69dbd13b5845"
+    },
+    "supplier": {
+      "count": 3,
+      "sha256": "c8cecec69363469dffc60cdd5b711dee43112a06f1bdbd507d7867aff4dfa171"
+    },
+    "source": {
+      "count": 1574,
+      "sha256": "84872669f2efc7ef0bd03507c3b77e7359b4cdd1cbb4956a811ff5782855769d"
+    },
+    "sourceRevision": {
+      "count": 1576,
+      "sha256": "cff63e8d9cc37bc9cfff18739438d1ac0681e58b60fa5a23b8045169deb151e2"
+    },
+    "procurementSource": {
+      "count": 135,
+      "sha256": "1361bb585b9a1014cc830ea34fd5bcb642967f98d1c16d47058fe5b30f2af325"
+    },
+    "purchaseOrder": {
+      "count": 145,
+      "sha256": "2d89f07aa6abd53a93fdeb111a3deaf108e0b957e189c1ff0b35e71dc1b35107"
+    },
+    "purchaseOrderRevision": {
+      "count": 152,
+      "sha256": "2ed423cde731b03988666074106eca35ae3f5649821795f6057728c6f37af135"
+    },
+    "purchaseOrderAdjustment": {
+      "count": 441,
+      "sha256": "22cd42524784faf8e84346df35544f8a5855ca76b91b57b4ddb5ac293ab9a9c1"
+    },
+    "purchaseLine": {
+      "count": 583,
+      "sha256": "8028d04bf0aaeed3fcd07c4a91240ba1e218d1661f1e02627d88b14dc3cbeed1"
+    },
+    "purchaseLineRevision": {
+      "count": 591,
+      "sha256": "f6fca16b144b0f528413c91b1903a6c3887c08e8ca4a9c03d9c7e4851a7bd554"
+    },
+    "purchaseShipment": {
+      "count": 146,
+      "sha256": "c4757a223fc7eaec0c3ba2e29eac67e40695415690cee08ea6a7894acde49e65"
+    },
+    "purchaseShipmentLine": {
+      "count": 511,
+      "sha256": "e2691f9e4358ce5cdb41b50ce99bfd1bb77bfb30eb7e822a20c6b880b6b7feff"
+    },
+    "purchaseReturn": {
+      "count": 2,
+      "sha256": "6149f67d4d62915bfe0cc29cef1a405e37f5fe4ce0498a39fc6a1f2cc520c5b6"
+    },
+    "purchaseReturnLine": {
+      "count": 2,
+      "sha256": "b886ea105894795dd8a60af47f71e8a35439df5265a417c54cf257fea85b312d"
+    },
+    "itemPurchaseLink": {
+      "count": 123,
+      "sha256": "cf7bc2006ad56becfb960a8cbb9adfee40ea97056d5b73ec8d40320e12085f1d"
+    },
+    "purchaseCostConfirmation": {
+      "count": 2,
+      "sha256": "08b204f848e924ff1c82b4ad2d6a4740764198ecb79728d82552fe5ed431edd2"
+    },
+    "purchaseOrderCostBasis": {
+      "count": 7,
+      "sha256": "a3acc57f907e480d9107e159b0f758ec9ab72779cd408763439444ba1852afc3"
+    },
+    "purchaseOrderCostBasisRevision": {
+      "count": 15,
+      "sha256": "dff970195f591a715f5c8f3dfd4b3af4d735d55ee95b122c98b801e673a4c1e9"
+    },
+    "item": {
+      "count": 2362,
+      "sha256": "18cf29adf8111bf523fa1b73c31854c3a0bf75102c9d1844ba0f397ef439157e"
+    },
+    "cycle": {
+      "count": 2362,
+      "sha256": "90007c42402d9de1d3d2509eef6fb3849f89caa70a70fb0075d0fe807d0abf72"
+    },
+    "itemRevision": {
+      "count": 2512,
+      "sha256": "7906435a4eb13574ba0560f3fa4bb6426e82b9dc9b63570e800a45325989c632"
+    },
+    "offer": {
+      "count": 5,
+      "sha256": "0ab655db40bd3cb8d2ca8cad319d4d3fc876e48ba28ecd84e6197f5f43e60e72"
+    },
+    "asset": {
+      "count": 423,
+      "sha256": "6753e2ea370535d3d87c137744c8c5fa681007215b75be0ed077aa831967ecec"
+    },
+    "channel": {
+      "count": 56,
+      "sha256": "272475b2c93606e57e07ed30b458090a7cab6cf07fc4599d3db76aa5346211e7"
+    },
+    "usePackage": {
+      "count": 143,
+      "sha256": "42e45a922df497c1fcb38e6b14b59084dcbb2d2af41e53e52f8d2287578ab06d"
+    },
+    "listing": {
+      "count": 19,
+      "sha256": "82a5f8c978c10d0a1e8a2d74c45bd5784838fbffed378d259f09a4481b03d65e"
+    },
+    "channelPrice": {
+      "count": 16,
+      "sha256": "3c71ea684ab2458bfc6dce6a58defb0fd05fd56453b1e168a5a3e50dcc448a83"
+    },
+    "distributionTarget": {
+      "count": 101,
+      "sha256": "b7112cf802da946188de9ee0ace1644162841f3bf28188450c671d4feb370999"
+    },
+    "distributionSession": {
+      "count": 22,
+      "sha256": "3b73a7febcbb56fb0ba99a6e133a16abb8d4f693948ce56448ba6791396a18b5"
+    },
+    "distributionAttempt": {
+      "count": 135,
+      "sha256": "d1dbddbffcd1fa36f13b11a4dc2ab5cfa0e5ef4e8b71c4718d9a18b4c736acc6"
+    },
+    "task": {
+      "count": 2,
+      "sha256": "daa553bf209722dafc790c49e7aa7063c14920e74c0642489e4602673357499f"
+    },
+    "reservation": {
+      "count": 7,
+      "sha256": "7d510d8e20ceeafe426f57a85b8bbed02c5c5912767a8e5c9ffa384372500dcf"
+    },
+    "exceptionIntent": {
+      "count": 1,
+      "sha256": "52a454d7dd0e9c6d577de09ad2ce0785fc82d2fc8fb63e2ce07c6f18055092f4"
+    },
+    "sale": {
+      "count": 71,
+      "sha256": "56c05c427b4eef0c08de16c8cb732f4de88420a405cfe1c4aa9cd70081126b35"
+    },
+    "adjustment": {
+      "count": 7,
+      "sha256": "30fd54627e280c772501823b43f261961c2b86b671e3a6942a22e12e9c8ece9d"
+    },
+    "observation": {
+      "count": 3,
+      "sha256": "fee2e2e7c8ed415566b7bdd574db77b25ef1366a788b7f2b481637b46d28685d"
+    },
+    "inquiry": {
+      "count": 35,
+      "sha256": "37862e4379f5ede418efa38267357415b26fcfc84a7ea1a141d9d61af26e7f16"
+    },
+    "suggestion": {
+      "count": 2,
+      "sha256": "b88804d480bda9f1d1077d0d51ad442ab37cb05a8f79a9d4ea876c08cf13413d"
+    },
+    "movement": {
+      "count": 2,
+      "sha256": "3a72bcb7a57dbf0c92efc7fafd194114de1b8844a92d08eb295d398855e10e76"
+    },
+    "audit": {
+      "count": 8947,
+      "sha256": "2b7078978cd1c7290b59b0cf56ff9784e4f70b064b935eebe2c8ee572e695eb1"
+    },
+    "receipt": {
+      "count": 5216,
+      "sha256": "eaa0dd15f79ea123e9c51d96ac6a6c5ecaa09eeefe1c91ce2ec9114415ae0fbe"
+    },
+    "outbox": {
+      "count": 1452,
+      "sha256": "587ffbd6e18eeaefe9dbeb80ec112b9cea935f36ea5097cdf0ffcd8461c4b237"
+    },
+    "costEntry": {
+      "count": 40,
+      "sha256": "1d425d398bef9590e6db7beb7e2b67d6e4d7c2dcf52f10b59c263d22d7b256aa"
+    },
+    "runtimeHeartbeat": {
+      "count": 4,
+      "sha256": "b9e4bb9c1f65101c116b06b67955cdbe194cb7253cb9d3812b28e91ba6b34349"
+    },
+    "sweepLease": {
+      "count": 1,
+      "sha256": "2d649af8029da2b5ac6d3456f987d41a331540dfb1317dfd06049b752026fc77"
+    },
+    "itemAlias": {
+      "count": 4,
+      "sha256": "85c4328301a2d9fe80ecbd27477b714936c84abc4a84d812bfa9ce7f969968de"
+    },
+    "requirementWaiver": {
+      "count": 3,
+      "sha256": "08dfbd9c259cfe6b4393d797ce933561c84268502ac3446ed06b1f711a5d77ef"
+    },
+    "intakeBatch": {
+      "count": 8,
+      "sha256": "3faca6040ce3db77e994b3711a2e7f838552062d46f242781127ad31dceb2862"
+    },
+    "intakeFile": {
+      "count": 10,
+      "sha256": "44be55715265b8fe84379670fdad65fd8991d7cf2e6f6c821140ee870950ef09"
+    },
+    "collection": {
+      "count": 5,
+      "sha256": "c68663d1730fe02f03ed0d8dd03353e6396c56bfd9e7e41d9ca1d73401dba655"
+    },
+    "collectionEntry": {
+      "count": 8,
+      "sha256": "797092719dc506b5a7361c0b6817706d460196d66a3228bc52823af15f9f2457"
+    },
+    "settlementRule": {
+      "count": 4,
+      "sha256": "736d561ea3448e8cf64ed665cb82faad1e534c07093b8112ed4d1b7cfe9be2e9"
+    },
+    "settlementStatement": {
+      "count": 10,
+      "sha256": "a3649ff006c2202cb00d399daf527868b584708a1149896c25d929391eeaa6b5"
+    },
+    "settlementLine": {
+      "count": 9,
+      "sha256": "c891888b06981f1ad51ce99eb2c91f02fd4c761f99ce787b68970f50940ba2c9"
+    },
+    "publishingDraft": {
+      "count": 42,
+      "sha256": "5e91843f0a6f0721df5ed7d363fb9f677ee970414d11da4854226f78331b513c"
+    },
+    "dictionaryEntry": {
+      "count": 162,
+      "sha256": "37b05e236b3a8ba094e8f82c45bd8402c32b23093273501ba80143f74a7b9981"
+    },
+    "dictionaryTerm": {
+      "count": 234,
+      "sha256": "0b23e0fa8cf73198aece73c1605d4df2d0d25765337eb5506009bc36acaca736"
+    },
+    "itemDictionarySelection": {
+      "count": 480,
+      "sha256": "85062637d8036333b29cc3e0ff96286a84f812190ae3c8cebabf498cb1c13d26"
+    },
+    "ingestSession": {
+      "count": 111,
+      "sha256": "4e4b2a118e7f257b65f2e88ad52af9bcae765da83aada977ce944427a71ec761"
+    },
+    "ingestBatch": {
+      "count": 116,
+      "sha256": "52b393da50fbad4ff3685a7d0b2fd6dca498318076de6e53633b21a63c677557"
+    },
+    "ingestCandidate": {
+      "count": 5505,
+      "sha256": "b69533ea1043cdc1d53427049f4f29d2c30f542a27e3fd0e19134a2cd01f3306"
+    },
+    "ingestConfirmationCorrection": {
+      "count": 9,
+      "sha256": "4e5628c1e25df5fb089335f508341a7e72972ff7ddf802a0dd3c5d5a27facfbc"
+    },
+    "ingestBatchMember": {
+      "count": 5511,
+      "sha256": "65ae6be90d312006d7d59d1a6ca020ad83a20cff7a70e525cdc16910a3621e63"
+    },
+    "materialExport": {
+      "count": 14,
+      "sha256": "7990211904a92896a03f4c2b0e077bf4ea040d00cf2e9b279114c4babf37c5d7"
+    },
+    "materialExportEntry": {
+      "count": 14,
+      "sha256": "ca5582ae93512c6e888f5a87120569f13a4de7ae210b100b0d065d84483df774"
+    },
+    "ingestCandidateRevision": {
+      "count": 5539,
+      "sha256": "b2a8a8a19dea069dd3f3b297c1098bae318ef28333cf35831b0b875d466aab55"
+    },
+    "ingestCandidateAsset": {
+      "count": 39,
+      "sha256": "58eeb79718421cdbbeb27f84e8b186cbf0c70b7dee90f7468f73b3ac1c83f8c8"
+    },
+    "itemSourceLink": {
+      "count": 1518,
+      "sha256": "cf33a21c209119b4df7805e89dcc0525091af144a4d021ebb8d5488525628503"
+    }
+  },
+  "comparedModelCount": 70,
+  "mediaFiles": 2686,
+  "externalActionsExecuted": 0
+}

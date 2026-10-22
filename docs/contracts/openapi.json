@@ -107,6 +107,121 @@
         ]
       }
     },
+    "/api/ingest/candidates/{id}/confirmation-correction-preview": {
+      "get": {
+        "operationId": "IngestAdminController_correctionPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/confirmation-compensation-preview": {
+      "get": {
+        "operationId": "IngestAdminController_compensationPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/{id}/revoke-confirmation": {
+      "post": {
+        "operationId": "IngestAdminController_revokeConfirmation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/confirmation-corrections/{id}/restore-preview": {
+      "get": {
+        "operationId": "IngestAdminController_restorePreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/confirmation-corrections/{id}/restore": {
+      "post": {
+        "operationId": "IngestAdminController_restoreConfirmation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
     "/api/ingest/brand-governance/preview": {
       "get": {
         "operationId": "IngestAdminController_brandPreview",
@@ -432,6 +547,20 @@
             }
           }
         ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "外部采集接入"
+        ]
+      }
+    },
+    "/api/ingest/candidates/confirmation-preview": {
+      "post": {
+        "operationId": "IngestAdminController_confirmationPreview",
+        "parameters": [],
         "responses": {
           "201": {
             "description": ""
@@ -3636,6 +3765,29 @@
         ]
       }
     },
+    "/api/sales/{id}/receive-unrecorded-return": {
+      "post": {
+        "operationId": "TradingController_receiveUnrecordedReturn",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "交易与经营账"
+        ]
+      }
+    },
     "/api/inquiries": {
       "get": {
         "operationId": "TradingController_inquiries",
@@ -4020,7 +4172,7 @@
   "info": {
     "title": "ToMeBoutique Workbench API",
     "description": "",
-    "version": "1.1.0-rc.13",
+    "version": "1.1.0-rc.15",
     "contact": {}
   },
   "tags": [],

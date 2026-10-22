@@ -676,6 +676,7 @@ model Sale {
   fees           Int?
   refunded       Int              @default(0)
   returned       Boolean          @default(false)
+  inventoryReturnedAt DateTime?
   paid           Boolean          @default(false)
   cooperation    String           @default("INCLUDED")
   intentId       String?          @db.Uuid

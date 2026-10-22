@@ -211,6 +211,7 @@ export interface Sale {
   currency: string;
   refunded: number;
   returned: boolean;
+  inventoryReturnedAt?: string | null;
   paid: boolean;
   note: string;
   soldAt: string;

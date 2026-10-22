@@ -17,6 +17,10 @@ export function catalogCondition(i: Item) {
     i.facts.conditionGrade || (source ? `来源成色：${source}` : "成色待补")
   );
 }
+export function catalogColor(i: Item) {
+  const raw = sourceValue(i, "proposedColor") || sourceValue(i, "unclassifiedColor") || sourceValue(i, "sourceColor");
+  return i.facts.color || (raw ? raw + "（原文，待归类）" : "");
+}
 export function sourceFieldNote(
   i: Item,
   kind: "brand" | "condition" | "color",
@@ -27,12 +31,14 @@ export function sourceFieldNote(
     color: "sourceColor",
   }[kind];
   const value = sourceValue(i, key);
+  const colorProposal = kind === "color"
+    ? sourceValue(i, "proposedColor") || sourceValue(i, "unclassifiedColor") : "";
   const detail =
     kind === "condition" ? sourceValue(i, "sourceConditionDetails") : "";
   const detailZh =
     kind === "condition" ? sourceValue(i, "sourceConditionDetailsZh") : "";
-  if (!value && !detail && !detailZh) return "";
+  if (!value && !detail && !detailZh && !colorProposal) return "";
   const label = { brand: "品牌", condition: "成色", color: "颜色" }[kind];
   const source = sourceValue(i, "sourcePlatform") || "来源";
-  return `<div class="source-field-note full" data-source-field="${kind}"><strong>${esc(source)}记录${value ? ` · ${esc(label)}：${esc(value)}` : ""}</strong>${detailZh ? `<p>${esc(detailZh)}</p>` : ""}${detail ? `<p>${esc(detail)}</p>` : ""}${kind === "condition" ? "<small>来源记录供核对；上方成色等级由我们验货后确认。</small>" : ""}</div>`;
+  return `<div class="source-field-note full" data-source-field="${kind}"><strong>${esc(source)}记录${value ? ` · ${esc(label)}：${esc(value)}` : ""}</strong>${colorProposal ? `<p>颜色原文：${esc(colorProposal)}（待归类，不影响入库和保存）</p>` : ""}${detailZh ? `<p>${esc(detailZh)}</p>` : ""}${detail ? `<p>${esc(detail)}</p>` : ""}${kind === "condition" ? "<small>来源记录供核对；上方成色等级由我们验货后确认。</small>" : ""}</div>`;
 }

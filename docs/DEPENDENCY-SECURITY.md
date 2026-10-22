@@ -1,5 +1,11 @@
 # 依赖安全修复
 
+rc.15 完整门禁发现现有 Vite 7.3.6 高危告警，按同系列补丁升级为 7.3.7，package/lock 同步。
+上游修复依据：[Vite 7.3.7 advisory](https://github.com/advisories/GHSA-rq7h-c2jc-7f22)。
+只作为构建工具补丁，保留完整构建与双浏览器验证；当前审计以 rc.15 audit.json 为准。
+
+以下为先前依赖修复记录。
+
 本切片处理审计报告中的 1 high、2 moderate，独立于来源资料 UI 改动。应用和数据库版本仍为 1.1.0-rc.13，不增加 migration，不改变经营数据、来源事实、原图、权限、回执或上传限制。
 
 ## 修复范围

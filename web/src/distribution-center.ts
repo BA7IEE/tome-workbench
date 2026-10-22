@@ -315,7 +315,7 @@ export async function distributionCenter() {
   };
   return (
     section(
-      "商品分发",
+      "渠道上架",
       note(
         "这里从商品、资料就绪度、冻结使用包和分发记录实时汇总经营状态。外部 Agent、脚本或人工负责平台操作；系统不保存第三方凭据，也不会直接调用平台。APP 没有稳定 ID 时，仍可按标题中的永久 TM 核对。",
       ) +
@@ -326,11 +326,11 @@ export async function distributionCenter() {
           )
           .join("")}</div>`,
     ) +
-    `<form id="distribution-filter" class="admin-filter-form">${select("scope", "经营状态", scopeOptions, scope)}${select("channelId", "渠道账号", channelOptions, channelId)}${field("brand", "品牌", brand, "text", false, 'placeholder="按品牌筛选"')}${field("q", "搜索 TM / 商品", q, "text", false, 'placeholder="TM、名称或品牌"')}${select("size", "每页", { "25": "25 条", "50": "50 条", "100": "100 条" }, String(size))}<button class="btn primary">筛选</button><a class="btn" href="#/distribution">重置</a></form>` +
+    `<form id="distribution-filter" class="admin-filter-form">${select("scope", "上架状态", scopeOptions, scope)}${select("channelId", "渠道账号", channelOptions, channelId)}${field("brand", "品牌", brand, "text", false, 'placeholder="按品牌筛选"')}${field("q", "搜索 TM / 商品", q, "text", false, 'placeholder="TM、名称或品牌"')}${select("size", "每页", { "25": "25 条", "50": "50 条", "100": "100 条" }, String(size))}<button class="btn primary">筛选</button><a class="btn" href="#/distribution">重置</a></form>` +
     section(
-      attemptId ? "指定分发记录" : `经营投影 · ${operations.total}项`,
+      attemptId ? "指定分发记录" : `渠道商品状态 · ${operations.total}项`,
       table(
-        ["商品 / 渠道", "资料动作", "经营状态", "回传 / 缺项", "操作"],
+        ["商品 / 渠道", "资料动作", "上架状态", "回传 / 缺项", "操作"],
         operations.rows.map((row) => {
           const record = row.attempt || row.published;
           return [

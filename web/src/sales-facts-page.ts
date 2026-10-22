@@ -1,4 +1,5 @@
-import { request, esc, when, table, section, note } from "./core";
+import { request, esc, when, table, section, note, can, button, reload } from "./core";
+import { receiveStockReturn } from "./stock-return";
 import { recordFilters, recordContext, recordPaging } from "./record-controls";
 import { states } from "./types";
 
@@ -12,6 +13,7 @@ type SaleFact = {
   customerRef: string;
   state: string;
   returned: boolean;
+  inventoryReturned: boolean;
   soldAt: string;
   externalKey?: string | null;
 };
@@ -45,15 +47,16 @@ export async function salesFactsPage() {
     section(
       "成交记录",
       note(
-        "这里显示你有权限处理的成交事实。成交额、成本、费用、退款、到账和合作分成只向经营财务角色显示。",
+        "这里只记录哪件商品在何时售出；标记售出后停止继续销售，不需要补账。",
       ) +
         table(
-          ["商品 / 时间", "渠道 / 客户", "成交状态", "外部订单"],
+          ["商品 / 时间", "渠道 / 客户", "成交状态", "外部订单", ...(can("finance") ? ["实物回收"] : [])],
           rows.map((s) => [
             `<a class="itemlink" href="#/items/${esc(s.itemId)}?returnTo=${encodeURIComponent(location.hash)}">${esc(s.code + " " + s.item.title)}</a><small>${when(s.soldAt)}</small>`,
             `${esc(s.channel)}<small>${esc(s.customerRef || "未标记客户")}</small>`,
-            `${esc(states[s.state] || s.state || "已登记")}<small>${s.returned ? "已完好回收" : "成交已记录"}</small>`,
+            `${esc(states[s.state] || s.state || "已登记")}<small>${s.inventoryReturned ? "实物已完整回收" : "成交已记录"}</small>`,
             esc(s.externalKey || "未记录"),
+            ...(can("finance") ? [s.inventoryReturned ? "已回收" : button("确认实物退回", () => receiveStockReturn({ saleId: s.id }, reload))] : []),
           ]),
         ),
     ) +

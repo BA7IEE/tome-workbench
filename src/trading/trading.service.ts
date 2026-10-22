@@ -169,7 +169,7 @@ export class TradingService {
         const item = await itemLock(tx, itemId);
         await expireReservations(tx, itemId);
         const activeSale = await tx.sale.findFirst({
-          where: { itemId, cycleNumber: item.cycle, returned: false },
+          where: { itemId, cycleNumber: item.cycle, returned: false, inventoryReturnedAt: null },
         });
         const reserved = await tx.reservation.findFirst({
           where: { itemId, status: "ACTIVE" },
@@ -348,7 +348,7 @@ export class TradingService {
           }
         }
         const prior = await tx.sale.findFirst({
-            where: { itemId, cycleNumber: item.cycle, returned: false },
+            where: { itemId, cycleNumber: item.cycle, returned: false, inventoryReturnedAt: null },
           }),
           reservation = await tx.reservation.findFirst({
             where: { itemId, status: "ACTIVE" },
@@ -446,7 +446,7 @@ export class TradingService {
           itemId,
           "SOLD",
           actor.id,
-          "我方已售出，财务待补",
+          "已标记售出，停止继续销售",
         );
         await audit(tx, actor.id, "SALE_RECORDED", itemId, {
           saleId: sale.id,
@@ -510,7 +510,7 @@ export class TradingService {
             409,
           );
         const priorSale = await tx.sale.findFirst({
-          where: { itemId: item.id, cycleNumber: item.cycle, returned: false },
+          where: { itemId: item.id, cycleNumber: item.cycle, returned: false, inventoryReturnedAt: null },
         });
         if (priorSale)
           throw new Fault(
@@ -583,7 +583,7 @@ export class TradingService {
           item.id,
           "SOLD",
           actor.id,
-          "询盘确认成交，财务待补",
+          "询盘确认成交，停止继续销售",
         );
         const converted = await tx.inquiry.update({
           where: { id: inquiryId },
@@ -720,6 +720,32 @@ export class TradingService {
       },
     );
   }
+  async receiveUnrecordedReturn(actor: Actor, saleId: string, key: unknown, raw: unknown) {
+    const body = z.object({ version: expectedVersion, evidence: safeText(2000).min(1), intact: z.literal(true) }).strict().parse(raw);
+    const sale = await this.db.sale.findUniqueOrThrow({ where: { id: saleId } });
+    return this.commands.run(actor.id, "sale.receiveUnrecordedReturn", key, { saleId, ...body }, async tx => {
+      const item = await itemLock(tx, sale.itemId);
+      const current = await tx.sale.findUniqueOrThrow({ where: { id: saleId }, include: { adjustments: true } });
+      if (current.returned || current.inventoryReturnedAt) return { id: saleId, existing: true };
+      versionMatch(current.version, body.version);
+      // A separate inventory command, not an exemption from the financial return contract.
+      // The initial CNY acquisition-cost snapshot may exist; it is preserved unchanged.
+      if (current.version !== 1 || current.amount !== null || current.fees !== null ||
+          current.paid || current.refunded !== 0 || current.adjustments.length)
+        throw new Fault("RETURN_FINANCIAL_REVIEW", "成交已有账务维护或退款记录，请按原受保护回收流程核对，不能从未记账入口跳过");
+      if (item.cycle !== current.cycleNumber || !["SOLD", "PAUSED"].includes(item.status))
+        throw new Fault("RETURN_STOCK_REVIEW", "商品已不是本次售出的库存状态，请先核对当前商品与销售周期");
+      await tx.sale.update({ where: { id: saleId }, data: { inventoryReturnedAt: new Date(), version: { increment: 1 } } });
+      await tx.exceptionIntent.updateMany({ where: { itemId: item.id, status: "ACTIVE" }, data: { status: "CANCELLED" } });
+      await stop(tx, item.id, "QUARANTINED", actor.id, "未记账成交实物已回收，须复检后恢复销售");
+      await audit(tx, actor.id, "RETURN_RECEIVED", item.id, {
+        saleId, evidence: body.evidence, mode: "UNRECORDED_PHYSICAL_ONLY",
+        cycle: current.cycleNumber, previousSaleVersion: current.version,
+        financialFieldsUnchanged: true,
+      });
+      return { id: saleId };
+    });
+  }
   async returned(actor: Actor, saleId: string, key: unknown, raw: unknown) {
     const b = z
       .object({ evidence: safeText(2000).min(1), intact: z.literal(true) })
@@ -750,17 +776,13 @@ export class TradingService {
             version: { increment: 1 },
           },
         });
-        await tx.exceptionIntent.updateMany({
-          where: { itemId: sale.itemId, status: "ACTIVE" },
-          data: { status: "CANCELLED" },
-        });
-        await stop(
-          tx,
-          sale.itemId,
-          "QUARANTINED",
-          actor.id,
-          "已回收，须复检后恢复销售",
-        );
+        if (!s.inventoryReturnedAt) {
+          await tx.exceptionIntent.updateMany({
+            where: { itemId: sale.itemId, status: "ACTIVE" },
+            data: { status: "CANCELLED" },
+          });
+          await stop(tx, sale.itemId, "QUARANTINED", actor.id, "已回收，须复检后恢复销售");
+        }
         await audit(tx, actor.id, "RETURN_RECEIVED", sale.itemId, {
           saleId,
           evidence: b.evidence,

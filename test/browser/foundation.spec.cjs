@@ -104,14 +104,14 @@ for (const width of [1280, 1440, 1920]) {
         );
       });
     expect(iconsInside).toBe(true);
-    await page.getByRole("link", { name: "工作台", exact: true }).click();
+    await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }).click();
     await expect(page.locator("#content .loading")).toHaveCount(0);
     await expect(page.locator(".foundation-shell")).toHaveAttribute(
       "data-collapsed",
       "true",
     );
     await expect(
-      page.getByRole("link", { name: "工作台", exact: true }),
+      page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "展开导航", exact: true }).click();
     await expect(page.locator(".foundation-brand-full")).toBeVisible();
@@ -146,7 +146,7 @@ test("Foundation mobile keeps named navigation and a single logout", async ({
   await login(page);
   await expect(page.getByRole("button", { name: "折叠导航" })).toBeHidden();
   await expect(
-    page.getByRole("link", { name: "商品库", exact: true }),
+    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "退出登录", exact: true }),

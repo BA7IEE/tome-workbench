@@ -43,7 +43,7 @@ import {
 } from "../catalog/catalog.service";
 import { factsSchema, tm } from "../common/domain";
 import { proposalFor } from "./ingest.logic";
-import type { z } from "zod";
+import { z } from "zod";
 import { assertTrr14SourceFacts, candidateBrandBindInput, ingestCandidateInput } from "./ingest.schemas";
 import { assertNoActiveCorrection } from "./correction-guards";
 import { assertNoSensitiveIngestData } from "./ingest-security";
@@ -979,6 +979,85 @@ export class IngestService {
     });
   }
 
+  private async resolveCandidateColor(
+    tx: Tx | PrismaService,
+    facts: z.infer<typeof factsSchema>,
+    category: string,
+  ) {
+    const raw = facts.color.trim();
+    if (!raw) return "";
+    const term = await tx.dictionaryTerm.findUnique({
+      where: { kind_normalized: { kind: "COLOR", normalized: normalizeTerm(raw) } },
+      include: { entry: true },
+    });
+    if (term?.entry.active &&
+        (!term.entry.categories.length || term.entry.categories.includes(category))) {
+      facts.color = term.entry.label;
+      return "";
+    }
+    // An imported description is not a new standard dictionary identity.
+    // Keep the proposal and source wording, without blocking the human's receipt decision.
+    facts.attributes.proposedColor = raw;
+    facts.attributeLabels.proposedColor = "颜色整理建议（待归类）";
+    facts.color = "";
+    return "颜色“" + raw + "”将按原文保留，入库后可选择标准颜色";
+  }
+
+  async confirmationPreview(ids: string[], versions: Record<string, number>) {
+    const candidates = await this.db.ingestCandidate.findMany({
+      where: { id: { in: ids } },
+      include: {
+        procurementSource: true,
+        batch: true,
+        assets: { where: { retiredAt: null } },
+      },
+    });
+    const hashes = [...new Set(candidates.flatMap((c) => c.assets.map((a) => a.sha256)))];
+    const existing = hashes.length ? await this.db.asset.findMany({
+      where: { sha256: { in: hashes }, item: { deletedAt: null, dataMode: "BUSINESS" } },
+      select: { sha256: true },
+    }) : [];
+    const knownHashes = new Set(existing.map((a) => a.sha256));
+    const selectedByHash = new Map<string, Set<string>>();
+    for (const c of candidates)
+      for (const a of c.assets) {
+        const owners = selectedByHash.get(a.sha256) || new Set<string>();
+        owners.add(c.id);
+        selectedByHash.set(a.sha256, owners);
+      }
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    return { rows: await Promise.all(ids.map(async (id) => {
+      const c = byId.get(id);
+      if (!c) return { id, blockers: ["候选不存在"], colorNotice: "" };
+      const integrity = await this.captureReport(c);
+      const blockers = [...integrity.blockers];
+      if (c.version !== versions[id]) blockers.push("资料已更新，请重新选择这件商品后核对");
+      if (c.decision !== "PENDING") blockers.push("该来源已处理，无需再次确认入库");
+      if (record(c.sourceFacts).capture && c.batch.status !== "SEALED")
+        blockers.push("来源批次仍在接收资料，请先完成接收");
+      if (c.assets.some((a) => knownHashes.has(a.sha256) ||
+          (selectedByHash.get(a.sha256)?.size || 0) > 1))
+        blockers.push("图片与已有商品或本批其他来源相同，请单件核对是否同一件实物");
+      const proposal = record(c.proposal);
+      const title = typeof proposal.title === "string" && proposal.title.trim()
+        ? proposal.title.trim() : c.titleRaw;
+      if (!title.trim()) blockers.push("缺少商品名称，无法建立可识别的商品档案");
+      const category = ["CLOTHING", "BAG", "SHOES", "ACCESSORY", "OTHER"]
+        .includes(String(proposal.category)) ? String(proposal.category) : "OTHER";
+      let facts: z.infer<typeof factsSchema>;
+      try {
+        facts = this.itemFacts(c.sourceFacts, c.procurementSource.name,
+          c.conditionRaw, c.brandRaw, proposal);
+      } catch (error) {
+        if (!(error instanceof z.ZodError)) throw error;
+        blockers.push("来源资料格式超出可保存范围，请单件整理后重试");
+        return { id, version: c.version, title, integrity, blockers, colorNotice: "" };
+      }
+      const colorNotice = await this.resolveCandidateColor(this.db, facts, category);
+      return { id, version: c.version, title, integrity, blockers, colorNotice };
+    })) };
+  }
+
   async ensureSourceInTx(tx: Tx, actor: Actor, candidateId: string) {
     await lock(tx, "ingest-candidate:" + candidateId);
     const c = await tx.ingestCandidate.findUniqueOrThrow({
@@ -1597,6 +1676,7 @@ export class IngestService {
           current.brandRaw,
           proposal,
         );
+        await this.resolveCandidateColor(tx, facts, category);
         const raw: Record<string, unknown> = {
           title,
           brand: brandEntryId ? brandLabel : "",

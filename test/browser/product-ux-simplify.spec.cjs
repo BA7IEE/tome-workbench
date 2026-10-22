@@ -56,7 +56,7 @@ for (const width of [1440, 390]) {
     const back = `#/items?dataMode=TEST&q=${encodeURIComponent(title)}&view=table&size=30`;
     await page.goto(`/#/items/${item.id}`);
     await expect(
-      page.getByRole("link", { name: "准备发布", exact: true }),
+      page.getByRole("link", { name: "准备上架", exact: true }),
     ).toBeVisible();
     await page.goto("/" + back);
     await expect(page.locator("#bulk-toolbar")).toBeHidden();
@@ -64,15 +64,13 @@ for (const width of [1440, 390]) {
       page.getByRole("button", { name: "资料包与变化", exact: true }),
     ).toBeHidden();
     await page.locator(`[data-pick="${item.id}"]`).check();
-    await expect(page.locator(".bulk-primary > button:visible")).toHaveCount(1);
-    await expect(
-      page.getByRole("button", { name: "逐件编辑", exact: true }),
-    ).toBeHidden();
-    await page.locator(".bulk-more > summary").click();
-    await expect(
-      page.getByRole("button", { name: "逐件编辑", exact: true }),
-    ).toBeVisible();
-    await page.locator(".bulk-more > summary").click();
+    await expect(page.locator(".bulk-primary > button:visible")).toHaveCount(4);
+    await expect(page.locator(".bulk-more")).toHaveCount(0);
+    const batchEdit = page.getByRole("button", { name: "批量编辑", exact: true });
+    await batchEdit.click();
+    await expect(page.getByRole("dialog", { name: "批量编辑商品" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(batchEdit).toBeFocused();
     await page.getByRole("link", { name: `编辑商品 ${item.code}` }).click();
     await expect(page.getByLabel("商品名称", { exact: true })).toHaveValue(
       title,

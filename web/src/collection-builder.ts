@@ -77,16 +77,8 @@ function persist() {
       : null,
   });
 }
-export function beginCollection(items: Item[] = []) {
+export function beginCollection() {
   account();
-  if (
-    new Set([...pendingIds, ...selected.keys(), ...items.map((i) => i.id)])
-      .size > 40
-  )
-    throw new Error("加上已保留的选品后超过40件，请先减少选择");
-  if (items.some((i) => i.dataMode === "TEST"))
-    throw new Error("客户选品只接收正式商品");
-  for (const i of items) selected.set(i.id, i);
   persist();
   location.hash = "/collections/new";
 }

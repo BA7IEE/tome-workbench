@@ -147,24 +147,22 @@ test("手机顶级业务导航全部可达", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/items");
   await expect(
-    page.getByRole("link", { name: "商品库", exact: true }),
+    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "商品", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "导入记录", exact: true }),
+    page.getByRole("link", { name: "导入", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "更多", exact: true }),
+    page.getByRole("link", { name: "设置", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "商品分发", exact: true }),
+    page.getByRole("link", { name: "上架", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "更多", exact: true }).click();
-  await page.getByText("其他业务记录与维护工具", { exact: true }).click();
+  await page.getByRole("link", { name: "设置", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "经营待办", exact: true }),
+    page.getByRole("link", { name: "待处理事项", exact: true }),
   ).toBeVisible();
-  await page.locator(".library-tools details.nav-group > summary").filter({ hasText: /^销售$/ }).click();
-  await page.getByRole("link", { name: "远端身份记录", exact: true }).click();
+  await page.getByRole("link", { name: "渠道身份记录", exact: true }).click();
   await expect(page).toHaveURL(/#\/listings/);
 });
 
@@ -371,23 +369,14 @@ test("手机批量操作随滚动可达，菜单和快速修改不溢出", async
       return r.top >= 0 && r.bottom < innerHeight;
     }),
   ).toBe(true);
-  const more = toolbar.locator(".bulk-more > summary");
-  await more.click();
-  const menu = toolbar.locator(".bulk-more > div");
-  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
-    true,
-  );
-  const box = await menu.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + 30);
-  await page.mouse.wheel(0, 40);
-  await expect
-    .poll(() => menu.evaluate((el) => el.scrollTop))
-    .toBeGreaterThan(0);
-  await expect(toolbar.locator(".bulk-more")).toHaveAttribute("open", "");
-  await expect(toolbar).toContainText("已选 5 件");
+  await expect(toolbar.locator(".bulk-more")).toHaveCount(0);
+  const edit = toolbar.getByRole("button", { name: "批量编辑", exact: true });
+  await edit.click();
+  await expect(page.getByRole("dialog", { name: "批量编辑商品" })).toBeVisible();
+  expect(await page.getByRole("dialog").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(2);
   await page.keyboard.press("Escape");
-  await expect(more).toBeFocused();
-  await expect(toolbar.locator(".bulk-more")).not.toHaveAttribute("open", "");
+  await expect(edit).toBeFocused();
+  await expect(toolbar).toContainText("已选 5 件");
   await toolbar.getByRole("button", { name: "取消选择", exact: true }).click();
   await expect(toolbar).toBeHidden();
   await page.locator(".catalog-row-menu").last().click();
@@ -548,7 +537,7 @@ test("空待办给出继续操作入口，手机资料弹窗标题与关闭按�
   await expect(d).not.toBeVisible();
 });
 
-test("商品工作区原地记录询盘，真实写入回执中断后重试不丢商品草稿", async ({
+test("编辑商品后从独立客户记录入口登记，真实丢回执重试不重复写入", async ({
   page,
 }) => {
   const item = await uiApi(page, "/items", {
@@ -557,8 +546,12 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   const before = await (await page.request.get("/api/items/" + item.id)).json(); // Creation returns identity only; compare persisted facts.
   await page.goto("/#/items/" + item.id + "/edit");
   await page.getByLabel("中文介绍", { exact: true }).fill("还没保存的商品文案");
-  await page.locator(".studio-operating-options > summary").click();
+  await page.getByRole("button", { name: "保存商品", exact: true }).click();
+  await expect(page.locator(".entry-save-state")).toContainText("已保存");
+  await page.goto("/#/inquiries");
   await page.getByRole("button", { name: "记录询盘", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("商品TM号").fill(item.code);
+  await page.getByRole("dialog").getByRole("button", { name: "继续记录", exact: true }).click();
   const d = page.getByRole("dialog", { name: "记录询盘", exact: true });
   await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");
   await d
@@ -585,10 +578,8 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   await expect(d).not.toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
-  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
-    "还没保存的商品文案",
-  );
-  await expect(page.locator(".entry-save-state")).toContainText("未保存");
+  await page.goto("/#/items/" + item.id + "/edit");
+  await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue("还没保存的商品文案");
   const rows = await (
     await page.request.get("/api/inquiries?itemId=" + item.id)
   ).json();
@@ -597,12 +588,12 @@ test("商品工作区原地记录询盘，真实写入回执中断后重试不�
   const current = await (
     await page.request.get("/api/items/" + item.id)
   ).json();
-  expect(current.version).toBe(before.version);
+  expect(current.version).toBe(before.version + 1);
   expect(current.status).toBe(before.status);
-  expect(current.facts.descriptionZh).not.toBe("还没保存的商品文案");
+  expect(current.facts.descriptionZh).toBe("还没保存的商品文案");
 });
 
-test("从经营待办直接跟进指定询盘，完成后返回待办且不改变库存", async ({
+test("从待处理事项直接跟进指定询盘，完成后返回待办且不改变库存", async ({
   page,
 }) => {
   const title = "询盘路径 " + randomUUID(),

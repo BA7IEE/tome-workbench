@@ -365,7 +365,7 @@ test("一页录货到可复制资料：集中核对一次，不往返商品、�
   });
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await expect(
@@ -422,7 +422,7 @@ test("发布缺项直接在本页补齐，已经修改的渠道文案保留", as
   await basic(page, "原地补齐 " + randomUUID());
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   const url = page.url();
@@ -459,7 +459,7 @@ test("集中复核回执丢失后可继续，不能重复生成或误报已发�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   let once = true;
@@ -598,7 +598,7 @@ test("别人更新了渠道草稿时并排核对，不能借刷新悄悄覆盖�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await page.getByLabel("发布正文", { exact: true }).fill("第一次手工文案");
@@ -698,7 +698,7 @@ test("已经生成资料后仍能编辑并再次生成，回执恢复不会锁�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   let first = true;
@@ -744,7 +744,7 @@ test("供应商持有的包袋在本页补供货确认，不要求调货或重�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("[data-studio-fix=supply]")).toBeVisible();
   const url = page.url();
@@ -780,7 +780,7 @@ test("渠道切换先保存各自文案，返回原账号不丢内容不串号",
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   const first = await page.getByLabel("发布目标账号").inputValue();
@@ -805,7 +805,7 @@ test("渠道切换先保存各自文案，返回原账号不丢内容不串号",
     "第一账号独立文案",
   );
 });
-test("在工作区登记售出后停止旧资料取用，不离开或清空未保存输入", async ({
+test("在工作区标记售出后停止旧资料取用，不离开或清空未保存输入", async ({
   page,
 }) => {
   await start(page);
@@ -813,7 +813,7 @@ test("在工作区登记售出后停止旧资料取用，不离开或清空未�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await page
@@ -826,7 +826,7 @@ test("在工作区登记售出后停止旧资料取用，不离开或清空未�
     pack = i.packages[0];
   await page.getByLabel("中文介绍", { exact: true }).fill("尚未保存的内部补充");
   await stockMore(page);
-  await page.getByRole("button", { name: "登记售出", exact: true }).click();
+  await page.getByRole("button", { name: "标记售出", exact: true }).click();
   await page.getByRole("button", { name: "确认已售出", exact: true }).click();
   await expect(page.locator(".studio-stock-badge")).toContainText("我方已售");
   await expect(page.getByLabel("中文介绍", { exact: true })).toHaveValue(
@@ -854,13 +854,13 @@ test("点击可见上传区域就打开文件选择器，不需要寻找隐藏�
   await page.getByRole("button", { name: "保存商品", exact: true }).click();
   await expect(page.locator(".studio-photo")).toHaveCount(1);
 });
-test("服务端发现同平台历史暴露时可二次确认加入分发渠道", async ({ page }) => {
+test("服务端发现同平台历史暴露时可二次确认加入上架渠道", async ({ page }) => {
   await start(page);
   await basic(page, "服务端经营确认 " + randomUUID());
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await expect(
@@ -914,7 +914,7 @@ test("登记已发布使用本页回执，不跳转或重载工作区", async ({
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await expect(
@@ -962,7 +962,7 @@ test("保存并返回同时保留当前渠道的未保存文案，不会悄悄�
   await tradeFacts(page);
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1],
@@ -991,7 +991,7 @@ test("未改过的预览在补齐尺寸后直接更新，不再要求手工重�
   await basic(page, "自动预览更新 " + randomUUID());
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(page.locator("#studio-publish-form")).toBeVisible();
   await page.locator("[data-studio-fix=measurements]").click();
@@ -1019,7 +1019,7 @@ test("读取发布预览失败可原地重试，已经保存的商品和图片�
   });
   await revealPublishing(page);
   await page
-    .getByRole("button", { name: "保存并准备发布", exact: true })
+    .getByRole("button", { name: "保存并准备上架", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "重新读取发布信息", exact: true }),
@@ -1045,7 +1045,7 @@ test.describe("触摸设备的发布排序", () => {
     await tradeFacts(page);
     await revealPublishing(page);
     await page
-      .getByRole("button", { name: "保存并准备发布", exact: true })
+      .getByRole("button", { name: "保存并准备上架", exact: true })
       .click();
     await expect(page.locator(".studio-order-row")).toHaveCount(2);
     const id = page.url().match(/items\/([a-f0-9-]+)\/edit/)[1];

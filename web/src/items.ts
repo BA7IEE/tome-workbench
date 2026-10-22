@@ -8,10 +8,8 @@ import {
   catalogBrand,
   catalogCondition,
 } from "./item-source-facts";
-import { recordInquiry } from "./inquiry-form";
 import { cleanupTestData } from "./test-data";
-import { uploadImages } from "./media-uploader";
-import { deleteProduct, deletedNotice } from "./recycle-bin";
+import { deletedNotice } from "./recycle-bin";
 import { catalogContext } from "./catalog-context";
 import { editProduct } from "./product-editor";
 import { mediaPanel } from "./media-panel";
@@ -51,54 +49,6 @@ export function createItem(source?: Source) {
     "/items/new" + (source ? "?source=" + encodeURIComponent(source.id) : "");
 }
 
-async function readiness(i: Item, channels: Channel[]) {
-  if (!channels.length) throw new Error("请管理员先在设置中创建渠道账号");
-  form(
-    "按用途检查准备工作",
-    select(
-      "channelId",
-      "目标渠道",
-      Object.fromEntries(channels.map((c) => [c.id, c.name])),
-    ) +
-      select(
-        "purpose",
-        "用途",
-        {
-          TRADE: "交易发布",
-          CUSTOMER_CARD: "客户资料卡",
-          SHOWROOM: "展厅展示",
-        },
-        "TRADE",
-      ),
-    async (d, k) => {
-      const c = text(d, "channelId"),
-        p = text(d, "purpose");
-      const r = await request<{
-        missing: { title: string }[];
-        approved: boolean;
-        ready: boolean;
-      }>(`/items/${i.id}/readiness?channelId=${c}&purpose=${p}`);
-      await request(
-        `/items/${i.id}/prepare`,
-        "POST",
-        { channelId: c, purpose: p },
-        k,
-      );
-      setTimeout(
-        () =>
-          viewDialog(
-            "用途检查结果",
-            r.ready
-              ? note("资料已满足，且有批准版本。下一步可以生成使用包。")
-              : note("只为缺失的结果创建共享任务，不强制重新拍摄或测量。") +
-                  `<ul>${r.missing.map((x) => `<li>${esc(x.title)}</li>`).join("")}${!r.approved ? "<li>当前资料尚未批准</li>" : ""}</ul>`,
-          ),
-        150,
-      );
-    },
-    "检查并生成缺项任务",
-  );
-}
 async function channelPricePanel(i: Item, channels: Channel[]) {
   const rows = await request<
     {
@@ -238,7 +188,7 @@ async function distributionTargetPanel(i: Item, channels: Channel[]) {
     can("publish") && tradeChannels.length
       ? button("加入交易渠道", () =>
           form(
-            "加入分发渠道",
+            "加入上架渠道",
             note(
               "这里只记录当前希望经营的交易渠道，不创建使用包、分发记录或远端发布动作。",
             ) +
@@ -372,25 +322,18 @@ export async function detailPage(id: string) {
     ["assets", "素材"],
     ["use", "发布资料"],
     ["supply", "货源与实物"],
-    ...(can("finance") ? [["costs", "成本明细"]] : []),
     ["history", "版本与记录"],
   ];
   let header = `<nav class="breadcrumb"><a href="${esc(catalogContext().listHash)}">商品列表</a><span>/</span><span>商品详情</span></nav><div class="item-header"><div><div class="eyebrow">${esc(i.code)} · ${esc(categories[i.category])}</div><h1>${esc(i.title)}</h1><p>${esc(catalogBrand(i))} · ${i.ownership === "OWN" ? "自有库存" : "供应商持有"} · ${esc(i.location || "位置待补")}</p></div><div class="item-status">${badge(states[i.status] || i.status)}<strong>${money(i.currentPrice, i.currency)}</strong><small>${i.approvedValid ? "已有确认资料" : "资料待核对"} · 内部编号不随渠道变化</small></div></div>`;
   const ops = [
-    button("经营记录", () => itemActivity(i)),
-    can("users") ? button("清理测试数据", () => cleanupTestData(i)) : "",
-    can("edit") ? button("上传商品图片", () => uploadImages(i)) : "",
-    can("delete") ? button("删除商品", () => deleteProduct(i), "danger") : "",
+    button("查看销售与渠道记录", () => itemActivity(i)),
+    i.dataMode === "TEST" && can("users") ? button("清理测试数据", () => cleanupTestData(i)) : "",
     can("edit") ? button("编辑商品", () => editProduct(i), "primary") : "",
     can("publish")
-      ? `<a class="btn" href="#/items/${i.id}?tab=use">准备发布</a>`
+      ? `<a class="btn" href="#/items/${i.id}?tab=use">准备上架</a>`
       : "",
-    can("edit")
-      ? button("用途检查", () => readiness(i, channels), "subtle")
-      : "",
-    can("sell") ? button("记录询盘", () => recordInquiry(i)) : "",
     can("sell") && canRecordSale(i)
-      ? button("我方已售出", () => recordSale(i), "danger")
+      ? button("标记售出", () => recordSale(i), "danger")
       : "",
   ];
   const back = safeReturn(
@@ -675,138 +618,6 @@ export async function detailPage(id: string) {
           );
         }),
       );
-    if (can("finance"))
-      content += section(
-        "交易级合作例外",
-        note(
-          "商品默认合作。此处记录少量提前确定的朋友交易意向，不把整件商品永久排除。真实季度结算另行确认。",
-        ) +
-          table(
-            ["对象", "原因", "状态", "截止"],
-            i.intents.map((x) => [
-              esc(x.customerRef),
-              esc(x.reason),
-              esc(x.status),
-              when(x.expiresAt),
-            ]),
-          ),
-        button("提前登记例外意向", () =>
-          form(
-            "记录交易级例外",
-            field(
-              "customerRef",
-              "客户内部标记（成交时必须匹配）",
-              "",
-              "text",
-              true,
-            ) +
-              area("reason", "例外原因与约定依据") +
-              field(
-                "expiresAt",
-                "意向有效至",
-                dateFuture(),
-                "datetime-local",
-                true,
-              ) +
-              check("pause", "同时暂停推广", true),
-            (d, k) =>
-              request(
-                `/items/${id}/intents`,
-                "POST",
-                {
-                  customerRef: text(d, "customerRef"),
-                  reason: text(d, "reason"),
-                  expiresAt: iso(d.get("expiresAt")),
-                  pause: d.has("pause"),
-                },
-                k,
-              ),
-          ),
-        ),
-      );
-  }
-  if (tab === "costs" && can("finance")) {
-    const rows = await request<
-      {
-        id: string;
-        kind: string;
-        amount: number;
-        currency: string;
-        confirmed: boolean;
-        status: string;
-        note: string;
-        occurredAt: string;
-      }[]
-    >(`/items/${id}/costs`);
-    const kinds = {
-      PURCHASE: "取得 / 采购",
-      INBOUND_SHIPPING: "入库运输",
-      AUTHENTICATION: "鉴定",
-      PREPARATION: "整备",
-      OTHER: "其他",
-    };
-    content = section(
-      "商品成本明细",
-      note(
-        "记录估算和已确认费用，保留作废历史。此处是成本依据，成交账仍需独立核对本次成本与费用；不会把供应商报价直接当成实际成本。",
-      ) +
-        table(
-          ["项目", "金额", "确认 / 状态", "发生日期", "说明", "操作"],
-          rows.map((c) => [
-            esc(kinds[c.kind as keyof typeof kinds] || c.kind),
-            money(c.amount, c.currency),
-            `${c.confirmed ? "已确认" : "估算"} · ${esc(c.status)}`,
-            when(c.occurredAt),
-            esc(c.note),
-            c.status === "ACTIVE"
-              ? button("作废", () =>
-                  form("保留记录并作废", area("reason", "作废理由"), (d, k) =>
-                    request(
-                      `/costs/${c.id}/void`,
-                      "POST",
-                      { reason: text(d, "reason") },
-                      k,
-                    ),
-                  ),
-                )
-              : "",
-          ]),
-        ),
-      button(
-        "＋ 记录成本",
-        () =>
-          form(
-            "记录商品成本",
-            select("kind", "成本项目", kinds) +
-              field("amount", "金额", "", "text", true) +
-              select("currency", "币种", currencies, i.currency) +
-              check("confirmed", "已依据原始凭据确认（未勾选为估算）") +
-              field(
-                "occurredAt",
-                "发生日期",
-                dateFuture(0),
-                "datetime-local",
-                true,
-              ) +
-              area("note", "凭据、构成与说明"),
-            (d, k) =>
-              request(
-                `/items/${id}/costs`,
-                "POST",
-                {
-                  kind: text(d, "kind"),
-                  amount: cents(d.get("amount")),
-                  currency: text(d, "currency"),
-                  confirmed: d.has("confirmed"),
-                  occurredAt: iso(d.get("occurredAt")),
-                  note: text(d, "note"),
-                },
-                k,
-              ),
-          ),
-        "primary",
-      ),
-    );
   }
   if (tab === "history") {
     content =

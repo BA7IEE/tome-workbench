@@ -164,75 +164,46 @@ const netBySku = {
   LAN244886: "147",
   LAN245375: "122.50",
 };
-const lineHeader =
-  "行键\t原货号\t品牌\t商品名称\t品类\t订单行原价\t订单行折后金额\t平台现价\t估计零售价\t平台成色\t平台状态\t标签尺码\t颜色\t材质\t尺寸\t尺寸为估测\t商品链接\t商品描述\t图片链接";
-const lineText = [
-  lineHeader,
-  ...lines.map((r) =>
-    [...r.slice(0, 6), netBySku[r[0]], "", ...r.slice(7)].join("\t"),
-  ),
-].join("\n");
 async function createOrder(page) {
-  await page.goto("/#/procurement");
-  const before = (
-    await (await page.request.get("/api/items?dataMode=ALL")).json()
-  ).total;
-  const suffix = randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase(),
-    sourceName = "The RealReal 合成 " + suffix,
-    orderNo = "TRR-SYN-" + suffix;
-  await page
-    .getByRole("button", { name: "＋ 新增采购来源", exact: true })
-    .click();
-  let d = page.getByRole("dialog", { name: "新增采购来源" });
-  await d.getByLabel("来源编码").fill("TRR" + suffix);
-  await d.getByLabel("来源名称").fill(sourceName);
-  await d.getByRole("button", { name: "保存来源" }).click();
-  await expect(d).not.toBeVisible();
-  await page
-    .getByRole("button", { name: "＋ 导入采购订单", exact: true })
-    .click();
-  d = page.getByRole("dialog", { name: "导入采购订单" });
-  const sourceSelect = d.getByLabel("采购来源"),
-    sourceValue = await sourceSelect
-      .locator("option")
-      .filter({ hasText: sourceName })
-      .getAttribute("value");
-  expect(sourceValue).toBeTruthy();
-  await sourceSelect.selectOption(sourceValue);
-  await d.getByLabel("订单号").fill(orderNo);
-  await d.getByLabel("下单日期").fill("2026-06-27");
-  await d.getByLabel("平台订单状态").fill("Shipped");
-  await d.getByLabel("平台退货限制 / 标记").fill("Not returnable");
-  await d.getByLabel("订单币种").selectOption("USD");
-  await d.getByLabel("商品小计").fill("1100");
-  await d.getByLabel("订单总额").fill("702");
-  await d.getByLabel("实际支付金额").fill("702");
-  await d.getByLabel("订单行 · 从Excel粘贴").fill(lineText);
-  await d
-    .getByLabel("折扣 / 运费 / 抵用额")
-    .fill(
-      "调整键\t类型\t名称\t金额\nSHIPPING\t运费\tShipping\t60\nSTORE_CREDIT\t抵用余额\tStore Credit\t-75\nD60\t折扣\t60% Off Women's\t-117\nD20\t折扣\t20% Off Women's\t-38\nD30\t折扣\t30% Off Women's\t-174\nD40\t折扣\t40% Off Women's\t-54",
-    );
-  await d
-    .getByLabel("物流包裹（可留空）")
-    .fill(
-      "包裹键\t物流单号\t承运商\t状态\t订单行键\nPKG-A\tSYN-A\tSynthetic Carrier\tShipped\tWDI571039,WDI581338,GIO194599\nPKG-B\tSYN-B\tSynthetic Carrier\tShipped\tWDI580085,LAN245875,LAN244886,LAN245375",
-    );
-  await d.getByRole("button", { name: "生成预览", exact: true }).click();
-  const preview = page.getByRole("dialog", { name: "核对采购订单" });
-  await expect(preview).toBeVisible();
-  await expect(preview).toContainText("7件");
-  await expect(preview).toContainText("USD 1,100.00");
-  await expect(preview).toContainText("USD -398.00");
-  await expect(preview).toContainText("USD 702.00");
-  await preview.getByRole("button", { name: "确认导入", exact: true }).click();
-  await expect(page).toHaveURL(/#\/procurement\/[a-f0-9-]+/);
-  return {
-    before,
-    sourceName,
-    orderNo,
-    orderId: page.url().match(/procurement\/([a-f0-9-]+)/)[1],
+  const before = (await (await page.request.get("/api/items?dataMode=ALL")).json()).total;
+  const suffix = randomUUID().slice(0, 8).toUpperCase(), sourceName = "The RealReal 合成 " + suffix, orderNo = "TRR-SYN-" + suffix;
+  const auth = await (await page.request.get("/api/auth/me")).json();
+  const command = async (path, data) => {
+    const result = await page.request.post("/api" + path, { data, headers: {
+      Origin: new URL(page.url()).origin, "X-CSRF-Token": auth.csrf, "Idempotency-Key": randomUUID(),
+    } });
+    expect(result.ok(), await result.text()).toBeTruthy();
+    return result.json();
   };
+  const source = await command("/procurement/sources", { code: "TRR-" + suffix, name: sourceName, kind: "MARKETPLACE", defaultCurrency: "USD" });
+  const order = await command("/procurement/orders/import", {
+    procurementSourceId: source.id, externalOrderNo: orderNo, orderedAt: "2026-06-27T00:00:00.000Z",
+    sourceStatusRaw: "Shipped", returnabilityRaw: "Not returnable", currency: "USD",
+    subtotalAmount: 110000, totalAmount: 70200, paymentAmount: 70200, rawPayload: { synthetic: true },
+    lines: lines.map(row => ({
+      lineKey: row[0], sourceSku: row[1], brandRaw: row[2], title: row[3], categoryRaw: row[4],
+      currency: "USD", lineAmount: Math.round(Number(row[5]) * 100),
+      sourceLineNetAmount: Math.round(Number(netBySku[row[0]]) * 100), sourceCurrentPrice: null,
+      sourceEstimatedRetail: row[7] ? Number(row[7]) * 100 : null,
+      sourceConditionRaw: row[8], sourceStatusRaw: row[9], sizeLabelRaw: row[10],
+      colorRaw: row[11], materialRaw: row[12], measurements: row[13] ? { text: row[13] } : {},
+      measurementsEstimated: row[14] === "是", productUrl: row[15], descriptionRaw: row[16],
+    })),
+    adjustments: [
+      { adjustmentKey: "SHIPPING", kind: "SHIPPING", label: "Shipping", amount: 6000, currency: "USD" },
+      { adjustmentKey: "CREDIT", kind: "STORE_CREDIT", label: "Store Credit", amount: -7500, currency: "USD" },
+      { adjustmentKey: "D60", kind: "DISCOUNT", label: "Discount60", amount: -11700, currency: "USD" },
+      { adjustmentKey: "D20", kind: "DISCOUNT", label: "Discount20", amount: -3800, currency: "USD" },
+      { adjustmentKey: "D30", kind: "DISCOUNT", label: "Discount30", amount: -17400, currency: "USD" },
+      { adjustmentKey: "D40", kind: "DISCOUNT", label: "Discount40", amount: -5400, currency: "USD" },
+    ],
+    shipments: [
+      { shipmentKey: "A", externalShipmentRef: "SYN-A", carrier: "Synthetic Carrier", statusRaw: "Shipped", lineKeys: lines.slice(0,3).map(row => row[0]) },
+      { shipmentKey: "B", externalShipmentRef: "SYN-B", carrier: "Synthetic Carrier", statusRaw: "Shipped", lineKeys: lines.slice(3).map(row => row[0]) },
+    ],
+  });
+  await page.goto("/#/procurement/" + order.id);
+  return { before, sourceName, orderNo, orderId: order.id };
 }
 test.beforeEach(async ({ page }) => login(page));
 
@@ -333,7 +304,7 @@ test("订单行人工确认在手且纳入经营后才出现货源候选入口",
     order.lines.find((x) => x.sourceSku === "WDI571039").sourceCandidate,
   ).toBeTruthy();
 });
-test("v1 采购历史不再逐件手填成本，统一由订单级成本面板计算", async ({
+test("采购来源保留原始金额但不再要求成本确认", async ({
   page,
 }) => {
   const ctx = await createOrder(page),
@@ -343,14 +314,8 @@ test("v1 采购历史不再逐件手填成本，统一由订单级成本面板�
   ).toHaveCount(0);
   await expect(first).toContainText("USD 195.00");
   await expect(first).toContainText("USD 78.00");
-  const panel = page.locator(".procurement-cost-panel");
-  await expect(panel).toBeVisible();
-  await expect(panel).toContainText("人民币取得成本");
-  await expect(panel).toContainText("暂不能自动写入成本");
-  await expect(panel).toContainText("尚未完成保留/排除确认");
-  await expect(
-    panel.getByRole("button", { name: "确认订单成本依据", exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".procurement-cost-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "确认订单成本依据", exact: true })).toHaveCount(0);
   const order = await (
       await page.request.get("/api/procurement/orders/" + ctx.orderId)
     ).json(),

@@ -129,6 +129,7 @@ export async function readSales(
               customerRef: s.customerRef,
               state: s.state,
               returned: s.returned,
+              inventoryReturned: !!s.inventoryReturnedAt || s.returned,
               soldAt: s.soldAt,
               externalKey: s.externalKey,
             },

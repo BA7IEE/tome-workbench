@@ -463,8 +463,10 @@ test.describe("回执丢失后登录失效", () => {
   });
   test("询盘回执丢失再登录失效，修改输入仍不能重复提交", async ({ page }) => {
     const i = await product(page);
-    await page.goto(`/#/items/${i.id}`);
+    await page.goto("/#/inquiries");
     await page.getByRole("button", { name: "记录询盘", exact: true }).click();
+    await page.getByRole("dialog").getByLabel("商品TM号").fill(i.code);
+    await page.getByRole("dialog").getByRole("button", { name: "继续记录", exact: true }).click();
     const d = page.locator("#dialog"),
       customer = "恢复询盘 " + randomUUID();
     await d.getByLabel("渠道", { exact: true }).selectOption("OTHER");

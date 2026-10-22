@@ -416,11 +416,19 @@ type PendingBulk = {
     incompleteAcknowledgements?: Record<string, string>;
   };
   completed: Record<string, BulkResult>;
+  blocked?: { id: string; ok: false; error: string }[];
 };
 async function runBulk(plan: PendingBulk, storage: string) {
   await saveWork(storage, plan);
+  let progress = dialog.querySelector<HTMLElement>("[data-bulk-progress]");
+  if (!progress) {
+    dialog.querySelector(".form-grid")!.insertAdjacentHTML("beforeend",
+      '<p class="full note" role="status" aria-live="polite" data-bulk-progress></p>');
+    progress = dialog.querySelector<HTMLElement>("[data-bulk-progress]")!;
+  }
   for (let start = 0; start < plan.body.ids.length; start += 100) {
     if (plan.completed[start]) continue;
+    progress.textContent = `正在处理第 ${start + 1}—${Math.min(start + 100, plan.body.ids.length)} 件，共 ${plan.body.ids.length} 件。请保留此页面，逐件结果将在完成后显示。`;
     const ids = plan.body.ids.slice(start, start + 100),
       body = {
         ...plan.body,
@@ -447,7 +455,7 @@ async function runBulk(plan: PendingBulk, storage: string) {
     plan.completed[start] = result;
     await saveWork(storage, plan);
   }
-  const rows = Object.values(plan.completed).flatMap((r) => r.rows);
+  const rows = [...Object.values(plan.completed).flatMap((r) => r.rows), ...(plan.blocked || [])];
   for (const row of rows) if (row.ok) candidateSelection.delete(row.id);
   return {
     rows,
@@ -460,7 +468,7 @@ async function finishBulk(
   storage: string,
   after: () => Promise<void>,
 ) {
-  const rows = Object.values(plan.completed).flatMap((r) => r.rows),
+  const rows = [...Object.values(plan.completed).flatMap((r) => r.rows), ...(plan.blocked || [])],
     failed = rows.filter((r) => !r.ok);
   await saveWork(storage, undefined);
   lastBulkResult = { owner: me!.id, route: candidateResultScope(location.hash), plan, rows };
@@ -468,7 +476,7 @@ async function finishBulk(
   if (failed.length)
     viewDialog(
       "批量处理结果",
-      `<p>${rows.length - failed.length}件成功，${failed.length}件需要处理。请核对失败原因后重新选择；成功记录已保存。</p><ul>${failed.map((r) => `<li><strong>${esc(plan.selected.find((c) => c.id === r.id)?.titleRaw || "商品")}</strong><p>${esc(r.error)}</p>${button("核对该件", () => showSourceEvidence(r.id))}</li>`).join("")}</ul>`,
+      `<section class="candidate-bulk-results"><p>${rows.length - failed.length}件成功，${failed.length}件需要处理。成功记录已保存，需要处理的商品仍保持勾选。</p><ul>${failed.map((r) => `<li><strong>${esc(plan.selected.find((c) => c.id === r.id)?.titleRaw || "商品")}</strong><p>${esc(r.error)}</p>${button("核对该件", () => showSourceEvidence(r.id))}</li>`).join("")}</ul></section>`,
     );
 }
 function resumeBulk(
@@ -527,6 +535,23 @@ function reviewCandidateSelection() {
       .join("")}</ol></details>`,
   );
 }
+type ConfirmationPreviewRow = {
+  id: string;
+  version?: number;
+  title?: string;
+  integrity?: CaptureIntegrity;
+  blockers: string[];
+  colorNotice: string;
+};
+function groupedGapSummary(gaps: Candidate[]) {
+  const groups = new Map<string, number>();
+  for (const candidate of gaps)
+    for (const issue of candidate.integrity.issues)
+      groups.set(issue, (groups.get(issue) || 0) + 1);
+  return `<ul class="candidate-gap-groups">${[...groups].map(([issue, count]) =>
+    `<li><span>${esc(issue)}</span><strong>${count} 件</strong></li>`).join("")}</ul>`;
+}
+let preparingBulk = false;
 async function bulkAction(
   ids: string[],
   after: () => Promise<void>,
@@ -537,16 +562,42 @@ async function bulkAction(
   if (pending) return resumeBulk(pending, storage, after);
   const selected = ids.map((id) => candidateSelection.get(id)!).filter(Boolean),
     versions = Object.fromEntries(selected.map((c) => [c.id, c.version]));
-  const gaps = selected.filter(
+  if (preparingBulk) return;
+  const preview: ConfirmationPreviewRow[] = [];
+  if (!exclude) {
+    preparingBulk = true;
+    try {
+      for (let start = 0; start < ids.length; start += 100) {
+        const chunk = ids.slice(start, start + 100);
+        const result = await request<{ rows: ConfirmationPreviewRow[] }>(
+          "/ingest/candidates/confirmation-preview", "POST",
+          { ids: chunk, versions: Object.fromEntries(chunk.map(id => [id, versions[id]])) },
+        );
+        preview.push(...result.rows);
+      }
+    } finally { preparingBulk = false; }
+  }
+  const byId = new Map(preview.map(row => [row.id, row]));
+  const blocked = preview.filter(row => row.blockers.length)
+    .map(row => ({ id: row.id, ok: false as const, error: row.blockers.join("；") }));
+  const eligible = selected.filter(c => !byId.get(c.id)?.blockers.length);
+  for (const c of eligible) {
+    const current = byId.get(c.id);
+    if (current?.integrity) c.integrity = current.integrity;
+  }
+  const gaps = eligible.filter(
     (c) => c.integrity.state === "GAPS" && !c.integrity.blockers.length,
   );
+  const imageGaps = gaps.filter(c => (c.integrity.imageGaps?.length || 0) > 0 ||
+    c.integrity.expectedImages === 0);
+  const colors = [...new Set(preview.map(row => row.colorNotice).filter(Boolean))];
   let plan: PendingBulk | undefined;
   form(
-    exclude ? `批量排除 · ${ids.length}件` : `批量生成TM · ${ids.length}件`,
+    exclude ? `批量排除 · ${ids.length}件` : `批量确认入库 · ${ids.length}件`,
     note(
       exclude
         ? "排除不删除来源资料。"
-        : "确认实物在手并纳入经营后生成永久TM。是否立即可售需要另行确认，默认先待整理；逐件保留结果，中断后可继续。",
+        : `预检：${eligible.length} 件可确认入库，${blocked.length} 件需单独处理。入库后保留现有库存状态规则；不会自动批准资料或发布商品。`,
     ) +
       (exclude
         ? area("reason", "排除原因", "", 3)
@@ -561,21 +612,27 @@ async function bulkAction(
           ) +
           check("confirmed", "我已确认所选商品为实际持有并应纳入经营") +
           (gaps.length
-            ? `<section class="bulk-gap-review"><h3>${gaps.length} 件有来源缺项</h3>${gaps.map((c) => `<p><strong>${esc(c.titleRaw)}</strong><small>${c.integrity.issues.map(esc).join("；")}</small></p>`).join("")}${check("acceptGaps", "我已核对上述缺项，允许先建档并保留逐件说明")}${area("gapNote", "本批缺项处理依据", "", 2)}</section>`
-            : "")),
+            ? `<section class="bulk-gap-review full"><h3>${gaps.length} 件来源资料有缺项</h3>${groupedGapSummary(gaps)}${check("acceptGaps", "我同意保留上述来源缺项，确认入库后继续整理")}${imageGaps.length ? check("acceptImageGaps", `${imageGaps.length} 件来源图片不足：仅按现有资料入库，不代表图片可公开使用`) : ""}${area("gapNote", "补充说明（选填）", "", 2)}<small>来源原因会按每件商品及当前版本保留，无需逐件重复填写。</small></section>`
+            : "") +
+          (colors.length ? `<section class="full"><h3>颜色原文保留</h3><ul>${colors.map(c => `<li>${esc(c)}</li>`).join("")}</ul></section>` : "") +
+          (blocked.length ? `<details class="full"><summary>${blocked.length} 件暂不入库，其他商品可继续</summary><ul>${blocked.map(row => `<li><strong>${esc(selected.find(c => c.id === row.id)?.titleRaw)}</strong><p>${esc(row.error)}</p>${button("查看来源资料", () => showSourceEvidence(row.id))}</li>`).join("")}</ul></details>` : "")),
     async (d, key) => {
       if (!exclude && !d.has("confirmed"))
         throw new Error("请先确认实物和经营去向");
+      if (!exclude && !eligible.length) throw new Error("所选商品均需单独处理，请查看预检原因");
+      if (!exclude && gaps.length && !d.has("acceptGaps"))
+        throw new Error("请先确认上方已分组列出的来源缺项；尚未提交入库");
+      if (!exclude && imageGaps.length && !d.has("acceptImageGaps"))
+        throw new Error("请明确确认图片不足的商品仅按现有资料入库");
       const gapNote = text(d, "gapNote").trim();
-      if (d.has("acceptGaps") && gapNote.length < 3)
-        throw new Error("请填写缺项核对依据，至少3个字");
       const next: PendingBulk = {
         key,
         exclude,
         selected,
         completed: {},
+        blocked,
         body: {
-          ids,
+          ids: exclude ? ids : eligible.map(c => c.id),
           versions,
           ...(exclude
             ? { reason: text(d, "reason") }
@@ -588,7 +645,8 @@ async function bulkAction(
                         gaps.map((c) => [
                           c.id,
                           (
-                            gapNote +
+                            "人工同意保留已列来源缺项并确认入库" +
+                            (gapNote ? "；补充说明：" + gapNote : "") +
                             "；来源缺项：" +
                             c.integrity.issues.join("；")
                           ).slice(0, 2000),
@@ -606,9 +664,11 @@ async function bulkAction(
       plan ??= next;
       return runBulk(plan, storage);
     },
-    exclude ? "确认排除" : "确认生成TM",
+    exclude ? "确认排除" : "确认入库",
     () => finishBulk(plan!, storage, after),
   );
+  if (!exclude && !eligible.length)
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled = true;
 }
 function bulkConfirm(ids: string[], after: () => Promise<void>) {
   return bulkAction(ids, after);
@@ -959,7 +1019,7 @@ export async function candidatesPage() {
     <a class="btn subtle" href="${esc(importReturn)}">← 返回导入记录</a>
     ${bulkResultPanel()}
     ${pending ? `<div class="panel recovery-notice"><strong>上次批量处理尚未核对完成 · ${pending.selected.length} 件</strong>${button("继续上次处理", () => resumeBulk(pending, recoveryKey, refresh), "primary")}</div>` : ""}
-    <div class="page-title"><div><h1>${decision === "PENDING" ? "待确认商品" : batchId ? "本批商品" : "导入商品记录"}</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/procurement">采购历史</a></div></div>
+    <div class="page-title"><div><h1>${decision === "PENDING" ? "待确认商品" : batchId ? "本批商品" : "导入商品记录"}</h1><p>${batchId ? "仅显示本批次商品；再次导入后的最新资料仍需核对。" : "外部工具导入后先到这里，批量核对后归入商品库。"}</p></div><div class="button-row">${can("supply") ? button("导入检查", () => importChecks(sourceId)) + button("Agent接入", () => agentAccess(sources)) : ""}<a class="btn" href="#/imports">导入批次</a></div></div>
     <div class="candidate-metrics"><div><span>当前结果</span><strong>${data.total}</strong><small>${esc(decisionNames[decision] || "全部")}</small></div><div><span>本页</span><strong>${data.rows.length}</strong><small>${start}—${end}</small></div><div><span>处理方式</span><strong>批量优先</strong><small>异常件再单独调整</small></div></div>
     <form id="candidate-filter" class="admin-filter-form"><label class="search-field"><span>搜索候选</span><input name="q" value="${esc(q)}" placeholder="品牌、名称、原货号"></label>${select("sourceId", "来源", sourceOptions, sourceId)}${select("decision", "状态", decisionOptions, decision)}<button class="btn primary">筛选</button><a class="btn" href="${scopedHref()}">重置</a></form>
     <div class="candidate-viewbar"><label ${decision === "PENDING" && can("edit") ? "" : "hidden"}><input type="checkbox" id="select-candidate-page"> 选择本页</label><div><a class="btn ${view === "cards" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "cards" })}">图片模式</a><a class="btn ${view === "table" ? "primary" : ""}" href="#/candidates?${new URLSearchParams({ ...Object.fromEntries(qs), view: "table" })}">表格模式</a></div></div>
@@ -985,7 +1045,7 @@ export async function candidatesPage() {
       pageSelect.indeterminate = checked > 0 && checked < boxes().length;
       toolbar.hidden = selected.size === 0;
       if (!selected.size) return;
-      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${button("查看已选", reviewCandidateSelection)}${decision === "PENDING" && can("edit") ? button("批量生成TM", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
+      toolbar.innerHTML = `<span>已选 ${selected.size} 件 · 可跨页选择</span>${button("查看已选", reviewCandidateSelection)}${decision === "PENDING" && can("edit") ? button("批量确认入库", () => bulkConfirm([...selected.keys()], refresh), "primary") + button("批量排除", () => bulkExclude([...selected.keys()], refresh), "danger") : ""}${button(
         "取消选择",
         () => {
           selected.clear();

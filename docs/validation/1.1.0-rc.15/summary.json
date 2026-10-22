@@ -1,0 +1,11 @@
+{
+  "version": "1.1.0-rc.15",
+  "startedAt": "2026-10-22T11:01:14.231638+00:00",
+  "sourceSha256": "823f060ad50d715ba62a8a58b6fae8ae82b46ff7f4aa6c8a92ea1c12b47b210d",
+  "fullHarnessExitCode": null,
+  "sourceUnchanged": false,
+  "passed": false,
+  "error": "Pending exact-head CI after correcting only the selection-read test precondition",
+  "evidence": {},
+  "productionDeployment": false
+}

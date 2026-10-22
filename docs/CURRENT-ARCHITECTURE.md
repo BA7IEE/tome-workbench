@@ -19,6 +19,16 @@
 
 ## 前端
 
+rc.15 以商品为默认入口，日常导航为商品、导入、上架、设置。批量编辑共享控制器
+`bulk-edit.ts`，退役独立定价/渠道价/属性/分发模块与成本批处理、财务编辑、结算创建界面。
+`financial-history.ts` 仅按原 finance 权限读取；后台历史、锁和集成 API 保留。
+工作队列移除 SALE_FINANCE，Dashboard 库存计数共用一次分组读取，待处理总数使用 ALL。
+候选 `confirmation-preview` 只读分组预检，实际写入继续原按件事务、版本、Receipt 与审计。
+未知颜色保留原文属性；已存在标准别名才归一。来源缺项明确批量接受不放松发布校验。
+详细跨路由映射见 CORE-UX-SIMPLIFICATION。
+新增可空 Sale.inventoryReturnedAt 分离实物与财务回收。原 returned/CHECK不变；新回收命令沿用finance权限、版本、事务、审计与回执，库存占用仅忽略已收回的实物记录。复售继续review复检，Cycle与旧DELIST保留。
+
+
 来源成色降噪只改变 ingest 的新候选提示生成与待确认页面表示：`conditionRaw` 原文留在候选与来源证据，历史 `warnings`/修订不迁移；表示层过滤旧来源成色警告的当前行动计数，并以普通文本显示原文及本地等级待实物检查。`conditionGrade`、TM 和字典写入路径不变。
 
 React Foundation 负责真实 App Shell 和 AntD Provider；商品库使用受约束的 ProTable，文本字段使用 AntD + ProForm.Item，只读事实使用 ProDescriptions。管理记录及常见文本字段在原监听器绑定前通过共享生命周期适配，行属性、标签和转义内容保留。现有领域控制器继续负责写入、权限、版本和断线恢复；原生文件/日期/数字/字典选择及动态冲突 DOM 保留契约。根组件与页面生命周期绑定，ControllerSlot 保持 DOM 归属清晰。新模块按 [Foundation](TOME-ADMIN-FOUNDATION.md) 与 [接入检查](TOME-MODULE-ADMISSION.md) 开发，不复制旧桥接标记。

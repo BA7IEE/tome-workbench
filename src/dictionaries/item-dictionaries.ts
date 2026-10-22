@@ -51,6 +51,12 @@ export async function resolveItemDictionaries(
         const term = await tx.dictionaryTerm.findUnique({
           where: { kind_normalized: { kind, normalized: normalizeTerm(raw) } },
         });
+        if (!term && kind === "COLOR") {
+          result.facts.attributes.unclassifiedColor = raw;
+          result.facts.attributeLabels.unclassifiedColor = "颜色原文（待归类）";
+          set(result, kind, "");
+          continue;
+        }
         if (!term)
           throw new Fault(
             "DICTIONARY_REQUIRED",
